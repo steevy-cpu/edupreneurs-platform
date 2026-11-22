@@ -1,4 +1,8 @@
-# Mon Edupreneur 2.0 — backend foundation
+# Edupreneurs — platform backend and student app
+
+> **Naming.** The product is **Edupreneurs**. "Mon Edupreneur" is the domain
+> (mon-edupreneur.com) and the name of this repository; older documents here use
+> "Mon Edupreneur 2.0" as the project's working title.
 
 Backend for an offline-first learning platform for Haitian learners (7AF–NS4) on
 unreliable networks and older phones. This repository currently contains

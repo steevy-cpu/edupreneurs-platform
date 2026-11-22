@@ -1,4 +1,10 @@
-# Mon Edupreneur — student app (Mobile-01)
+# Edupreneurs — student app (Mobile-01)
+
+> **Naming.** The product and the app are called **Edupreneurs**. "Mon Edupreneur"
+> is only the domain (mon-edupreneur.com) and this repository's folder name.
+> Technical identifiers were deliberately left unchanged: bundle id / Android
+> package `ht.edupreneur.student.dev`, deep-link scheme `monedupreneur://`, and
+> Expo slug `mon-edupreneur-student`.
 
 React Native (Expo SDK 58, React Native 0.88) app for the first offline learning
 slice: sign in → choose class and subject → save a lesson → read it and answer
@@ -72,6 +78,18 @@ make mobile-ios                           # or: make mobile-android
 After changing `.env.local`, restart the bundler (`npx expo start -c`).
 Running the backend test-suites or `make token` gives the seed accounts new
 random passwords — run `make dev-login` again afterwards.
+
+### Opening the app again without rebuilding (iOS)
+
+```bash
+make api                                   # terminal 1 (backend)
+apps/student-native/scripts/ios-open.sh    # terminal 2: boots the simulator, opens its window,
+                                           # starts Metro if needed, launches the installed app
+```
+
+If Expo ever says "Simulator app did not open fast enough", run that script (or
+`open /Applications/Xcode-26.6.app/Contents/Developer/Applications/Simulator.app`)
+once and try again.
 
 ### The manual acceptance test
 

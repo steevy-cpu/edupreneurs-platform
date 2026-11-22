@@ -23,7 +23,7 @@ function Root() {
     return (
       <Screen>
         <Banner tone="bad">{bootError ?? 'Start-up failed'}</Banner>
-        <Body muted>Mon Edupreneur</Body>
+        <Body muted>Edupreneurs</Body>
       </Screen>
     );
   }

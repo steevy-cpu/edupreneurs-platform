@@ -2,7 +2,7 @@
 
 | Folder | Status | What it is |
 |---|---|---|
-| `apps/student-native/` | **Mobile-01 implemented** (logic tested; not yet run on a device) | React Native (Expo) student app: sign-in, saved lessons, offline practice, sync |
+| `apps/student-native/` | **Mobile-01 implemented** (logic tested; not yet run on a device) | Edupreneurs student app, React Native (Expo): sign-in, saved lessons, offline practice, sync |
 | `apps/lite-web/` | reserved, not started | Tiny HTML-first experience for older mobile browsers |
 | `apps/staff-web/` | reserved, not started | Editor / reviewer dashboard |
 

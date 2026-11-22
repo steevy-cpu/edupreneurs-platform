@@ -1,0 +1,11 @@
+# Part 2: after the simulator was shut down and booted again, the app must open
+# on the home screen (session restored from the Keychain), not on sign-in.
+appId: ht.edupreneur.student.dev
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Mes leçons"
+    timeout: 90000
+- assertNotVisible: "Se connecter"
+- takeScreenshot: shots/26-session-restored-after-reboot

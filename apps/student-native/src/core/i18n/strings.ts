@@ -6,7 +6,7 @@ import type { Locale } from '../api/types';
  * `{name}` placeholders are filled by `format()`.
  */
 const fr = {
-  appName: 'Mon Edupreneur',
+  appName: 'Edupreneurs',
   loading: 'Chargement…',
   retry: 'Réessayer',
   cancel: 'Annuler',
@@ -105,7 +105,7 @@ const fr = {
 export type StringKey = keyof typeof fr;
 
 const ht: Record<StringKey, string> = {
-  appName: 'Mon Edupreneur',
+  appName: 'Edupreneurs',
   loading: 'N ap chaje…',
   retry: 'Eseye ankò',
   cancel: 'Anile',

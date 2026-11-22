@@ -21,7 +21,7 @@ export interface ApiClientOptions {
 }
 
 /**
- * Typed client for the Mon Edupreneur API (docs/API_CONTRACT.md).
+ * Typed client for the Edupreneurs API (docs/API_CONTRACT.md).
  *
  * The learner's identity is never sent: the server takes it from the token.
  */

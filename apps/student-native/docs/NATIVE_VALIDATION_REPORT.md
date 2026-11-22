@@ -104,6 +104,31 @@ Runtime errors during the whole session: **none** in the Metro log; no crash.
 Test-only adjustments: test ids on the two sign-in fields; the flows dismiss
 iOS's "Save Password?" system prompt.
 
+## 6b. Follow-up session (same day)
+
+- **"Simulator app did not open fast enough" (reported by the founder running
+  `make mobile-ios`).** Cause: Xcode 26.6 was installed from an archive and had
+  never been opened, so macOS did not know its Simulator app; `open -a Simulator`
+  (what Expo runs) failed with "Unable to find application named 'Simulator'".
+  Opening Simulator once by its full path registers it. `scripts/ios-open.sh`
+  does that and launches the already-installed build without rebuilding.
+- **Branding.** User-facing name changed to **Edupreneurs** (app text, header
+  title, `app.json` display name). Screenshots `27`, `28`. Bundle id, Android
+  package, deep-link scheme and Expo slug were left unchanged.
+- **Session survives a device restart.** Sign in → shut the simulator down → boot
+  → launch: the app opened on the home screen (flow `08_*`, screenshot `26`).
+- **Unintended side effect, disclosed.** Re-applying the configuration after the
+  rename (`expo prebuild` without `--clean`) regenerated the whole `ios/` folder
+  because the project name changed. That deleted the generated Xcode project,
+  `ios/Pods` and `ios/build` (about 3.8 GB, all regenerable). The app installed in
+  the simulator was not affected and still runs, but its home-screen label still
+  says "Mon Edupreneur" until the iOS app is rebuilt (about 15 minutes).
+- **Observed once, not explained.** After the simulator had been shut down and
+  booted, the app showed the sign-in screen instead of home. A deliberate
+  sign-in → reboot → launch test afterwards passed, and changing the account's
+  password on the server did not sign the app out. The cause of the single
+  occurrence is unknown.
+
 ## 7. Performance (measured vs targets)
 
 | Target | Measured | Verdict |

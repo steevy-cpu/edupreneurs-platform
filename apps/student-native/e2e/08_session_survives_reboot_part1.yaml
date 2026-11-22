@@ -1,0 +1,21 @@
+# Part 1 of the device-restart check: sign in and reach home.
+appId: ht.edupreneur.student.dev
+---
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Se connecter"
+    timeout: 60000
+- tapOn:
+    id: "sign-in-email"
+- inputText: ${EMAIL}
+- tapOn:
+    id: "sign-in-password"
+- inputText: ${PASSWORD}
+- tapOn: "Se connecter"
+- tapOn:
+    text: "Not Now"
+    optional: true
+- extendedWaitUntil:
+    visible: "Mes leçons"
+    timeout: 30000
