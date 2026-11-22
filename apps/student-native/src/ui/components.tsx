@@ -21,7 +21,13 @@ export function Screen({ children, scroll = true }: { children: React.ReactNode;
   return (
     <SafeAreaView style={styles.safe} edges={['bottom', 'left', 'right']}>
       {scroll ? (
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          // iOS 26 navigation bars are translucent: without this the first rows
+          // of every screen render underneath the header (found in native testing).
+          contentInsetAdjustmentBehavior="automatic"
+        >
           {children}
         </ScrollView>
       ) : (

@@ -26,3 +26,6 @@ supabase/.branches/
 .DS_Store
 .idea/
 .vscode/
+
+# Local developer tools (UI automation), downloaded on demand
+.tools/

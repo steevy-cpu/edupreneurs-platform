@@ -1,0 +1,22 @@
+# Force-quit and reopen (backend still unreachable): everything must still be there.
+appId: ht.edupreneur.student.dev
+---
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "5 action\\(s\\) en attente de synchronisation"
+    timeout: 60000
+- takeScreenshot: shots/14-home-after-restart-offline
+- tapOn: "Progrès et synchronisation"
+- extendedWaitUntil:
+    visible: "5 question\\(s\\) répondue\\(s\\) sur 5"
+    timeout: 10000
+- assertVisible: "4 bonne\\(s\\) réponse\\(s\\)"
+- takeScreenshot: shots/15-progress-after-restart-offline
+- tapOn: "Synchroniser maintenant"
+- extendedWaitUntil:
+    visible: "Serveur injoignable.*"
+    timeout: 60000
+- assertVisible: "5 action\\(s\\) en attente de synchronisation"
+- takeScreenshot: shots/16-sync-attempt-offline

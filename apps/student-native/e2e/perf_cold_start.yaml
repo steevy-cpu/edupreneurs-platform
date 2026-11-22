@@ -1,0 +1,9 @@
+# Rough cold-start timing: force-quit, launch, wait for the cached home screen.
+appId: ht.edupreneur.student.dev
+---
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Mes leçons"
+    timeout: 60000

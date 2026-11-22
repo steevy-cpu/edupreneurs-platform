@@ -1,0 +1,77 @@
+# Sign out, sign in as the other student: no trace of the first student's progress.
+# Run with: -e EMAIL_B=... -e PASSWORD_B=... -e EMAIL=... -e PASSWORD=...
+appId: ht.edupreneur.student.dev
+---
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Se déconnecter"
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Se déconnecter"
+    direction: DOWN
+- tapOn: "Se déconnecter"
+- extendedWaitUntil:
+    visible: "Se connecter"
+    timeout: 20000
+- takeScreenshot: shots/18-signed-out
+- tapOn:
+    id: "sign-in-email"
+- inputText: ${EMAIL_B}
+- tapOn:
+    id: "sign-in-password"
+- inputText: ${PASSWORD_B}
+- tapOn: "Se connecter"
+# iOS may offer to save the password in its keychain; decline so the test stays deterministic.
+- tapOn:
+    text: "Not Now"
+    optional: true
+- extendedWaitUntil:
+    visible: "Bonjour student.b"
+    timeout: 30000
+- assertVisible: "Tout est synchronisé"
+- takeScreenshot: shots/19-home-student-b
+- tapOn: "Progrès et synchronisation"
+- extendedWaitUntil:
+    visible: "0 question\\(s\\) répondue\\(s\\) sur 5"
+    timeout: 10000
+- assertNotVisible: "5 question\\(s\\) répondue\\(s\\) sur 5"
+- takeScreenshot: shots/20-progress-student-b-empty
+# Back to home: the header button on iOS, the system back key on Android.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn: "Retour"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - back
+- scrollUntilVisible:
+    element: "Se déconnecter"
+    direction: DOWN
+- tapOn: "Se déconnecter"
+- extendedWaitUntil:
+    visible: "Se connecter"
+    timeout: 20000
+- tapOn:
+    id: "sign-in-email"
+- inputText: ${EMAIL}
+- tapOn:
+    id: "sign-in-password"
+- inputText: ${PASSWORD}
+- tapOn: "Se connecter"
+# iOS may offer to save the password in its keychain; decline so the test stays deterministic.
+- tapOn:
+    text: "Not Now"
+    optional: true
+- extendedWaitUntil:
+    visible: "Bonjour student.a"
+    timeout: 30000
+- tapOn: "Progrès et synchronisation"
+- extendedWaitUntil:
+    visible: "5 question\\(s\\) répondue\\(s\\) sur 5"
+    timeout: 20000
+- takeScreenshot: shots/21-progress-student-a-back

@@ -1,0 +1,9 @@
+# iOS build log summary (full log not kept: it is thousands of lines)
+command: xcodebuild -workspace MonEdupreneur.xcworkspace -scheme MonEdupreneur -configuration Debug -sdk iphonesimulator -destination id=<iPhone 17, iOS 26.5> -derivedDataPath build build
+toolchain: Xcode 26.6 (17F113), iOS SDK 26.5, CocoaPods 1.16.2
+log lines:    35640
+compiler errors: 0
+compiler warnings: 975
+** BUILD SUCCEEDED **
+duration: 540 s
+pod install: 3 min 39 s, exit 0

@@ -1,9 +1,14 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
+import { LogBox } from 'react-native';
 
 import { AppProvider, useApp } from '../ui/AppContext';
 import { Banner, Body, Loading, Screen } from '../ui/components';
+
+// React Navigation emits this development-only warning on every transition; it is
+// harmless but its on-screen banner covers the bottom buttons in debug builds.
+LogBox.ignoreLogs(['Sending `onAnimatedValueUpdate` with no listeners registered']);
 
 function Root() {
   const { boot, bootError, t } = useApp();

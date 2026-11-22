@@ -1,0 +1,54 @@
+# Run while the backend is UNREACHABLE. Continues from the lesson reader (flow 01),
+# or from a relaunch: answers the five questions (four right, one wrong).
+appId: ht.edupreneur.student.dev
+---
+- tapOn: "Faire les exercices"
+- extendedWaitUntil:
+    visible: "Question 1 sur 5"
+    timeout: 10000
+- takeScreenshot: shots/09-quiz-q1
+- tapOn: "x = 7"
+- tapOn: "Valider"
+- extendedWaitUntil:
+    visible: "Réponse enregistrée sur ce téléphone"
+    timeout: 10000
+- assertVisible: "Bonne réponse !"
+- takeScreenshot: shots/10-quiz-q1-feedback
+- tapOn: "Question suivante"
+- assertVisible: "Question 2 sur 5"
+- tapOn: "x = 6"
+- tapOn: "Valider"
+- extendedWaitUntil:
+    visible: "Réponse enregistrée sur ce téléphone"
+    timeout: 10000
+- tapOn: "Question suivante"
+- assertVisible: "Question 3 sur 5"
+- tapOn: "x = 4"
+- tapOn: "Valider"
+- extendedWaitUntil:
+    visible: "Réponse enregistrée sur ce téléphone"
+    timeout: 10000
+- tapOn: "Question suivante"
+- assertVisible: "Question 4 sur 5"
+- tapOn: "x = 13"
+- tapOn: "Valider"
+- extendedWaitUntil:
+    visible: "Réponse enregistrée sur ce téléphone"
+    timeout: 10000
+- tapOn: "Question suivante"
+- assertVisible: "Question 5 sur 5"
+- tapOn: "x = 0"
+- tapOn: "Valider"
+- extendedWaitUntil:
+    visible: "Ce n’est pas la bonne réponse."
+    timeout: 10000
+- takeScreenshot: shots/11-quiz-q5-wrong
+- tapOn: "Voir mon résultat"
+- assertVisible: "Tu as 4 bonne\\(s\\) réponse\\(s\\) sur 5."
+- takeScreenshot: shots/12-quiz-result
+- tapOn: "Progrès et synchronisation"
+- extendedWaitUntil:
+    visible: "5 question\\(s\\) répondue\\(s\\) sur 5"
+    timeout: 10000
+- assertVisible: "5 action\\(s\\) en attente de synchronisation"
+- takeScreenshot: shots/13-progress-offline-pending

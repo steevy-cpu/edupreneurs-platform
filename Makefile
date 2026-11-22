@@ -84,8 +84,8 @@ mobile-check: ## Mobile static checks: generated API types fresh, TypeScript (ap
 mobile-test: ## Mobile core tests against the local stack (real SQLite, real API and Auth)
 	cd $(MOBILE) && npx jest
 
-mobile-ios: ## Build and run a development build on the iOS Simulator (needs Xcode, ~10 GB free)
-	cd $(MOBILE) && DEVELOPER_DIR=$${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer} npx expo run:ios
+mobile-ios: ## Build and run a development build on the iOS Simulator (needs Xcode 26.4+ and its iOS simulator runtime)
+	cd $(MOBILE) && DEVELOPER_DIR=$${DEVELOPER_DIR:-/Applications/Xcode-26.6.app/Contents/Developer} LANG=en_US.UTF-8 npx expo run:ios
 
 mobile-android: ## Build and run a development build on an Android emulator/device (needs Android SDK)
 	cd $(MOBILE) && ANDROID_HOME=$${ANDROID_HOME:-$$HOME/Library/Android/sdk} npx expo run:android

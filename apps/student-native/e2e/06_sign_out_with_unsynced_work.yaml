@@ -1,0 +1,46 @@
+# Run while the backend is UNREACHABLE, signed in as student A with the lesson saved.
+# One offline answer, then sign out: the app must warn, and "keep my work" must not lose it.
+appId: ht.edupreneur.student.dev
+---
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Mes leçons"
+    timeout: 60000
+- tapOn: "Mes leçons"
+- extendedWaitUntil:
+    visible: "Ouvrir"
+    timeout: 20000
+- takeScreenshot: shots/22-lessons-offline-from-cache
+- tapOn: "Ouvrir"
+- scrollUntilVisible:
+    element: "Faire les exercices"
+    direction: DOWN
+- tapOn: "Faire les exercices"
+- tapOn: "x = 7"
+- tapOn: "Valider"
+- extendedWaitUntil:
+    visible: "Réponse enregistrée sur ce téléphone"
+    timeout: 10000
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "1 action\\(s\\) en attente de synchronisation"
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Se déconnecter"
+    direction: DOWN
+- tapOn: "Se déconnecter"
+- extendedWaitUntil:
+    visible: "Travail non synchronisé"
+    timeout: 10000
+- assertVisible: "Synchroniser d’abord"
+- assertVisible: "Se déconnecter et garder mon travail"
+- takeScreenshot: shots/23-sign-out-warning
+- tapOn: "Se déconnecter et garder mon travail"
+- extendedWaitUntil:
+    visible: "Se connecter"
+    timeout: 20000
+- takeScreenshot: shots/24-signed-out-work-kept

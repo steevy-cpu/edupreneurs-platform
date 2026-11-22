@@ -5,9 +5,10 @@ slice: sign in → choose class and subject → save a lesson → read it and an
 its questions with no network → sync when the connection returns.
 
 > **Status:** the storage and sync logic is tested against the real local
-> backend (52 automated tests). The app type-checks and bundles for Android and
-> iOS. **It has not yet been launched on a simulator, emulator or phone** — see
-> `docs/MOBILE_01_REPORT.md` for exactly what is and is not verified.
+> backend (52 automated tests), and the app has been built and run on the
+> **iOS Simulator**, where the full offline workflow passed
+> (`docs/NATIVE_VALIDATION_REPORT.md`). **Android and physical phones are not
+> yet tested.**
 
 Supported OS range of this Expo SDK: **Android 7.0+ (API 24)**, **iOS 16.4+**. Building for iOS requires **Xcode 26.4 or newer**.
 

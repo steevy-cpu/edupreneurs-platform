@@ -1,0 +1,10 @@
+# Backend reachable again: sync and confirm nothing is pending.
+appId: ht.edupreneur.student.dev
+---
+- tapOn: "Synchroniser maintenant"
+- extendedWaitUntil:
+    visible: "Tout est synchronisé"
+    timeout: 60000
+- assertNotVisible: ".*en attente de synchronisation"
+- assertVisible: "5 question\\(s\\) répondue\\(s\\) sur 5"
+- takeScreenshot: shots/17-progress-synced

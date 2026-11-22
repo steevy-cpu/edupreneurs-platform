@@ -8,9 +8,13 @@ for Android and iOS. **It has not yet been run on a simulator, emulator or
 phone.** No backend API change was needed. Full details, including what is and
 is not verified: `apps/student-native/docs/MOBILE_01_REPORT.md`.
 
-Immediate next step: free about 10 GB of disk, then `make mobile-ios` (or
-`make mobile-android`) and walk through the manual acceptance test in
-`apps/student-native/README.md`.
+Native validation (same day): the app was built with Xcode 26.6 and passed the
+full offline workflow on the iOS Simulator
+(`apps/student-native/docs/NATIVE_VALIDATION_REPORT.md`).
+
+Immediate next step: free about 9 GB of disk, install the Android build
+components, and repeat the acceptance test on an Android emulator (including
+API 24), then on a real low-memory Android phone.
 
 ## Ready for mobile integration now
 

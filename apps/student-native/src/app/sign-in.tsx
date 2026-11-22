@@ -50,6 +50,7 @@ export default function SignIn() {
           autoCorrect={false}
           keyboardType="email-address"
           textContentType="username"
+          testID="sign-in-email"
           accessibilityLabel={t('signInEmail')}
         />
       </View>
@@ -64,6 +65,7 @@ export default function SignIn() {
           autoCapitalize="none"
           autoCorrect={false}
           textContentType="password"
+          testID="sign-in-password"
           accessibilityLabel={t('signInPassword')}
           onSubmitEditing={() => void submit()}
         />

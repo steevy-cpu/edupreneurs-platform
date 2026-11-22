@@ -1,5 +1,11 @@
 # Mobile-01 — report
 
+> **Update 2026-11-22 (native validation).** The app has since been built and
+> run on the **iOS Simulator** (iPhone 17, iOS 26.5): all seven screens and the
+> full offline workflow passed. Android and physical devices remain untested.
+> See `NATIVE_VALIDATION_REPORT.md`. The text below is the original report and
+> describes the state before that run.
+
 **Overall status: PARTIAL.** The app is written, type-checks, bundles for Android
 and iOS, and its storage + synchronisation logic passes 52 automated tests
 against the real local backend — including the full "save lesson → airplane
