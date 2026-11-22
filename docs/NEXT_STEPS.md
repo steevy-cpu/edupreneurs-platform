@@ -1,5 +1,17 @@
 # Next steps
 
+## Status update — Mobile-01 (2026-11-22)
+
+The student app now exists in `apps/student-native/` (Expo SDK 58). Its storage
+and sync logic passes 52 automated tests against this backend, and it bundles
+for Android and iOS. **It has not yet been run on a simulator, emulator or
+phone.** No backend API change was needed. Full details, including what is and
+is not verified: `apps/student-native/docs/MOBILE_01_REPORT.md`.
+
+Immediate next step: free about 10 GB of disk, then `make mobile-ios` (or
+`make mobile-android`) and walk through the manual acceptance test in
+`apps/student-native/README.md`.
+
 ## Ready for mobile integration now
 
 The React Native app can be built against the local stack today:

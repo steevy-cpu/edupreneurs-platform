@@ -21,7 +21,8 @@ offline synchronisation contract — all running **locally only**.
 | `scripts/` | Local-only helpers (setup, get a test token, export the contract) |
 | `docs/` | Architecture, security, API contract, schema changelog, test report, next steps |
 | `docs/reference/` | The original v0.2 drafts and the assignment, kept unmodified for comparison |
-| `apps/`, `services/worker/` | Reserved for the future mobile/web apps and workers (empty on purpose) |
+| `apps/student-native/` | React Native (Expo) student app — Mobile-01. See its README and `docs/MOBILE_01_REPORT.md` |
+| `services/worker/` | Reserved for future workers (empty on purpose) |
 
 ## Prerequisites (macOS or Linux)
 
@@ -60,6 +61,9 @@ The first run downloads about 1.5 GB of Docker images.
 | `make check` | Everything CI runs |
 | `make openapi` | Regenerate `packages/contracts/openapi.json` after changing the API |
 | `make status` | Show local stack URLs |
+| `make mobile-install` / `mobile-check` / `mobile-test` | Mobile app: install, static checks, 52 core tests against the local stack |
+| `make dev-login ACCOUNT=student_a` | Print an e-mail + password to type into the app |
+| `make mobile-env TARGET=ios-sim` then `make mobile-ios` | Configure and run the app on the iOS Simulator (`android-emu` / `mobile-android` for Android) |
 
 ### Try it by hand
 

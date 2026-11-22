@@ -25,6 +25,9 @@ jobs:
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            apps/student-native/package-lock.json
 
       - uses: astral-sh/setup-uv@v5
         with:
@@ -58,6 +61,23 @@ jobs:
 
       - name: Database tests again (must not depend on what the API tests left behind)
         run: make test-db
+
+      - name: Mobile app — install, static checks, bundle for Android and iOS
+        working-directory: apps/student-native
+        env:
+          EXPO_PUBLIC_API_URL: http://127.0.0.1:8000
+          EXPO_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder
+        run: |
+          npm ci --no-fund --no-audit
+          npm run -s check:api
+          npx tsc --noEmit
+          npx tsc --noEmit -p tests
+          npx expo export --platform android --platform ios --output-dir dist
+
+      - name: Mobile app — core tests (real SQLite, real local API and Auth)
+        working-directory: apps/student-native
+        run: npx jest
 
       - name: Stop local stack
         if: always()

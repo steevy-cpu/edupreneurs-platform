@@ -3,7 +3,7 @@ SUPABASE := npx --no-install supabase
 PY := uv run
 
 .DEFAULT_GOAL := help
-.PHONY: help install setup start stop status db-reset api token test test-db test-api lint format typecheck check openapi
+.PHONY: help install setup start stop status db-reset api api-lan token dev-login test test-db test-api lint format typecheck check openapi mobile-install mobile-env mobile-check mobile-test mobile-ios mobile-android
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -62,3 +62,30 @@ check: lint typecheck test ## Everything CI runs
 
 openapi: ## Regenerate packages/contracts/openapi.json
 	$(PY) python scripts/export_openapi.py
+
+# ---- student mobile app (apps/student-native) --------------------------------
+MOBILE := apps/student-native
+
+api-lan: ## Run the API reachable from a real phone on the same Wi-Fi (local network only)
+	$(PY) uvicorn edu_api.main:create_app --factory --host 0.0.0.0 --port 8000
+
+dev-login: ## Print an e-mail + password to type into the app: make dev-login ACCOUNT=student_a
+	@$(PY) python scripts/dev_login.py $(or $(ACCOUNT),student_a)
+
+mobile-install: ## Install the mobile app's JavaScript dependencies
+	cd $(MOBILE) && npm ci --no-fund --no-audit
+
+mobile-env: ## Write the app's .env.local: make mobile-env TARGET=ios-sim|android-emu|lan
+	$(PY) python scripts/mobile_env.py $(or $(TARGET),ios-sim)
+
+mobile-check: ## Mobile static checks: generated API types fresh, TypeScript (app + tests)
+	cd $(MOBILE) && npm run -s check:api && npx tsc --noEmit && npx tsc --noEmit -p tests
+
+mobile-test: ## Mobile core tests against the local stack (real SQLite, real API and Auth)
+	cd $(MOBILE) && npx jest
+
+mobile-ios: ## Build and run a development build on the iOS Simulator (needs Xcode, ~10 GB free)
+	cd $(MOBILE) && DEVELOPER_DIR=$${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer} npx expo run:ios
+
+mobile-android: ## Build and run a development build on an Android emulator/device (needs Android SDK)
+	cd $(MOBILE) && ANDROID_HOME=$${ANDROID_HOME:-$$HOME/Library/Android/sdk} npx expo run:android

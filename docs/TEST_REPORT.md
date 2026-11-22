@@ -1,5 +1,9 @@
 # Test report — Foundation-01
 
+> **Mobile-01 (2026-11-22):** the mobile app's results are reported separately in
+> `apps/student-native/docs/MOBILE_01_REPORT.md`. The backend suites below were
+> re-run unchanged after that work: 209 pgTAP + 144 pytest, all passing.
+
 Everything below was **actually executed** on 2026-11-21 (evening, US Eastern;
 timestamps in outputs are UTC, hence 2026-11-22). Nothing is reported as passing
 that was not run. Items that could not be run are listed at the end.
