@@ -25,7 +25,7 @@ atomically, and says no more than that.
 
 > **Correction (added during implementation).** The first inspection concluded
 > that this machine had no Xcode and no Android SDK. That was wrong: the
-> command-line tools were simply not pointed at Xcode. Xcode 26.3, CocoaPods and
+> command-line tools were simply not pointed at Xcode. Xcode 26.3 (older than the 26.4 Expo SDK 58 requires), CocoaPods and
 > iOS simulators are installed, and Android Studio was being set up at the same
 > time. The real blocker turned out to be **free disk space** (under 2 GB, and at
 > one point 130 MB, which crashed the local Docker VM). A native development
@@ -57,7 +57,7 @@ src/app/       Expo Router screens
 tests/         jest: same core code with a Node SQLite adapter, against the live local stack
 ```
 
-Stack: Expo SDK 58 (React Native 0.88, Android minSdk 24 = Android 7.0, iOS 15.1+),
+Stack: Expo SDK 58 (React Native 0.88, Android minSdk 24 = Android 7.0, iOS 16.4+ — corrected, see MOBILE_01_REPORT §7),
 Expo Router, `expo-sqlite`, `expo-secure-store`, `expo-crypto` (UUIDs). No Supabase
 SDK, no state library, no i18n library, no UI kit, no NetInfo — fewer megabytes
 and fewer things to break on old phones.

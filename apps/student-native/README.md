@@ -9,7 +9,7 @@ its questions with no network → sync when the connection returns.
 > iOS. **It has not yet been launched on a simulator, emulator or phone** — see
 > `docs/MOBILE_01_REPORT.md` for exactly what is and is not verified.
 
-Supported OS range of this Expo SDK: **Android 7.0+ (API 24)**, **iOS 15.1+**.
+Supported OS range of this Expo SDK: **Android 7.0+ (API 24)**, **iOS 16.4+**. Building for iOS requires **Xcode 26.4 or newer**.
 
 ## Layout
 

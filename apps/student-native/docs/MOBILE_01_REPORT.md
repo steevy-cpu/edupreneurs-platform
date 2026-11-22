@@ -206,7 +206,8 @@ Coverage of the required scenarios:
 | Check | Android | iOS |
 |---|---|---|
 | Metro production bundle (Hermes bytecode) builds | **done** — 2.7 MB | **done** — 2.7 MB |
-| Minimum OS of the chosen SDK | Android 7.0 (API 24), from React Native 0.88's `minSdk = 24` | iOS 15.1, from React Native's `min_ios_version_supported` |
+| Minimum OS of the chosen SDK | Android 7.0 (API 24), from React Native 0.88's `minSdk = 24` | **iOS 16.4** — every Expo module in the app (`Expo`, `ExpoModulesCore`, `ExpoRouter`, `ExpoSecureStore`) declares `:ios => '16.4'` in its podspec, matching Expo's SDK 58 table |
+| Required build tool | compileSdk 37, build-tools 37.0.0, NDK 27.1 (React Native 0.88 `libs.versions.toml`) | **Xcode 26.4+** (Expo SDK 58 table) |
 | Native development build (`expo run:*`) | **[NOT DONE]** | **[NOT DONE]** |
 | Launched on emulator / simulator | **[NOT DONE]** | **[NOT DONE]** |
 | Manual acceptance scenario on screen | **[NOT DONE]** | **[NOT DONE]** |
@@ -217,6 +218,16 @@ one point 130 MB, which crashed the local Docker VM). Xcode 26.3, CocoaPods and
 iOS simulators are installed; Android Studio was being installed at the same
 time and had no virtual device yet. A first native build needs several GB, so
 attempting one risked another disk-full failure. Nothing was deleted to make room.
+
+> **Correction (2026-11-22, after review).** An earlier version of this report
+> said "iOS 15.1+" and treated the installed Xcode 26.3 as usable. Both were
+> wrong. 15.1 is React Native's own floor; the app's effective minimum is
+> **iOS 16.4** because Expo's modules require it, and Expo SDK 58 requires
+> **Xcode 26.4 or newer**. The installed Xcode (26.3, iOS SDK 26.2) is therefore
+> too old to build this app and must be updated first. The deployment target has
+> not been, and will not be, lowered below what Expo supports. Practical
+> consequence: iPhones that cannot run iOS 16.4 (iPhone 7 and older) are not
+> supported by this SDK.
 
 Consequently these are **unverified on a real runtime**: the `expo-sqlite`
 adapter (notably `withExclusiveTransactionAsync`), the SecureStore adapter,
