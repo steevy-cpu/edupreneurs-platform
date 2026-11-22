@@ -1,0 +1,83 @@
+#:schema https://supabase.com/schemas/config/v1.json
+# Mon Edupreneur 2.0 — LOCAL-ONLY Supabase stack.
+#
+# This file configures the disposable stack started by `supabase start`.
+# It is never linked to a hosted project. Only the services the backend
+# foundation needs are enabled, so the stack stays light on small machines:
+#   db (PostgreSQL), auth (GoTrue), and the API gateway + PostgREST (kept only
+#   so the tests can PROVE the private `app` schema is not reachable through
+#   the Supabase Data API).
+project_id = "mon-edupreneur"
+
+[api]
+enabled = true
+port = 54321
+# SECURITY: the private `app` schema must NEVER be added to this list.
+# tests/integration/test_data_api_exposure.py fails if it becomes reachable.
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+# Nothing in `public` is auto-granted to anon/authenticated; grants must be explicit.
+auto_expose_new_tables = false
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.pooler]
+# The API connects straight to Postgres locally. See docs/SECURITY.md for the
+# hosted pooler (Supavisor transaction mode) requirements.
+enabled = false
+
+[db.migrations]
+enabled = true
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = []
+jwt_expiry = 3600
+# Asymmetric (ES256) signing key generated locally by `make setup`
+# (scripts/local_stack.py). The file is git-ignored. Because access tokens are
+# signed with a private key that only Auth holds, the FastAPI service verifies
+# them with the PUBLIC key from the JWKS endpoint and holds no signing secret.
+signing_keys_path = "./signing_keys.json"
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+# Seed users are synthetic and created by seed.sql; nobody signs up locally.
+enable_signup = false
+enable_anonymous_sign_ins = false
+minimum_password_length = 12
+
+[auth.email]
+enabled = true
+enable_confirmations = false
+
+[auth.sms]
+enabled = false
+
+# ---- Services not needed for Foundation-01 (kept off to save memory) ----
+[realtime]
+enabled = false
+
+[studio]
+# Set to true if you want the local dashboard at http://127.0.0.1:54323
+enabled = false
+port = 54323
+
+[local_smtp]
+enabled = false
+
+[storage]
+enabled = false
+
+[edge_runtime]
+enabled = false
+
+[analytics]
+enabled = false

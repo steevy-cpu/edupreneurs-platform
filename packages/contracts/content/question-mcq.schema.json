@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.mon-edupreneur.local/content/question-mcq.schema.json",
+  "title": "Multiple-choice practice question (content format v1)",
+  "description": "The four JSON columns of an app.question_revisions row whose kind is 'mcq'. Scoring rule 'mcq-v1': score 1 when the selected choice id equals answer_key.correct_choice_id, otherwise 0.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["prompt", "response_spec", "answer_key", "explanation"],
+  "properties": {
+    "prompt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text"],
+      "properties": { "text": { "type": "string", "minLength": 1, "maxLength": 1000 } }
+    },
+    "response_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["choices"],
+      "properties": {
+        "choices": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "text"],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" },
+              "text": { "type": "string", "minLength": 1, "maxLength": 300 }
+            }
+          }
+        }
+      }
+    },
+    "answer_key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["correct_choice_id"],
+      "properties": {
+        "correct_choice_id": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" }
+      }
+    },
+    "explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text"],
+      "properties": { "text": { "type": "string", "minLength": 1, "maxLength": 2000 } }
+    }
+  }
+}

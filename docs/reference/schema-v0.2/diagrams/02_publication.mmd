@@ -1,0 +1,42 @@
+erDiagram
+    LESSON_REVISIONS ||--o{ LESSON_REVISION_SOURCES : referenced_by
+    CONTENT_SOURCES ||--o{ LESSON_REVISION_SOURCES : sources
+    LESSON_REVISIONS ||--o{ EDITORIAL_REVIEWS : reviews
+    LESSON_REVISIONS ||--o{ PACK_ITEMS : included_in
+    PACK_RELEASES ||--o{ PACK_ITEMS : contains
+    PACK_RELEASES ||--o| PACK_CURRENT : points_to
+    CONTENT_SOURCES {
+    uuid id PK
+    text rights_status
+    }
+    LESSON_REVISIONS {
+    uuid id PK
+    text status
+    text locale
+    }
+    LESSON_REVISION_SOURCES {
+    uuid lesson_revision_id PK,FK
+    uuid source_id PK,FK
+    }
+    EDITORIAL_REVIEWS {
+    uuid id PK
+    uuid reviewer_id FK
+    text verdict
+    }
+    PACK_RELEASES {
+    uuid id PK
+    text pack_key
+    int revision
+    text locale
+    bytea manifest_sha256
+    }
+    PACK_ITEMS {
+    uuid pack_release_id PK,FK
+    uuid lesson_revision_id PK,FK
+    int position
+    }
+    PACK_CURRENT {
+    text pack_key PK
+    text locale PK
+    uuid release_id FK
+    }

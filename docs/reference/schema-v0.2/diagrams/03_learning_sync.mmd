@@ -1,0 +1,35 @@
+erDiagram
+    LEARNER_PROFILES ||--o{ LESSON_PROGRESS : has
+    LESSONS ||--o{ LESSON_PROGRESS : tracked_in
+    LEARNER_PROFILES ||--o{ PRACTICE_ATTEMPTS : submits
+    QUESTION_REVISIONS ||--o{ PRACTICE_ATTEMPTS : answered_in
+    LEARNER_PROFILES ||--o{ SYNC_RECEIPTS : owns
+    LEARNER_PROFILES ||--|| ACCOUNT_SYNC_STATE : cursor_state
+    ACCOUNT_SYNC_STATE ||--o{ ACCOUNT_CHANGE_FEED : produces
+    LEARNER_PROFILES { uuid user_id PK }
+    LESSONS { uuid id PK }
+    QUESTION_REVISIONS { uuid id PK }
+    LESSON_PROGRESS {
+    uuid learner_id PK,FK
+    uuid lesson_id PK,FK
+    timestamp completed_at
+    }
+    PRACTICE_ATTEMPTS {
+    uuid id PK
+    uuid op_id UK
+    uuid question_revision_id FK
+    }
+    SYNC_RECEIPTS {
+    uuid learner_id PK,FK
+    uuid op_id PK
+    bytea payload_sha256
+    }
+    ACCOUNT_SYNC_STATE {
+    uuid learner_id PK,FK
+    bigint current_version
+    }
+    ACCOUNT_CHANGE_FEED {
+    uuid learner_id PK,FK
+    bigint version PK
+    jsonb change_data
+    }

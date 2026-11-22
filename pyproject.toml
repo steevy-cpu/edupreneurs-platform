@@ -1,0 +1,71 @@
+[project]
+name = "mon-edupreneur-api"
+version = "0.1.0"
+description = "Mon Edupreneur 2.0 — FastAPI backend foundation (auth, catalog, lessons, offline sync)."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn[standard]>=0.30,<1",
+    "pydantic>=2.9,<3",
+    "pydantic-settings>=2.5,<3",
+    "sqlalchemy[asyncio]>=2.0.36,<2.1",
+    "asyncpg>=0.30,<1",
+    "pyjwt[crypto]>=2.9,<3",
+    "httpx>=0.27,<1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "jsonschema>=4.23",
+    "ruff>=0.7",
+    "mypy>=1.13",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["services/api/src/edu_api"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+addopts = "-ra --strict-markers"
+markers = [
+    "integration: needs the local Supabase stack (make start && make db-reset)",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["services/api/src", "tests", "scripts"]
+# The original v0.2 drafts are kept byte-for-byte; never lint or reformat them.
+extend-exclude = ["docs/reference"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "ASYNC", "SIM", "RUF"]
+ignore = [
+    "S101",   # assert is the point of tests; application code does not rely on it
+    "B008",   # FastAPI's Depends()/Query() in argument defaults is the documented idiom
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106", "S608", "E501", "ASYNC240"]  # long SQL strings read better unwrapped
+"scripts/**" = ["S603", "S607"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["services/api/src/edu_api", "scripts"]
+plugins = ["pydantic.mypy"]
+mypy_path = "scripts"
+
+[[tool.mypy.overrides]]
+module = ["asyncpg", "asyncpg.*"]
+ignore_missing_imports = true

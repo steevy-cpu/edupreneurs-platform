@@ -1,0 +1,28 @@
+# Secrets and local configuration — never commit
+.env
+.env.*
+!.env.example
+supabase/signing_keys.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Node (only used to pin the Supabase CLI)
+node_modules/
+
+# Supabase CLI working files
+supabase/.temp/
+supabase/.branches/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

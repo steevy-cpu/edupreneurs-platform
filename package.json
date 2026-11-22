@@ -1,0 +1,8 @@
+{
+  "name": "mon-edupreneur-tooling",
+  "private": true,
+  "description": "Pins the Supabase CLI version used for local development and CI. No application code lives here.",
+  "devDependencies": {
+    "supabase": "3.2.0"
+  }
+}

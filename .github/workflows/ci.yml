@@ -1,0 +1,64 @@
+name: ci
+
+# Runs entirely on the GitHub runner: a disposable local Supabase stack in Docker.
+# No cloud project, no repository secrets, no deployment.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install pinned tools (Supabase CLI via npm, Python deps via uv.lock)
+        run: |
+          npm ci --no-fund --no-audit
+          uv sync --frozen
+
+      - name: Lint, format check, type check, contract freshness
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run mypy
+          uv run python scripts/export_openapi.py --check
+
+      - name: Unit tests (no database needed)
+        run: uv run pytest tests/unit
+
+      - name: Start local Supabase and rebuild the database from migrations + seed
+        run: |
+          make start
+          make db-reset
+
+      - name: Database tests (pgTAP)
+        run: make test-db
+
+      - name: API integration tests (real local Postgres + Auth)
+        run: uv run pytest
+
+      - name: Database tests again (must not depend on what the API tests left behind)
+        run: make test-db
+
+      - name: Stop local stack
+        if: always()
+        run: npx --no-install supabase stop --no-backup

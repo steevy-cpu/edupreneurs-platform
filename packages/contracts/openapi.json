@@ -1,0 +1,1168 @@
+{
+  "components": {
+    "schemas": {
+      "CatalogCourse": {
+        "properties": {
+          "grade": {
+            "$ref": "#/components/schemas/LabelledCode"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/LabelledSlug"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "units": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogUnit"
+            },
+            "title": "Units",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "grade",
+          "subject",
+          "units"
+        ],
+        "title": "CatalogCourse",
+        "type": "object"
+      },
+      "CatalogLesson": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "revision_id": {
+            "format": "uuid",
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "position",
+          "title",
+          "revision_id",
+          "revision"
+        ],
+        "title": "CatalogLesson",
+        "type": "object"
+      },
+      "CatalogResponse": {
+        "properties": {
+          "courses": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogCourse"
+            },
+            "title": "Courses",
+            "type": "array"
+          },
+          "locale": {
+            "enum": [
+              "fr",
+              "ht"
+            ],
+            "title": "Locale",
+            "type": "string"
+          }
+        },
+        "required": [
+          "locale",
+          "courses"
+        ],
+        "title": "CatalogResponse",
+        "type": "object"
+      },
+      "CatalogUnit": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "lessons": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogLesson"
+            },
+            "title": "Lessons",
+            "type": "array"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "position",
+          "title",
+          "lessons"
+        ],
+        "title": "CatalogUnit",
+        "type": "object"
+      },
+      "ChangeItem": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "entity_id": {
+            "format": "uuid",
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_type": {
+            "enum": [
+              "lesson_progress",
+              "practice_attempt"
+            ],
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "is_tombstone": {
+            "description": "True means the entity was removed on the server: delete the local copy.",
+            "title": "Is Tombstone",
+            "type": "boolean"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "entity_type",
+          "entity_id",
+          "is_tombstone",
+          "data",
+          "created_at"
+        ],
+        "title": "ChangeItem",
+        "type": "object"
+      },
+      "ErrorBody": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorBody",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "GradeRef": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "label"
+        ],
+        "title": "GradeRef",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "const": "ok",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "LabelledCode": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "label"
+        ],
+        "title": "LabelledCode",
+        "type": "object"
+      },
+      "LabelledSlug": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "slug",
+          "label"
+        ],
+        "title": "LabelledSlug",
+        "type": "object"
+      },
+      "LessonResponse": {
+        "properties": {
+          "assessment_mode": {
+            "const": "offline_practice",
+            "default": "offline_practice",
+            "description": "These questions include their answer keys and must never be used for graded or high-stakes assessment.",
+            "title": "Assessment Mode",
+            "type": "string"
+          },
+          "blocks": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Blocks",
+            "type": "array"
+          },
+          "lesson_id": {
+            "format": "uuid",
+            "title": "Lesson Id",
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "fr",
+              "ht"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/PracticeQuestion"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "revision_id": {
+            "format": "uuid",
+            "title": "Revision Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "lesson_id",
+          "revision_id",
+          "revision",
+          "locale",
+          "title",
+          "blocks",
+          "questions"
+        ],
+        "title": "LessonResponse",
+        "type": "object"
+      },
+      "MeResponse": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "grade": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GradeRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preferred_locale": {
+            "title": "Preferred Locale",
+            "type": "string"
+          },
+          "user_id": {
+            "format": "uuid",
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "preferred_locale",
+          "display_name",
+          "grade",
+          "created_at"
+        ],
+        "title": "MeResponse",
+        "type": "object"
+      },
+      "OperationResult": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Reason code for rejected/conflict.",
+            "title": "Code"
+          },
+          "op_id": {
+            "format": "uuid",
+            "title": "Op Id",
+            "type": "string"
+          },
+          "replayed": {
+            "description": "True when this op_id had already been processed and the stored result is being returned again. No new attempt, score or change was created.",
+            "title": "Replayed",
+            "type": "boolean"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Canonical server result for accepted operations.",
+            "title": "Result"
+          },
+          "status": {
+            "description": "`accepted`: applied (now or on an earlier attempt). `rejected`: permanently refused; do not retry this op_id. `conflict`: this op_id was already used with different content; nothing changed.",
+            "enum": [
+              "accepted",
+              "rejected",
+              "conflict"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "op_id",
+          "status",
+          "replayed"
+        ],
+        "title": "OperationResult",
+        "type": "object"
+      },
+      "PracticeQuestion": {
+        "properties": {
+          "answer_key": {
+            "additionalProperties": true,
+            "description": "Shipped so the phone can give feedback OFFLINE. Practice only: the server still re-scores every synced answer itself.",
+            "title": "Answer Key",
+            "type": "object"
+          },
+          "explanation": {
+            "additionalProperties": true,
+            "title": "Explanation",
+            "type": "object"
+          },
+          "id": {
+            "description": "question_revision_id to send back in practice_answer.",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "prompt": {
+            "additionalProperties": true,
+            "title": "Prompt",
+            "type": "object"
+          },
+          "question_key": {
+            "title": "Question Key",
+            "type": "string"
+          },
+          "response_spec": {
+            "additionalProperties": true,
+            "title": "Response Spec",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "question_key",
+          "position",
+          "kind",
+          "prompt",
+          "response_spec",
+          "answer_key",
+          "explanation"
+        ],
+        "title": "PracticeQuestion",
+        "type": "object"
+      },
+      "PullResponse": {
+        "properties": {
+          "changes": {
+            "description": "Ascending by version, no gaps.",
+            "items": {
+              "$ref": "#/components/schemas/ChangeItem"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "has_more": {
+            "title": "Has More",
+            "type": "boolean"
+          },
+          "next_cursor": {
+            "description": "Opaque. Store it only after applying `changes`.",
+            "title": "Next Cursor",
+            "type": "string"
+          },
+          "server_version": {
+            "title": "Server Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "changes",
+          "next_cursor",
+          "has_more",
+          "server_version"
+        ],
+        "title": "PullResponse",
+        "type": "object"
+      },
+      "PushRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "ops": {
+            "description": "1 to 50 operations, applied in order.",
+            "items": {
+              "$ref": "#/components/schemas/SyncOperation"
+            },
+            "title": "Ops",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ops"
+        ],
+        "title": "PushRequest",
+        "type": "object"
+      },
+      "PushResponse": {
+        "properties": {
+          "canon_version": {
+            "title": "Canon Version",
+            "type": "string"
+          },
+          "results": {
+            "description": "One result per op, in request order.",
+            "items": {
+              "$ref": "#/components/schemas/OperationResult"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "server_version": {
+            "description": "This account's latest change version after the push.",
+            "title": "Server Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "results",
+          "server_version",
+          "canon_version"
+        ],
+        "title": "PushResponse",
+        "type": "object"
+      },
+      "ReadyResponse": {
+        "properties": {
+          "checks": {
+            "additionalProperties": {
+              "enum": [
+                "ok",
+                "unavailable"
+              ],
+              "type": "string"
+            },
+            "title": "Checks",
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "not_ready"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "checks"
+        ],
+        "title": "ReadyResponse",
+        "type": "object"
+      },
+      "SyncOperation": {
+        "additionalProperties": false,
+        "properties": {
+          "client_recorded_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "When the phone recorded the action. Untrusted display metadata: never used for ordering or scoring, and not part of the payload digest.",
+            "title": "Client Recorded At"
+          },
+          "kind": {
+            "description": "`practice_answer` or `lesson_completed`.",
+            "examples": [
+              "practice_answer"
+            ],
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Kind",
+            "type": "string"
+          },
+          "op_id": {
+            "description": "Client-generated UUID, created ONCE when the action happens offline and reused unchanged on every retry.",
+            "format": "uuid",
+            "title": "Op Id",
+            "type": "string"
+          },
+          "payload": {
+            "additionalProperties": true,
+            "description": "Shape depends on `kind`: see PracticeAnswerPayload / LessonCompletedPayload.",
+            "title": "Payload",
+            "type": "object"
+          }
+        },
+        "required": [
+          "op_id",
+          "kind",
+          "payload"
+        ],
+        "title": "SyncOperation",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "bearerFormat": "JWT",
+        "description": "Supabase Auth access token of the signed-in learner.",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Student API for Mon Edupreneur 2.0: identity, published catalog and lessons, and exactly-once offline sync. All `/v1` routes need a Supabase Auth access token (`Authorization: Bearer ...`). Errors always have the shape `{\"error\": {\"code\", \"message\", \"request_id\", \"details\"}}`.",
+    "title": "Mon Edupreneur API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Is the process alive?",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/ready": {
+      "get": {
+        "operationId": "ready_ready_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadyResponse"
+                }
+              }
+            },
+            "description": "A dependency is unavailable."
+          }
+        },
+        "summary": "Can the service reach its database?",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/v1/catalog": {
+      "get": {
+        "description": "Compact tree of everything a learner can open in `locale`.\n\nOnly lessons that have a published revision in that language are listed.",
+        "operationId": "get_catalog_v1_catalog_get",
+        "parameters": [
+          {
+            "description": "Content language: `fr` (French) or `ht` (Haitian Creole).",
+            "in": "query",
+            "name": "locale",
+            "required": true,
+            "schema": {
+              "description": "Content language: `fr` (French) or `ht` (Haitian Creole).",
+              "enum": [
+                "fr",
+                "ht"
+              ],
+              "title": "Locale",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A dependency (database or auth key service) is unavailable."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Published courses, units and lessons for one language",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/v1/lessons/{lesson_id}": {
+      "get": {
+        "description": "The currently published revision of a lesson in `locale`.\n\nUnknown lessons, drafts, rejected revisions and lessons without a published\nrevision in this language all return the same 404.",
+        "operationId": "get_lesson_v1_lessons__lesson_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lesson_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Lesson Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Content language: `fr` (French) or `ht` (Haitian Creole).",
+            "in": "query",
+            "name": "locale",
+            "required": true,
+            "schema": {
+              "description": "Content language: `fr` (French) or `ht` (Haitian Creole).",
+              "enum": [
+                "fr",
+                "ht"
+              ],
+              "title": "Locale",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found (or not published)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A dependency (database or auth key service) is unavailable."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "One published lesson with its offline-practice questions",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/v1/me": {
+      "get": {
+        "description": "Returns the caller's profile. The profile row is created on first contact.\n\nThe user id comes from the verified access token; there is no way to ask\nfor someone else's profile.",
+        "operationId": "get_me_v1_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A dependency (database or auth key service) is unavailable."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "The signed-in learner's own profile",
+        "tags": [
+          "identity"
+        ]
+      }
+    },
+    "/v1/sync/pull": {
+      "get": {
+        "description": "Server-authoritative changes for the signed-in learner, oldest first.",
+        "operationId": "pull_v1_sync_pull_get",
+        "parameters": [
+          {
+            "description": "`next_cursor` from the previous pull. Omit for the first pull or after a 410 to replay from the beginning.",
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 200,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`next_cursor` from the previous pull. Omit for the first pull or after a 410 to replay from the beginning.",
+              "title": "Cursor"
+            }
+          },
+          {
+            "description": "Page size.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Page size.",
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PullResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token."
+          },
+          "410": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Sync cursor is no longer valid; restart pull without a cursor."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A dependency (database or auth key service) is unavailable."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Download this account's changes after a cursor",
+        "tags": [
+          "sync"
+        ]
+      }
+    },
+    "/v1/sync/push": {
+      "post": {
+        "description": "Apply a small batch of offline operations for the signed-in learner.\n\n* Safe to retry: resend the SAME batch (same `op_id`s) until you receive a\n  response. Already-applied operations come back with `replayed: true`.\n* HTTP 200 does not mean every operation was accepted — read each result.\n* The whole batch is one database transaction. On a 5xx nothing was applied.",
+        "operationId": "push_v1_sync_push_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token."
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request body or batch too large."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A dependency (database or auth key service) is unavailable."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Upload offline operations (exactly-once)",
+        "tags": [
+          "sync"
+        ]
+      }
+    }
+  }
+}

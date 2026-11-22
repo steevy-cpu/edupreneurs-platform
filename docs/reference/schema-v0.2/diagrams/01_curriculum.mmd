@@ -1,0 +1,53 @@
+erDiagram
+    GRADES ||--o{ COURSES : grade_id
+    SUBJECTS ||--o{ COURSES : subject_id
+    COURSES ||--o{ UNITS : course_id
+    UNITS ||--o{ LESSONS : unit_id
+    LESSONS ||--o{ LESSON_REVISIONS : lesson_id
+    LESSON_REVISIONS ||--o{ QUESTION_REVISIONS : lesson_revision_id
+    GRADES ||--o{ LEARNER_PROFILES : grade_id
+    GRADES {
+    uuid id PK
+    text code UK
+    int sort_order UK
+    }
+    SUBJECTS {
+    uuid id PK
+    text slug UK
+    jsonb labels
+    }
+    COURSES {
+    uuid id PK
+    uuid grade_id FK
+    uuid subject_id FK
+    text visibility
+    }
+    UNITS {
+    uuid id PK
+    uuid course_id FK
+    int position
+    }
+    LESSONS {
+    uuid id PK
+    uuid unit_id FK
+    int position
+    }
+    LESSON_REVISIONS {
+    uuid id PK
+    uuid lesson_id FK
+    int revision
+    text locale
+    jsonb blocks
+    text status
+    }
+    QUESTION_REVISIONS {
+    uuid id PK
+    uuid lesson_revision_id FK
+    text question_key
+    jsonb answer_key
+    }
+    LEARNER_PROFILES {
+    uuid user_id PK
+    uuid grade_id FK
+    text preferred_locale
+    }
