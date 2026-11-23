@@ -1,0 +1,58 @@
+# Signed in, backend reachable: switch the interface to Haitian Creole, save and
+# read the Creole lesson, then switch back to French.
+appId: ht.edupreneur.student.dev
+---
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Mes leçons"
+    timeout: 90000
+- scrollUntilVisible:
+    element: "Kreyòl"
+    direction: DOWN
+- tapOn: "Kreyòl"
+- scrollUntilVisible:
+    element: "Leson mwen yo"
+    direction: UP
+- assertVisible: "Chwazi klas mwen ak matyè mwen"
+- takeScreenshot: shots/30-home-kreyol
+- tapOn: "Leson mwen yo"
+- extendedWaitUntil:
+    visible: "Anrejistre pou etidye san Entènèt|Ouvri"
+    timeout: 30000
+- tapOn:
+    text: "Anrejistre pou etidye san Entènèt"
+    optional: true
+- extendedWaitUntil:
+    visible: "Ouvri"
+    timeout: 30000
+- takeScreenshot: shots/31-lessons-kreyol
+- tapOn: "Ouvri"
+- extendedWaitUntil:
+    visible: "Rezoud yon ekwasyon senp"
+    timeout: 15000
+- assertVisible: "Règ balans lan"
+- takeScreenshot: shots/32-reader-kreyol
+- scrollUntilVisible:
+    element: "Fè egzèsis yo"
+    direction: DOWN
+- tapOn: "Fè egzèsis yo"
+- extendedWaitUntil:
+    visible: "Kesyon 1 sou 5"
+    timeout: 15000
+- assertVisible: "Rezoud: x \\+ 5 = 12"
+- takeScreenshot: shots/33-quiz-kreyol
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Leson mwen yo"
+    timeout: 90000
+- scrollUntilVisible:
+    element: "Français"
+    direction: DOWN
+- tapOn: "Français"
+- scrollUntilVisible:
+    element: "Mes leçons"
+    direction: UP

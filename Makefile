@@ -2,8 +2,27 @@
 SUPABASE := npx --no-install supabase
 PY := uv run
 
+# ---- external development volume (see docs/DEV_STORAGE.md) --------------------
+# When the EdupreneursDev volume is mounted, every target below uses the SDKs,
+# caches and build folders stored on it. Nothing system-wide is changed.
+DEV_VOLUME ?= /Volumes/EdupreneursDev
+ifneq ($(wildcard $(DEV_VOLUME)/android-sdk),)
+export ANDROID_HOME := $(DEV_VOLUME)/android-sdk
+export ANDROID_SDK_ROOT := $(DEV_VOLUME)/android-sdk
+export ANDROID_AVD_HOME := $(DEV_VOLUME)/android-avd
+export GRADLE_USER_HOME := $(DEV_VOLUME)/gradle
+export UV_CACHE_DIR := $(DEV_VOLUME)/caches/uv
+export npm_config_cache := $(DEV_VOLUME)/caches/npm
+export CP_HOME_DIR := $(DEV_VOLUME)/caches/cocoapods
+export EDU_IOS_DERIVED_DATA := $(DEV_VOLUME)/xcode-derived-data/edupreneurs
+endif
+ifneq ($(wildcard $(CURDIR)/.tools/jdk17/Contents/Home),)
+export JAVA_HOME := $(CURDIR)/.tools/jdk17/Contents/Home
+endif
+export DEVELOPER_DIR ?= /Applications/Xcode-26.6.app/Contents/Developer
+
 .DEFAULT_GOAL := help
-.PHONY: help install setup start stop status db-reset api api-lan token dev-login test test-db test-api lint format typecheck check openapi mobile-install mobile-env mobile-check mobile-test mobile-ios mobile-android
+.PHONY: help install setup start stop status db-reset api api-lan token dev-login test test-db test-api lint format typecheck check openapi mobile-install mobile-env mobile-check mobile-test mobile-ios mobile-android mobile-ios-open mobile-android-open dev-volume dev-storage
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -84,8 +103,22 @@ mobile-check: ## Mobile static checks: generated API types fresh, TypeScript (ap
 mobile-test: ## Mobile core tests against the local stack (real SQLite, real API and Auth)
 	cd $(MOBILE) && npx jest
 
-mobile-ios: ## Build and run a development build on the iOS Simulator (needs Xcode 26.4+ and its iOS simulator runtime)
-	cd $(MOBILE) && DEVELOPER_DIR=$${DEVELOPER_DIR:-/Applications/Xcode-26.6.app/Contents/Developer} LANG=en_US.UTF-8 npx expo run:ios
+mobile-ios: ## Build the iOS development app (build output on the dev volume), then open it in the Simulator
+	apps/student-native/scripts/ios-build.sh
+	apps/student-native/scripts/ios-open.sh
 
-mobile-android: ## Build and run a development build on an Android emulator/device (needs Android SDK)
-	cd $(MOBILE) && ANDROID_HOME=$${ANDROID_HOME:-$$HOME/Library/Android/sdk} npx expo run:android
+mobile-ios-open: ## Open the already-built iOS app in the Simulator (no rebuild)
+	apps/student-native/scripts/ios-open.sh
+
+mobile-android: ## Build the Android debug app (arm64), then open it on the emulator
+	cd $(MOBILE)/android && ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a --console=plain
+	apps/student-native/scripts/android-open.sh
+
+mobile-android-open: ## Open the already-built Android app on the emulator (no rebuild)
+	apps/student-native/scripts/android-open.sh
+
+dev-volume: ## Mount the external development volume from the T7 SSD
+	@test -d $(DEV_VOLUME) && echo "$(DEV_VOLUME) is already mounted" || hdiutil attach /Volumes/T7/EdupreneursDev.sparsebundle -owners on
+
+dev-storage: ## Show free space on the internal disk and the development volume
+	@df -h /System/Volumes/Data $(DEV_VOLUME) 2>/dev/null | awk 'NR==1 || /Data|EdupreneursDev/ {print $$1, $$2, $$3, $$4, $$NF}'

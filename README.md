@@ -28,6 +28,11 @@ offline synchronisation contract — all running **locally only**.
 | `apps/student-native/` | React Native (Expo) student app — Mobile-01. See its README and `docs/MOBILE_01_REPORT.md` |
 | `services/worker/` | Reserved for future workers (empty on purpose) |
 
+> **Working copy location.** On the founder's Mac the repository, Android SDK and
+> build caches live on an external development volume. Mount it first:
+> `open /Volumes/T7/EdupreneursDev.sparsebundle`, then work in
+> `/Volumes/EdupreneursDev/Mon-edupreneur`. See `docs/DEV_STORAGE.md`.
+
 ## Prerequisites (macOS or Linux)
 
 | Tool | Why | Install |

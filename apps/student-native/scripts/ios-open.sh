@@ -8,6 +8,9 @@ set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode-26.6.app/Contents/Developer}"
+# Optional: SDK/caches on the external development volume (not needed just to open the app)
+# shellcheck disable=SC1091
+. "$APP_DIR/../../scripts/dev-env.sh" 2>/dev/null || true
 SIM_NAME="${SIM_NAME:-iPhone 17}"
 BUNDLE_ID="ht.edupreneur.student.dev"
 SIMULATOR_APP="$DEVELOPER_DIR/Applications/Simulator.app"
@@ -16,7 +19,7 @@ if [ ! -d "$SIMULATOR_APP" ]; then
   echo "error: Simulator.app not found under $DEVELOPER_DIR" >&2
   exit 1
 fi
-BUILT_APP="$(ls -d "$APP_DIR"/ios/build/Build/Products/Debug-iphonesimulator/*.app 2>/dev/null | head -1 || true)"
+BUILT_APP="$(ls -d "${EDU_IOS_DERIVED_DATA:-/nonexistent}"/Build/Products/Debug-iphonesimulator/*.app "$APP_DIR"/ios/build/Build/Products/Debug-iphonesimulator/*.app 2>/dev/null | head -1 || true)"
 
 UDID="$(xcrun simctl list devices available | grep -E "^ +$SIM_NAME \(" | head -1 | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')"
 if [ -z "$UDID" ]; then
