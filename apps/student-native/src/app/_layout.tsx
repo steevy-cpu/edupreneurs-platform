@@ -37,6 +37,8 @@ function Root() {
       <Stack.Screen name="lesson/[id]" options={{ title: '' }} />
       <Stack.Screen name="quiz/[id]" options={{ title: t('quizTitle') }} />
       <Stack.Screen name="progress" options={{ title: t('progressTitle') }} />
+      {/* Design-00 previews: fixture data only, not linked from any screen (src/design/preview). */}
+      <Stack.Screen name="design" options={{ headerShown: false }} />
     </Stack>
   );
 }

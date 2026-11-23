@@ -1,0 +1,18 @@
+PASS  home?locale=fr                        6 targets, smallest side 52, 0 clipped-skipped
+PASS  home?locale=ht&state=pending          6 targets, smallest side 52, 0 clipped-skipped
+PASS  home?locale=fr&state=empty            5 targets, smallest side 52, 0 clipped-skipped
+PASS  home?locale=fr&state=error            5 targets, smallest side 52, 0 clipped-skipped
+PASS  path?locale=fr                       13 targets, smallest side 48, 0 clipped-skipped
+PASS  path?locale=ht&state=offline         14 targets, smallest side 48, 0 clipped-skipped
+PASS  lesson?locale=fr                      2 targets, smallest side 48, 0 clipped-skipped
+PASS  lesson?locale=ht                      2 targets, smallest side 48, 0 clipped-skipped
+PASS  quiz?locale=fr                        6 targets, smallest side 48, 0 clipped-skipped
+PASS  quiz?locale=fr&state=selected         6 targets, smallest side 48, 0 clipped-skipped
+PASS  quiz?locale=ht&state=incorrect        6 targets, smallest side 48, 0 clipped-skipped
+PASS  quiz?locale=fr&state=long             6 targets, smallest side 48, 0 clipped-skipped
+PASS  progress?locale=fr                    5 targets, smallest side 60, 0 clipped-skipped
+PASS  progress?locale=ht&state=pending      5 targets, smallest side 60, 0 clipped-skipped
+PASS  progress?locale=fr&state=failed       5 targets, smallest side 60, 0 clipped-skipped
+PASS  progress?locale=fr&state=empty        5 targets, smallest side 52, 0 clipped-skipped
+
+ios: 97 activatable elements checked, 0 failures (minimum 44)
