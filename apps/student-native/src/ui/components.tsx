@@ -1,6 +1,6 @@
-import React from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect, useRef } from 'react';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /** Plain, text-first building blocks. System fonts, no images, no animation libraries. */
 export const colors = {
@@ -20,13 +20,32 @@ export const colors = {
 export function Screen({
   children,
   scroll = true,
-  scrollRef,
+  revealEndKey,
 }: {
   children: React.ReactNode;
   scroll?: boolean;
-  /** Lets a screen scroll itself, e.g. to bring new feedback into view on small phones. */
-  scrollRef?: React.RefObject<React.ComponentRef<typeof ScrollView> | null>;
+  /**
+   * When this value changes, new content was added at the bottom (e.g. quiz
+   * feedback). If the content no longer fits on screen, scroll to show it.
+   * Nothing moves when everything already fits.
+   */
+  revealEndKey?: unknown;
 }) {
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView> | null>(null);
+  const sizes = useRef({ content: 0, viewport: 0 });
+  const insets = useSafeAreaInsets();
+  // On iOS the scroll view extends under the translucent navigation bar.
+  const coveredTop = Platform.OS === 'ios' ? insets.top + 56 : 0;
+
+  useEffect(() => {
+    if (revealEndKey === undefined || revealEndKey === null || revealEndKey === false) return;
+    const timer = setTimeout(() => {
+      const { content, viewport } = sizes.current;
+      if (content > viewport - coveredTop) scrollRef.current?.scrollToEnd({ animated: false });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [revealEndKey, coveredTop]);
+
   return (
     <SafeAreaView style={styles.safe} edges={['bottom', 'left', 'right']}>
       {scroll ? (
@@ -37,6 +56,12 @@ export function Screen({
           // iOS 26 navigation bars are translucent: without this the first rows
           // of every screen render underneath the header (found in native testing).
           contentInsetAdjustmentBehavior="automatic"
+          onLayout={(event) => {
+            sizes.current.viewport = event.nativeEvent.layout.height;
+          }}
+          onContentSizeChange={(_width, height) => {
+            sizes.current.content = height;
+          }}
         >
           {children}
         </ScrollView>

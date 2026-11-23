@@ -1,0 +1,7 @@
+# Android release build summary (Release-01)
+command: EXPO_PUBLIC_API_URL=http://10.0.2.2:8000 EXPO_PUBLIC_SUPABASE_URL=http://10.0.2.2:54321 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<local publishable key> NODE_ENV=production ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
+result: BUILD SUCCESSFUL in 5m 23s (563 tasks: 512 executed, 51 up-to-date)
+JS: createBundleReleaseJsAndAssets -> 1191 modules, Hermes bytecode, 2.2 MB, embedded at assets/index.android.bundle
+apk: app-release.apk 30.7 MB, arm64-v8a, not debuggable, signed with the standard Android debug certificate (CN=Android Debug) - local test signing only
+secret scan of bundle + manifest: sb_secret 0, service_role 0, database credentials 0, private keys 0
+disk used by the build on the development volume: 2.14 GB

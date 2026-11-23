@@ -14,7 +14,8 @@ its questions with no network → sync when the connection returns.
 > backend (52 automated tests), and the app has been built and run on the
 > **iOS Simulator**, where the full offline workflow passed
 > (`docs/NATIVE_VALIDATION_REPORT.md`). It has also been built and run on an
-> **Android 7.0 emulator** with the same result. **No physical phone has been tested.**
+> **Android 7.0 emulator** with the same result. Standalone release builds (no Metro) also pass, in
+> real airplane mode on Android (`../../docs/RELEASE_01_REPORT.md`). **No physical phone has been tested.**
 
 Supported OS range of this Expo SDK: **Android 7.0+ (API 24)**, **iOS 16.4+**. Building for iOS requires **Xcode 26.4 or newer**.
 

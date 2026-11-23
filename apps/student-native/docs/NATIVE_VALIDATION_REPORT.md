@@ -286,3 +286,15 @@ targets on a real low-memory phone.
 - The image has no Google Play services; nothing in the app needs them today.
 - Emulator, not a physical phone: flash storage speed, thermal limits, vendor
   battery managers and real radio behaviour are untested.
+
+## 13. Release builds (Release-01)
+
+The debug-build limitation in section 12 is closed: standalone **Release**
+builds were made and tested on both platforms, with Metro stopped. On Android
+the five questions and the app restart were done in real airplane mode with the
+backend still running and receiving no requests. Results, measurements and
+remaining limits are in `docs/RELEASE_01_REPORT.md`; screenshots in
+`native-validation/android-release/` and `native-validation/ios-release/`.
+
+One regression from the section 12 quiz fix was found on iOS during that work
+(the question scrolled under the navigation bar on tall screens) and corrected.

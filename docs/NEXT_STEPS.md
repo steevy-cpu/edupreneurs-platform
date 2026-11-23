@@ -15,9 +15,12 @@ full offline workflow on the iOS Simulator
 Android (same day): built and passed the same workflow on an Android 7.0
 (API 24) emulator, 480×800 with 1 GB RAM.
 
-Immediate next steps: a release build on each platform (to test a true
-airplane-mode restart and realistic start-up time), then a real low-memory
-Android phone.
+Release-01 (same day): standalone release builds pass the offline workflow on
+both platforms without Metro, in real airplane mode on Android
+(`docs/RELEASE_01_REPORT.md`).
+
+Immediate next steps: test on a real low-memory Android phone; then Design-00,
+using `docs/design/EDUPRENEURS_UX_DIRECTION_v0.1.md` as the brief (not started).
 
 ## Ready for mobile integration now
 
