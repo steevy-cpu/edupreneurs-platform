@@ -17,11 +17,21 @@ export const colors = {
   warnSurface: '#FFF4D6',
 };
 
-export function Screen({ children, scroll = true }: { children: React.ReactNode; scroll?: boolean }) {
+export function Screen({
+  children,
+  scroll = true,
+  scrollRef,
+}: {
+  children: React.ReactNode;
+  scroll?: boolean;
+  /** Lets a screen scroll itself, e.g. to bring new feedback into view on small phones. */
+  scrollRef?: React.RefObject<React.ComponentRef<typeof ScrollView> | null>;
+}) {
   return (
     <SafeAreaView style={styles.safe} edges={['bottom', 'left', 'right']}>
       {scroll ? (
         <ScrollView
+          ref={scrollRef}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           // iOS 26 navigation bars are translucent: without this the first rows
@@ -90,8 +100,9 @@ export function Button({
 
 export function Banner({ children, tone = 'warn' }: { children: React.ReactNode; tone?: 'warn' | 'bad' | 'good' }) {
   const color = tone === 'bad' ? colors.bad : tone === 'good' ? colors.good : colors.warn;
+  const background = tone === 'good' ? '#E7F5EC' : tone === 'bad' ? '#FDECEA' : colors.warnSurface;
   return (
-    <View style={[styles.banner, { borderColor: color }]} accessibilityRole="alert">
+    <View style={[styles.banner, { borderColor: color, backgroundColor: background }]} accessibilityRole="alert">
       <Text style={[styles.body, { color }]}>{children}</Text>
     </View>
   );

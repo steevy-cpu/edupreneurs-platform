@@ -6,8 +6,8 @@ appId: ht.edupreneur.student.dev
 - launchApp:
     clearState: false
 - extendedWaitUntil:
-    visible: "Se déconnecter"
-    timeout: 60000
+    visible: "Mes leçons"
+    timeout: 90000
 - scrollUntilVisible:
     element: "Se déconnecter"
     direction: DOWN
@@ -22,6 +22,11 @@ appId: ht.edupreneur.student.dev
 - tapOn:
     id: "sign-in-password"
 - inputText: ${PASSWORD_B}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
 - tapOn: "Se connecter"
 # iOS may offer to save the password in its keychain; decline so the test stays deterministic.
 - tapOn:
@@ -30,12 +35,17 @@ appId: ht.edupreneur.student.dev
 - extendedWaitUntil:
     visible: "Bonjour student.b"
     timeout: 30000
-- assertVisible: "Tout est synchronisé"
+- scrollUntilVisible:
+    element: "Tout est synchronisé"
+    direction: DOWN
 - takeScreenshot: shots/19-home-student-b
+- scrollUntilVisible:
+    element: "Progrès et synchronisation"
+    direction: UP
 - tapOn: "Progrès et synchronisation"
-- extendedWaitUntil:
-    visible: "0 question\\(s\\) répondue\\(s\\) sur 5"
-    timeout: 10000
+- scrollUntilVisible:
+    element: "0 question\\(s\\) répondue\\(s\\) sur 5"
+    direction: DOWN
 - assertNotVisible: "5 question\\(s\\) répondue\\(s\\) sur 5"
 - takeScreenshot: shots/20-progress-student-b-empty
 # Back to home: the header button on iOS, the system back key on Android.
@@ -62,6 +72,11 @@ appId: ht.edupreneur.student.dev
 - tapOn:
     id: "sign-in-password"
 - inputText: ${PASSWORD}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
 - tapOn: "Se connecter"
 # iOS may offer to save the password in its keychain; decline so the test stays deterministic.
 - tapOn:
@@ -71,7 +86,8 @@ appId: ht.edupreneur.student.dev
     visible: "Bonjour student.a"
     timeout: 30000
 - tapOn: "Progrès et synchronisation"
-- extendedWaitUntil:
-    visible: "5 question\\(s\\) répondue\\(s\\) sur 5"
-    timeout: 20000
+- scrollUntilVisible:
+    element: "5 question\\(s\\) répondue\\(s\\) sur 5"
+    direction: DOWN
+    timeout: 30000
 - takeScreenshot: shots/21-progress-student-a-back

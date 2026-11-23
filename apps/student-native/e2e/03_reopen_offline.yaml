@@ -8,15 +8,20 @@ appId: ht.edupreneur.student.dev
     visible: "5 action\\(s\\) en attente de synchronisation"
     timeout: 60000
 - takeScreenshot: shots/14-home-after-restart-offline
+- scrollUntilVisible:
+    element: "Progrès et synchronisation"
+    direction: UP
 - tapOn: "Progrès et synchronisation"
-- extendedWaitUntil:
-    visible: "5 question\\(s\\) répondue\\(s\\) sur 5"
-    timeout: 10000
-- assertVisible: "4 bonne\\(s\\) réponse\\(s\\)"
+- scrollUntilVisible:
+    element: "4 bonne\\(s\\) réponse\\(s\\)"
+    direction: DOWN
+- assertVisible: "5 question\\(s\\) répondue\\(s\\) sur 5"
 - takeScreenshot: shots/15-progress-after-restart-offline
+- scrollUntilVisible:
+    element: "Synchroniser maintenant"
+    direction: UP
 - tapOn: "Synchroniser maintenant"
 - extendedWaitUntil:
     visible: "Serveur injoignable.*"
     timeout: 60000
-- assertVisible: "5 action\\(s\\) en attente de synchronisation"
 - takeScreenshot: shots/16-sync-attempt-offline

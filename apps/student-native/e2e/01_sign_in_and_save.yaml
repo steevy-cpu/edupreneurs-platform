@@ -16,6 +16,11 @@ appId: ht.edupreneur.student.dev
     id: "sign-in-password"
 - inputText: ${PASSWORD}
 - takeScreenshot: shots/02-sign-in-filled
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
 - tapOn: "Se connecter"
 # iOS may offer to save the password in its keychain; decline so the test stays deterministic.
 - tapOn:

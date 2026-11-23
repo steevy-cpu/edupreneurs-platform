@@ -13,8 +13,8 @@ its questions with no network → sync when the connection returns.
 > **Status:** the storage and sync logic is tested against the real local
 > backend (52 automated tests), and the app has been built and run on the
 > **iOS Simulator**, where the full offline workflow passed
-> (`docs/NATIVE_VALIDATION_REPORT.md`). **Android and physical phones are not
-> yet tested.**
+> (`docs/NATIVE_VALIDATION_REPORT.md`). It has also been built and run on an
+> **Android 7.0 emulator** with the same result. **No physical phone has been tested.**
 
 Supported OS range of this Expo SDK: **Android 7.0+ (API 24)**, **iOS 16.4+**. Building for iOS requires **Xcode 26.4 or newer**.
 
@@ -90,6 +90,18 @@ apps/student-native/scripts/ios-open.sh    # terminal 2: boots the simulator, op
 If Expo ever says "Simulator app did not open fast enough", run that script (or
 `open /Applications/Xcode-26.6.app/Contents/Developer/Applications/Simulator.app`)
 once and try again.
+
+### Opening the app again without rebuilding (Android)
+
+```bash
+make api                                       # terminal 1
+apps/student-native/scripts/android-open.sh    # terminal 2: starts the API 24 emulator, forwards ports,
+                                               # installs the saved APK if needed, starts Metro, launches the app
+```
+
+The emulator reaches the Mac's API, Auth and Metro through `adb reverse`, so the
+same `.env.local` (127.0.0.1) works for iOS and Android. Port forwarding is lost
+when the emulator restarts; the script sets it again.
 
 ### The manual acceptance test
 

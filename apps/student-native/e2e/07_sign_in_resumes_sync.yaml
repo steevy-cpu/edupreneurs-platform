@@ -7,11 +7,20 @@ appId: ht.edupreneur.student.dev
 - tapOn:
     id: "sign-in-password"
 - inputText: ${PASSWORD}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
 - tapOn: "Se connecter"
 - tapOn:
     text: "Not Now"
     optional: true
 - extendedWaitUntil:
-    visible: "Tout est synchronisé"
+    visible: "Mes leçons"
+    timeout: 60000
+- scrollUntilVisible:
+    element: "Tout est synchronisé"
+    direction: DOWN
     timeout: 60000
 - takeScreenshot: shots/25-work-synced-after-sign-in

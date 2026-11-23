@@ -12,6 +12,11 @@ appId: ht.edupreneur.student.dev
 - tapOn:
     id: "sign-in-password"
 - inputText: ${PASSWORD}
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard
 - tapOn: "Se connecter"
 - tapOn:
     text: "Not Now"

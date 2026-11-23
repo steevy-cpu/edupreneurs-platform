@@ -12,9 +12,12 @@ Native validation (same day): the app was built with Xcode 26.6 and passed the
 full offline workflow on the iOS Simulator
 (`apps/student-native/docs/NATIVE_VALIDATION_REPORT.md`).
 
-Immediate next step: free about 9 GB of disk, install the Android build
-components, and repeat the acceptance test on an Android emulator (including
-API 24), then on a real low-memory Android phone.
+Android (same day): built and passed the same workflow on an Android 7.0
+(API 24) emulator, 480×800 with 1 GB RAM.
+
+Immediate next steps: a release build on each platform (to test a true
+airplane-mode restart and realistic start-up time), then a real low-memory
+Android phone.
 
 ## Ready for mobile integration now
 

@@ -19,6 +19,9 @@ appId: ht.edupreneur.student.dev
     direction: DOWN
 - tapOn: "Faire les exercices"
 - tapOn: "x = 7"
+- scrollUntilVisible:
+    element: "Valider"
+    direction: DOWN
 - tapOn: "Valider"
 - extendedWaitUntil:
     visible: "Réponse enregistrée sur ce téléphone"
@@ -27,8 +30,11 @@ appId: ht.edupreneur.student.dev
 - launchApp:
     clearState: false
 - extendedWaitUntil:
-    visible: "1 action\\(s\\) en attente de synchronisation"
-    timeout: 60000
+    visible: "Mes leçons"
+    timeout: 90000
+- scrollUntilVisible:
+    element: "1 action\\(s\\) en attente de synchronisation"
+    direction: DOWN
 - scrollUntilVisible:
     element: "Se déconnecter"
     direction: DOWN

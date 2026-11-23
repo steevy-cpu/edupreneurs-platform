@@ -5,7 +5,7 @@ Date: 2026-11-22. Machine: Apple-silicon Mac, macOS 26.3, 8 GB RAM.
 | Platform | Status |
 |---|---|
 | **iOS Simulator** (iPhone 17, iOS 26.5) | **Verified.** Development build created, all seven screens exercised, full offline workflow passed, server data checked |
-| **Android emulator** | **Not started.** Blocked by disk space (5.8 GB free; about 9 GB needed) |
+| **Android emulator** (Android 7.0, API 24, 480×800, 1 GB RAM) | **Verified.** Debug build created, all seven screens exercised in French and Haitian Creole, full offline workflow passed, server data checked (section 12) |
 | **Physical phones** (iOS or Android) | **Not tested.** Nothing in this report is evidence of physical-device behaviour |
 
 Everything below marked "verified" was executed on the iOS Simulator against the
@@ -209,3 +209,80 @@ export DEVELOPER_DIR=/Applications/Xcode-26.6.app/Contents/Developer
 # start the API again, then:
 ../../../.tools/maestro/bin/maestro test 04_reconnect_sync.yaml
 ```
+
+## 12. Android validation (2026-11-22, later session)
+
+Run from the external development volume (`docs/DEV_STORAGE.md`). Section 9
+above ("Android — not started") describes the earlier state and is superseded by this section.
+
+### Toolchain and device
+
+| Item | Value |
+|---|---|
+| JDK | Temurin 17.0.21, project-scoped in `.tools/jdk17` (React Native 0.88's Gradle plugin declares `jvmToolchain(17)`) |
+| Gradle / Android Gradle Plugin | 9.4.1 / 9.2.1 |
+| SDK | compileSdk 37, build-tools 37.0.0, NDK 27.1.12297006, CMake 3.22.1, minSdk 24, targetSdk 36 |
+| Emulator image | `system-images;android-24;default;arm64-v8a` (Android 7.0, no Google services) |
+| Virtual device `edu_api24` | 480×800 at 240 dpi, 1024 MB RAM, 96 MB app heap, 2 GB data partition, software GPU |
+| App | `app-debug.apk`, 80.3 MB, arm64 only, **debug build** |
+
+Build: first attempt stalled for over an hour because Gradle's automatic CMake
+download never completed; after installing CMake with `sdkmanager`, the build
+finished in 2 min 16 s. Summary: `native-validation/android-build-summary.txt`.
+Emulator cold boot: 40 s.
+
+### Acceptance results (Maestro flows, same files as iOS)
+
+| # | Requirement | Result | Evidence (`native-validation/android/`) |
+|---|---|---|---|
+| 1 | Sign-in and session restoration | Passed. Session also restored after a full device **reboot** | `01`–`03`, `26` |
+| 2 | Navigation through all seven screens | Passed | `01`–`17` |
+| 3 | French and Haitian Creole rendering | Passed: home, lessons, reader and quiz in Creole, with accents (è, ò) rendered correctly | `30`–`33` |
+| 4 | Download the mathematics lesson | Passed (French and Creole copies) | `05`, `06`, `31` |
+| 5 | Five questions with no backend | Passed with the API stopped, the Auth gateway paused **and the emulator's own Wi-Fi and mobile data switched off** (0 connected networks; ping failed) | `09`–`13` |
+| 6 | Force-quit and reopen offline | Passed with the backend unreachable. See the debug-build limitation below | `14`–`16` |
+| 7 | SQLite attempts and pending operations preserved | Read from the device: 5 attempts, 5 pending operations, 5 progress rows (4 correct) | — |
+| 8 | Reconnect and sync without duplicates | Server: 5 attempts, 5 distinct `op_id`s identical to the device's, 5 accepted receipts, versions 1–5, **one** push request; device outbox 0 | `17` |
+| 9 | Switching between two accounts | Passed: student B saw 0 answers; A's 5 returned. Two files on the device: A = 5 attempts, B = 0 | `18`–`21` |
+| 10 | SecureStore, error handling, navigation | Session survives force-stop and reboot; cleared on sign-out; no JWT in the SQLite file; "Serveur injoignable" shown offline; sign-out warning with unsynced work, and the kept work uploaded after signing back in (server 6 attempts, 6 distinct) | `16`, `23`–`25` |
+
+Crashes or ANRs in the device log: 0. JavaScript errors in the Metro log: 0.
+
+### Defects found on Android and fixed
+
+| # | Defect | Fix |
+|---|---|---|
+| 1 | On a 480×800 screen the quiz's "answer saved" line and the "next question" button were below the fold after answering, so nothing visibly confirmed the save | The quiz now scrolls to the feedback as soon as the answer is saved (`src/app/quiz/[id].tsx`, `Screen` gained a `scrollRef`) |
+| 2 | "Correct answer" feedback used the yellow warning background | Feedback banners now use green / red / yellow backgrounds by tone |
+
+Test-only adjustments: flows close the Android keyboard before tapping the
+sign-in button (it covers the button on this screen; the keyboard's own ✓ key
+also submits), and scroll to elements that a small screen places off-screen.
+These JavaScript changes also apply to iOS but were **not re-run on the iOS simulator**.
+
+### Performance (debug build on the emulator — not a phone)
+
+| Measure | Value |
+|---|---|
+| Launch → first frame (`am start -W`, 5 runs) | 175–239 ms |
+| Launch → session restored and first API request (3 runs) | 1.23–1.25 s |
+| App memory (PSS total) | 243 MB, of which Java heap 11 MB, native heap 126 MB |
+| Device memory | 1024 MB total, 577 MB available with the app in the foreground |
+| SQLite files on device | 372 KB |
+
+The emulator runs on a fast Mac CPU and SSD, and a debug build loads its
+JavaScript from the Mac. None of this establishes the 3-second / 1-second
+targets on a real low-memory phone.
+
+### Limitations specific to this Android run
+
+- **Debug build only.** With the emulator's network fully off, a *relaunched*
+  debug app cannot start, because it downloads its JavaScript from Metro
+  (screenshot `40`). The reopen-offline test was therefore run with the device
+  network on and the backend unreachable. A true airplane-mode restart needs a
+  release build with embedded JavaScript, which was not made.
+- arm64 only; no 32-bit ARM build, so 32-bit-only phones are untested.
+- One device profile, one Android version (7.0). Android 8–16 not run.
+- The image has no Google Play services; nothing in the app needs them today.
+- Emulator, not a physical phone: flash storage speed, thermal limits, vendor
+  battery managers and real radio behaviour are untested.

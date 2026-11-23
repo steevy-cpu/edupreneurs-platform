@@ -1,6 +1,6 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { SavedLesson } from '../../core/db/contentStore';
 import { answerQuestion, choicesOf, correctChoiceOf, textOf } from '../../core/learning/actions';
@@ -26,6 +26,15 @@ export default function Quiz() {
   const [finished, setFinished] = useState(false);
   const session = app?.session;
   const locale = app?.locale;
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView> | null>(null);
+
+  // On small phones the feedback and the "next" button are below the choices:
+  // bring them into view as soon as the answer has been saved (found on a 480x800 device).
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 50);
+    return () => clearTimeout(timer);
+  }, [feedback]);
 
   useEffect(() => {
     if (!app || !session || !locale || !id) return;
@@ -120,7 +129,7 @@ export default function Quiz() {
   };
 
   return (
-    <Screen>
+    <Screen scrollRef={scrollRef}>
       <Body muted>{t('quizQuestionOf', { current: index + 1, total: questions.length })}</Body>
       <Text style={styles.prompt}>{textOf(question.prompt)}</Text>
       <View style={{ gap: 8 }} accessibilityRole="radiogroup">

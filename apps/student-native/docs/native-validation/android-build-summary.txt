@@ -1,0 +1,6 @@
+# Android build summary
+command: ./gradlew assembleDebug -PreactNativeArchitectures=arm64-v8a  (JDK 17.0.21, Gradle 9.4.1, AGP 9.2.1, NDK 27.1.12297006, CMake 3.22.1, build-tools 37.0.0, compileSdk 37, minSdk 24)
+first attempt: stalled >1 h in configureCMake (Gradle's automatic CMake download never completed); stopped
+fix: sdkmanager 'cmake;3.22.1'
+second attempt: BUILD SUCCESSFUL in 2m 16s (452 tasks: 160 executed, 292 up-to-date)
+output: app-debug.apk, 80.3 MB, arm64-v8a, debug (JavaScript served by Metro)
