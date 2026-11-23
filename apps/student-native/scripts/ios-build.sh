@@ -1,5 +1,6 @@
 #!/bin/bash
-# Build the iOS development (Debug) app for the simulator.
+# Build the iOS app for the simulator. CONFIGURATION=Debug (default, needs Metro)
+# or CONFIGURATION=Release (standalone: JavaScript embedded, no Metro).
 # Build output goes to $EDU_IOS_DERIVED_DATA (on the development volume), not into
 # the repository and not into ~/Library/Developer/Xcode/DerivedData.
 #
@@ -9,6 +10,7 @@ APP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck disable=SC1091
 . "$APP_DIR/../../scripts/dev-env.sh"
 SIM_NAME="${SIM_NAME:-iPhone 17}"
+CONFIGURATION="${CONFIGURATION:-Debug}"
 
 cd "$APP_DIR"
 if [ ! -d ios ]; then
@@ -27,13 +29,14 @@ UDID="$(xcrun simctl list devices available | grep -E "^ +$SIM_NAME \(" | head -
 [ -n "$UDID" ] || { echo "error: no simulator named '$SIM_NAME'" >&2; exit 1; }
 
 mkdir -p "$EDU_IOS_DERIVED_DATA"
-echo "building $SCHEME (Debug) -> $EDU_IOS_DERIVED_DATA"
-xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration Debug -sdk iphonesimulator \
+echo "building $SCHEME ($CONFIGURATION) -> $EDU_IOS_DERIVED_DATA"
+xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME" -configuration "$CONFIGURATION" -sdk iphonesimulator \
   -destination "id=$UDID" -derivedDataPath "$EDU_IOS_DERIVED_DATA" build \
-  > "$EDU_IOS_DERIVED_DATA/build.log" 2>&1 || { tail -30 "$EDU_IOS_DERIVED_DATA/build.log"; exit 1; }
-grep -E "BUILD SUCCEEDED" "$EDU_IOS_DERIVED_DATA/build.log"
+  > "$EDU_IOS_DERIVED_DATA/build-$CONFIGURATION.log" 2>&1 || { tail -30 "$EDU_IOS_DERIVED_DATA/build-$CONFIGURATION.log"; exit 1; }
+grep -E "BUILD SUCCEEDED" "$EDU_IOS_DERIVED_DATA/build-$CONFIGURATION.log"
+[ "${INSTALL:-1}" = "1" ] || exit 0
 
 xcrun simctl boot "$UDID" 2>/dev/null || true
 xcrun simctl bootstatus "$UDID" >/dev/null
-xcrun simctl install "$UDID" "$(ls -d "$EDU_IOS_DERIVED_DATA"/Build/Products/Debug-iphonesimulator/*.app | head -1)"
-echo "installed on $SIM_NAME"
+xcrun simctl install "$UDID" "$(ls -d "$EDU_IOS_DERIVED_DATA"/Build/Products/"$CONFIGURATION"-iphonesimulator/*.app | head -1)"
+echo "installed $CONFIGURATION build on $SIM_NAME"
