@@ -50,7 +50,8 @@ jobs:
 
       - name: Start local Supabase and rebuild the database from migrations + seed
         run: |
-          make start
+          # `supabase start` prints the runner's throwaway local keys; keep them out of the public log.
+          make start > /dev/null
           make db-reset
 
       - name: Database tests (pgTAP)
