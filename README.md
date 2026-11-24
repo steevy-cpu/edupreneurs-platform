@@ -55,10 +55,28 @@ More detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/SECURITY.md`
 - Shared-phone safety: one student's saved work is not visible to the next student who signs in.
 - Validated as standalone release builds on an Android 7.0 emulator (API 24, 1 GB RAM, 480×800) and an iPhone simulator. Reports: [`docs/RELEASE_01_REPORT.md`](docs/RELEASE_01_REPORT.md), [`apps/student-native/docs/`](apps/student-native/docs/).
 
-**Design-00 (separate branch, not merged)**
-- A design system and five native screen previews driven by made-up data live on the
-  [`design-00`](../../tree/design-00) branch. They are for visual review only and are
-  not part of the application on `main`.
+**Design-00 (this branch only, not merged into `main`)**
+- A design system (colour, type and spacing tokens, about twenty components) and five native screen previews driven by made-up data. See [Design-00 previews](#design-00-previews) below.
+
+## Design-00 previews
+
+This branch adds a proposed visual direction for the student app. The five
+screens below are **previews only**: they use invented data, they are reachable
+only in development builds (`monedupreneur://design`), and they do not replace
+any working screen. They await design approval before being wired into the app.
+
+| Home | Learning path | Lesson | Practice | Progress |
+|---|---|---|---|---|
+| ![Home, French](docs/design/design-00/ios/fr-home.png) | ![Learning path, French](docs/design/design-00/ios/fr-path.png) | ![Lesson reader, French](docs/design/design-00/ios/fr-lesson.png) | ![Quiz feedback, French](docs/design/design-00/ios/fr-quiz-correct.png) | ![Progress, French](docs/design/design-00/ios/fr-progress.png) |
+| ![Home, Haitian Creole](docs/design/design-00/ios/ht-home.png) | ![Learning path, Haitian Creole](docs/design/design-00/ios/ht-path.png) | ![Lesson reader, Haitian Creole](docs/design/design-00/ios/ht-lesson.png) | ![Quiz feedback, Haitian Creole](docs/design/design-00/ios/ht-quiz-correct.png) | ![Progress, Haitian Creole](docs/design/design-00/ios/ht-progress.png) |
+
+Top row French, bottom row Haitian Creole (draft wording), iPhone simulator.
+Bottom tabs: Accueil, Apprendre, Réviser, Profil.
+
+- Specification: [`docs/design/EDUPRENEURS_DESIGN00_SPEC_v0.2.md`](docs/design/EDUPRENEURS_DESIGN00_SPEC_v0.2.md)
+- Report (what was built, test results, open decisions): [`docs/design/DESIGN_00_REPORT.md`](docs/design/DESIGN_00_REPORT.md)
+- All screenshots, Android 7 and iPhone, including dark mode, large text and offline / error states: [`docs/design/design-00/`](docs/design/design-00/)
+- Code: [`apps/student-native/src/design/`](apps/student-native/src/design/) and [`apps/student-native/src/app/design/`](apps/student-native/src/app/design/)
 
 ## Offline-first principles
 
@@ -82,7 +100,7 @@ More detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/SECURITY.md`
 | `packages/contracts/` | OpenAPI contract and JSON Schemas |
 | `scripts/` | Local-only helpers (setup, test tokens, contract export) |
 | `docs/` | Architecture, security, API contract, schema changelog, test and release reports, next steps |
-| `docs/design/` | UX direction (and, on the `design-00` branch, the Design-00 specification, report and screenshots) |
+| `docs/design/` | UX direction, the Design-00 specification, report and screenshots |
 | `docs/reference/` | The original planning drafts, kept unmodified for comparison |
 
 ## Development setup
@@ -168,7 +186,7 @@ Details: `docs/ARCHITECTURE.md` and `docs/SECURITY.md`.
 - **Tested on emulators and simulators, not on physical phones.**
 - **Haitian Creole wording is a draft** and still needs review by a Creole-speaking educator.
 - **Not built yet:** teacher or parent features, an AI tutor, payments, community, notifications, content-authoring tools.
-- **Automated tests at the Release-01 tag:** 209 database tests, 144 API tests and 52 mobile tests. CI (`.github/workflows/ci.yml`) runs them on a disposable local stack with no cloud project and no repository secrets.
+- **Automated tests:** 209 database tests, 144 API tests and 128 mobile tests (52 from Release-01 plus 76 design-token tests). CI (`.github/workflows/ci.yml`) runs them on a disposable local stack with no cloud project and no repository secrets.
 - **Some documents describe one developer's machine** (for example an external development volume in [`docs/DEV_STORAGE.md`](docs/DEV_STORAGE.md)). That set-up is optional; the steps above work from any folder.
 - **Licence:** none has been chosen yet. Until one is added, the code is published for reading and review only, with all rights reserved.
 

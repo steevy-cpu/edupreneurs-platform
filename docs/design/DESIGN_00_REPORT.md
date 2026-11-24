@@ -91,7 +91,7 @@ Memory, **indicative only** (debug build, emulator, one run, total PSS): existin
 
 1. **Violet and amber.** Your brief gives violet `#7C3AED` and amber `#FF9F00`; spec v0.2 proposes `#7139C6` and `#FFB347`. I implemented the brief's values for light mode (white text on `#7C3AED` passes contrast; amber always carries dark text). Dark mode uses lighter variants (`#A98BFF`, `#FFB347`). Confirm or change in `tokens.ts`.
 2. **Dark mode.** Built and tested, but the app is locked to light in `app.json`. Ship dark at Mobile-02, later, or not at all?
-3. **Tab meanings.** Accueil / Apprendre / Réviser / Profil. In the previews "Profil" shows the Progress screen. Should progress live under Profil, or should the fourth tab be "Progrès"?
+3. **Tab meanings.** Accueil / Apprendre / Réviser / Profil. **Decided (2026-11-24): the fourth tab stays "Profil"; it is not renamed "Progrès".** In the previews "Profil" shows the Progress screen. Still open: what else belongs under Profil (account, language, sign-out) alongside progress.
 4. **Logo.** The navy square with an amber "E" is a placeholder, as are app icon and splash. Supply the real mark.
 5. **Haitian Creole wording.** All Creole strings are my drafts and need review by a Creole-speaking educator (e.g. "Chemen aprantisaj ou", "Senkronizasyon", "Apèsi").
 6. **Tone.** "Pas tout à fait" / "Pa egzakteman" for wrong answers; "Chaque petit effort compte." Approve the voice.
