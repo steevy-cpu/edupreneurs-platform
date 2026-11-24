@@ -1,27 +1,34 @@
-# Force-quit and reopen (backend still unreachable): everything must still be there.
+# Force-quit and reopen (backend still unreachable): everything must still be there,
+# found from the Accueil and Profil tabs.
 appId: ht.edupreneur.student.dev
 ---
 - stopApp
 - launchApp:
     clearState: false
 - extendedWaitUntil:
-    visible: "5 action\\(s\\) en attente de synchronisation"
+    visible: "5 action\\(s\\) en attente de synchronisation.*"
     timeout: 60000
+- assertVisible: "Continuer ma leçon"
+- assertVisible: "5 sur 5 exercices faits"
 - takeScreenshot: shots/14-home-after-restart-offline
-- scrollUntilVisible:
-    element: "Progrès et synchronisation"
-    direction: UP
-- tapOn: "Progrès et synchronisation"
+- tapOn:
+    id: "tab-profile"
+- extendedWaitUntil:
+    visible: "Ma progression"
+    timeout: 20000
 - scrollUntilVisible:
     element: "4 bonne\\(s\\) réponse\\(s\\)"
     direction: DOWN
 - assertVisible: "5 question\\(s\\) répondue\\(s\\) sur 5"
-- takeScreenshot: shots/15-progress-after-restart-offline
+- takeScreenshot: shots/15-profile-after-restart-offline
 - scrollUntilVisible:
     element: "Synchroniser maintenant"
-    direction: UP
+    direction: DOWN
 - tapOn: "Synchroniser maintenant"
 - extendedWaitUntil:
     visible: "Serveur injoignable.*"
     timeout: 60000
+- assertVisible: "Envoi impossible pour le moment"
+- assertVisible: "5 action\\(s\\) en attente de synchronisation"
+- assertNotVisible: "Tout est synchronisé"
 - takeScreenshot: shots/16-sync-attempt-offline

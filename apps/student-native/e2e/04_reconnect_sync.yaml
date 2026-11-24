@@ -1,15 +1,16 @@
-# Backend reachable again: sync and confirm nothing is pending.
+# Backend reachable again (still on Profil): sync and confirm nothing is pending.
 appId: ht.edupreneur.student.dev
 ---
 - scrollUntilVisible:
     element: "Synchroniser maintenant"
-    direction: UP
+    direction: DOWN
 - tapOn: "Synchroniser maintenant"
 - extendedWaitUntil:
     visible: "Tout est synchronisé"
     timeout: 60000
-- assertNotVisible: ".*en attente de synchronisation"
+- assertNotVisible: ".*en attente de synchronisation.*"
 - scrollUntilVisible:
     element: "5 question\\(s\\) répondue\\(s\\) sur 5"
-    direction: DOWN
-- takeScreenshot: shots/17-progress-synced
+    direction: UP
+- assertVisible: "Synchronisé"
+- takeScreenshot: shots/17-profile-synced
