@@ -59,7 +59,8 @@ export function Pill({ label, tone = 'neutral', icon }: { label: string; tone?: 
   return (
     <View style={[styles.pill, { backgroundColor: bg }]}>
       {icon ? <Icon name={icon} color={fg} size={14} /> : null}
-      <AppText variant="caption" style={{ color: fg }}>
+      {/* Long labels at large text sizes wrap inside the pill instead of running off the screen. */}
+      <AppText variant="caption" style={{ color: fg, flexShrink: 1 }}>
         {label}
       </AppText>
     </View>
@@ -193,6 +194,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: space.xs,
     alignSelf: 'flex-start',
+    maxWidth: '100%',
     borderRadius: radius.pill,
     paddingHorizontal: space.md,
     paddingVertical: 6,

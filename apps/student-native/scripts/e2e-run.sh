@@ -8,6 +8,7 @@
 # With no flow names it runs the whole journey, switching the backend between
 # reachable and unreachable where a flow needs it:
 #   android  removes / restores the emulator's port forwards (API 8000, Auth 54321)
+#   android + E2E_OFFLINE=airplane   real airplane mode (for standalone release builds)
 #   ios      stops / starts the local API process and pauses / unpauses the Auth gateway
 # Passwords for the two synthetic students are generated here and never printed.
 set -euo pipefail
@@ -29,7 +30,21 @@ ENVS=(-e EMAIL=student.a@edupreneur.test -e "PASSWORD=$PASS_A" -e EMAIL_B=studen
 
 api_up() { curl -s --max-time 2 http://127.0.0.1:8000/ready | grep -q ready; }
 backend() { # reachable | unreachable
-  if [ "$PLATFORM" = android ]; then
+  if [ "$PLATFORM" = android ] && [ "${E2E_OFFLINE:-}" = airplane ]; then
+    # Release builds reach the Mac at 10.0.2.2, so "offline" is real airplane mode on the emulator.
+    if [ "$1" = unreachable ]; then
+      # (This emulator image has no Wi-Fi radio; mobile data is its only network.)
+      "$ADB" shell svc data disable >/dev/null 2>&1 || true
+      "$ADB" shell settings put global airplane_mode_on 1
+      "$ADB" shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state true >/dev/null 2>&1 || true
+    else
+      "$ADB" shell settings put global airplane_mode_on 0
+      "$ADB" shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state false >/dev/null 2>&1 || true
+      "$ADB" shell svc data enable >/dev/null 2>&1 || true
+      for _ in $(seq 1 30); do "$ADB" shell ping -c 1 -W 1 10.0.2.2 >/dev/null 2>&1 && break; sleep 1; done
+    fi
+    echo "    airplane mode: $("$ADB" shell settings get global airplane_mode_on | tr -d '\r'); ping Mac: $("$ADB" shell ping -c 1 -W 1 10.0.2.2 >/dev/null 2>&1 && echo ok || echo unreachable)" | tee -a "$LOG"
+  elif [ "$PLATFORM" = android ]; then
     if [ "$1" = unreachable ]; then
       "$ADB" reverse --remove tcp:8000 >/dev/null 2>&1 || true
       "$ADB" reverse --remove tcp:54321 >/dev/null 2>&1 || true

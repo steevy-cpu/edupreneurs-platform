@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-"""Accessibility audit of the Design-00 previews, read from the device's real accessibility tree.
+"""Accessibility audit read from the device's real accessibility tree.
 
-    design-a11y-audit.py android|ios [--udid UDID] [--maestro PATH]
+    design-a11y-audit.py android|ios [--udid UDID] [--maestro PATH]              Design-00 previews
+    design-a11y-audit.py android|ios --routes "home,learn,profile@scroll" ...    real screens (signed in)
+
+With --routes, each entry is an app route opened by deep link (monedupreneur://<route>);
+"@scroll" / "@scroll2" audits the same screen after scrolling down once / twice.
 
 For every preview it lists each element a screen reader can activate and checks:
   * it has a spoken name (label or text);
@@ -25,16 +29,30 @@ PREVIEWS = [
     "progress?locale=fr", "progress?locale=ht&state=pending", "progress?locale=fr&state=failed", "progress?locale=fr&state=empty",
 ]
 
+ROUTES = arg("--routes")
+PREFIX = "monedupreneur://design/"
+if ROUTES:
+    PREVIEWS, PREFIX = [r.strip() for r in ROUTES.split(",") if r.strip()], "monedupreneur://"
+
 def sh(*cmd):
     return subprocess.run(cmd, capture_output=True, text=True).stdout
 
 def open_url(path):
-    url = f"monedupreneur://design/{path}"
+    path, _, scrolls = path.partition("@")
+    url = f"{PREFIX}{path}"
     if platform == "android":
         sh("adb", "shell", "am", "start", "-a", "android.intent.action.VIEW", "-d", f"'{url}'", APP)
     else:
         sh("xcrun", "simctl", "openurl", UDID, url)
     time.sleep(3.5)
+    for _ in range({"": 0, "scroll": 1, "scroll2": 2, "scroll3": 3}.get(scrolls, 0)):
+        if platform == "android":
+            sh("adb", "shell", "input", "swipe", "240", "620", "240", "260", "600")
+        else:
+            sh(MAESTRO, "--device", UDID, "test", SWIPE_FLOW)
+        time.sleep(1.2)
+
+SWIPE_FLOW = arg("--swipe-flow", "")
 
 def android_nodes():
     density = int(re.search(r"(\d+)", sh("adb", "shell", "wm", "density")).group(1)) / 160

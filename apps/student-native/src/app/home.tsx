@@ -1,5 +1,5 @@
 import { Redirect, useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import type { CatalogResponse } from '../core/api/types';
@@ -12,6 +12,7 @@ import {
   totalsOf,
 } from '../core/learning/overview';
 import { AppText, Button, HeroCard, Icon, ListRow, LoadingState, MessageState, Notice, ProgressBar, SectionHeader, space } from '../design';
+import { perfHomeReady, perfTap } from '../ui/perf';
 import { TabScreen } from '../ui/shell';
 import { useSignedIn } from '../ui/useSession';
 
@@ -54,6 +55,12 @@ export default function Home() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [session, locale, pending, syncedAt]),
   );
+
+  // Measurement builds only (see ui/perf.ts): runs after the Home content has been committed.
+  const ready = view !== null;
+  useEffect(() => {
+    if (ready) perfHomeReady();
+  }, [ready]);
 
   if (!app) return <Redirect href="/sign-in" />;
   const { t, sync, needsReauth } = app;
@@ -152,7 +159,10 @@ export default function Home() {
           variant="onHero"
           icon="play"
           testID="home-continue"
-          onPress={() => router.push(`/lesson/${next.lessonId}`)}
+          onPress={() => {
+            perfTap();
+            router.push(`/lesson/${next.lessonId}`);
+          }}
         />
       </HeroCard>
 

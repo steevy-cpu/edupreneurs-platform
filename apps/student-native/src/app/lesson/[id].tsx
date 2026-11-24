@@ -1,11 +1,12 @@
 import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import type { SavedLesson } from '../../core/db/contentStore';
 import { completeLesson } from '../../core/learning/actions';
 import { findLessonContext, LessonContext, PREF_LAST_LESSON } from '../../core/learning/overview';
 import { AppText, Button, Card, LessonHeader, LoadingState, MessageState, SectionHeader, space, useDesign } from '../../design';
+import { perfSinceTap } from '../../ui/perf';
 import { DetailScreen } from '../../ui/shell';
 import { useSignedIn } from '../../ui/useSession';
 
@@ -98,6 +99,12 @@ export default function LessonReader() {
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [session, locale, id]),
   );
+
+  // Measurement builds only (see ui/perf.ts): runs after the lesson content has been committed.
+  const shown = Boolean(lesson);
+  useEffect(() => {
+    if (shown) perfSinceTap('lesson_open_ms');
+  }, [shown]);
 
   if (!app) return <Redirect href="/sign-in" />;
   const { t } = app;
