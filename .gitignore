@@ -29,3 +29,41 @@ supabase/.branches/
 
 # Local developer tools (UI automation), downloaded on demand
 .tools/
+
+# Signing material and credentials — never commit
+*.jks
+*.keystore
+*.p8
+*.p12
+*.pem
+*.key
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+credentials.json
+
+# Database files, dumps and backups
+*.db
+*.sqlite
+*.sqlite3
+*.dump
+*.sql.gz
+*.bak
+
+# Native build output and installable apps
+*.apk
+*.aab
+*.ipa
+*.xcarchive
+
+# AI model weights
+*.safetensors
+*.gguf
+*.pt
+*.pth
+*.ckpt
+*.npz
+
+# Personal notes and assistant settings
+my_note.txt
+.claude/
