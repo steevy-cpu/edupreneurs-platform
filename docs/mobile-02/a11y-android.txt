@@ -1,0 +1,14 @@
+PASS  home                                  5 targets, smallest side 52, 1 clipped-skipped
+PASS  home@scroll                           7 targets, smallest side 52, 0 clipped-skipped
+PASS  learn                                 6 targets, smallest side 48, 1 clipped-skipped
+PASS  learn@scroll                          6 targets, smallest side 48, 1 clipped-skipped
+PASS  review                                6 targets, smallest side 52, 0 clipped-skipped
+PASS  profile                               5 targets, smallest side 60, 0 clipped-skipped
+PASS  profile@scroll                        4 targets, smallest side 60, 1 clipped-skipped
+PASS  profile@scroll2                       8 targets, smallest side 48, 0 clipped-skipped
+PASS  profile@scroll3                       8 targets, smallest side 48, 0 clipped-skipped
+PASS  lesson/b0000000-0000-4000-8000-000000000005  2 targets, smallest side 48, 0 clipped-skipped
+PASS  lesson/b0000000-0000-4000-8000-000000000005@scroll3  3 targets, smallest side 48, 0 clipped-skipped
+PASS  quiz/b0000000-0000-4000-8000-000000000005  6 targets, smallest side 48, 0 clipped-skipped
+
+android: 66 activatable elements checked, 0 failures (minimum 48)

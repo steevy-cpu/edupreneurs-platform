@@ -10,10 +10,15 @@ import { AppText } from './Text';
 
 export type TabKey = 'home' | 'learn' | 'review' | 'profile';
 
-/** Four destinations, each with an icon AND a label, each at least 48 dp tall. */
-export function TabBar({ current, onSelect }: { current: TabKey; onSelect: (tab: TabKey) => void }) {
+/**
+ * Four destinations, each with an icon AND a label, each at least 48 dp tall.
+ * Memoised: it re-renders only when the selected tab or the handler changes, not
+ * every time the screen above it updates.
+ */
+export const TabBar = React.memo(function TabBar({ current, onSelect }: { current: TabKey; onSelect: (tab: TabKey) => void }) {
   const { colors, t } = useDesign();
   const insets = useSafeAreaInsets();
+  const tabWidth = Math.floor(useLayout().width / 4);
   const tabs: { key: TabKey; icon: IconName; label: string }[] = [
     { key: 'home', icon: 'home', label: t('tabHome') },
     { key: 'learn', icon: 'learn', label: t('tabLearn') },
@@ -23,6 +28,9 @@ export function TabBar({ current, onSelect }: { current: TabKey; onSelect: (tab:
   return (
     <View
       accessibilityRole="tablist"
+      // Own rendering layer on Android: without it, Android 7 repainted part of the bar while
+      // the content above was scrolling and shaved a pixel column off the last label ("Profi").
+      renderToHardwareTextureAndroid
       style={[
         styles.tabBar,
         {
@@ -49,15 +57,20 @@ export function TabBar({ current, onSelect }: { current: TabKey; onSelect: (tab:
             <Icon name={tab.icon} color={color} size={22} />
             <AppText
               variant="caption"
+              // One short word per tab. The label grows only slightly with the phone's text size so
+              // the longest one ("Apprendre") always fits a quarter of a 320 dp screen. It is NOT
+              // auto-shrunk: on Android 7 auto-shrinking intermittently cut off the last letter.
               numberOfLines={1}
-              maxFontSizeMultiplier={1.3}
-              adjustsFontSizeToFit
-              minimumFontScale={0.75}
+              ellipsizeMode="clip"
+              maxFontSizeMultiplier={1.15}
               align="center"
               style={{
                 color,
                 fontWeight: active ? '800' : '600',
-                alignSelf: 'stretch',
+                // A fixed width (a quarter of the screen) instead of a width measured from the
+                // text: Android 7 sometimes measured the bold label a pixel or two too narrow
+                // after a re-render and cut off its last letter ("Profi").
+                width: tabWidth,
               }}
             >
               {tab.label}
@@ -67,7 +80,7 @@ export function TabBar({ current, onSelect }: { current: TabKey; onSelect: (tab:
       })}
     </View>
   );
-}
+});
 
 /** Top bar: wordmark on root screens, back button on drill-down screens. */
 export function TopBar({ title, onBack, trailing }: { title?: string; onBack?: () => void; trailing?: React.ReactNode }) {

@@ -47,36 +47,29 @@ More detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/SECURITY.md`
 - API endpoints for the learner profile, the catalog, lesson download, and sync push / pull.
 - Exactly-once synchronisation: an answer sent twice, or sent by twenty retries at once, is recorded once. The server scores answers itself.
 
-**Student app (Mobile-01, Release-01)**
-- Sign in, browse the catalog, save a lesson to the phone, read it offline.
+**Student app (Mobile-01, Release-01, Mobile-02)**
+- Four destinations: **Accueil**, **Apprendre**, **Réviser**, **Profil**.
+- Sign in, choose a grade and subject, follow the learning path, download a lesson and read it offline.
 - Answer practice questions offline; each answer is written to SQLite before the app says it is saved.
-- Automatic sync when the network returns, with distinct "saved on this phone", "waiting to sync", "synced" and "failed" states.
+- Automatic sync when the network returns, with distinct "saved on this phone", "waiting to sync", "synced" and "failed" states. "Synced" is never shown for work the server has not acknowledged.
+- Redo the exercises of saved lessons, or only the questions last answered wrongly.
 - French and Haitian Creole interface.
 - Shared-phone safety: one student's saved work is not visible to the next student who signs in.
-- Validated as standalone release builds on an Android 7.0 emulator (API 24, 1 GB RAM, 480×800) and an iPhone simulator. Reports: [`docs/RELEASE_01_REPORT.md`](docs/RELEASE_01_REPORT.md), [`apps/student-native/docs/`](apps/student-native/docs/).
+- Validated as standalone release builds on an Android 7.0 emulator (API 24, 1 GB RAM, 480×800, airplane mode) and an iPhone simulator. Reports: [`docs/MOBILE_02_REPORT.md`](docs/MOBILE_02_REPORT.md), [`docs/RELEASE_01_REPORT.md`](docs/RELEASE_01_REPORT.md), [`apps/student-native/docs/`](apps/student-native/docs/).
 
-**Design-00 (this branch only, not merged into `main`)**
-- A design system (colour, type and spacing tokens, about twenty components) and five native screen previews driven by made-up data. See [Design-00 previews](#design-00-previews) below.
+### The app on this branch (Mobile-02)
 
-## Design-00 previews
+Android 7.0 emulator, release build, synthetic student and lesson.
 
-This branch adds a proposed visual direction for the student app. The five
-screens below are **previews only**: they use invented data, they are reachable
-only in development builds (`monedupreneur://design`), and they do not replace
-any working screen. They await design approval before being wired into the app.
-
-| Home | Learning path | Lesson | Practice | Progress |
+| Accueil | Apprendre | Leçon | Exercices | Profil |
 |---|---|---|---|---|
-| ![Home, French](docs/design/design-00/ios/fr-home.png) | ![Learning path, French](docs/design/design-00/ios/fr-path.png) | ![Lesson reader, French](docs/design/design-00/ios/fr-lesson.png) | ![Quiz feedback, French](docs/design/design-00/ios/fr-quiz-correct.png) | ![Progress, French](docs/design/design-00/ios/fr-progress.png) |
-| ![Home, Haitian Creole](docs/design/design-00/ios/ht-home.png) | ![Learning path, Haitian Creole](docs/design/design-00/ios/ht-path.png) | ![Lesson reader, Haitian Creole](docs/design/design-00/ios/ht-lesson.png) | ![Quiz feedback, Haitian Creole](docs/design/design-00/ios/ht-quiz-correct.png) | ![Progress, Haitian Creole](docs/design/design-00/ios/ht-progress.png) |
+| ![Home with the Continue card and work waiting to sync](docs/mobile-02/android/14-home-after-restart-offline.png) | ![Learning path with a downloaded lesson](docs/mobile-02/android/06-path-saved.png) | ![Lesson reader](docs/mobile-02/android/07-reader.png) | ![Exercise feedback after a wrong answer](docs/mobile-02/android/11-quiz-q5-wrong.png) | ![Profile with progress and pending work](docs/mobile-02/android/15-profile-after-restart-offline.png) |
 
-Top row French, bottom row Haitian Creole (draft wording), iPhone simulator.
-Bottom tabs: Accueil, Apprendre, Réviser, Profil.
-
-- Specification: [`docs/design/EDUPRENEURS_DESIGN00_SPEC_v0.2.md`](docs/design/EDUPRENEURS_DESIGN00_SPEC_v0.2.md)
-- Report (what was built, test results, open decisions): [`docs/design/DESIGN_00_REPORT.md`](docs/design/DESIGN_00_REPORT.md)
-- All screenshots, Android 7 and iPhone, including dark mode, large text and offline / error states: [`docs/design/design-00/`](docs/design/design-00/)
-- Code: [`apps/student-native/src/design/`](apps/student-native/src/design/) and [`apps/student-native/src/app/design/`](apps/student-native/src/app/design/)
+The design system (colour, type and spacing tokens, about twenty components) comes from
+Design-00: specification [`docs/design/EDUPRENEURS_DESIGN00_SPEC_v0.2.md`](docs/design/EDUPRENEURS_DESIGN00_SPEC_v0.2.md),
+report [`docs/design/DESIGN_00_REPORT.md`](docs/design/DESIGN_00_REPORT.md). The original
+fixture-driven previews remain available in development builds only (`monedupreneur://design`)
+and are excluded from release bundles.
 
 ## Offline-first principles
 
@@ -91,7 +84,7 @@ Bottom tabs: Accueil, Apprendre, Réviser, Profil.
 
 | Path | What it is |
 |---|---|
-| `apps/student-native/` | React Native (Expo) student app, its tests, UI test flows and validation reports |
+| `apps/student-native/` | React Native (Expo) student app: screens (`src/app`), design system (`src/design`), offline core (`src/core`), tests and UI test flows |
 | `services/api/` | The FastAPI service |
 | `supabase/migrations/` | The database schema, the single source of truth (ordered SQL files) |
 | `supabase/seed.sql` | Synthetic test data: two students, an editor, a reviewer, one grade-9 maths lesson in French and Haitian Creole |
@@ -142,7 +135,7 @@ The first run downloads about 1.5 GB of Docker images.
 | `make check` | Everything CI runs |
 | `make openapi` | Regenerate `packages/contracts/openapi.json` after changing the API |
 | `make status` | Show local stack URLs |
-| `make mobile-install` / `mobile-check` / `mobile-test` | Mobile app: install, static checks, 52 core tests against the local stack |
+| `make mobile-install` / `mobile-check` / `mobile-test` | Mobile app: install, static checks, 157 tests (storage, sync, design tokens, screen components) against the local stack |
 | `make dev-login ACCOUNT=student_a` | Print an e-mail + password to type into the app |
 | `make mobile-env TARGET=ios-sim` then `make mobile-ios` | Configure and run the app on the iOS Simulator (`android-emu` / `mobile-android` for Android) |
 
@@ -186,7 +179,7 @@ Details: `docs/ARCHITECTURE.md` and `docs/SECURITY.md`.
 - **Tested on emulators and simulators, not on physical phones.**
 - **Haitian Creole wording is a draft** and still needs review by a Creole-speaking educator.
 - **Not built yet:** teacher or parent features, an AI tutor, payments, community, notifications, content-authoring tools.
-- **Automated tests:** 209 database tests, 144 API tests and 128 mobile tests (52 from Release-01 plus 76 design-token tests). CI (`.github/workflows/ci.yml`) runs them on a disposable local stack with no cloud project and no repository secrets.
+- **Automated tests:** 209 database tests, 144 API tests and 157 mobile tests. CI (`.github/workflows/ci.yml`) runs them on a disposable local stack with no cloud project and no repository secrets.
 - **Some documents describe one developer's machine** (for example an external development volume in [`docs/DEV_STORAGE.md`](docs/DEV_STORAGE.md)). That set-up is optional; the steps above work from any folder.
 - **Licence:** none has been chosen yet. Until one is added, the code is published for reading and review only, with all rights reserved.
 

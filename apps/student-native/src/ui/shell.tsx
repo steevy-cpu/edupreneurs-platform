@@ -38,12 +38,17 @@ export function OfflinePill() {
 /** One of the four main destinations: wordmark on top, tab bar at the bottom. */
 export function TabScreen({ tab, children, action }: { tab: TabKey; children: React.ReactNode; action?: React.ReactNode }) {
   const router = useRouter();
+  const routerRef = React.useRef(router);
+  routerRef.current = router;
+  // Stable handler so the memoised tab bar is not re-rendered by every screen update.
+  const select = React.useCallback(
+    (next: TabKey) => {
+      if (next !== tab) routerRef.current.replace(TAB_ROUTE[next]);
+    },
+    [tab],
+  );
   return (
-    <ScreenFrame
-      top={<TopBar trailing={<OfflinePill />} />}
-      action={action}
-      tabs={<TabBar current={tab} onSelect={(next) => (next === tab ? undefined : router.replace(TAB_ROUTE[next]))} />}
-    >
+    <ScreenFrame top={<TopBar trailing={<OfflinePill />} />} action={action} tabs={<TabBar current={tab} onSelect={select} />}>
       {children}
     </ScreenFrame>
   );
