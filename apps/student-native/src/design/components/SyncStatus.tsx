@@ -21,14 +21,24 @@ export function SyncStatusCard({
   state,
   pendingCount,
   lastConfirmed,
+  attentionCount,
   onSync,
+  busyLabel,
+  notes,
   technicalDetail,
 }: {
   state: SyncDisplayState;
   pendingCount: number;
   /** Already formatted for the locale; null if the server has never confirmed anything. */
   lastConfirmed: string | null;
+  /** Operations the server refused. Defaults to `pendingCount` when the state is `attention`. */
+  attentionCount?: number;
+  /** When given, a "sync now" button is shown. The caller runs the real sync engine. */
   onSync?: () => void;
+  /** Set while a sync run is in progress: the button shows this label and a spinner. */
+  busyLabel?: string;
+  /** Extra plain-language lines (e.g. "sign in again to sync"). */
+  notes?: string[];
   /** Diagnostic text kept behind a disclosure so it never dominates the screen. */
   technicalDetail?: string;
 }) {
@@ -39,7 +49,7 @@ export function SyncStatusCard({
       fg: colors.success,
       bg: colors.successSoft,
       icon: 'check' as const,
-      title: t('syncSynced'),
+      title: t('syncAllDone'),
     },
     pending: {
       fg: colors.warning,
@@ -57,7 +67,7 @@ export function SyncStatusCard({
       fg: colors.danger,
       bg: colors.dangerSoft,
       icon: 'cross' as const,
-      title: t('syncAttention', { count: pendingCount }),
+      title: t('syncAttention', { count: attentionCount ?? pendingCount }),
     },
   }[state];
   return (
@@ -73,11 +83,21 @@ export function SyncStatusCard({
           {look.title}
         </AppText>
       </View>
+      {/* A failed attempt still says how much work is waiting, and refused work is never hidden behind "pending". */}
+      {state === 'failed' && pendingCount > 0 ? <AppText variant="bodyStrong">{t('syncPending', { count: pendingCount })}</AppText> : null}
+      {state !== 'attention' && (attentionCount ?? 0) > 0 ? (
+        <AppText variant="bodyStrong">{t('syncAttention', { count: attentionCount ?? 0 })}</AppText>
+      ) : null}
       {state === 'pending' || state === 'failed' ? <AppText color="textSecondary">{t('syncPendingHelp')}</AppText> : null}
+      {(notes ?? []).map((note) => (
+        <AppText key={note} color="textSecondary">
+          {note}
+        </AppText>
+      ))}
       <AppText variant="caption" color="textSecondary">
         {lastConfirmed ? t('syncLast', { when: lastConfirmed }) : t('syncNever')}
       </AppText>
-      {state !== 'synced' ? <Button label={t('syncNow')} variant="secondary" onPress={onSync} /> : null}
+      {onSync ? <Button label={busyLabel ?? t('syncNow')} busy={Boolean(busyLabel)} variant="secondary" onPress={onSync} /> : null}
       {technicalDetail ? (
         <>
           <Pressable

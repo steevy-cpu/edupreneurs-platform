@@ -41,6 +41,7 @@ export function TabBar({ current, onSelect }: { current: TabKey; onSelect: (tab:
             accessibilityRole="tab"
             accessibilityLabel={tab.label}
             accessibilityState={{ selected: active }}
+            testID={`tab-${tab.key}`}
             onPress={() => onSelect(tab.key)}
             style={styles.tab}
           >

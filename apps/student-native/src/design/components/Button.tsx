@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { useDesign } from '../theme';
 import { radius, size, space } from '../tokens';
@@ -18,14 +18,19 @@ export function Button({
   variant = 'primary',
   icon,
   disabled,
+  busy,
   accessibilityHint,
+  testID,
 }: {
   label: string;
   onPress?: () => void;
   variant?: ButtonVariant;
   icon?: IconName;
   disabled?: boolean;
+  /** Work in progress: shows a spinner and ignores taps. */
+  busy?: boolean;
   accessibilityHint?: string;
+  testID?: string;
 }) {
   const { colors } = useDesign();
   const palette = {
@@ -54,14 +59,16 @@ export function Button({
       border: colors.accent,
     },
   }[variant];
+  const inactive = Boolean(disabled || busy);
   const fg = disabled ? colors.disabledText : palette.fg;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={accessibilityHint}
-      accessibilityState={{ disabled: Boolean(disabled) }}
-      disabled={disabled}
+      accessibilityState={{ disabled: inactive, busy: Boolean(busy) }}
+      disabled={inactive}
+      testID={testID}
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
@@ -71,7 +78,7 @@ export function Button({
         },
       ]}
     >
-      {icon ? <Icon name={icon} color={fg} size={20} /> : null}
+      {busy ? <ActivityIndicator color={fg} /> : icon ? <Icon name={icon} color={fg} size={20} /> : null}
       <View style={styles.label}>
         <AppText variant="label" align="center" style={{ color: fg, fontSize: 17, lineHeight: 22 }}>
           {label}

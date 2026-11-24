@@ -8,3 +8,4 @@ export * from './components/Surfaces';
 export * from './components/Learning';
 export * from './components/Chrome';
 export * from './components/SyncStatus';
+export * from './components/Forms';

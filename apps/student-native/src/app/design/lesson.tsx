@@ -3,11 +3,12 @@ import { View } from 'react-native';
 
 import { AppText, Button, Card, Icon, LessonHeader, SectionHeader, space, StepStrip, TopBar, useDesign } from '../../design';
 import { copy, lesson } from '../../design/preview/fixtures';
-import { PreviewScreenShell, usePreviewNav } from '../../design/preview/shell';
+import { PreviewScreenShell, usePreviewNav, usePreviewT } from '../../design/preview/shell';
 
 /** Lesson Reader: objective → explanation → worked example → key ideas → practice. One guided flow, no tabs. */
 function Content() {
-  const { t, locale, colors } = useDesign();
+  const { locale, colors } = useDesign();
+  const t = usePreviewT();
   const c = copy(locale);
   const data = lesson(locale);
   const [hintOpen, setHintOpen] = useState(false);
@@ -116,7 +117,7 @@ export default function LessonPreview() {
 }
 
 function LessonAction() {
-  const { t } = useDesign();
+  const t = usePreviewT();
   const go = usePreviewNav();
   return <Button label={t('tryQuestion')} icon="play" onPress={() => go('quiz')} />;
 }

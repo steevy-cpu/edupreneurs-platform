@@ -1,29 +1,25 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { AccessibilityInfo, useColorScheme, useWindowDimensions } from 'react-native';
 
-import { STRINGS_FR, type DesignStringKey } from './strings.fr';
-import { STRINGS_HT } from './strings.ht';
+import { type StringKey, translator } from '../core/i18n/strings';
 import { ColorScheme, darkColors, lightColors, maxScale } from './tokens';
 
 export type ThemeName = 'light' | 'dark';
 export type DesignLocale = 'fr' | 'ht';
+/** Kept as an alias: components were written against this name in Design-00. */
+export type DesignStringKey = StringKey;
 
 export interface DesignContextValue {
   theme: ThemeName;
   colors: ColorScheme;
   locale: DesignLocale;
   /** Translate a key; `{name}` placeholders are filled from `values`. */
-  t: (key: DesignStringKey, values?: Record<string, string | number>) => string;
+  t: (key: StringKey, values?: Record<string, string | number>) => string;
   /** True when the OS asks apps to avoid animation. Components must not animate when set. */
   reduceMotion: boolean;
 }
 
 const DesignContext = createContext<DesignContextValue | null>(null);
-
-function format(template: string, values?: Record<string, string | number>): string {
-  if (!values) return template;
-  return template.replace(/\{(\w+)\}/g, (match, name: string) => (name in values ? String(values[name]) : match));
-}
 
 /** Tracks the OS "reduce motion" setting. */
 export function useReduceMotion(): boolean {
@@ -56,12 +52,12 @@ export function DesignProvider({
   const reduceMotion = useReduceMotion();
   const resolved: ThemeName = theme ?? (system === 'dark' ? 'dark' : 'light');
   const value = useMemo<DesignContextValue>(() => {
-    const catalog = locale === 'ht' ? STRINGS_HT : STRINGS_FR;
     return {
       theme: resolved,
       colors: resolved === 'dark' ? darkColors : lightColors,
       locale,
-      t: (key, values) => format(catalog[key], values),
+      // One catalog for the whole app: src/core/i18n/strings.ts.
+      t: translator(locale),
       reduceMotion,
     };
   }, [resolved, locale, reduceMotion]);

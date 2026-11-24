@@ -2,7 +2,9 @@ import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import { View } from 'react-native';
 
+import { format, type StringKey } from '../../core/i18n/strings';
 import { AppText, ConnectivityPill, DesignLocale, DesignProvider, ScreenFrame, TabBar, TabKey, ThemeName, useDesign, WidthScope } from '..';
+import { PREVIEW_STRINGS, type PreviewStringKey } from './strings';
 
 /**
  * Design previews are reachable only in development builds, or in a build made
@@ -63,7 +65,8 @@ const TAB_TARGET: Record<TabKey, PreviewScreen> = {
 };
 
 function Banner() {
-  const { colors, t } = useDesign();
+  const { colors } = useDesign();
+  const t = usePreviewT();
   return (
     <View
       style={{
@@ -115,4 +118,13 @@ export function PreviewScreenShell({
       </WidthScope>
     </DesignProvider>
   );
+}
+
+/** Translate for preview screens: preview-only wording first, then the app catalog. */
+export function usePreviewT() {
+  const { t, locale } = useDesign();
+  return (key: PreviewStringKey | StringKey, values?: Record<string, string | number>): string => {
+    const own = PREVIEW_STRINGS[locale] as Record<string, string>;
+    return key in own ? format(own[key], values) : t(key as StringKey, values);
+  };
 }

@@ -17,11 +17,12 @@ import {
   useDesign,
 } from '../../design';
 import { copy, PROGRESS } from '../../design/preview/fixtures';
-import { PreviewScreenShell, usePreviewNav, usePreviewParams } from '../../design/preview/shell';
+import { PreviewScreenShell, usePreviewNav, usePreviewParams, usePreviewT } from '../../design/preview/shell';
 
 /** Student Home: one clear primary action — continue learning. */
 function Content() {
-  const { t, locale } = useDesign();
+  const { locale } = useDesign();
+  const t = usePreviewT();
   const { state } = usePreviewParams();
   const go = usePreviewNav();
   const c = copy(locale);

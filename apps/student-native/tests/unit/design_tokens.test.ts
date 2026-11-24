@@ -1,6 +1,5 @@
 import { contrastRatio } from '../../src/design/contrast';
-import { STRINGS_FR } from '../../src/design/strings.fr';
-import { STRINGS_HT } from '../../src/design/strings.ht';
+import { PREVIEW_STRINGS } from '../../src/design/preview/strings';
 import { ColorScheme, darkColors, lightColors, radius, size, space, touch, type } from '../../src/design/tokens';
 
 /** [foreground token, background token, minimum ratio]. 4.5 = body text (AA); 3 = large text and control outlines. */
@@ -79,9 +78,9 @@ test('scales follow the specification', () => {
   expect(type.caption.fontSize).toBeGreaterThanOrEqual(13);
 });
 
-test('French and Haitian Creole catalogs define exactly the same keys, none empty', () => {
-  expect(Object.keys(STRINGS_HT).sort()).toEqual(Object.keys(STRINGS_FR).sort());
-  for (const catalog of [STRINGS_FR, STRINGS_HT]) {
+test('preview-only French and Haitian Creole catalogs define exactly the same keys, none empty', () => {
+  expect(Object.keys(PREVIEW_STRINGS.ht).sort()).toEqual(Object.keys(PREVIEW_STRINGS.fr).sort());
+  for (const catalog of [PREVIEW_STRINGS.fr, PREVIEW_STRINGS.ht]) {
     for (const [key, value] of Object.entries(catalog)) {
       expect(`${key}:${value.trim().length > 0}`).toBe(`${key}:true`);
     }

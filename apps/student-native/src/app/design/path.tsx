@@ -1,36 +1,14 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { AppText, Card, PathNode, ProgressBar, radius, space, TopBar, touch, useDesign } from '../../design';
+import { AppText, Card, Chip, PathNode, ProgressBar, space, TopBar, useDesign } from '../../design';
 import { copy, GRADES, pathSteps, subjects } from '../../design/preview/fixtures';
-import { PreviewScreenShell, usePreviewNav, usePreviewParams } from '../../design/preview/shell';
-
-function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
-  const { colors } = useDesign();
-  return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ selected }}
-      accessibilityLabel={label}
-      onPress={onPress}
-      style={[
-        styles.chip,
-        {
-          backgroundColor: selected ? colors.hero : colors.surface,
-          borderColor: selected ? colors.hero : colors.borderControl,
-        },
-      ]}
-    >
-      <AppText variant="label" style={{ color: selected ? colors.textOnHero : colors.text }}>
-        {label}
-      </AppText>
-    </Pressable>
-  );
-}
+import { PreviewScreenShell, usePreviewNav, usePreviewParams, usePreviewT } from '../../design/preview/shell';
 
 /** Learning Path: choose grade and subject, then follow (or freely revisit) the steps. */
 function Content() {
-  const { t, locale } = useDesign();
+  const { locale } = useDesign();
+  const t = usePreviewT();
   const { state } = usePreviewParams();
   const go = usePreviewNav();
   const c = copy(locale);
@@ -110,13 +88,4 @@ export default function PathPreview() {
 
 const styles = StyleSheet.create({
   chips: { flexDirection: 'row', gap: space.sm, paddingRight: space.lg },
-  chip: {
-    minHeight: touch.min,
-    minWidth: touch.min,
-    paddingHorizontal: space.lg,
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 });

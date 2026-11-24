@@ -17,7 +17,7 @@ import {
   useLayout,
 } from '../../design';
 import { copy, PROGRESS, SYNC } from '../../design/preview/fixtures';
-import { PreviewScreenShell, usePreviewNav, usePreviewParams } from '../../design/preview/shell';
+import { PreviewScreenShell, usePreviewNav, usePreviewParams, usePreviewT } from '../../design/preview/shell';
 
 function Stat({ value, label }: { value: string; label: string }) {
   const { textScale } = useLayout();
@@ -36,7 +36,8 @@ function Stat({ value, label }: { value: string; label: string }) {
 
 /** Progress: accomplishments first, review next, synchronisation last and quiet. */
 function Content() {
-  const { t, locale } = useDesign();
+  const { locale } = useDesign();
+  const t = usePreviewT();
   const { state } = usePreviewParams();
   const go = usePreviewNav();
   const c = copy(locale);
@@ -108,6 +109,7 @@ function Content() {
         state={syncState}
         pendingCount={syncState === 'attention' ? summary.needsAttention : summary.pending}
         lastConfirmed={summary.lastSyncAt ? c.lastConfirmed : null}
+        onSync={syncState === 'synced' ? undefined : () => undefined}
         technicalDetail={syncState === 'failed' ? c.detail : undefined}
       />
     </>

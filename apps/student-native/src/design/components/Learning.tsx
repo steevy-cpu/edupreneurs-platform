@@ -23,6 +23,8 @@ export function PathNode({
   first,
   last,
   onPress,
+  detail,
+  action,
 }: {
   index: number;
   title: string;
@@ -32,6 +34,10 @@ export function PathNode({
   first?: boolean;
   last?: boolean;
   onPress?: () => void;
+  /** Extra status line under the state pill, e.g. "Nouvelle version disponible". */
+  detail?: string;
+  /** Optional control under the text, e.g. a download button. */
+  action?: React.ReactNode;
 }) {
   const { colors, t } = useDesign();
   const stateLabel = {
@@ -68,13 +74,26 @@ export function PathNode({
   const offset = [0, 20, 32, 20][index % 4];
   const lineColor = state === 'completed' ? colors.action : colors.border;
 
+  const text = (
+    <>
+      <AppText variant="caption" color="textSecondary">
+        {kind}
+      </AppText>
+      <AppText variant="bodyStrong">{title}</AppText>
+      <Pill
+        label={stateLabel}
+        tone={state === 'completed' ? 'success' : recommended ? 'highlight' : state === 'unavailable' ? 'neutral' : 'action'}
+      />
+      {detail ? (
+        <AppText variant="caption" color="textSecondary">
+          {detail}
+        </AppText>
+      ) : null}
+    </>
+  );
+  const label = [kind, title, stateLabel, detail].filter(Boolean).join('. ');
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${kind}. ${title}. ${stateLabel}`}
-      onPress={onPress}
-      style={({ pressed }) => [styles.pathRow, pressed && { opacity: 0.7 }]}
-    >
+    <View style={styles.pathRow}>
       <View style={[styles.rail, { marginLeft: offset }]}>
         <View style={[styles.connector, { backgroundColor: first ? 'transparent' : lineColor }]} />
         <View
@@ -105,16 +124,24 @@ export function PathNode({
         <View style={[styles.connector, { backgroundColor: last ? 'transparent' : colors.border }]} />
       </View>
       <View style={styles.pathText}>
-        <AppText variant="caption" color="textSecondary">
-          {kind}
-        </AppText>
-        <AppText variant="bodyStrong">{title}</AppText>
-        <Pill
-          label={stateLabel}
-          tone={state === 'completed' ? 'success' : recommended ? 'highlight' : state === 'unavailable' ? 'neutral' : 'action'}
-        />
+        {/* The words are the tap target when the step can be opened; a step that cannot be opened is plain text. */}
+        {onPress ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            onPress={onPress}
+            style={({ pressed }) => [styles.pathPress, pressed && { opacity: 0.7 }]}
+          >
+            {text}
+          </Pressable>
+        ) : (
+          <View accessible accessibilityLabel={label} style={styles.pathPress}>
+            {text}
+          </View>
+        )}
+        {action}
       </View>
-    </Pressable>
+    </View>
   );
 }
 
@@ -151,12 +178,12 @@ export function StepStrip({ steps, current }: { steps: string[]; current: number
   );
 }
 
-export function LessonHeader({ subject, title, meta, offline }: { subject: string; title: string; meta: string; offline: string }) {
+export function LessonHeader({ subject, title, meta, offline }: { subject?: string; title: string; meta: string; offline?: string }) {
   return (
     <View style={{ gap: space.sm }}>
       <View style={styles.wrapRow}>
-        <Pill label={subject} tone="action" />
-        <Pill label={offline} tone="success" icon="check" />
+        {subject ? <Pill label={subject} tone="action" /> : null}
+        {offline ? <Pill label={offline} tone="success" icon="check" /> : null}
       </View>
       <AppText variant="display" accessibilityRole="header">
         {title}
@@ -301,7 +328,8 @@ const styles = StyleSheet.create({
   },
   rail: { alignItems: 'center', width: size.pathNodeRecommended },
   connector: { width: 4, height: 14, borderRadius: 2 },
-  pathText: { flex: 1, gap: space.xs, paddingVertical: space.sm },
+  pathText: { flex: 1, gap: space.sm, paddingVertical: space.sm },
+  pathPress: { gap: space.xs, minHeight: touch.min, justifyContent: 'center' },
   strip: { gap: space.xs },
   stripBars: { flexDirection: 'row', gap: space.sm },
   stripBar: { flex: 1, height: 6, borderRadius: radius.pill },

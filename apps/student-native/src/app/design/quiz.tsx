@@ -3,7 +3,7 @@ import { View } from 'react-native';
 
 import { AnswerOption, AppText, Button, FeedbackPanel, OptionState, ProgressBar, space, TopBar, useDesign } from '../../design';
 import { question as questionFixture } from '../../design/preview/fixtures';
-import { PreviewScreenShell, usePreviewNav, usePreviewParams } from '../../design/preview/shell';
+import { PreviewScreenShell, usePreviewNav, usePreviewParams, usePreviewT } from '../../design/preview/shell';
 
 interface QuizState {
   selected: string | null;
@@ -32,7 +32,8 @@ function useQuiz() {
 }
 
 function Body({ quiz, setQuiz, long }: ReturnType<typeof useQuiz>) {
-  const { t, locale } = useDesign();
+  const { locale } = useDesign();
+  const t = usePreviewT();
   const q = questionFixture(locale, long);
   const choices = (q.response_spec as { choices: { id: string; text: string }[] }).choices;
   const correctId = (q.answer_key as { correct_choice_id: string }).correct_choice_id;
@@ -90,7 +91,7 @@ function Body({ quiz, setQuiz, long }: ReturnType<typeof useQuiz>) {
 }
 
 function Action({ quiz, setQuiz }: ReturnType<typeof useQuiz>) {
-  const { t } = useDesign();
+  const t = usePreviewT();
   if (quiz.checked) return <Button label={t('nextQuestion')} onPress={() => setQuiz({ selected: null, checked: false })} />;
   return (
     <>
