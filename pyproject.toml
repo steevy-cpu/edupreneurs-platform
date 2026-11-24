@@ -58,6 +58,9 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S105", "S106", "S608", "E501", "ASYNC240"]  # long SQL strings read better unwrapped
 "scripts/**" = ["S603", "S607", "T201"]
+# Local device-testing helper (drives adb / simctl, reads the emulator's own UI dump).
+# It never runs in the API or in CI and handles no untrusted input.
+"apps/student-native/scripts/**" = ["S603", "S607", "S314", "S108", "SIM115", "E501", "T201"]
 
 [tool.mypy]
 python_version = "3.12"

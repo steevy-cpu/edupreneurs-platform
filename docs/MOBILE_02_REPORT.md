@@ -36,7 +36,7 @@ shows **Hors ligne** after a sync attempt has actually failed to reach the serve
 `git diff main` is empty for: the local databases (`src/core/db`), the sync engine
 (`src/core/sync`), sign-in and session (`src/core/auth`, `src/platform`), the API client
 (`src/core/api`), `actions.ts` (`answerQuestion`, `completeLesson`, `saveLessonOffline`),
-and everything outside the mobile app (API, database, contracts). `app.json` is unchanged:
+and everything outside the mobile app (API, database, contracts). The only root-level change is one lint exemption in `pyproject.toml` for the device-testing helper script. `app.json` is unchanged:
 no native change, no new permission, same bundle identifiers.
 
 One small addition to stored data: an account-scoped preference `last_lesson_id`,
