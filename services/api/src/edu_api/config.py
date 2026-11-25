@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     #: those routes then answer 404 like any unknown path.
     #: It never gates content — no paywall exists (BLOCKED_BY_OWNER PO-01).
     entitlements_enabled: bool = False
+    # --- Word of the Day (lane VOCAB, overnight 2026-11-24) ----------------------
+    #: ``EDU_DAILY_WORD_ENABLED``. Off by default: ``GET /v1/daily-word`` then
+    #: answers the standard 404 ``not_found`` to everyone, as on ``main``.
+    daily_word_enabled: bool = False
 
     # --- Staff boundary (overnight 2026-11-24, staff lane) -------------------
     #: Optional. Must log in as ``edu_staff_login`` (member of ``edu_staff`` only).

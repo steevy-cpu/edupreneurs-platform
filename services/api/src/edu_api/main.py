@@ -32,6 +32,8 @@ from edu_api.routers import (
     staff_billing,
     sync,
 )
+from edu_api.routers.daily_word import router as daily_word_router
+from edu_api.routers.staff_vocab import router as staff_vocab_router
 from edu_api.staff.db import build_staff_database
 
 
@@ -145,4 +147,6 @@ def create_app(
     app.include_router(staff.router)
     app.include_router(entitlements.build_router())
     app.include_router(staff_billing.build_router())
+    app.include_router(daily_word_router)  # 404 unless EDU_DAILY_WORD_ENABLED (ruling R-01)
+    app.include_router(staff_vocab_router)
     return app
