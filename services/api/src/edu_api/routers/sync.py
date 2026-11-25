@@ -35,7 +35,14 @@ async def push(
         principal.user_id,
         body,
         max_ops=settings.sync_max_ops,
-        on_accepted=batch_award_hook() if settings.rewards_enabled else None,
+        on_accepted=(
+            batch_award_hook(
+                settings.rewards_hook_lock_timeout_ms,
+                settings.rewards_hook_statement_timeout_ms,
+            )
+            if settings.rewards_enabled
+            else None
+        ),
     )
 
 
