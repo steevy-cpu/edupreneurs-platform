@@ -51,6 +51,9 @@ make mobile-test      # 52 tests: real SQLite files, real local API and Auth
 
 `make mobile-test` starts its own copy of the API on port 8011 and resets the
 local learning tables between tests. It only ever talks to `127.0.0.1`.
+The target database is derived from this checkout's `supabase/config.toml`; the harness refuses to run
+against the default shared `mon-edupreneur` stack unless `EDU_TEST_ALLOW_SHARED_STACK=1` is set deliberately
+(CI sets it on its disposable stack). Run the tests from a separate worktree with its own `project_id`.
 
 ## Run the app on a simulator / emulator / phone
 

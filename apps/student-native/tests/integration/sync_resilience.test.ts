@@ -4,7 +4,7 @@ import { ApiClient } from '../../src/core/api/client';
 import { ApiError } from '../../src/core/api/errors';
 import type { ActiveSession } from '../../src/core/auth/session';
 import { answerQuestion, completeLesson, saveLessonOffline } from '../../src/core/learning/actions';
-import { credentials, Device, resetServerLearningState, RunningApp, SEED, serverFeed } from '../support/device';
+import { API_URL, credentials, Device, resetServerLearningState, RunningApp, SEED, serverFeed } from '../support/device';
 
 let device: Device;
 let app: RunningApp;
@@ -102,7 +102,7 @@ test('outage: bounded exponential backoff, then stop; work stays pending and syn
   expect(device.network.count('/v1/sync/push')).toBe(4);
   expect((await session.account.syncSummary()).pending).toBe(5);
 
-  device.apiUrl = 'http://127.0.0.1:8011';
+  device.apiUrl = API_URL;
   expect((await device.engine(app.sessions, session).run()).confirmed).toBe(5);
 });
 
