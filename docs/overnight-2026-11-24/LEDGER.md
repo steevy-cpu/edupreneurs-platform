@@ -13,7 +13,7 @@ Nothing is merged into `main`; nothing is deployed.
 | T04 | Account lifecycle mechanics (export, erasure) on synthetic users | lane-identity | same | T03, T01 | PLANNED | | | | | PO-04 / legal |
 | T05 | Word of the Day: schema, schedule, learner API | lane-vocab | `overnight/word-of-the-day` · `vocab` | — | IN_PROGRESS | | | | | |
 | T06 | Word of the Day: staff editorial + scheduling API | lane-vocab | same | T01 | PLANNED | | | | | |
-| T07 | Gold ledger, streaks, achievements, sync hook | lane-rewards | `overnight/rewards-gold` · `rewards` | — | IN_PROGRESS | | | | | PO-09 values |
+| T07 | Gold ledger, streaks, achievements, sync hook | lane-rewards | `overnight/rewards-gold` · `rewards` @ 53ec9aa | — | TESTED_LOCAL | lane report: 273 new pgTAP, 92 new pytest, baseline green flag off and on (to be confirmed by reviewers) | security (qa-sec-rewards) and integration (qa-int-rewards) reviews running on stacks qa1/qa2 | R-03 search_path template pending | | PO-09 values |
 | T08 | Leaderboard: private rank, opt-in synthetic cohort | lane-leaderboard | `overnight/leaderboard` · `leaderboard` | T07 reviewed | PLANNED | | | | | visibility/consent for minors |
 | T09 | Native onboarding + tour | lane-native | `overnight/native-experience` · `native` (base `mobile-02`) | — | IN_PROGRESS | | | | | HT wording review |
 | T10 | Native Word of the Day card, Gold, leaderboard review screen (flags off) | lane-native | same | T09; contracts T05/T07/T08 | PLANNED | | | | | |
