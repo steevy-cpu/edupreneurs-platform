@@ -39,7 +39,7 @@ COMMENT ON SCHEMA rewards IS
 CREATE FUNCTION rewards.haiti_day(p_instant timestamptz)
 RETURNS date
 LANGUAGE sql STABLE PARALLEL SAFE
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$ SELECT (p_instant AT TIME ZONE 'America/Port-au-Prince')::date $$;
 
 -- ============================================================================
@@ -233,7 +233,7 @@ CREATE INDEX idx_achievement_awards_code ON rewards.achievement_awards (achievem
 -- Rule versions are history: the economics of a version never change. Only the
 -- on/off switch (and the note about the owner's decision) may be edited.
 CREATE FUNCTION rewards.protect_rule_version()
-RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $$
+RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
     IF NEW.code IS DISTINCT FROM OLD.code OR NEW.version IS DISTINCT FROM OLD.version
        OR NEW.event_kind IS DISTINCT FROM OLD.event_kind OR NEW.amount IS DISTINCT FROM OLD.amount
@@ -253,7 +253,7 @@ CREATE TRIGGER protect_rule_version BEFORE UPDATE ON rewards.rules
 -- it. SECURITY DEFINER for the same reason as the app guards: the check must
 -- see every relevant row regardless of the caller's row-level security.
 CREATE FUNCTION rewards.validate_ledger_entry()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 DECLARE
     v_rule record;
     v_receipt record;
@@ -333,7 +333,7 @@ CREATE TRIGGER validate_ledger_entry BEFORE INSERT ON rewards.ledger
 
 -- The balance follows the ledger in the same statement.
 CREATE FUNCTION rewards.apply_ledger_entry_to_balance()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
     -- UPDATE first: a reversal (negative amount) always has a row to update,
     -- and must never travel through the INSERT arm, whose proposed row would
@@ -362,7 +362,7 @@ CREATE TRIGGER apply_ledger_entry_to_balance AFTER INSERT ON rewards.ledger
 -- transaction-local setting; rows of any other learner stay undeletable even
 -- then. UPDATE is never possible. (No role but the owner holds DELETE at all.)
 CREATE FUNCTION rewards.prevent_history_change()
-RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $$
+RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
     IF TG_OP = 'DELETE'
        AND NULLIF(current_setting('rewards.erasing_learner', true), '') = OLD.learner_id::text THEN

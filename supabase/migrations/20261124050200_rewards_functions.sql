@@ -16,7 +16,9 @@
 --   prevents a double award: that is the UNIQUE (learner_id, source_key)
 --   constraint, which holds even for a writer that forgets the lock.
 --
--- All functions: owner postgres, empty search_path, schema-qualified SQL,
+-- All functions: owner postgres, `search_path = pg_catalog, pg_temp` (ruling
+-- R-03: the temporary schema explicitly LAST, so a session's temp objects can
+-- never shadow a catalog type or function), schema-qualified SQL,
 -- EXECUTE revoked from everyone at the end, then granted one by one.
 
 -- Namespace 54050 is this lane's (two-int advisory keys do not collide with
@@ -25,7 +27,7 @@
 CREATE FUNCTION rewards.lock_learner(p_learner_id uuid)
 RETURNS void
 LANGUAGE sql VOLATILE
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$ SELECT pg_advisory_xact_lock(54050, hashtext(p_learner_id::text)) $$;
 
 -- ----------------------------------------------------------------------------
@@ -34,7 +36,7 @@ AS $$ SELECT pg_advisory_xact_lock(54050, hashtext(p_learner_id::text)) $$;
 CREATE FUNCTION rewards.rebuild_balance(p_learner_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_before bigint;
@@ -79,7 +81,7 @@ $$;
 CREATE FUNCTION rewards.rebuild_streak(p_learner_id uuid)
 RETURNS void
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_latest record;
@@ -139,7 +141,7 @@ $$;
 CREATE FUNCTION rewards.apply_operation(p_learner_id uuid, p_op_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_none CONSTANT jsonb := jsonb_build_object(
@@ -344,7 +346,7 @@ $$;
 CREATE FUNCTION rewards.award_for_operation(p_op_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := app.current_actor_id();
@@ -365,7 +367,7 @@ $$;
 CREATE FUNCTION rewards.reconcile_learner_internal(p_learner_id uuid, p_limit integer)
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_limit integer := LEAST(GREATEST(COALESCE(p_limit, 200), 1), 500);
@@ -427,7 +429,7 @@ $$;
 CREATE FUNCTION rewards.reconcile_learner(p_limit integer DEFAULT 200)
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := app.current_actor_id();
@@ -447,7 +449,7 @@ CREATE FUNCTION rewards.reconcile_batch(p_max_learners integer DEFAULT 50,
                                         p_max_ops_per_learner integer DEFAULT 200)
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_max integer := LEAST(GREATEST(COALESCE(p_max_learners, 50), 1), 500);
@@ -487,7 +489,7 @@ $$;
 CREATE FUNCTION rewards.reverse_entry(p_ledger_id uuid, p_reason text)
 RETURNS uuid
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_original record;
@@ -523,7 +525,7 @@ $$;
 CREATE FUNCTION rewards.erase_learner(p_user_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_awards bigint;

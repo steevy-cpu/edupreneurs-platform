@@ -108,8 +108,11 @@ SELECT is((SELECT count(*)::int FROM pg_proc p JOIN pg_roles r ON true
              AND has_function_privilege(r.oid, p.oid, 'EXECUTE')), 0,
     'the internal functions and the worker/staff/erasure seams are executable by NO non-owner role');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'rewards'::regnamespace
-           AND NOT COALESCE(p.proconfig @> ARRAY['search_path=""'], false)), 0,
-    'every rewards function pins an empty search_path');
+           AND NOT COALESCE(p.proconfig = ARRAY['search_path=pg_catalog, pg_temp'], false)), 0,
+    'every rewards function pins search_path to exactly "pg_catalog, pg_temp" (ruling R-03)');
+SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'rewards'::regnamespace
+           AND p.prosecdef AND pg_get_userbyid(p.proowner) <> 'postgres'), 0,
+    'every SECURITY DEFINER rewards function is owned by postgres');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'rewards'::regnamespace
            AND pg_get_userbyid(p.proowner) <> 'postgres'), 0,
     'every rewards function is owned by the migration owner (postgres)');

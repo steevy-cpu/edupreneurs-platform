@@ -98,6 +98,41 @@ async def test_routes_are_not_yet_in_the_generated_contract(on: httpx.AsyncClien
     assert not any(path.startswith("/v1/rewards") for path in documented)
 
 
+def test_with_the_schema_constant_on_the_contract_is_bearer_only_and_one_error_shape(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Ruling R-01: what the generated contract will contain once the integrator
+    flips INCLUDE_IN_SCHEMA — every rewards operation needs the bearer token and
+    documents nothing but the standard error shape for non-200 answers."""
+    from fastapi.openapi.utils import get_openapi
+
+    from edu_api.routers import rewards as rewards_router
+
+    assert rewards_router.INCLUDE_IN_SCHEMA is False, "the integrator flips this, not a lane"
+    for route in rewards_router.router.routes:
+        monkeypatch.setattr(route, "include_in_schema", True)
+    spec = get_openapi(title="rewards", version="0", routes=rewards_router.router.routes)
+
+    assert set(spec["paths"]) == set(PATHS)
+    error_ref = {"$ref": "#/components/schemas/ErrorResponse"}
+    for path, operations in spec["paths"].items():
+        assert set(operations) == {"get"}, path
+        operation = operations["get"]
+        assert operation["security"] == [{"HTTPBearer": []}], path
+        assert {"200", "401", "404", "503"} <= set(operation["responses"]), path
+        for status, response in operation["responses"].items():
+            if status != "200":
+                assert response["content"]["application/json"]["schema"] == error_ref, (
+                    path,
+                    status,
+                )
+        assert "requestBody" not in operation, "read-only: nothing can be sent"
+    schemas = spec["components"]["schemas"]
+    assert "HTTPValidationError" not in schemas, "one error shape only"
+    assert {"RewardsSummary", "LedgerPage", "LedgerEntry", "ErrorResponse"} <= set(schemas)
+    assert spec["components"]["securitySchemes"]["HTTPBearer"]["scheme"] == "bearer"
+
+
 @pytest.mark.parametrize("path", PATHS)
 async def test_flag_on_a_token_is_required(on: httpx.AsyncClient, path: str) -> None:
     response = await on.get(path)
