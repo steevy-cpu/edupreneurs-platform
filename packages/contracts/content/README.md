@@ -86,6 +86,7 @@ formula := item+                         spaces between items are ignored
 item    := atom script*                  at most one ^ and one _ per atom
 script  := (^ | _) (group | letter | digit | symbol command)
 group   := { item+ }                     nesting depth at most 4
+                                         (the index [...] of a root is one level too)
 atom    := character | group | command
 
 characters   A-Z a-z 0-9 + - * / = < > ( ) [ ] | , . ; : ! '
@@ -101,6 +102,11 @@ structures   \frac{a}{b}  \sqrt{a}  \sqrt[n]{a}  \overline{a}  \vec{a}
                           (U+00C0–U+017F except U+00D7 and U+00F7)
 ```
 
+**No markup.** A source never contains `<` directly followed by a letter, `/`,
+`!` or `?` — bare or inside `\text{...}`; authors write `a < b` with a space
+(structural layer, vectors `schema-markup-*`). A renderer must never pass a
+`source` to an HTML engine or a web view.
+
 A command name is the longest run of ASCII letters after the backslash.
 Validation scans left to right and stops at the **first** error:
 
@@ -110,7 +116,7 @@ Validation scans left to right and stops at the **first** error:
 | `math.unknown_command` | command not on the whitelist |
 | `math.missing_argument` | command without its `{...}` argument(s) |
 | `math.unbalanced` | `{`, `}` or a root index `[` without its partner |
-| `math.depth` | groups nested deeper than 4 |
+| `math.depth` | groups and root indices (`\sqrt[...]`) nested deeper than 4 — an index counts as one level |
 | `math.script` | `^` or `_` without a base, doubled, after a space, or without a valid operand |
 | `math.text` | non-ASCII character outside `\text{...}`, or `\ { ^ _ %` inside it |
 

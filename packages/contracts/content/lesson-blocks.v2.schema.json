@@ -123,7 +123,7 @@
       }
     },
     "math": {
-      "description": "One displayed formula in the restricted plain-text notation 'edu-math-1' (a small, whitelisted subset of LaTeX mathematics; grammar in README.md). 'alt' says the formula in words. 'asset' optionally points at a pre-rendered image of the same formula, so that either rendering decision (PO-08) can be served from the same content.",
+      "description": "One displayed formula in the restricted plain-text notation 'edu-math-1' (a small, whitelisted subset of LaTeX mathematics; grammar in README.md). The source is plain text and never markup: no '<' directly followed by a letter, '/', '!' or '?', bare or inside \\text{...} (write 'a < b'); a renderer must never pass it to an HTML engine. 'alt' says the formula in words. 'asset' optionally points at a pre-rendered image of the same formula, so that either rendering decision (PO-08) can be served from the same content.",
       "type": "object",
       "additionalProperties": false,
       "required": ["key", "type", "notation", "source", "alt"],
@@ -136,7 +136,7 @@
           "minLength": 1,
           "maxLength": 400,
           "pattern": "^[A-Za-z0-9 +*/=<>()\\[\\]|,.;:!'^_{}\\\\%\\u00c0-\\u017f-]+$",
-          "$ref": "#/$defs/noControl"
+          "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }]
         },
         "alt": { "$ref": "#/$defs/altText" },
         "asset": { "$ref": "#/$defs/imageAsset" }

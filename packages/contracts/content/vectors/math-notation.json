@@ -1,7 +1,7 @@
 {
   "vector_format": 1,
   "suite": "math-notation",
-  "description": "Sources of 'math' blocks in the notation edu-math-1. expect is {valid:true}, {valid:false, layer:'schema'} (rejected by the character-set / length pattern of lesson-blocks.v2.schema.json) or {valid:false, layer:'semantic', rule:'math.*'} (the FIRST grammar error found scanning left to right). To test a full validator, wrap each source in [{key:'m', type:'math', notation:'edu-math-1', source:<source>, alt:'x'}].",
+  "description": "Sources of 'math' blocks in the notation edu-math-1. expect is {valid:true}, {valid:false, layer:'schema'} (rejected by the structural layer of lesson-blocks.v2.schema.json: character set, length, or the no-markup rule - no '<' directly followed by a letter, '/', '!' or '?') or {valid:false, layer:'semantic', rule:'math.*'} (the FIRST grammar error found scanning left to right). To test a full validator, wrap each source in [{key:'m', type:'math', notation:'edu-math-1', source:<source>, alt:'x'}].",
   "cases": [
     {
       "id": "ok-linear",
@@ -753,6 +753,116 @@
         "valid": false,
         "layer": "semantic",
         "rule": "math.unknown_command"
+      }
+    },
+    {
+      "id": "ok-less-than-spaced",
+      "description": "'<' followed by a space or a digit is an ordinary sign",
+      "source": "a < b",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-less-than-digit",
+      "source": "x<3",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-text-less-than-spaced",
+      "source": "\\text{si a < b}",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "schema-markup-script-element",
+      "description": "No markup: '<' directly followed by a letter, '/', '!' or '?' is refused by the structural layer (review M1)",
+      "source": "<script>alert(1)</script>",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-markup-element-with-attribute",
+      "source": "<img src=x onerror=alert(1)>",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-markup-inside-text",
+      "description": "... also inside \\text{...}",
+      "source": "\\text{<b>x</b>}",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-markup-less-than-letter",
+      "description": "authors write 'a < b' with a space",
+      "source": "a<b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-markup-closing-tag",
+      "source": "x </b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-markup-bang",
+      "source": "x <!",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "ok-root-index-four-levels",
+      "description": "A root index counts as one nesting level, like a group: four levels are the limit (review M2)",
+      "source": "\\sqrt[\\sqrt[\\sqrt[\\sqrt[2]{x}]{x}]{x}]{x}",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "bad-depth-root-index-five-levels",
+      "source": "\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[2]{x}]{x}]{x}]{x}]{x}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.depth"
+      }
+    },
+    {
+      "id": "bad-depth-root-index-inside-groups",
+      "description": "groups and root indices share one depth counter",
+      "source": "{{{\\sqrt[\\sqrt[2]{x}]{x}}}}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.depth"
+      }
+    },
+    {
+      "id": "bad-depth-root-index-39-levels",
+      "description": "fits in 400 characters; must not be accepted",
+      "source": "\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[x]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.depth"
       }
     }
   ]

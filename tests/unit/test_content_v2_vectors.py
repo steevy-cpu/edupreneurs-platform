@@ -160,6 +160,18 @@ def test_the_math_checker_is_total_on_arbitrary_input() -> None:
         assert result is None or result.startswith("math.")
     assert check_math_source("{" * 5000) == "math.depth"
     assert check_math_source("\\frac" * 5000) == "math.missing_argument"
+    # Review M2: a root index is a nesting level; no input can exhaust the stack.
+    assert check_math_source("\\sqrt[" * 5000 + "x") == "math.depth"
+    assert check_math_source("\\sqrt[" * 39 + "x" + "]{x}" * 39) == "math.depth"
+    assert check_math_source("x^{" * 5000) == "math.depth"
+    for not_text in (None, 1, 1.5, b"x", ["x"], {"x": 1}):
+        assert check_math_source(not_text) == "math.syntax"
+    # Review M1: called directly (without the structural layer) markup is still refused.
+    for markup in ("<script>alert(1)</script>", "\\text{<b>x</b>}", "a<b"):
+        assert check_math_source(markup) is not None
+        assert validate_blocks(math_document(markup), 2)[0].layer == "schema"
+        assert not schema_accepts(BLOCK_SCHEMAS[2], math_document(markup))
+    assert check_math_source("a < b") is None
 
 
 # ------------------------------------------------------------------ questions
