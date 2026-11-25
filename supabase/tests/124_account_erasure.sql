@@ -24,17 +24,37 @@ $fn$;
 -- The real executors (staff lane B1): the worker role, and a staff session.
 GRANT edu_worker TO postgres WITH INHERIT FALSE, SET TRUE;
 GRANT edu_staff TO postgres WITH INHERIT FALSE, SET TRUE;
+-- Run one statement as the WORKER role. The worker never names a user: a call
+-- written below as account.erase_learner(<learner A>) is sent as
+-- account.worker_process_deletion(<A's open deletion request id>).
 CREATE FUNCTION pg_temp.as_executor(p_sql text) RETURNS text
+LANGUAGE plpgsql AS $fn$
+DECLARE v_out text; v_request uuid; v_sql text := p_sql;
+BEGIN
+    SELECT d.id INTO v_request FROM account.deletion_requests d
+    WHERE d.user_id = 'a0000000-0000-4000-8000-000000000001' AND d.status = 'requested';
+    v_sql := replace(v_sql, $$account.erase_learner('a0000000-0000-4000-8000-000000000001')$$,
+                     format('account.worker_process_deletion(%L)', COALESCE(v_request, '00000000-0000-4000-8000-000000000000')));
+    EXECUTE 'SET LOCAL ROLE edu_worker';
+    BEGIN
+        EXECUTE v_sql INTO v_out;
+    EXCEPTION WHEN OTHERS THEN
+        v_out := 'ERROR:' || SQLSTATE || ':' || SQLERRM;
+    END;
+    EXECUTE 'RESET ROLE';
+    RETURN v_out;
+END;
+$fn$;
+-- Run one statement as the owner, reporting an error as text.
+CREATE FUNCTION pg_temp.as_owner(p_sql text) RETURNS text
 LANGUAGE plpgsql AS $fn$
 DECLARE v_out text;
 BEGIN
-    EXECUTE 'SET LOCAL ROLE edu_worker';
     BEGIN
         EXECUTE p_sql INTO v_out;
     EXCEPTION WHEN OTHERS THEN
         v_out := 'ERROR:' || SQLSTATE || ':' || SQLERRM;
     END;
-    EXECUTE 'RESET ROLE';
     RETURN v_out;
 END;
 $fn$;
@@ -191,14 +211,18 @@ CREATE TEMP TABLE functions_before AS
 SELECT is((SELECT array_agg(a.grantee::regrole::text ORDER BY 1)
            FROM pg_proc p, aclexplode(p.proacl) a
            WHERE p.oid = 'account.erase_learner(uuid)'::regprocedure AND a.grantee <> p.proowner),
-    ARRAY['edu_worker'], 'besides its owner, exactly edu_worker may execute erase_learner');
+    NULL, 'nobody but its owner may execute erase_learner (review M-2)');
+SELECT is((SELECT array_agg(a.grantee::regrole::text ORDER BY 1)
+           FROM pg_proc p, aclexplode(p.proacl) a
+           WHERE p.oid = 'account.worker_process_deletion(uuid)'::regprocedure AND a.grantee <> p.proowner),
+    ARRAY['edu_worker'], 'besides its owner, exactly edu_worker may execute worker_process_deletion');
 SELECT is((SELECT array_agg(a.grantee::regrole::text ORDER BY 1)
            FROM pg_proc p, aclexplode(p.proacl) a
            WHERE p.oid = 'account.staff_erase_learner(uuid)'::regprocedure AND a.grantee <> p.proowner),
     ARRAY['edu_staff'], 'besides its owner, exactly edu_staff may execute staff_erase_learner');
 SELECT is((SELECT array_agg(p.proname::text ORDER BY 1) FROM pg_proc p
            WHERE p.pronamespace = 'account'::regnamespace AND has_function_privilege('edu_worker', p.oid, 'EXECUTE')),
-    ARRAY['erase_learner'], 'edu_worker may execute nothing else in account');
+    ARRAY['worker_process_deletion'], 'edu_worker may execute nothing else in account');
 SELECT is((SELECT array_agg(p.proname::text ORDER BY 1) FROM pg_proc p
            WHERE p.pronamespace = 'account'::regnamespace AND has_function_privilege('edu_staff', p.oid, 'EXECUTE')),
     ARRAY['staff_erase_learner'], 'edu_staff may execute nothing else in account');
@@ -236,8 +260,8 @@ SELECT matches(pg_temp.as_executor('SELECT count(*) FROM app.learner_profiles'),
 SELECT matches(pg_temp.as_executor($$SELECT account.find_learner_references('a0000000-0000-4000-8000-000000000001')$$), '^ERROR:42501', 'executor cannot call the internal scanner');
 
 -- ---- refusals (each leaves everything in place) -----------------------------------------
-SELECT matches(pg_temp.as_executor('SELECT account.erase_learner(NULL)'), '^ERROR:22023', 'a NULL id is refused');
-SELECT matches(pg_temp.as_executor($$SELECT account.erase_learner('a0000000-0000-4000-8000-000000000003')$$), '^ERROR:55000.*staff', 'an account with staff records is refused');
+SELECT matches(pg_temp.as_owner('SELECT account.erase_learner(NULL)'), '^ERROR:22023', 'a NULL id is refused');
+SELECT matches(pg_temp.as_owner($$SELECT account.erase_learner('a0000000-0000-4000-8000-000000000003')$$), '^ERROR:55000.*staff', 'an account with staff records is refused');
 SET LOCAL session_replication_role = replica;
 SELECT throws_ok($$SELECT account.erase_learner('a0000000-0000-4000-8000-000000000001')$$, '55000', NULL, 'refuses to start when triggers are already off in the session');
 SET LOCAL session_replication_role = origin;
@@ -457,8 +481,9 @@ SELECT is((SELECT (details ->> 'hooks_called')::int FROM seam_calls WHERE action
 SELECT is((SELECT actor FROM seam_calls WHERE action = 'account.learner_erased'), NULL, 'a worker erasure has no actor');
 
 -- ---- idempotent / unknown ids ----------------------------------------------------------
-SELECT is((pg_temp.as_executor($$SELECT account.erase_learner('a0000000-0000-4000-8000-000000000001')$$)::jsonb) #>> '{counts,app.learner_profiles}', '0', 'erasing again finds nothing and succeeds');
-SELECT is((pg_temp.as_executor($$SELECT account.erase_learner('99999999-9999-4999-8999-999999999999')$$)::jsonb) ->> 'erased', 'true', 'an id that was never here is not an error');
+SELECT matches(pg_temp.as_executor($$SELECT account.erase_learner('a0000000-0000-4000-8000-000000000001')$$), '^ERROR:P0002', 'the worker cannot process the same request twice (it is no longer open)');
+SELECT is((pg_temp.as_owner($$SELECT account.erase_learner('a0000000-0000-4000-8000-000000000001')$$)::jsonb) #>> '{counts,app.learner_profiles}', '0', 'the owner-only orchestrator is idempotent: erasing again finds nothing');
+SELECT is((pg_temp.as_owner($$SELECT account.erase_learner('99999999-9999-4999-8999-999999999999')$$)::jsonb) ->> 'erased', 'true', 'for the owner, an id that was never here is not an error');
 SELECT is((SELECT count(*)::int FROM app.practice_attempts WHERE learner_id = :B::uuid), 2, 'B attempts are all still there at the end');
 
 -- ---- the staff-administrator path ------------------------------------------------------
@@ -476,8 +501,8 @@ INSERT INTO app.staff_roles (user_id, role) VALUES ('a0000000-0000-4000-8000-000
 CREATE TEMP TABLE b_attempts_before_admin AS SELECT * FROM app.practice_attempts WHERE learner_id = :B::uuid;
 
 SELECT matches(pg_temp.as_staff(:EDITOR::uuid, $$SELECT account.staff_erase_learner('a0000000-0000-4000-8000-0000000000c1')$$), '^ERROR:42501', 'an editor is still refused');
-SELECT matches(pg_temp.as_staff('a0000000-0000-4000-8000-000000000004', $$SELECT account.staff_erase_learner('a0000000-0000-4000-8000-000000000003')$$), '^ERROR:55000.*staff', 'an administrator cannot erase a staff account');
-SELECT matches(pg_temp.as_staff('a0000000-0000-4000-8000-000000000004', $$SELECT account.staff_erase_learner('a0000000-0000-4000-8000-000000000004')$$), '^ERROR:55000.*staff', 'nor themselves');
+SELECT matches(pg_temp.as_staff('a0000000-0000-4000-8000-000000000004', $$SELECT account.staff_erase_learner('a0000000-0000-4000-8000-000000000003')$$), '^ERROR:(55000|P0002)', 'an administrator cannot erase a staff account');
+SELECT matches(pg_temp.as_staff('a0000000-0000-4000-8000-000000000004', $$SELECT account.staff_erase_learner('a0000000-0000-4000-8000-000000000004')$$), '^ERROR:(55000|P0002)', 'nor themselves');
 SELECT is((SELECT count(*)::int FROM app.practice_attempts WHERE learner_id = :C::uuid), 1, 'C is untouched by the refused calls');
 SELECT is((pg_temp.as_staff('a0000000-0000-4000-8000-000000000004', $$SELECT account.staff_erase_learner('a0000000-0000-4000-8000-0000000000c1')$$)::jsonb) #>> '{counts,app.practice_attempts}', '1', 'an administrator erases learner C');
 SELECT is(pg_temp.anywhere(:C::uuid), '', 'C id appears nowhere in the application schemas');

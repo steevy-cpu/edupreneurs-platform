@@ -229,10 +229,20 @@ async def test_several_fields_in_one_request_and_clearing_the_name(
 
 
 async def test_first_contact_through_patch_creates_only_the_callers_profile(
-    account_client: httpx.AsyncClient, learners: dict[str, SyntheticLearner], admin: asyncpg.Pool
+    account_client: httpx.AsyncClient, admin: asyncpg.Pool, local_env: dict[str, str]
 ) -> None:
-    x = learners["x"]
-    await admin.execute("DELETE FROM app.learner_profiles WHERE user_id = $1", x.user_id)
+    from tests.account_fixtures import create_synthetic_learner
+
+    # A brand-new Auth account that has never called the API: no profile row
+    # exists, and no other module can hold a row about it. (Never delete an
+    # existing profile to simulate this: other modules may reference it.)
+    x = create_synthetic_learner(local_env)
+    assert (
+        await admin.fetchval(
+            "SELECT count(*) FROM app.learner_profiles WHERE user_id = $1", x.user_id
+        )
+        == 0
+    )
     others = await admin.fetchval(
         "SELECT count(*) FROM app.learner_profiles WHERE user_id <> $1", x.user_id
     )
