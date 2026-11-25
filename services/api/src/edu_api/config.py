@@ -57,8 +57,8 @@ class Settings(BaseSettings):
     pull_default_limit: int = Field(default=100, ge=1)
     pull_max_limit: int = Field(default=200, ge=1)
 
-    # --- Identity lane (overnight 2026-11-24). Every flag defaults to OFF: with
-    # all of them off no `account` route is registered and the API is unchanged.
+    # --- Identity lane (overnight 2026-11-24). Every flag defaults to OFF: while
+    # a flag is off its routes answer the standard 404 `not_found`.
     #: EDU_PROFILE_EDIT_ENABLED — `PATCH /v1/me`.
     profile_edit_enabled: bool = False
     #: EDU_ONBOARDING_ENABLED — `GET` / `PUT /v1/me/onboarding`.

@@ -68,35 +68,23 @@ async def snapshot(admin: asyncpg.Pool, user_id: uuid.UUID) -> dict[str, list[An
 
 
 # ------------------------------------------------------------- feature flag
-async def test_with_the_flag_off_no_lifecycle_route_exists(
+async def test_with_the_flag_off_lifecycle_routes_answer_the_standard_404(
     client: httpx.AsyncClient, tokens: dict[str, str], admin: asyncpg.Pool
 ) -> None:
-    headers = {"Authorization": f"Bearer {tokens['student_a']}"}
-    for method, path in ROUTES:
-        response = await client.request(method, path, headers=headers)
-        assert response.status_code == 404, (method, path)
-        assert response.json()["error"]["code"] == "not_found"
-    assert (
-        await admin.fetchval(
-            "SELECT count(*) FROM account.deletion_requests d JOIN auth.users u ON u.id = d.user_id "
-            "WHERE u.email = 'student.a@edupreneur.test'"
-        )
-        == 0
+    before = await admin.fetchval(
+        "SELECT (SELECT count(*) FROM account.deletion_requests) + "
+        "(SELECT count(*) FROM account.export_requests)"
     )
-
-
-async def test_lifecycle_routes_follow_the_api_conventions(account_app: FastAPI) -> None:
-    spec = account_app.openapi()
-    error_ref = {"$ref": "#/components/schemas/ErrorResponse"}
-    for method, path in ROUTES:
-        operation = spec["paths"][path][method.lower()]
-        assert operation["security"] == [{"HTTPBearer": []}], path
-        assert "requestBody" not in operation, "no route takes a body, so none can name a user"
-        assert not operation.get("parameters"), "and none takes a parameter"
-        for status, response in operation["responses"].items():
-            if status != "200":
-                assert response["content"]["application/json"]["schema"] == error_ref
-    assert "HTTPValidationError" not in spec["components"]["schemas"]
+    for headers in ({"Authorization": f"Bearer {tokens['student_a']}"}, {}):
+        for method, path in ROUTES:
+            response = await client.request(method, path, headers=headers)
+            assert response.status_code == 404, (method, path)
+            assert response.json()["error"]["code"] == "not_found"
+    after = await admin.fetchval(
+        "SELECT (SELECT count(*) FROM account.deletion_requests) + "
+        "(SELECT count(*) FROM account.export_requests)"
+    )
+    assert after == before
 
 
 async def test_lifecycle_routes_require_a_token(account_client: httpx.AsyncClient) -> None:

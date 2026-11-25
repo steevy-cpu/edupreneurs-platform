@@ -81,7 +81,7 @@ DELETE FROM account.onboarding_state;
 CREATE TEMP TABLE seam_calls (n serial, actor uuid, action text, target_kind text, target_id uuid, details jsonb);
 CREATE OR REPLACE FUNCTION account.audit_seam(
     p_action text, p_target_kind text, p_target_id uuid, p_outcome text, p_details jsonb DEFAULT '{}'::jsonb)
-RETURNS uuid LANGUAGE plpgsql VOLATILE SET search_path = '' AS $fn$
+RETURNS uuid LANGUAGE plpgsql VOLATILE SET search_path = pg_catalog, pg_temp AS $fn$
 BEGIN
     INSERT INTO pg_temp.seam_calls (actor, action, target_kind, target_id, details)
     VALUES (app.current_actor_id(), p_action, p_target_kind, p_target_id, p_details);
@@ -180,7 +180,7 @@ SELECT is(current_setting('session_replication_role'), 'origin', 'aborted erasur
 
 -- An unregistered hook is never run and blocks the erasure.
 CREATE FUNCTION zz_lane.erase_learner(p_user_id uuid) RETURNS jsonb
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $fn$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $fn$
 DECLARE n bigint;
 BEGIN
     DELETE FROM zz_lane.notes WHERE learner = p_user_id;
@@ -203,7 +203,7 @@ SELECT matches(pg_temp.as_executor($$SELECT account.erase_learner('a0000000-0000
 SELECT is((SELECT count(*)::int FROM zz_lane.notes), 2, 'that failed run rolled the hook''s own deletes back too');
 SELECT is((SELECT count(*)::int FROM app.practice_attempts WHERE learner_id = :A::uuid), 2, 'and A attempts are still there');
 CREATE OR REPLACE FUNCTION zz_lane.erase_learner(p_user_id uuid) RETURNS jsonb
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $fn$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $fn$
 DECLARE n bigint; m bigint;
 BEGIN
     DELETE FROM zz_lane.attempt_bonus b USING app.practice_attempts a

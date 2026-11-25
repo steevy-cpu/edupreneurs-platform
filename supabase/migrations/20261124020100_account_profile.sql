@@ -9,7 +9,7 @@
 --     SECURITY DEFINER function that can touch nothing but the caller's row.
 --   * The actor is ALWAYS app.current_actor_id(). No function here takes a
 --     user-id parameter.
---   * Every function pins an empty search_path and uses schema-qualified names.
+--   * Every function pins search_path = pg_catalog, pg_temp and uses schema-qualified names.
 --   * EXECUTE is revoked from PUBLIC / anon / authenticated and then granted
 --     to exactly the role that needs it.
 --   * No consent, age or retention rule exists here (PO-04 is not decided).
@@ -46,7 +46,7 @@ CREATE FUNCTION account.audit_seam(
 )
 RETURNS uuid
 LANGUAGE plpgsql VOLATILE
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 BEGIN
     -- NOT WIRED YET (ops.audit_write arrives with the staff lane, B1).
@@ -73,7 +73,7 @@ $$;
 CREATE FUNCTION account.update_own_profile(p_patch jsonb)
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := app.current_actor_id();

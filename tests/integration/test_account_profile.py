@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import asyncpg
 import httpx
@@ -29,56 +29,89 @@ PROFILE_ROW = (
 
 
 # ------------------------------------------------------------- feature flag
-async def test_with_the_flags_off_no_account_route_exists(
+async def test_with_the_flags_off_every_account_route_answers_the_standard_404(
     client: httpx.AsyncClient, tokens: dict[str, str], admin: asyncpg.Pool
 ) -> None:
-    """The shared application runs with default settings: everything is off."""
+    """The shared application runs with default settings: everything is off.
+    The answer is the same with a token, without one, and with an invalid body:
+    the flag is checked before authentication and validation."""
     before = await admin.fetchrow(PROFILE_ROW, STUDENT_A)
-    patched = await client.patch(
-        "/v1/me", json={"display_name": "x"}, headers=bearer(tokens["student_a"])
-    )
-    assert patched.status_code == 405
-    assert patched.json()["error"]["code"] == "method_not_allowed"
-    for method in ("GET", "PUT"):
-        response = await client.request(
-            method,
-            "/v1/me/onboarding",
-            json={"onboarding_version": 1} if method == "PUT" else None,
-            headers=bearer(tokens["student_a"]),
-        )
-        assert response.status_code == 404, method
-        assert response.json()["error"]["code"] == "not_found"
+    onboarding_rows = await admin.fetchval("SELECT count(*) FROM account.onboarding_state")
+    calls = [
+        ("PATCH", "/v1/me", {"display_name": "x"}),
+        ("PATCH", "/v1/me", {"not_a_field": 1}),
+        ("GET", "/v1/me/onboarding", None),
+        ("PUT", "/v1/me/onboarding", {"state": "ready", "onboarding_version": 1}),
+        ("PUT", "/v1/me/onboarding", {}),
+    ]
+    for headers in (bearer(tokens["student_a"]), {}):
+        for method, path, body in calls:
+            response = await client.request(method, path, json=body, headers=headers)
+            assert response.status_code == 404, (method, path, body)
+            error = response.json()["error"]
+            assert (error["code"], error["message"]) == ("not_found", "Not Found")
+            assert error["request_id"] == response.headers["x-request-id"]
     assert await admin.fetchrow(PROFILE_ROW, STUDENT_A) == before
+    assert await admin.fetchval("SELECT count(*) FROM account.onboarding_state") == onboarding_rows
+    # GET /v1/me is untouched by the flag.
+    assert (await client.get("/v1/me", headers=bearer(tokens["student_a"]))).status_code == 200
 
 
-async def test_each_flag_enables_only_its_own_routes(local_env: dict[str, str]) -> None:
+async def test_each_flag_enables_only_its_own_routes(
+    local_env: dict[str, str], learners: dict[str, SyntheticLearner]
+) -> None:
     from edu_api.main import create_app
     from tests.conftest import build_settings
 
-    only_profile = create_app(build_settings(local_env, profile_edit_enabled=True))
-    only_onboarding = create_app(build_settings(local_env, onboarding_enabled=True))
-    try:
-        assert "patch" in only_profile.openapi()["paths"]["/v1/me"]
-        assert "/v1/me/onboarding" not in only_profile.openapi()["paths"]
-        assert "patch" not in only_onboarding.openapi()["paths"]["/v1/me"]
-        assert set(only_onboarding.openapi()["paths"]["/v1/me/onboarding"]) == {"get", "put"}
-    finally:
-        await only_profile.state.db.dispose()
-        await only_onboarding.state.db.dispose()
+    x = learners["x"]
+    expected = {
+        "profile_edit_enabled": (200, 404, 404),
+        "onboarding_enabled": (404, 200, 404),
+        "account_lifecycle_enabled": (404, 404, 200),
+    }
+    for flag, statuses in expected.items():
+        application = create_app(build_settings(local_env, **{flag: True}))
+        try:
+            transport = httpx.ASGITransport(app=application)
+            async with httpx.AsyncClient(transport=transport, base_url="http://api.test") as http:
+                got = (
+                    (
+                        await http.patch(
+                            "/v1/me", json={"preferred_locale": "fr"}, headers=x.headers
+                        )
+                    ).status_code,
+                    (await http.get("/v1/me/onboarding", headers=x.headers)).status_code,
+                    (await http.get("/v1/me/account-requests", headers=x.headers)).status_code,
+                )
+        finally:
+            await application.state.db.dispose()
+        assert got == statuses, flag
 
 
-async def test_enabled_routes_follow_the_api_conventions(account_app: FastAPI) -> None:
+NEW_PATHS = {
+    "/v1/me/onboarding",
+    "/v1/me/account-requests",
+    "/v1/me/deletion-request",
+    "/v1/me/export",
+}
+
+
+async def test_published_contract_on_this_branch(account_app: FastAPI) -> None:
+    """Ruling R-01: PATCH /v1/me is published; the new paths are registered
+    (they work, see the other tests) but stay out of the document."""
+    from edu_api.routers import account as account_router
+
+    assert account_router.INCLUDE_IN_SCHEMA is False
     spec = account_app.openapi()
+    assert not NEW_PATHS & set(spec["paths"])
+    assert set(spec["paths"]["/v1/me"]) == {"get", "patch"}
     error_ref = {"$ref": "#/components/schemas/ErrorResponse"}
-    checked = 0
-    for path in ("/v1/me", "/v1/me/onboarding"):
-        for operation in spec["paths"][path].values():
-            assert operation["security"] == [{"HTTPBearer": []}], path
-            for status, response in operation["responses"].items():
-                if status != "200":
-                    assert response["content"]["application/json"]["schema"] == error_ref
-                    checked += 1
-    assert checked >= 7
+    operation = spec["paths"]["/v1/me"]["patch"]
+    assert operation["security"] == [{"HTTPBearer": []}]
+    assert set(operation["responses"]) == {"200", "401", "404", "422", "503"}
+    for status, response in operation["responses"].items():
+        if status != "200":
+            assert response["content"]["application/json"]["schema"] == error_ref
     assert "HTTPValidationError" not in spec["components"]["schemas"], "one error shape only"
     patch_schema = spec["components"]["schemas"]["ProfilePatch"]
     assert patch_schema["additionalProperties"] is False
@@ -91,6 +124,44 @@ async def test_enabled_routes_follow_the_api_conventions(account_app: FastAPI) -
         "grade",
         "created_at",
     }
+
+
+async def test_with_the_constant_on_every_account_operation_follows_the_conventions(
+    included_spec: dict[str, Any],
+) -> None:
+    """What the director will publish at integration: bearer security on every
+    operation and nothing but the standard error shape."""
+    assert set(included_spec["paths"]) >= NEW_PATHS
+    error_ref = {"$ref": "#/components/schemas/ErrorResponse"}
+    operations = {
+        (path, method): operation
+        for path in (*sorted(NEW_PATHS), "/v1/me")
+        for method, operation in included_spec["paths"][path].items()
+    }
+    assert set(operations) == {
+        ("/v1/me", "get"),
+        ("/v1/me", "patch"),
+        ("/v1/me/onboarding", "get"),
+        ("/v1/me/onboarding", "put"),
+        ("/v1/me/account-requests", "get"),
+        ("/v1/me/deletion-request", "post"),
+        ("/v1/me/deletion-request", "delete"),
+        ("/v1/me/export", "post"),
+    }
+    for key, operation in operations.items():
+        assert operation["security"] == [{"HTTPBearer": []}], key
+        errors = {status for status in operation["responses"] if status != "200"}
+        assert {"401", "503"} <= errors, key
+        if key != ("/v1/me", "get"):
+            assert "404" in errors, key
+        for status in errors:
+            schema = operation["responses"][status]["content"]["application/json"]["schema"]
+            assert schema == error_ref, (key, status)
+    assert "HTTPValidationError" not in included_spec["components"]["schemas"]
+    # The lifecycle routes take no body and no parameter: none can name a user.
+    for path in ("/v1/me/account-requests", "/v1/me/deletion-request", "/v1/me/export"):
+        for operation in included_spec["paths"][path].values():
+            assert "requestBody" not in operation and not operation.get("parameters")
 
 
 # ------------------------------------------------------------------ editing

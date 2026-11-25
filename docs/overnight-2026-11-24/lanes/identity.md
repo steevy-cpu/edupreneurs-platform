@@ -4,8 +4,9 @@ Branch `overnight/identity-onboarding` · schema `account` · migrations `202611
 pgTAP `120–139_*`. Nothing here is merged to `main`, deployed, or run against real data: every
 account in every test is synthetic and lives in a disposable local stack.
 
-Three feature flags, **all off by default**. A disabled capability registers no route, so with
-every flag off the API and `packages/contracts/openapi.json` are byte-identical to `main`.
+Three feature flags, **all off by default**. The routes are always registered; while its flag is
+off a route answers the standard `404 {"error":{"code":"not_found","message":"Not Found",…}}` —
+before authentication, validation or any database access.
 
 | Setting (env) | Routes |
 |---|---|
@@ -13,9 +14,21 @@ every flag off the API and `packages/contracts/openapi.json` are byte-identical 
 | `EDU_ONBOARDING_ENABLED` | `GET /v1/me/onboarding`, `PUT /v1/me/onboarding` |
 | `EDU_ACCOUNT_LIFECYCLE_ENABLED` | `GET /v1/me/account-requests`, `POST` / `DELETE /v1/me/deletion-request`, `POST /v1/me/export` |
 
-Because the committed OpenAPI document is generated with default settings, these routes are **not**
-in `openapi.json` / `schema.d.ts` yet. The contracts below are the reference until an owner turns a
-flag on by default (then `make openapi` and `npm run gen:api` pick them up).
+**Published contract (director ruling R-01).** `PATCH /v1/me` is a new method on an existing path:
+it **is** in `packages/contracts/openapi.json` and `apps/student-native/src/core/api/schema.d.ts`
+(both regenerated). The four **new paths** are registered but declared with
+`include_in_schema=INCLUDE_IN_SCHEMA` (`INCLUDE_IN_SCHEMA = False`, one constant in
+`services/api/src/edu_api/routers/account.py`), so the pinned path set of `main` is unchanged on
+this branch; the director flips the constant once at integration. Until then the contracts below
+are the reference for those paths. A test builds the application with the constant on and checks
+that every operation carries bearer security and only the standard error shape.
+
+**Function template (ruling R-03).** Every function in `account` has
+`SET search_path = pg_catalog, pg_temp` (temporary schema explicitly last) and schema-qualifies
+every non-catalog object; `120_account_structure.sql` pins it. No application code path creates a
+temporary object.
+
+**Ruling R-02.** No `account` table has a foreign key to any `app` table (pinned by test).
 
 ## What did not change
 
@@ -24,7 +37,7 @@ flag on by default (then `make openapi` and `npm run gen:api` pick them up).
   `app.learner_profiles` (asserted again in `120_account_structure.sql`).
 - `account` tables reference `auth.users`, not `app.learner_profiles`: a foreign key into `app`
   would install system triggers on an `app` table.
-- `GET /v1/me` and its response are unchanged.
+- `GET /v1/me` and its response are unchanged (it is not behind any flag).
 
 ## Slice 1 — `PATCH /v1/me`
 
@@ -51,7 +64,7 @@ Errors (standard shape `{"error":{"code","message","request_id","details"}}`):
 | Status | `code` | When |
 |---|---|---|
 | 401 | `unauthenticated` | missing / invalid token |
-| 405 | `method_not_allowed` | the flag is off |
+| 404 | `not_found` | `EDU_PROFILE_EDIT_ENABLED` is off |
 | 422 | `validation_error` | unknown field, wrong type, `null` grade or locale, invalid display name. `details[].loc` names the field; the submitted value is never echoed |
 | 422 | `empty_patch` | body is `{}` |
 | 422 | `grade_not_available` | the grade does not exist **or** is inactive (indistinguishable on purpose). Nothing in the request is applied |
@@ -69,7 +82,7 @@ Behaviour:
   §4.1). It is not a public name and nothing in this lane exposes it to anyone else.
 
 Database: `account.update_own_profile(p_patch jsonb) RETURNS jsonb` — `SECURITY DEFINER`, owned by
-`postgres`, `search_path = ''`, actor = `app.current_actor_id()`, no user-id parameter, `EXECUTE`
+`postgres`, `search_path = pg_catalog, pg_temp`, actor = `app.current_actor_id()`, no user-id parameter, `EXECUTE`
 to `edu_api` only. It re-validates everything the API validated (defence in depth) and refuses,
 rather than repairs, a non-canonical display name.
 
@@ -272,7 +285,7 @@ object in `app`, and do not weaken the triggers for anyone else.
 ### The chosen design
 
 `account.erase_learner(p_user_id uuid) RETURNS jsonb` — `SECURITY DEFINER`, owned by `postgres`,
-`search_path = ''`. In one transaction:
+`search_path = pg_catalog, pg_temp`. In one transaction:
 
 1. Refuse a `NULL` id, a session that is not in `origin` mode, and any account with staff records
    (erasing an author/reviewer is a different, undesigned procedure).

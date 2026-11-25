@@ -83,5 +83,5 @@ def create_app(
     app.include_router(me.router)
     app.include_router(catalog.router)
     app.include_router(sync.router)
-    app.include_router(account.build_router(settings))
+    app.include_router(account.build_router())
     return app

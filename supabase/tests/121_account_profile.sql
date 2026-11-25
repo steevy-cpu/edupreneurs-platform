@@ -32,7 +32,7 @@ CREATE TEMP TABLE seam_calls (
     n serial, actor uuid, action text, target_kind text, target_id uuid, outcome text, details jsonb);
 CREATE OR REPLACE FUNCTION account.audit_seam(
     p_action text, p_target_kind text, p_target_id uuid, p_outcome text, p_details jsonb DEFAULT '{}'::jsonb)
-RETURNS uuid LANGUAGE plpgsql VOLATILE SET search_path = '' AS $fn$
+RETURNS uuid LANGUAGE plpgsql VOLATILE SET search_path = pg_catalog, pg_temp AS $fn$
 BEGIN
     INSERT INTO pg_temp.seam_calls (actor, action, target_kind, target_id, outcome, details)
     VALUES (app.current_actor_id(), p_action, p_target_kind, p_target_id, p_outcome, p_details);

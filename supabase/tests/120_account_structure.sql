@@ -42,6 +42,14 @@ SELECT is((SELECT count(*)::int FROM pg_trigger t JOIN pg_class c ON c.oid = t.t
              AND t.tgconstrrelid IN (SELECT c2.oid FROM pg_class c2 WHERE c2.relnamespace = 'account'::regnamespace)), 0,
     'no system trigger on an app table belongs to an account constraint');
 
+-- Ruling R-02: the baseline suites TRUNCATE these five tables without CASCADE.
+SELECT is((SELECT count(*)::int FROM pg_constraint
+           WHERE connamespace = 'account'::regnamespace AND contype = 'f'
+             AND confrelid IN ('app.practice_attempts'::regclass, 'app.sync_receipts'::regclass,
+                               'app.account_change_feed'::regclass, 'app.lesson_progress'::regclass,
+                               'app.account_sync_state'::regclass)), 0,
+    'no account foreign key references one of the five learning tables');
+
 -- ---- policies -------------------------------------------------------------------
 SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname = 'account' AND roles <> ARRAY['edu_api']::name[]), 0,
     'every account policy applies to edu_api only');
@@ -71,9 +79,14 @@ SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'account':
              OR has_function_privilege('authenticator', p.oid, 'EXECUTE')
              OR has_function_privilege('service_role', p.oid, 'EXECUTE'))), 0,
     'no account function is executable by PUBLIC, anon, authenticated, authenticator or service_role');
+-- Ruling R-03: temporary schema explicitly LAST, so it can never shadow a type
+-- or function name inside a definer function.
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'account'::regnamespace
-           AND NOT COALESCE(p.proconfig @> ARRAY['search_path=""'], false)), 0,
-    'every account function pins an empty search_path');
+           AND (SELECT array_agg(c) FROM unnest(p.proconfig) AS c WHERE c LIKE 'search_path=%')
+               IS DISTINCT FROM ARRAY['search_path=pg_catalog, pg_temp']), 0,
+    'every account function pins search_path to exactly pg_catalog, pg_temp');
+SELECT isnt((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'account'::regnamespace AND p.prosecdef), 0,
+    'the schema has SECURITY DEFINER functions (the two checks around this one are not vacuous)');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'account'::regnamespace
            AND pg_get_userbyid(p.proowner) <> 'postgres'), 0,
     'every account function is owned by the migration owner (postgres)');

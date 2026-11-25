@@ -4,7 +4,7 @@
 --
 -- Same rules as 20261124020100_account_profile.sql: nothing in schema `app`
 -- is created or changed; the actor is always app.current_actor_id(); every
--- function pins an empty search_path; EXECUTE is granted by name.
+-- function pins search_path = pg_catalog, pg_temp; EXECUTE is granted by name.
 --
 -- NO CONSENT IS COLLECTED OR INFERRED (PO-04 is not decided). Onboarding
 -- stores only "how far through the introduction is this learner". None of its
@@ -43,7 +43,7 @@ CREATE POLICY onboarding_select_own ON account.onboarding_state
 CREATE FUNCTION account.onboarding_rank(p_state text)
 RETURNS integer
 LANGUAGE sql IMMUTABLE
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
     SELECT CASE p_state
         WHEN 'new' THEN 0
@@ -62,7 +62,7 @@ $$;
 CREATE FUNCTION account.onboarding_floor(p_user_id uuid)
 RETURNS text
 LANGUAGE sql STABLE
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
     SELECT CASE
         WHEN EXISTS (SELECT 1 FROM app.account_sync_state s
@@ -77,7 +77,7 @@ $$;
 CREATE FUNCTION account.get_own_onboarding()
 RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := app.current_actor_id();
@@ -127,7 +127,7 @@ CREATE FUNCTION account.advance_onboarding(
 )
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := app.current_actor_id();

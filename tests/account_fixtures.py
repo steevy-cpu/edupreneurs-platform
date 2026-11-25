@@ -16,6 +16,7 @@ import secrets
 import uuid
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from typing import Any
 from urllib.parse import urlsplit
 
 import asyncpg
@@ -89,6 +90,24 @@ async def account_app(local_env: dict[str, str]) -> AsyncIterator[FastAPI]:
     application = create_app(build_settings(local_env, **ACCOUNT_FLAGS))
     yield application
     await application.state.db.dispose()
+
+
+@pytest.fixture
+async def included_spec(
+    local_env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> dict[str, Any]:
+    """The OpenAPI document as it will be once the director sets
+    ``INCLUDE_IN_SCHEMA = True`` at integration (ruling R-01)."""
+    from edu_api.main import create_app
+    from edu_api.routers import account as account_router
+
+    monkeypatch.setattr(account_router, "INCLUDE_IN_SCHEMA", True)
+    application = create_app(build_settings(local_env, **ACCOUNT_FLAGS))
+    try:
+        spec: dict[str, Any] = application.openapi()
+    finally:
+        await application.state.db.dispose()
+    return spec
 
 
 @pytest.fixture

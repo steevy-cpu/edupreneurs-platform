@@ -17,7 +17,7 @@
 -- Same rules as the two previous migrations of this schema: nothing in schema
 -- `app` is created, altered, granted or dropped; learner-facing functions take
 -- the actor from app.current_actor_id() and have no user-id parameter; every
--- function pins an empty search_path.
+-- function pins search_path = pg_catalog, pg_temp.
 
 -- ============================================================================
 -- Requests
@@ -71,7 +71,7 @@ CREATE POLICY export_requests_select_own ON account.export_requests
 CREATE FUNCTION account.get_own_requests()
 RETURNS jsonb
 LANGUAGE plpgsql STABLE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := app.current_actor_id();
@@ -100,7 +100,7 @@ $$;
 CREATE FUNCTION account.request_deletion()
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := app.current_actor_id();
@@ -136,7 +136,7 @@ $$;
 CREATE FUNCTION account.cancel_deletion_request()
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := app.current_actor_id();
@@ -187,7 +187,7 @@ $$;
 CREATE FUNCTION account.export_own_data()
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     c_max_rows CONSTANT integer := 2000;
@@ -322,7 +322,7 @@ INSERT INTO account.erasure_hooks (schema_name, position, note) VALUES
 CREATE FUNCTION account.find_learner_references(p_user_id uuid)
 RETURNS text[]
 LANGUAGE plpgsql STABLE
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_col record;
@@ -392,7 +392,7 @@ $$;
 CREATE FUNCTION account.erase_learner(p_user_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_self_owner oid;
