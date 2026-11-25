@@ -1,8 +1,8 @@
 # Lane STAFF — B1: shared platform interface
 
-Status: **B1 delivered and tested on the lane's local stack only.** Nothing here is deployed, linked
-to a hosted project or merged into `main`. B2 (editorial slice, role administration, worker, MFA
-design) is not started.
+Status: **B1 and B2 (editorial workflow, role administration, worker leasing) delivered and tested on
+the lane's local stack only.** Nothing here is deployed, linked to a hosted project or merged into
+`main`. A second factor for staff is **designed below and not implemented**.
 
 ## What exists after B1
 
@@ -283,6 +283,90 @@ Rules enforced in SQL (the API gate is in front, not instead):
 once: `INSERT INTO app.staff_roles (user_id, role) VALUES ('<auth user id>', 'admin');`. Locally the
 tests do this through `make_staff("admin")`. The seed contains no admin.
 
+## B2.3 — Worker and job leasing
+
+Migration `20261124010500_ops_job_queue.sql` (schema `ops`; the existing `app.background_jobs` table
+is reached only through these definer functions), package `services/worker/src/edu_worker`.
+
+```
+ops.enqueue_job(p_kind text, p_payload jsonb DEFAULT '{}', p_idempotency_key text DEFAULT NULL,
+                p_run_after timestamptz DEFAULT NULL, p_max_attempts integer DEFAULT 5) RETURNS uuid
+                                                                  EXECUTE: edu_worker, edu_staff
+ops.claim_jobs(p_worker_id text, p_kinds text[], p_limit integer, p_lease_seconds integer)
+    RETURNS TABLE (job_id, kind, payload, attempt, max_attempts, lease_until)   EXECUTE: edu_worker
+ops.heartbeat_job(p_job_id uuid, p_worker_id text, p_lease_seconds integer) RETURNS boolean
+ops.complete_job(p_job_id uuid, p_worker_id text) RETURNS boolean
+ops.fail_job(p_job_id uuid, p_worker_id text, p_error_class text) RETURNS text  -- 'queued' | 'dead' | NULL
+```
+
+- **At-least-once with a lease.** `claim_jobs` uses `FOR UPDATE SKIP LOCKED` and counts the attempt.
+  A dead worker's lease runs out and the next claim takes the job again. `heartbeat` / `complete` /
+  `fail` act only for the worker id that holds the lease (unique per process); anyone else gets
+  `false` / `NULL`. Handlers must be idempotent.
+- **Backoff and dead letter.** A failed attempt is re-queued after 5 s, 10 s, 20 s … (cap 15 min).
+  After `max_attempts` — by failure or by a lease running out on the last attempt — the job is
+  `dead` and one audit event `job.dead` is written. Only an error **class name** is stored; a
+  malformed name becomes `UnnamedError`.
+- **Idempotent enqueue.** The same `p_idempotency_key` always returns the first job, in any state.
+- **Payloads** are JSON objects ≤ 8192 bytes and must hold ids and codes only. Other lanes' definer
+  functions call `ops.enqueue_job` as owner; `edu_api` has no access to jobs at all.
+- **Runner** (`edu_worker.Worker`): handler registry, bounded concurrency, lease renewal while a
+  handler runs (a lost lease cancels the handler and reports nothing), graceful `stop()` with a
+  grace period. `uv run python -m edu_worker --kinds noop --exit-when-idle` runs one process; it
+  refuses to start unless `ops.session_kind()` says `worker`. The only production handler is `noop`.
+  **No schedule or service is installed; nothing runs unless someone starts it.**
+
+Tests: `supabase/tests/105_job_queue.sql`; `tests/integration/test_worker_queue.py` — 300 jobs and
+8 concurrent claimers (no job leased twice), a real worker process killed with SIGKILL mid-job whose
+job is then run exactly once more (attempt 2) while its old identity is fenced off, dead-lettering
+after `max_attempts`, idempotent enqueue under concurrency, `edu_api` refused on every function.
+
+Known gaps: no handler timeout (a handler that hangs keeps renewing its lease); no way to cancel or
+re-queue a dead job through an API; no metrics; no retention for completed jobs; the worker has no
+deployment unit (process manager, container) yet.
+
+## B2.4 — Second factor for staff (design only — NOT implemented, nothing is claimed)
+
+Today a staff member signs in with one factor, exactly like a learner. No code in this branch
+checks, requires or enrols a second factor. This section is the proposal to review.
+
+**Goal.** Every `/v1/staff` request must come from a session in which the person proved a second
+factor, so that a stolen password alone cannot edit, approve or publish content or change roles.
+
+**Mechanism (Supabase Auth MFA, TOTP).**
+
+1. *Token claim.* Supabase access tokens carry `aal` (`aal1` after a password, `aal2` after a
+   verified second factor) and `amr` (the methods used, with times). `edu_api.auth.verifier` already
+   verifies the token; `Principal` would gain `aal` and the time of the latest second-factor entry.
+2. *Enforcement in one place.* `require_staff` refuses a principal whose `aal` is not `aal2` with
+   **403 `mfa_required`** before any role lookup, and records the refusal (bounded, like other
+   denials). A setting `EDU_STAFF_REQUIRE_MFA` (default on outside `local`/`test`) controls it; the
+   learner routes are untouched.
+3. *Defence in depth in the database.* The API would also set a transaction-local `edu.actor_aal`
+   next to `edu.actor_id`, and `staff.require_role` would refuse unless it is `aal2`. A bug in one
+   route then cannot skip the check. (Same trust model as `edu.actor_id`.)
+4. *Step-up for dangerous actions.* Releasing or rolling back a pack and granting or revoking roles
+   would additionally require that the second factor was entered recently (proposal: 15 minutes),
+   answered with **403 `mfa_step_up_required`**.
+5. *Enrolment.* The staff client uses the Auth API directly (`/factors` enrol → QR code → verify).
+   An account can be given a staff role before it has a factor; it then gets `mfa_required` until it
+   enrols. Two factors per person are recommended (phone + spare).
+6. *Recovery.* No self-service recovery. A person who lost their device is identified out of band
+   by an admin, who removes the factor through an audited staff function (`staff.reset_mfa`, to be
+   written; it needs the Auth admin API, so it belongs to a server-side component that holds the
+   service key — not to the staff pool). The last admin's recovery is a database-owner procedure.
+7. *Sessions.* Shorter session lifetime and inactivity timeout for staff than for learners
+   (Auth project settings), and sign-out everywhere when a role is revoked.
+
+**What has to be decided by the owners (`BLOCKED_BY_OWNER`).** TOTP only, or also passkeys/WebAuthn;
+the step-up window; who may reset a factor and how identity is checked; whether a hosted Supabase
+plan with the needed MFA options is used; staff session lifetime.
+
+**Tests that would prove it** (none exist): an `aal1` token of a real staff member gets 403 on every
+staff route and 200 on learner routes; an `aal2` token passes; a forged `aal` claim cannot exist
+(signature); step-up window honoured; `staff.require_role` refuses without `edu.actor_aal = aal2`
+even when called directly on the staff connection; reset is audited and admin-only.
+
 ## Local environment
 
 `make db-reset` (or `uv run python scripts/local_stack.py env` followed by `… provision`) now also
@@ -315,7 +399,7 @@ See the module docstring of `tests/staff_fixtures.py` for the fixtures (`staff_a
 
 ## Known gaps (B1)
 
-- No second factor for staff (design is a B2 item; nothing is implemented or claimed).
+- No second factor for staff: designed in B2.4, **not implemented**.
 - No rate limit on refused staff requests: every refusal appends one audit row, so a signed-in
   account can grow `app.audit_events` by repeating a refused call. Belongs with the rate-limiting
   work of the notify/security lane.

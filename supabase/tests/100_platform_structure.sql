@@ -100,7 +100,9 @@ SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname = 'app'
     'no app policy mentions edu_staff or edu_worker');
 
 -- ---- functions ------------------------------------------------------------------------
-SELECT functions_are('ops', ARRAY['actor_kind_for','check_audit_details','audit_write','audit_access_denied','erase_learner','session_kind'],
+SELECT functions_are('ops', ARRAY['actor_kind_for','check_audit_details','audit_write','audit_access_denied','erase_learner','session_kind',
+    -- job queue (20261124010500)
+    'check_worker_id','check_lease_seconds','job_backoff','enqueue_job','claim_jobs','heartbeat_job','complete_job','fail_job'],
     'ops holds exactly the expected functions');
 SELECT functions_are('staff', ARRAY['check_role_names','actor_roles','actor_has_role','require_role',
     -- editorial workflow (20261124010200): internal helpers
@@ -137,13 +139,13 @@ SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace IN ('ops'::r
 SELECT is((SELECT array_agg(n.nspname || '.' || p.proname ORDER BY (n.nspname || '.' || p.proname) COLLATE "C") FROM pg_proc p
            JOIN pg_namespace n ON n.oid = p.pronamespace
            WHERE n.nspname IN ('ops','staff') AND has_function_privilege('edu_staff', p.oid, 'EXECUTE')),
-    ARRAY['ops.audit_access_denied','ops.audit_write','ops.session_kind',
+    ARRAY['ops.audit_access_denied','ops.audit_write','ops.enqueue_job','ops.session_kind',
           'staff.actor_has_role','staff.actor_roles','staff.attach_source','staff.build_pack','staff.create_lesson','staff.create_revision','staff.create_source','staff.detach_source','staff.get_pack_release','staff.get_revision','staff.grant_role','staff.list_pack_releases','staff.list_revisions','staff.list_role_assignments','staff.list_sources','staff.release_pack','staff.require_role','staff.review_revision','staff.revoke_role','staff.rollback_pack','staff.set_source_rights','staff.submit_revision','staff.update_revision'],
     'edu_staff may execute exactly the functions granted to it');
 SELECT is((SELECT array_agg(n.nspname || '.' || p.proname ORDER BY (n.nspname || '.' || p.proname) COLLATE "C") FROM pg_proc p
            JOIN pg_namespace n ON n.oid = p.pronamespace
            WHERE n.nspname IN ('ops','staff') AND has_function_privilege('edu_worker', p.oid, 'EXECUTE')),
-    ARRAY['ops.audit_write','ops.session_kind'],
+    ARRAY['ops.audit_write','ops.claim_jobs','ops.complete_job','ops.enqueue_job','ops.fail_job','ops.heartbeat_job','ops.session_kind'],
     'edu_worker may execute exactly the functions granted to it');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'app'::regnamespace
            AND (has_function_privilege('edu_staff', p.oid, 'EXECUTE')
@@ -158,7 +160,7 @@ SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace IN ('ops'::r
 SELECT is((SELECT array_agg(n.nspname || '.' || p.proname ORDER BY (n.nspname || '.' || p.proname) COLLATE "C") FROM pg_proc p
            JOIN pg_namespace n ON n.oid = p.pronamespace
            WHERE n.nspname IN ('ops','staff') AND p.prosecdef),
-    ARRAY['ops.audit_access_denied','ops.audit_write','ops.erase_learner','ops.session_kind',
+    ARRAY['ops.audit_access_denied','ops.audit_write','ops.claim_jobs','ops.complete_job','ops.enqueue_job','ops.erase_learner','ops.fail_job','ops.heartbeat_job','ops.session_kind',
           'staff.actor_has_role','staff.actor_roles','staff.attach_source','staff.build_pack','staff.create_lesson','staff.create_revision','staff.create_source','staff.detach_source','staff.get_pack_release','staff.get_revision','staff.grant_role','staff.list_pack_releases','staff.list_revisions','staff.list_role_assignments','staff.list_sources','staff.release_pack','staff.require_role','staff.review_revision','staff.revoke_role','staff.rollback_pack','staff.set_source_rights','staff.submit_revision','staff.update_revision'],
     'exactly these functions are SECURITY DEFINER; the internal helpers are not');
 
