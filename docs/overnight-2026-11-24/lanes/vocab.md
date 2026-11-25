@@ -3,9 +3,11 @@
 Branch `overnight/word-of-the-day` · schema `vocab` · migrations `2026112404*` · pgTAP `160–164` ·
 flag `EDU_DAILY_WORD_ENABLED` (default **off**).
 
-Status after turn 1: data model, immutable Haiti-date schedule, editorial workflow at SQL level and
-the learner endpoint are built and tested on the lane's own local stack. **Not built yet:** the HTTP
-staff routes (`/v1/staff/vocab/*`) — they need the staff lane's roles (see "Awaiting staff wiring").
+Status after turn 2: data model, immutable Haiti-date schedule (with a 10-minute freeze and a
+minimum-gap rotation), editorial workflow, learner endpoint and the staff HTTP routes
+(`/v1/staff/vocab/*`, on the staff lane's B1 boundary) are built and tested on the lane's own local
+stack. Rulings R-01, R-02 (no foreign key to the five learning tables — none exists), R-03 and R-04
+are applied.
 
 All vocabulary in this repository is synthetic test/demo text written for this mission. It has not
 been reviewed by an educator or a native Haitian Creole speaker. **A real educator must review real
@@ -13,10 +15,14 @@ words before any learner sees one.**
 
 ## 1. Learner contract — `GET /v1/daily-word`
 
-Mounted only when `EDU_DAILY_WORD_ENABLED=true`. With the flag off the route does not exist: the
-answer is the standard `404 {"error": {"code": "not_found", …}}` (with or without a token) and
-`packages/contracts/openapi.json` is byte-identical to `main`. Because the committed OpenAPI file is
-generated with flags off, **it does not contain this route**; this section is the contract.
+The router is always registered (ruling R-01). While `EDU_DAILY_WORD_ENABLED` is off the path
+answers the standard `404 {"error": {"code": "not_found", "message": "Not Found", …}}` to everyone,
+before authentication, exactly like an unknown path (one difference: a non-GET method answers 405).
+The route is declared with `include_in_schema=INCLUDE_IN_SCHEMA` (`False` in
+`routers/daily_word.py` and `routers/staff_vocab.py`), so `packages/contracts/openapi.json` and the
+app's `schema.d.ts` are byte-identical to `main` until the director flips the constants at
+integration; this section is the contract. `tests/unit/test_vocab_etag.py` proves that with the
+constants on, all 16 operations carry bearer security and only the standard error shape.
 
 Request: `GET /v1/daily-word?locale=fr|ht` with `Authorization: Bearer <Supabase access token>`,
 optionally `If-None-Match: <etag>`. There is no other input: no date, no time zone, no user id.
@@ -71,7 +77,7 @@ Response headers on `200`: `ETag: "dw1-<32 hex>"` (strong), `Cache-Control: priv
 | 304 | — (no body) | `If-None-Match` matches the current tag (weak comparison; lists and `*` accepted) | `ETag`, `Cache-Control: private, no-cache` |
 | 401 | `unauthenticated` | Missing / invalid token | `WWW-Authenticate: Bearer` |
 | 404 | `daily_word_not_available` | Flag on, but no word is assigned to today, or its rights were withdrawn | `Cache-Control: private, no-store` |
-| 404 | `not_found` | Flag off (route not mounted) | |
+| 404 | `not_found` | Flag off | |
 | 405 | `method_not_allowed` | Any method but GET | |
 | 422 | `validation_error` | `locale` missing or not `fr`/`ht` | |
 | 503 | `dependency_unavailable` | Database or Auth keys unavailable | `Retry-After: 5` |
@@ -140,18 +146,27 @@ Rules enforced by triggers (they hold for every writer, including the owner role
 - **Rights gate:** approval requires the revision's source to be `cleared`, and its recording's
   source too if it has one.
 - Recording metadata can only change while the revision is a draft.
-- Schedule: a date that has opened in Haiti (today or earlier) can never be updated or deleted; a
-  past date can never be inserted; today can be inserted only if it has no row yet; future dates
-  (≤ 366 days ahead) can be rescheduled; only an approved, rights-cleared revision of an active
-  word is assignable; at COMMIT every date has one word across its locales and a French row.
+- Schedule: a date is **locked** once it has opened in Haiti (today or earlier) **or opens within
+  10 minutes** (`vocab.schedule_freeze()`; `vocab.is_day_locked(date, instant)` is the pure,
+  tested boundary). A locked date can never be updated or deleted; a past date can never be
+  inserted; a locked date can receive its word only if it has none, and its Creole row only in the
+  transaction that writes its French row; other future dates (≤ 366 days ahead) can be
+  rescheduled; only an approved, rights-cleared revision of an active word is assignable. At
+  COMMIT every date has one word across its locales and a French row, and an update/delete is
+  refused if its date has opened meanwhile — so a reschedule started before midnight cannot land
+  after it.
 
 `vocab.ensure_assignments(p_from date, p_days int)` (1–62 days): takes a transaction-level advisory
-lock, then for each unassigned date ≥ today picks the **active word used least recently** (never
-used first; then oldest most-recent date over the whole schedule; then `created_at`; then `id`) and
-records French + Creole rows of that word. It also adds a missing Creole row to a *future* date when
-the translation of the same word has since been approved, and frees and re-chooses a *future* date
-whose word was retired or lost its rights. It never back-fills, never touches an opened day, never
-invents a word (empty pool → nothing). Twice or concurrently → same schedule.
+lock, then for each unassigned date ≥ today picks the active word **whose nearest use — before or
+after that date, whoever scheduled it — is farthest away** (never used first; ties by `created_at`,
+then `id`) and records French + Creole rows of that word. Filling forward this is "least recently
+used"; it also keeps the day before a staff-chosen word from getting the same word. **Minimum gap:**
+with a pool of P usable words a word comes back after P days; with one word it is the same word
+every day — nothing is invented and no day is left empty to avoid a repeat. The fill also adds a
+missing Creole row to an unlocked future date when the translation of the same word has since been
+approved, and frees and re-chooses an unlocked future date whose word was retired or lost its
+rights. It never back-fills, never touches a locked day that has a word, never invents a word
+(empty pool → nothing). Twice or concurrently → same schedule.
 
 Learner read: `vocab.daily_word(p_locale)` is the **only** object in the schema the student API
 role can use (EXECUTE on that function, USAGE on the schema, no table privilege). It has no time
@@ -174,25 +189,48 @@ parameter. The only clock seam is `vocab.daily_word_at(p_locale, p_now)`, execut
 | View / history tracking | **Not built** | Needs consent — PO-04. `vocab.erase_learner(uuid)` returns `{}` |
 | Haitian Creole demo wording | Draft | Pending native-speaker / educator review |
 
-## 5. Awaiting staff wiring (next turn, after the staff lane's B1 is merged)
+## 5. Staff API — `/v1/staff/vocab` (needs `EDU_STAFF_DATABASE_URL`; not flag-gated)
 
-Complete and tested at SQL level, `EXECUTE` granted to **nobody**:
+Every route: token → 401; staff side not configured → 503 `staff_unavailable`; no suitable active
+role → 403 `forbidden` (audited `staff.access` / `denied` by `require_staff`). Then one `vocab.*`
+function runs as `edu_staff_login`; it checks the role again (`staff.require_role`) and writes its
+audit event (`ops.audit_write`) in the same transaction. All success answers are `200`.
 
-`register_source`, `set_source_rights`, `create_word`, `create_draft`, `update_draft`, `set_audio`,
-`remove_audio`, `submit_revision`, `review_revision`, `review_queue`, `schedule_word`,
-`unschedule_date`, `calendar`, `staff_ensure_assignments`, `retire_word`; plus the worker-facing
-`ensure_assignments` and the hook `erase_learner`.
+| Method and path | Body / query | Roles | Returns | Audit action |
+|---|---|---|---|---|
+| `POST /sources` | `source_title`, `licence`, `source_uri?`, `rights_notes?` | editor, publisher, admin | `{id}` | `vocab.source.register` |
+| `PUT /sources/{source_id}/rights` | `rights_status`, `rights_notes?` | publisher, admin | `{ok}` | `vocab.source.rights` |
+| `POST /words` | `slug` | editor, admin | `{id}` | `vocab.word.create` |
+| `POST /words/{word_id}/revisions` | `locale`, `term`, `pronunciation?`, `part_of_speech`, `definition`, `example`, `gloss?`, `source_id` | editor, admin | `{id}` | `vocab.revision.create` |
+| `PUT /revisions/{revision_id}` | same without `locale` | editor, admin (author only) | `{ok}` | `vocab.revision.update` |
+| `PUT /revisions/{revision_id}/audio` | `object_key`, `byte_size` ≤ 102400, `sha256` hex, `mime_type`, `duration_ms`, `source_id` | editor, admin (author only) | `{id}` | `vocab.audio.set` |
+| `DELETE /revisions/{revision_id}/audio` | — | editor, admin (author only) | `{ok}` | `vocab.audio.remove` |
+| `POST /revisions/{revision_id}/submit` | — | editor, admin (author only) | `{ok}` | `vocab.revision.submit` |
+| `POST /revisions/{revision_id}/review` | `verdict` (`approved`/`rejected`), `notes?` | reviewer, admin (never the author) | `{id}` | `vocab.revision.review` |
+| `GET /review-queue` | — | any staff role | `{items: […]}` | — |
+| `PUT /schedule/{haiti_date}` | `word_id` | publisher, admin | `{rows}` | `vocab.schedule.set` |
+| `DELETE /schedule/{haiti_date}` | — | publisher, admin | `{rows}` | `vocab.schedule.clear` |
+| `GET /calendar` | `from_date`, `days` (1–92, default 31) | any staff role | `{items: […]}` | — |
+| `POST /schedule/ensure` | `from_date`, `days` (1–62) | publisher, admin | `{created: […]}` | `vocab.schedule.ensure` |
+| `POST /words/{word_id}/retire` | — | publisher, admin | `{rows}` | `vocab.word.retire` |
 
-Two seams in `20261124040200_vocab_functions.sql`, each a single function to replace:
+Errors beyond 401/403/503 (standard shape): `404 vocab_not_found`; `409 vocab_rule_violation`
+(the message is the fixed sentence of the rule, e.g. "Author cannot review own word", "The word of
+a day that has already opened cannot be changed"); `409 vocab_conflict` (duplicate slug / object
+key); `422 validation_error` (body or query; unknown fields are refused); `422
+vocab_invalid_content` with `details: [{"constraint": "…"}]` when a database limit refuses content
+that passed the field checks (byte budget, control characters). A refusal raised by the database
+itself (another editor touching a draft) answers 403 and is recorded by the HTTP layer as
+`vocab.access` / `denied` in its own transaction.
 
-- `vocab._require_staff(VARIADIC roles)` — today reads `app.staff_roles` for the actor; becomes
-  `staff.require_role(...)`.
-- `vocab._audit(action, target_kind, target_id, details)` — today inserts into `app.audit_events`
-  (`actor_kind 'staff'`, outcome `allowed`); becomes `ops.audit_write(...)`. A refused call raises,
-  so it leaves no row: refusals must be audited at the API boundary.
+Audit details hold identifiers, dates, numbers and closed-list codes only — never a term, a
+definition or a note (ruling R-03). Database grants: `edu_staff` executes exactly these 15
+functions, `edu_worker` exactly `vocab.ensure_assignments`, `edu_api` exactly `vocab.daily_word`;
+none of them holds a table privilege in `vocab`. Every function pins
+`search_path = pg_catalog, pg_temp`.
 
-SQLSTATE → HTTP mapping the routes will use: `42501` → 403, `P0002` → 404, `22023` → 422,
-`23514` / `23505` / `P0001` → 409 or 422.
+Not provided (gap): read routes for a single revision / word list / sources, which a staff screen
+will need; staff reads today are the queue and the calendar.
 
 ## 6. Daily notification — design only (nothing is sent or scheduled)
 
@@ -213,22 +251,22 @@ One in-app event per Haiti date, written to the future `notify` outbox by the wo
 
 ## 7. Known gaps and residual risks
 
-- No HTTP staff routes yet; "learner token refused on staff routes" is proven only at the database
-  (the API's real login role and a learner actor are refused by every staff function).
-- The route is absent from the committed OpenAPI file and from the app's generated types (flag off).
 - No audio download route and no storage: `audio` is metadata only.
-- Midnight race: the day guard uses the instant of the write. A reschedule of *tomorrow* that starts
-  before midnight and commits after it can still change the word during the first moments of the
-  day (bounded by the transaction's duration; the API's statement timeout is 5 s). Closing it fully
-  needs a freeze window before midnight — an owner/product choice.
+- No staff read routes for one revision, the word list or sources (see section 5).
+- New routes are absent from the committed OpenAPI file and the app's generated types until the
+  director flips `INCLUDE_IN_SCHEMA` (ruling R-01).
+- With the flag off, a non-GET request to `/v1/daily-word` answers 405, not 404.
+- Midnight: closed by the 10-minute freeze plus the COMMIT-time check. What remains is the few
+  microseconds between that check and the commit becoming visible.
+- The staff routes are not behind `EDU_DAILY_WORD_ENABLED`: staff can prepare words before the
+  learner feature is switched on.
 - Staff accounts are referenced by `created_by` / `approved_by` / `reviewer_id` / `assigned_by` with
   `ON DELETE RESTRICT`: erasing a staff account that authored words needs a decision (not a learner
   erasure; out of scope here).
-- A pool smaller than the horizon repeats words (one word → the same word every day). There is no
-  "minimum gap" rule; that is a product decision.
-- The temporary audit seam writes rows a learner-erasure job would not need to touch (no learner
-  data), but its `actor_kind` is hard-coded to `staff`.
-- Tests that place a word on "today" assume the Haiti date does not change during the test.
+- A pool smaller than the horizon repeats words after P days (see the minimum-gap rule); whether a
+  day should rather stay empty is a product decision.
+- Tests that use "today" wait out Haiti midnight first (20 s margin in pytest, 5 s in pgTAP) and
+  never modify tomorrow, so they do not depend on the time of day.
 
 ## 8. Tests
 
@@ -245,10 +283,13 @@ One in-app event per Haiti date, written to the future `notify` outbox by the wo
 | Response size budget | `test_response_size_budget` (+ table constraint tested in `161`) |
 | Audio size cap | `161_vocab_editorial_workflow.sql`; `test_audio_size_cap_is_enforced_by_the_database` |
 | Licence / rights gate | `161` (approval), `162` (assignment, pool), `163` and `test_rights_withdrawn_hides_word_or_recording` (read) |
-| Learner token refused on staff routes | **HTTP part pending.** Database part: `160`, `161`, `test_api_database_login_reaches_one_function_only` |
+| Learner token refused on staff routes | `tests/integration/test_vocab_staff.py::test_learner_token_is_refused_on_every_staff_vocab_route` (parametrised over the route table; `test_route_table_is_complete` fails if a route is not listed); database part: `160`, `test_api_database_login_reaches_one_function_only` |
 | Data API cannot reach `vocab` | `160_vocab_structure.sql`; `test_vocab_schema_is_not_reachable_through_the_supabase_data_api` |
 
-Also: `tests/unit/test_vocab_etag.py` (entity tag, `If-None-Match`, flag default).
+Also: `tests/unit/test_vocab_etag.py` (entity tag, `If-None-Match`, flag default, R-01 contract
+test); `test_vocab_staff.py` (role matrix, author ≠ reviewer over HTTP, full HTTP journey ending in
+the learner's `GET /v1/daily-word`, audit content, error mapping); schedule freeze boundary in `164`;
+minimum gap in `162`; worker login in `test_vocab_schedule.py`.
 
 ```sh
 export UV_CACHE_DIR=/Volumes/EdupreneursDev/caches/uv npm_config_cache=/Volumes/EdupreneursDev/caches/npm
