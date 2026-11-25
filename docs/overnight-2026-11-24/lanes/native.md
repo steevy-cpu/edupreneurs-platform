@@ -37,10 +37,10 @@ applied regardless of flags.
    "Revoir la visite guidée"). A learner who finished version 1 would be offered version 2.
 5. **Word and Gold caches are per account**, as the brief asked. Cost on a shared phone: a second
    student offline does not see a word the first one downloaded.
-6. **Today's cached word is revalidated at most every 6 hours** (ETag, 304 without body). The vocab
-   lane serves `Cache-Control: private, no-cache` because a word can be withdrawn during the day;
-   strict HTTP semantics would revalidate on every display. 6 h is a data-cost compromise — to be
-   arbitrated with the vocab lane. A withdrawn word is deleted from the cache.
+6. **Today's cached word is revalidated once per app start and per return to the foreground**, at
+   least 5 minutes apart (ETag, 304 without body) — the rule agreed with the vocab lane after review;
+   it replaced an earlier 6-hour interval. A withdrawn word is deleted from the cache; when the
+   feature is off on the server the card is hidden and the cache kept.
 7. **A negative Gold balance is refused** (nothing is shown) although the rewards lane allows staff
    adjustments of either sign.
 8. **Audio**: when metadata exists the card shows the text "Audio : bientôt disponible". Nothing is
@@ -89,10 +89,13 @@ Not sent anywhere: a user id, a Gold amount, a device clock.
 
 ## 5. Honesty rules implemented
 
-- **Word of the Day** is called "Mot du jour" only while `fetchedAt <= now < valid_until` (the
-  server's Haiti-midnight instant). Otherwise "Dernier mot téléchargé · <date>". The phone never
-  computes the Haitian date. Known limit: a phone clock set *behind* real time keeps a word "today's"
-  for longer; any successful request corrects it.
+- **Word of the Day** is called "Mot du jour" only while `0 <= now - fetchedAt < lifetime`, where the
+  lifetime is `valid_until` minus the response `Date` header (server clock), capped at 25 h, and the
+  label is decided at every render. Otherwise "Dernier mot téléchargé · <date>". Only elapsed phone
+  time is used, so a wrong phone date (behind, ahead, reset) does not mislabel the word. Remaining
+  limit: if the `Date` header is unreadable the lifetime falls back to the phone clock at download.
+- **Streak**: "Série en cours" only while the server copy is under a day old; an older copy says
+  "Série au <date>" or nothing.
 - **Gold**: the confirmed number is the server's balance, with the time received. Unsynced work is
   "En attente", counted in actions, never given a Gold value, never added. No summary → no number.
   The server's `rules_status: provisional` and `up_to_date: false` are shown as text.
@@ -114,6 +117,7 @@ Command (the mobile Jest harness needs the shim, see §8):
 |---|---|---|
 | Baseline on 54fec1c | 10 | 157 passed |
 | After e3aec2b | 22 | 319 passed, 0 failed |
+| After the review fixes (section 11) | 22 | 337 passed, 0 failed |
 
 Also run: `npm run check:api` (generated types fresh: pass). Bundle, flags unset, Android `.hbc`:
 2,885,744 bytes (Mobile-02 report: 2,778,788), gzip 1,245,855.
@@ -158,7 +162,7 @@ from `project_id` in `supabase/config.toml`.
 
 ## 10. Haitian Creole strings for native-speaker review (all DRAFT)
 
-102 catalogue strings in `src/core/i18n/strings.ts`, listed below. Also outside the catalogue:
+103 catalogue strings in `src/core/i18n/strings.ts`, listed below. Also outside the catalogue:
 grade labels in `src/core/experience/grades.ts` (`7èm/8èm/9èm ane fondamantal`, `Nouvo Segondè 1–4`)
 and month names in `src/core/experience/dailyWord.ts` (`janvye, fevriye, mas, avril, me, jen, jiyè,
 out, septanm, oktòb, novanm, desanm`).
@@ -289,3 +293,44 @@ out, septanm, oktòb, novanm, desanm`).
 | `wordPosExpression` | expression | ekspresyon |
 | `rewardsProvisional` | Valeurs provisoires | Valè pwovizwa |
 | `rewardsCatchingUp` | Le serveur compte encore tes dernières actions. | Sèvè a ap konte dènye aksyon ou yo toujou. |
+
+## 11. Independent review of 779657f — what was fixed and what is open
+
+Report: `/Volumes/EdupreneursDev/logs/overnight-2026-11-24/reviews/native-review-FULL.md`.
+
+| Finding | Status | Commit |
+|---|---|---|
+| H1 word label frozen at mount | fixed, tested on one mounted instance | 49ffcb3 |
+| M1 phone clock behind (and L1 clock ahead) | fixed: lifetime from the server clock, elapsed time only | ac0a2a0 |
+| M2 revalidation rhythm; hide on feature-off | fixed (per app start / foreground, 5 min apart) | ac0a2a0 |
+| M3 onboarding sync retries | fixed: single flight, 10 min spacing, refused PATCH is final | see `git log` (M3+M4 commit) |
+| M4 step jump on a new phone | fixed: step never moved; grade prefilled from `GET /v1/me` | same commit |
+| L4 flag cleared for an unsent change | fixed | same commit |
+| M5 stale streak | fixed | M5 commit |
+| L2 idempotent migration statements | fixed | L2+L3 commit |
+| L3 direct open of `/onboarding` | fixed | L2+L3 commit |
+
+**Open (not done):**
+- L5 leaderboard review component: screen-reader order in the three-column podium is 2-1-3; raw
+  sizes instead of tokens; two-line truncation of pseudonyms. Review screen only, flag off.
+- L6 month names, grade labels and language names live outside `strings.ts`; `toLocaleString('fr-HT')`
+  for the Gold confirmation time; "(s)" plurals; the Creole wordings the reviewer listed; "Dènye mo
+  ki telechaje" versus the vocab lane's "Dènye mo telechaje".
+- L7 validators are looser than the contracts (text limits, 8000-byte cap, `duration_ms`,
+  `tour_version_seen` upper bound, control characters). `valid_until` far in the future is now
+  harmless for the label (25 h cap) but is still stored.
+- L8 `rewardsPending` wording suggests waiting work will earn Gold.
+- Notes: the cache stores a normalised copy, not the verbatim body; `Retry-After` is not read; one
+  client flag covers identity's separate server flags (a refused PATCH is now simply final).
+- Missing tests still missing: the real `useRemote` hook; a Mobile-02 snapshot comparison with
+  flags off; validator upper bounds.
+- The onboarding-sync spacing and the "checked since foreground" marker are in memory (per app
+  start), not persisted.
+- With the `onboardingSync` flag on, a learner whose server state is `ready` but who has no grade
+  anywhere still chooses it in Apprendre.
+
+### Review fix M5 (1)
+
+| Key | Français | Kreyòl (draft) |
+|---|---|---|
+| `rewardsStreakAsOf` | Série au {date} : {days} jour(s) | Seri jiska {date}: {days} jou |
