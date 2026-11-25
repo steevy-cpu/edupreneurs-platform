@@ -20,11 +20,11 @@ No CRITICAL or HIGH finding. The privilege model holds: no learner-side or staff
 ## Findings
 
 ### M1 — MEDIUM — Staff idempotency keys and internal purchase keys share one namespace
-- Where: `supabase/migrations/20261124070200_billing_functions.sql:235` (single `UNIQUE idempotency_key`, `ON CONFLICT DO NOTHING`), `:651` (purchase grant key `'order:' || order id`), `:653` (`RAISE … XX000`); `services/api/src/edu_api/billing/staff_schemas.py:40` (pattern allows `:`).
+- Where: `supabase/migrations/20261124070200_billing_functions.sql:235` (single `UNIQUE idempotency_key`, `ON CONFLICT DO NOTHING`), `:651` (internally derived purchase-grant key), `:653` (`RAISE … XX000`); `services/api/src/edu_api/billing/staff_schemas.py:40`.
 - Problem (class: key-namespace collision → denial of fulfilment): keys chosen by staff and keys derived internally for purchase grants live in one unique namespace. A colliding staff key makes the later payment message fail with an internal error that rolls everything back: the order stays `pending`, the provider event is **not stored** (contradicting "every authentic message is stored"), and every retry fails the same way. Impact: a paying learner would never be entitled and finance would see nothing.
 - Evidence: reproduced on the QA stack at SQL level and through the staff HTTP route with a real admin token; the affected order stayed `pending`, no provider event row was stored and the learner was not entitled. Reproduction steps are in the private full report.
 - Reach today: needs role `admin` and the id of a pending order; checkout and the event function are dormant (EXECUTE: nobody). Hence MEDIUM, not HIGH.
-- Smallest fix: namespace the keys in SQL, e.g. `staff_grant_entitlement` stores `'staff:' || p_idempotency_key` (and/or refuses keys starting with `order:`); and in `apply_provider_event` do not raise on a grant conflict — store the event as `rejected / grant_conflict` so it is visible. Add a test.
+- Smallest fix: namespace the keys in SQL, e.g. `staff_grant_entitlement` stores `'staff:' || p_idempotency_key` (and/or refuses staff keys in the internal prefix); and in `apply_provider_event` do not raise on a grant conflict — store the event as `rejected / grant_conflict` so it is visible. Add a test.
 
 ### L1 — LOW — Replaying a key whose grant was revoked answers "granted" (grant after revoke)
 - Where: `20261124070200_billing_functions.sql:244-258`; `routers/staff_billing.py:115-125`.
@@ -81,7 +81,7 @@ No CRITICAL or HIGH finding. The privilege model holds: no learner-side or staff
 - **Audit content**: observed rows carry ids, enum codes and numbers only; the idempotency key is not audited. No secret, key or token in the diff.
 
 ## Missing tests
-- Key-namespace collision between a staff grant and a purchase grant (M1).
+- Key-namespace collision between staff and internal grant keys (M1).
 - Replay of a key after its grant was revoked, at SQL and HTTP level (L1).
 - Plan edited between order creation and payment (L2).
 - Erasure behaviour for unlinked provider events and for audit rows naming the learner (L3) — the doc states the gap, nothing pins it.
