@@ -124,9 +124,7 @@ def create_app(
     app.include_router(me.router)
     app.include_router(catalog.router)
     app.include_router(sync.router)
-    # Documented only where the staff side is switched on, so the learner
-    # contract (packages/contracts/openapi.json) is unchanged by its existence.
-    app.include_router(staff.router, include_in_schema=staff_database is not None)
+    app.include_router(staff.router)
     # Always registered (ruling R-01); every route answers 404 while the flag is off.
     if notify_database is not None:
         app.state.notify_db = notify_database

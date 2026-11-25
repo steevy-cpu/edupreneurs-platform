@@ -30,6 +30,16 @@ SELECT is((SELECT count(*)::int FROM pg_auth_members m
              AND g.rolname <> replace(u.rolname, '_login', '')), 0,
     'each login role (where provisioned) belongs to its own group and nothing else');
 
+-- ---- temporary objects (review finding H1) ------------------------------------------
+SELECT is((SELECT array_agg(r::text ORDER BY r::text COLLATE "C") FROM pg_roles r0, LATERAL (SELECT r0.rolname AS r) x
+           WHERE (r0.rolname IN ('anon','authenticated','authenticator','service_role')
+                  OR r0.rolname LIKE 'edu\_%')
+             AND has_database_privilege(r0.rolname, current_database(), 'TEMP')),
+    NULL, 'no API role or login (edu_*, anon, authenticated, authenticator, service_role) may create temporary objects');
+SELECT is(has_database_privilege('public', current_database(), 'TEMP'), false, 'PUBLIC holds no TEMP privilege on the database');
+SELECT is((SELECT count(*)::int FROM pg_roles WHERE rolname LIKE 'edu\_%'), 3 + (SELECT count(*)::int FROM pg_roles WHERE rolname LIKE 'edu\_%\_login'),
+    'the edu_* roles are the three groups and their logins, nothing else');
+
 -- ---- schemas ----------------------------------------------------------------------
 SELECT has_schema('ops');
 SELECT has_schema('staff');
@@ -54,15 +64,33 @@ SELECT is((SELECT count(*)::int
     'edu_staff and edu_worker cannot use schema app or auth directly');
 
 -- ---- tables: the new roles hold none, anywhere --------------------------------------
-SELECT is((SELECT count(*)::int FROM information_schema.role_table_grants
-           WHERE grantee IN ('edu_staff','edu_worker')), 0,
-    'edu_staff and edu_worker hold no table privilege in any schema');
-SELECT is((SELECT count(*)::int FROM information_schema.column_privileges
-           WHERE grantee IN ('edu_staff','edu_worker')), 0,
-    'edu_staff and edu_worker hold no column privilege in any schema');
-SELECT is((SELECT count(*)::int FROM information_schema.role_table_grants
-           WHERE table_schema IN ('ops','staff')
-             AND grantee IN ('PUBLIC','anon','authenticated','authenticator','service_role','edu_api')), 0,
+-- has_*_privilege() is used on purpose: information_schema only shows grants that
+-- involve the current user's roles and never access inherited from PUBLIC.
+SELECT is((SELECT count(*)::int
+           FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace,
+                unnest(ARRAY['edu_staff','edu_worker']) AS r
+           WHERE c.relkind IN ('r','p','v','m','f')
+             AND n.nspname NOT IN ('pg_catalog','information_schema') AND n.nspname NOT LIKE 'pg\_%'
+             AND has_schema_privilege(r, n.oid, 'USAGE')
+             AND has_table_privilege(r, c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')), 0,
+    'edu_staff and edu_worker can reach no table or view in any schema they can use');
+SELECT is((SELECT count(*)::int
+           FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace,
+                unnest(ARRAY['edu_staff','edu_worker']) AS r
+           WHERE c.relkind IN ('r','p','v','m','f') AND n.nspname IN ('app','ops','staff','auth')
+             AND has_table_privilege(r, c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')), 0,
+    'edu_staff and edu_worker hold no table privilege in app, ops, staff or auth');
+SELECT is((SELECT count(*)::int
+           FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace,
+                unnest(ARRAY['edu_staff','edu_worker']) AS r
+           WHERE c.relkind = 'S' AND n.nspname IN ('app','ops','staff','auth')
+             AND has_sequence_privilege(r, c.oid, 'USAGE,SELECT,UPDATE')), 0,
+    'edu_staff and edu_worker hold no sequence privilege in app, ops, staff or auth');
+SELECT is((SELECT count(*)::int
+           FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace,
+                unnest(ARRAY['public','anon','authenticated','authenticator','service_role','edu_api']) AS r
+           WHERE c.relkind IN ('r','p','v','m','f') AND n.nspname IN ('ops','staff')
+             AND has_table_privilege(r, c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')), 0,
     'PUBLIC / Data API roles / edu_api hold no table privilege in ops or staff');
 SELECT is((SELECT count(*)::int FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
            WHERE n.nspname IN ('ops','staff') AND c.relkind = 'r' AND NOT c.relrowsecurity), 0,
@@ -72,9 +100,21 @@ SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname = 'app'
     'no app policy mentions edu_staff or edu_worker');
 
 -- ---- functions ------------------------------------------------------------------------
-SELECT functions_are('ops', ARRAY['actor_kind_for','check_audit_details','audit_write'],
+SELECT functions_are('ops', ARRAY['actor_kind_for','check_audit_details','audit_write','audit_access_denied','erase_learner','session_kind',
+    -- job queue (20261124010500)
+    'check_worker_id','check_lease_seconds','job_backoff','enqueue_job','claim_jobs','heartbeat_job','complete_job','fail_job'],
     'ops holds exactly the expected functions');
-SELECT functions_are('staff', ARRAY['check_role_names','actor_roles','actor_has_role','require_role'],
+SELECT functions_are('staff', ARRAY['check_role_names','actor_roles','actor_has_role','require_role',
+    -- editorial workflow (20261124010200): internal helpers
+    'insert_questions','check_revision_content','lock_revision','require_author','lock_pack',
+    'revision_json','pack_release_json','switch_current_pack',
+    -- editorial workflow: callable
+    'create_lesson','create_revision','update_revision','create_source','set_source_rights',
+    'attach_source','detach_source','submit_revision','review_revision','get_revision',
+    'list_revisions','list_sources','build_pack','release_pack','rollback_pack',
+    'get_pack_release','list_pack_releases',
+    -- role administration (20261124010300)
+    'lock_role_changes','check_role_target','grant_role','revoke_role','list_role_assignments'],
     'staff holds exactly the expected functions');
 SELECT function_returns('ops', 'audit_write', ARRAY['text','text','uuid','text','jsonb'], 'uuid');
 SELECT function_returns('staff', 'actor_has_role', ARRAY['text[]'], 'boolean');
@@ -99,28 +139,30 @@ SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace IN ('ops'::r
 SELECT is((SELECT array_agg(n.nspname || '.' || p.proname ORDER BY (n.nspname || '.' || p.proname) COLLATE "C") FROM pg_proc p
            JOIN pg_namespace n ON n.oid = p.pronamespace
            WHERE n.nspname IN ('ops','staff') AND has_function_privilege('edu_staff', p.oid, 'EXECUTE')),
-    ARRAY['ops.audit_write','staff.actor_has_role','staff.actor_roles','staff.require_role'],
-    'edu_staff may execute exactly audit_write and the three role checks');
+    ARRAY['ops.audit_access_denied','ops.audit_write','ops.enqueue_job','ops.session_kind',
+          'staff.actor_has_role','staff.actor_roles','staff.attach_source','staff.build_pack','staff.create_lesson','staff.create_revision','staff.create_source','staff.detach_source','staff.get_pack_release','staff.get_revision','staff.grant_role','staff.list_pack_releases','staff.list_revisions','staff.list_role_assignments','staff.list_sources','staff.release_pack','staff.require_role','staff.review_revision','staff.revoke_role','staff.rollback_pack','staff.set_source_rights','staff.submit_revision','staff.update_revision'],
+    'edu_staff may execute exactly the functions granted to it');
 SELECT is((SELECT array_agg(n.nspname || '.' || p.proname ORDER BY (n.nspname || '.' || p.proname) COLLATE "C") FROM pg_proc p
            JOIN pg_namespace n ON n.oid = p.pronamespace
            WHERE n.nspname IN ('ops','staff') AND has_function_privilege('edu_worker', p.oid, 'EXECUTE')),
-    ARRAY['ops.audit_write'],
-    'edu_worker may execute exactly audit_write');
+    ARRAY['ops.audit_write','ops.claim_jobs','ops.complete_job','ops.enqueue_job','ops.fail_job','ops.heartbeat_job','ops.session_kind'],
+    'edu_worker may execute exactly the functions granted to it');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'app'::regnamespace
            AND (has_function_privilege('edu_staff', p.oid, 'EXECUTE')
              OR has_function_privilege('edu_worker', p.oid, 'EXECUTE'))), 0,
     'edu_staff and edu_worker may execute nothing in app');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace IN ('ops'::regnamespace, 'staff'::regnamespace)
-           AND NOT COALESCE(p.proconfig @> ARRAY['search_path=""'], false)), 0,
-    'every ops/staff function pins an empty search_path');
+           AND NOT COALESCE(p.proconfig @> ARRAY['search_path=pg_catalog, pg_temp'], false)), 0,
+    'every ops/staff function pins search_path = pg_catalog, pg_temp (temporary schema last)');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace IN ('ops'::regnamespace, 'staff'::regnamespace)
            AND pg_get_userbyid(p.proowner) <> 'postgres'), 0,
     'every ops/staff function is owned by the migration owner (postgres)');
 SELECT is((SELECT array_agg(n.nspname || '.' || p.proname ORDER BY (n.nspname || '.' || p.proname) COLLATE "C") FROM pg_proc p
            JOIN pg_namespace n ON n.oid = p.pronamespace
            WHERE n.nspname IN ('ops','staff') AND p.prosecdef),
-    ARRAY['ops.audit_write','staff.actor_has_role','staff.actor_roles','staff.require_role'],
-    'exactly the four callable functions are SECURITY DEFINER; the internal helpers are not');
+    ARRAY['ops.audit_access_denied','ops.audit_write','ops.claim_jobs','ops.complete_job','ops.enqueue_job','ops.erase_learner','ops.fail_job','ops.heartbeat_job','ops.session_kind',
+          'staff.actor_has_role','staff.actor_roles','staff.attach_source','staff.build_pack','staff.create_lesson','staff.create_revision','staff.create_source','staff.detach_source','staff.get_pack_release','staff.get_revision','staff.grant_role','staff.list_pack_releases','staff.list_revisions','staff.list_role_assignments','staff.list_sources','staff.release_pack','staff.require_role','staff.review_revision','staff.revoke_role','staff.rollback_pack','staff.set_source_rights','staff.submit_revision','staff.update_revision'],
+    'exactly these functions are SECURITY DEFINER; the internal helpers are not');
 
 SELECT * FROM finish();
 ROLLBACK;
