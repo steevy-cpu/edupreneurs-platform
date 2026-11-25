@@ -111,7 +111,8 @@ def create_app(
     app.include_router(me.router)
     app.include_router(catalog.router)
     app.include_router(sync.router)
+    # Always registered (ruling R-01); every route answers 404 while the flag is off.
     if notify_database is not None:
         app.state.notify_db = notify_database
-        app.include_router(notifications.router)
+    app.include_router(notifications.router)
     return app

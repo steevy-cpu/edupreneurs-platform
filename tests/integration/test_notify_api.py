@@ -33,23 +33,56 @@ DEFAULTS = {
 
 
 # ------------------------------------------------------------------ the flag
-async def test_with_the_flag_off_the_routes_do_not_exist(
+async def test_with_the_flag_off_the_routes_answer_like_unknown_paths(
     client: httpx.AsyncClient, tokens: dict[str, str], app: FastAPI
 ) -> None:
-    """Default settings: exactly today's API. Not mounted, not in the contract, no extra pool."""
+    """Default settings: registered (ruling R-01) but indistinguishable from a path
+    that does not exist — with or without a token, whatever the body — and there is
+    no notification database pool."""
     assert app.state.settings.notifications_enabled is False
     assert not hasattr(app.state, "notify_db")
+    unknown = await client.get("/v1/no-such-route", headers=bearer(tokens["student_a"]))
+    assert unknown.status_code == 404
+    reference = unknown.json()["error"]
     for method, path in (("GET", PREFS), ("PUT", PREFS), ("GET", LIST)):
-        response = await client.request(method, path, headers=bearer(tokens["student_a"]), json={})
-        assert response.status_code == 404, path
-        assert response.json()["error"]["code"] == "not_found"
-    spec = (await client.get("/openapi.json")).json()
-    assert not [path for path in spec["paths"] if "notification" in path]
+        for headers in (bearer(tokens["student_a"]), {}, bearer("not-a-token")):
+            for body in ({}, {"push_enabled": True, "muted_categories": [], "quiet_hours": None}):
+                response = await client.request(method, path, headers=headers, json=body)
+                assert response.status_code == 404, (method, path)
+                error = response.json()["error"]
+                assert (error["code"], error["message"]) == (
+                    reference["code"],
+                    reference["message"],
+                )
+                assert set(error) == set(reference)
+    assert (await client.get(LIST, params={"cursor": "x" * 500})).status_code == 404
 
 
-async def test_contract_of_the_flagged_routes(notify_client: httpx.AsyncClient) -> None:
-    spec = (await notify_client.get("/openapi.json")).json()
-    added = {path: ops for path, ops in spec["paths"].items() if "notification" in path}
+async def test_routes_are_left_out_of_the_contract_by_one_constant(
+    client: httpx.AsyncClient, notify_client: httpx.AsyncClient
+) -> None:
+    """Ruling R-01: new paths stay out of the OpenAPI document (flag on or off)
+    until the director flips INCLUDE_IN_SCHEMA at integration."""
+    from edu_api.routers import notifications
+
+    assert notifications.INCLUDE_IN_SCHEMA is False
+    for http in (client, notify_client):
+        spec = (await http.get("/openapi.json")).json()
+        assert not [path for path in spec["paths"] if "notification" in path]
+        assert not [name for name in spec["components"]["schemas"] if "Notification" in name]
+
+
+def test_contract_of_the_routes_once_the_constant_is_on() -> None:
+    """What the contract will be when INCLUDE_IN_SCHEMA is flipped: bearer security on
+    every operation, only the standard error shape, and no way to create a notification."""
+    from fastapi import FastAPI as BareApp
+
+    from edu_api.routers import notifications
+
+    application = BareApp()
+    application.include_router(notifications.build_router(include_in_schema=True))
+    spec = application.openapi()
+    added = spec["paths"]
     assert {path: sorted(ops) for path, ops in added.items()} == {
         PREFS: ["get", "put"],
         LIST: ["get"],
@@ -63,12 +96,19 @@ async def test_contract_of_the_flagged_routes(notify_client: httpx.AsyncClient) 
                 if status != "200":
                     assert response["content"]["application/json"]["schema"] == error_ref
     assert "HTTPValidationError" not in spec["components"]["schemas"], "one error shape only"
-    # There is no route that creates a notification.
-    assert all(
-        method in {"get", "put"} for operations in added.values() for method in operations
-    ) and "post" not in spec["paths"].get(LIST, {})
+    assert "ValidationError" not in spec["components"]["schemas"]
     item = spec["components"]["schemas"]["NotificationItem"]["properties"]
     assert set(item) == {"id", "kind", "category", "refs", "available_at", "expires_at"}
+    update = spec["components"]["schemas"]["PreferencesUpdate"]
+    assert set(update["properties"]) == {"push_enabled", "muted_categories", "quiet_hours"}
+    assert update["additionalProperties"] is False, "no user id can be sent"
+    # Same routes, same handlers as the ones the application serves.
+    served = {(route.path, tuple(sorted(route.methods))) for route in notifications.router.routes}
+    documented = {
+        (route.path, tuple(sorted(route.methods)))
+        for route in notifications.build_router(include_in_schema=True).routes
+    }
+    assert served == documented and len(served) == 3
 
 
 async def test_routes_need_a_real_user_token(

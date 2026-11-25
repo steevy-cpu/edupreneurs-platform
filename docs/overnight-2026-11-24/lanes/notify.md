@@ -62,6 +62,11 @@ Rules enforced **in the database**:
 | `notify._claim_due_at`, `notify._record_attempt_at`, `notify._settle` | nobody, **never to be granted** | Internal; the `_at` twins take an explicit clock for tests |
 | `notify.quiet_until`, `notify.window_end`, `notify.refs_are_ids` | nobody | Internal helpers |
 
+**Search path (ruling R-03).** All 11 functions pin
+`search_path = pg_catalog, pg_temp` and qualify every non-catalog object;
+`240_notify_structure.sql` asserts it and that every function is owned by
+`postgres`. No application code path creates a temporary object.
+
 **Seam, in one place.** The staff lane's roles do not exist in this branch. When
 they are merged, a second migration in this block (`20261124080200_…`) adds
 exactly the three statements quoted under `SEAM(notify-worker-role)` at the end
@@ -73,9 +78,14 @@ not exist here): erasure and preference changes are not audited — see gaps.
 
 ## API contract (only when `EDU_NOTIFICATIONS_ENABLED=true`)
 
-With the flag off the three routes are **not mounted** (404, absent from
-`/openapi.json`, no extra database pool). `packages/contracts/openapi.json` and
-the mobile `schema.d.ts` are therefore unchanged — see deviations.
+The three routes are always registered (director ruling R-01). With the flag off
+each answers the same 404 as an unknown path — before authentication, whatever
+the body — and no extra database pool exists. They are declared with
+`include_in_schema=INCLUDE_IN_SCHEMA` (one constant, `False`, in
+`routers/notifications.py`), so `packages/contracts/openapi.json` and the mobile
+`schema.d.ts` are byte-identical to `main`; the director flips the constant at
+integration. `test_contract_of_the_routes_once_the_constant_is_on` proves the
+documented operations then carry bearer security and only the standard error shape.
 
 All routes need the learner's access token; the learner is taken from the token.
 Errors use the standard shape.
@@ -156,19 +166,17 @@ No title, no body: the app renders the words from `kind` + `refs`.
 
 ## Deviations from the brief
 
-1. **Routes are mounted only when the flag is on, so the committed OpenAPI file
-   and mobile types do not contain them.** The existing
-   `test_openapi_contract` pins the exact set of paths of the default app and
-   may not be edited; mounting the routes unconditionally would break it. The
-   contract above and `test_contract_of_the_flagged_routes` stand in until the
-   director decides how flagged routes enter the shared contract.
+1. **Resolved by ruling R-01** (was: routes mounted only when the flag is on).
+   The routes are now always registered and kept out of the OpenAPI document by
+   `INCLUDE_IN_SCHEMA = False`.
 2. **No `notify.push_tokens` table** (Platform-00 doc 04 lists one). The brief
    forbids device tokens tonight; the table belongs with the first real channel.
 3. **Extra table `notify.delivery_attempts`, `notify.kinds`, `notify.policy`.**
    The brief names three tables; the attempt log is separate from the per-channel
    state so that retry state is one row and history is append-only.
 4. **Foreign keys to `app.learner_profiles`** (not `auth.users`). Nothing is
-   created in `app`; the 209 baseline assertions are unchanged.
+   created in `app`; the 209 baseline assertions are unchanged. No foreign key
+   points at any of the five learning tables (ruling R-02).
 5. **`edu_api` gained privileges in `notify`** (USAGE, SELECT on four tables,
    EXECUTE on `set_preferences`). Its privileges in `app` are untouched.
 

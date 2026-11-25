@@ -33,6 +33,11 @@
 --     app.learner_profiles so a notification can only exist for a real learner;
 --     notify.erase_learner() removes a learner's rows before account erasure.
 --
+-- SEARCH PATH (director ruling R-03): every function pins
+-- `search_path = pg_catalog, pg_temp` — the temporary schema explicitly LAST, so
+-- a temporary object can never shadow a catalog type or function inside a
+-- SECURITY DEFINER body — and every non-catalog object is schema-qualified.
+--
 -- WORKER SEAM: notify.claim_due() and notify.record_attempt() are for a
 -- delivery worker. The worker role (edu_worker) is delivered by another
 -- migration block and does not exist here, so EXECUTE is granted to nobody.
@@ -101,7 +106,7 @@ CREATE TABLE notify.preferences (
 CREATE FUNCTION notify.refs_are_ids(p_refs jsonb)
 RETURNS boolean
 LANGUAGE sql IMMUTABLE
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
     SELECT CASE
         WHEN p_refs IS NULL OR jsonb_typeof(p_refs) <> 'object' THEN false
@@ -184,7 +189,7 @@ CREATE TABLE notify.delivery_attempts (
 CREATE FUNCTION notify.window_end(p_at timestamptz, p_start time, p_end time)
 RETURNS timestamptz
 LANGUAGE plpgsql STABLE
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_local timestamp := p_at AT TIME ZONE 'America/Port-au-Prince';
@@ -218,7 +223,7 @@ $$;
 CREATE FUNCTION notify.quiet_until(p_at timestamptz, p_recipient uuid)
 RETURNS timestamptz
 LANGUAGE plpgsql STABLE
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_policy notify.policy%ROWTYPE;
@@ -260,7 +265,7 @@ CREATE FUNCTION notify.enqueue(
 )
 RETURNS uuid
 LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_now timestamptz := now();
@@ -335,7 +340,7 @@ CREATE TYPE notify.claimed AS (
 CREATE FUNCTION notify._settle(p_outbox_id uuid)
 RETURNS void
 LANGUAGE sql SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
     UPDATE notify.outbox o SET state = 'settled'
     WHERE o.id = p_outbox_id AND o.state = 'pending'
@@ -350,7 +355,7 @@ CREATE FUNCTION notify._claim_due_at(
 )
 RETURNS SETOF notify.claimed
 LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_policy notify.policy%ROWTYPE;
@@ -457,7 +462,7 @@ CREATE FUNCTION notify.claim_due(
 )
 RETURNS SETOF notify.claimed
 LANGUAGE sql SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
     SELECT * FROM notify._claim_due_at(p_channel, p_limit, p_lease_seconds, clock_timestamp());
 $$;
@@ -471,7 +476,7 @@ CREATE FUNCTION notify._record_attempt_at(
 )
 RETURNS text
 LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_policy notify.policy%ROWTYPE;
@@ -545,7 +550,7 @@ CREATE FUNCTION notify.record_attempt(
 )
 RETURNS text
 LANGUAGE sql SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
     SELECT notify._record_attempt_at(p_outbox_id, p_channel, p_lease_token, p_outcome,
                                      p_error_code, clock_timestamp());
@@ -559,7 +564,7 @@ CREATE FUNCTION notify.set_preferences(
 )
 RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := app.current_actor_id();
@@ -602,7 +607,7 @@ $$;
 CREATE FUNCTION notify.erase_learner(p_user_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_attempts bigint;

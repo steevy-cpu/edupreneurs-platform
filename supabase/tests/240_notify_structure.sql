@@ -105,8 +105,11 @@ SELECT is((SELECT array_agg(p.proname || '>' || pg_get_userbyid(a.grantee) ORDER
     ARRAY['set_preferences>edu_api'],
     'the only EXECUTE grant to a non-owner in notify is set_preferences to edu_api');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'notify'::regnamespace
-           AND NOT COALESCE(p.proconfig @> ARRAY['search_path=""'], false)), 0,
-    'every notify function pins an empty search_path');
+           AND (SELECT array_agg(c) FROM unnest(p.proconfig) c WHERE c LIKE 'search_path=%')
+               IS DISTINCT FROM ARRAY['search_path=pg_catalog, pg_temp']), 0,
+    'every notify function pins exactly search_path = pg_catalog, pg_temp (ruling R-03)');
+SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'notify'::regnamespace AND p.prosecdef), 8,
+    '8 SECURITY DEFINER functions exist in notify');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'notify'::regnamespace
            AND pg_get_userbyid(p.proowner) <> 'postgres'), 0,
     'every notify function is owned by the migration owner (postgres)');
