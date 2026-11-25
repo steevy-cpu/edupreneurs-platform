@@ -93,18 +93,23 @@ CREATE TABLE rewards.ledger (
     -- Monotonic insertion order; used only for stable paging.
     seq bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
     learner_id uuid NOT NULL REFERENCES app.learner_profiles(user_id) ON DELETE RESTRICT,
-    entry_kind text NOT NULL CHECK (entry_kind IN ('award', 'reversal')),
+    entry_kind text NOT NULL CHECK (entry_kind IN ('award', 'reversal', 'adjustment')),
     amount integer NOT NULL CHECK (amount <> 0 AND amount BETWEEN -1000 AND 1000),
-    rule_code text NOT NULL,
-    rule_version integer NOT NULL,
+    -- The rule version that fixed the amount (NULL only for a staff adjustment).
+    rule_code text,
+    rule_version integer,
     source_kind text NOT NULL CHECK (source_kind IN
-        ('question_first_correct', 'lesson_first_completed', 'achievement', 'reversal')),
+        ('question_first_correct', 'lesson_first_completed', 'achievement', 'reversal', 'adjustment')),
     -- The accepted sync operation that earned this row (awards only).
     source_op_id uuid,
     lesson_id uuid,
     question_key text,
     achievement_code text,
     reverses_ledger_id uuid REFERENCES rewards.ledger(id),
+    -- Staff adjustment: the caller-chosen idempotency id of the request.
+    adjustment_id uuid,
+    -- The staff member behind a reversal or an adjustment (no FK, like audit rows).
+    actor_id uuid,
     -- THE EXACTLY-ONCE KEY. It names WHAT was rewarded, not which operation
     -- carried it, so a replay, a new op id, another device, another locale or a
     -- newer revision of the same question all collide on the same value:
@@ -112,6 +117,7 @@ CREATE TABLE rewards.ledger (
     --   l:<lesson id>                  first completion of a lesson
     --   a:<achievement code>           one-off achievement bonus
     --   r:<ledger id>                  the (single) reversal of a row
+    --   adj:<adjustment id>            one audited staff adjustment
     -- It is GENERATED from the structured columns, so no writer — not even a
     -- privileged one — can supply a look-alike key by hand.
     source_key text GENERATED ALWAYS AS (
@@ -120,12 +126,14 @@ CREATE TABLE rewards.ledger (
             WHEN 'lesson_first_completed' THEN 'l:' || lesson_id::text
             WHEN 'achievement' THEN 'a:' || achievement_code
             WHEN 'reversal' THEN 'r:' || reverses_ledger_id::text
+            WHEN 'adjustment' THEN 'adj:' || adjustment_id::text
         END
     ) STORED NOT NULL,
     -- Instant the server accepted the earning operation, and its Haiti date.
     accepted_at timestamptz NOT NULL,
     accepted_day date NOT NULL,
-    reason text CHECK (reason IS NULL OR char_length(reason) BETWEEN 3 AND 300),
+    -- Why a reversal or adjustment was made: a CODE, never free text.
+    reason_code text CHECK (reason_code IS NULL OR reason_code ~ '^[a-z][a-z0-9_]{2,39}$'),
     created_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT ledger_exactly_once UNIQUE (learner_id, source_key),
     CONSTRAINT ledger_rule_fkey FOREIGN KEY (rule_code, rule_version)
@@ -134,16 +142,29 @@ CREATE TABLE rewards.ledger (
         CHECK (accepted_day = (accepted_at AT TIME ZONE 'America/Port-au-Prince')::date),
     CONSTRAINT ledger_shape CHECK (
         (source_kind = 'question_first_correct' AND entry_kind = 'award' AND amount > 0
+            AND rule_code IS NOT NULL AND rule_version IS NOT NULL
             AND source_op_id IS NOT NULL AND lesson_id IS NOT NULL AND question_key IS NOT NULL
-            AND achievement_code IS NULL AND reverses_ledger_id IS NULL AND reason IS NULL)
+            AND achievement_code IS NULL AND reverses_ledger_id IS NULL AND adjustment_id IS NULL
+            AND actor_id IS NULL AND reason_code IS NULL)
         OR (source_kind = 'lesson_first_completed' AND entry_kind = 'award' AND amount > 0
+            AND rule_code IS NOT NULL AND rule_version IS NOT NULL
             AND source_op_id IS NOT NULL AND lesson_id IS NOT NULL AND question_key IS NULL
-            AND achievement_code IS NULL AND reverses_ledger_id IS NULL AND reason IS NULL)
+            AND achievement_code IS NULL AND reverses_ledger_id IS NULL AND adjustment_id IS NULL
+            AND actor_id IS NULL AND reason_code IS NULL)
         OR (source_kind = 'achievement' AND entry_kind = 'award' AND amount > 0
+            AND rule_code IS NOT NULL AND rule_version IS NOT NULL
             AND source_op_id IS NOT NULL AND lesson_id IS NULL AND question_key IS NULL
-            AND achievement_code IS NOT NULL AND reverses_ledger_id IS NULL AND reason IS NULL)
+            AND achievement_code IS NOT NULL AND reverses_ledger_id IS NULL AND adjustment_id IS NULL
+            AND actor_id IS NULL AND reason_code IS NULL)
         OR (source_kind = 'reversal' AND entry_kind = 'reversal' AND amount < 0
-            AND reverses_ledger_id IS NOT NULL AND reason IS NOT NULL)
+            AND rule_code IS NOT NULL AND rule_version IS NOT NULL
+            AND reverses_ledger_id IS NOT NULL AND adjustment_id IS NULL AND reason_code IS NOT NULL)
+        -- A staff adjustment is small by construction: at most 100 Gold either way.
+        OR (source_kind = 'adjustment' AND entry_kind = 'adjustment' AND amount BETWEEN -100 AND 100
+            AND rule_code IS NULL AND rule_version IS NULL
+            AND source_op_id IS NULL AND lesson_id IS NULL AND question_key IS NULL
+            AND achievement_code IS NULL AND reverses_ledger_id IS NULL
+            AND adjustment_id IS NOT NULL AND actor_id IS NOT NULL AND reason_code IS NOT NULL)
     )
 );
 CREATE INDEX idx_ledger_learner_seq ON rewards.ledger (learner_id, seq DESC);
@@ -156,6 +177,9 @@ CREATE INDEX idx_ledger_day ON rewards.ledger (accepted_day, learner_id) INCLUDE
 CREATE INDEX idx_ledger_rule ON rewards.ledger (rule_code, rule_version);
 CREATE INDEX idx_ledger_reverses ON rewards.ledger (reverses_ledger_id)
     WHERE reverses_ledger_id IS NOT NULL;
+-- An adjustment id is spent once, whoever the learner is.
+CREATE UNIQUE INDEX ledger_adjustment_once ON rewards.ledger (adjustment_id)
+    WHERE adjustment_id IS NOT NULL;
 
 -- ============================================================================
 -- Derived caches
@@ -165,7 +189,8 @@ CREATE INDEX idx_ledger_reverses ON rewards.ledger (reverses_ledger_id)
 CREATE TABLE rewards.balances (
     learner_id uuid PRIMARY KEY REFERENCES app.learner_profiles(user_id) ON DELETE RESTRICT,
     balance bigint NOT NULL DEFAULT 0 CHECK (balance >= 0),
-    -- Sum of the positive rows only (what was ever earned, before reversals).
+    -- Sum of the positive rows only (what was ever credited, before reversals
+    -- and negative adjustments).
     lifetime_earned bigint NOT NULL DEFAULT 0 CHECK (lifetime_earned >= 0),
     updated_at timestamptz NOT NULL DEFAULT now(),
     CHECK (lifetime_earned >= balance)
@@ -269,6 +294,19 @@ BEGIN
            OR NEW.rule_code <> v_original.rule_code
            OR NEW.rule_version <> v_original.rule_version THEN
             RAISE EXCEPTION 'A reversal must exactly negate one award of the same learner'
+                USING ERRCODE = '23514';
+        END IF;
+        RETURN NEW;
+    END IF;
+
+    IF NEW.source_kind = 'adjustment' THEN
+        -- Only an ACTIVE admin can stand behind an adjustment, and never for
+        -- their own account. (Size and reason are enforced by ledger_shape.)
+        IF NEW.actor_id = NEW.learner_id OR NOT EXISTS (
+            SELECT 1 FROM app.staff_roles sr
+            WHERE sr.user_id = NEW.actor_id AND sr.role = 'admin' AND sr.is_active
+        ) THEN
+            RAISE EXCEPTION 'An adjustment needs an active admin other than the learner'
                 USING ERRCODE = '23514';
         END IF;
         RETURN NEW;

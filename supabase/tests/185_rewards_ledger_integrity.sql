@@ -217,8 +217,10 @@ SELECT is(pg_temp.as_api(:A, $$SELECT rewards.rebuild_balance('a0000000-0000-400
 SELECT is(pg_temp.as_api(:A, $$SELECT rewards.rebuild_balance('a0000000-0000-4000-8000-000000000001')$$), 'ERROR:42501', '... nor for itself: rebuild is not an API capability');
 SELECT is(pg_temp.as_api(:A, $$SELECT rewards.apply_operation('a0000000-0000-4000-8000-000000000002', gen_random_uuid())$$), 'ERROR:42501', 'edu_api cannot name a learner to award');
 SELECT is(pg_temp.as_api(:A, $$SELECT rewards.reconcile_learner_internal('a0000000-0000-4000-8000-000000000002', 10)$$), 'ERROR:42501', 'edu_api cannot reconcile another learner');
-SELECT is(pg_temp.as_api(:A, $$SELECT rewards.reconcile_batch(10, 10)$$), 'ERROR:42501', 'edu_api cannot run the batch reconcile (worker seam)');
-SELECT is(pg_temp.as_api(:A, $$SELECT rewards.reverse_entry((SELECT id FROM rewards.ledger LIMIT 1), 'forged reversal')$$), 'ERROR:42501', 'edu_api cannot reverse entries (staff seam)');
+SELECT is(pg_temp.as_api(:A, $$SELECT rewards.reconcile_batch(10, 10)$$), 'ERROR:42501', 'edu_api cannot run the batch reconcile (worker only)');
+SELECT is(pg_temp.as_api(:A, $$SELECT rewards.reverse_entry((SELECT id FROM rewards.ledger LIMIT 1), 'test_correction')$$), 'ERROR:42501', 'edu_api cannot reverse entries');
+SELECT is(pg_temp.as_api(:A, $$SELECT rewards.staff_reverse_entry((SELECT id FROM rewards.ledger LIMIT 1), 'test_correction')$$), 'ERROR:42501', 'edu_api cannot call the staff reversal');
+SELECT is(pg_temp.as_api(:A, $$SELECT rewards.staff_adjust('a0000000-0000-4000-8000-000000000001', 100, 'support_goodwill', gen_random_uuid())$$), 'ERROR:42501', 'edu_api cannot call the staff adjustment');
 SELECT is(pg_temp.as_api(:A, $$SELECT rewards.erase_learner('a0000000-0000-4000-8000-000000000002')$$), 'ERROR:42501', 'edu_api cannot call the erasure hook');
 SELECT is(pg_temp.as_api(:A, $$SELECT rewards.rebuild_streak('a0000000-0000-4000-8000-000000000001')$$), 'ERROR:42501', 'edu_api cannot call rebuild_streak');
 SELECT is(pg_temp.as_api(:A, $$WITH s AS (SELECT set_config('rewards.erasing_learner', 'a0000000-0000-4000-8000-000000000001', true)), d AS (DELETE FROM rewards.ledger RETURNING 1) SELECT count(*) FROM d, s$$), 'ERROR:42501',
@@ -268,7 +270,7 @@ SELECT is(pg_temp.answer(:B, '18500000-0000-4000-8000-00000000000e', :Q4, 'd', f
 SELECT is(pg_temp.answer(:B, '18500000-0000-4000-8000-00000000000f', :Q5, 'b', false), 'accepted', 'hook off: and another');
 SELECT is(pg_temp.as_api(:B, $$SELECT (o ->> 'examined') || '/' || (o ->> 'more') FROM (SELECT rewards.reconcile_learner(1) AS o) t$$), '1/true', 'reconcile is bounded and says when more remains');
 SELECT is((SELECT (o ->> 'learners') || '/' || (o ->> 'examined') FROM (SELECT rewards.reconcile_batch(10, 10) AS o) t), '1/1',
-    'the batch variant (worker seam, run here as owner) finishes the remaining operation');
+    'the batch variant (run here as owner) finishes the remaining operation');
 SELECT ok(pg_temp.balance_ok(:B), 'sum(ledger) = balance after bounded and batch reconcile');
 SELECT is(pg_temp.ledger_state(:B), '6 rows / 50 gold', 'B: 4 questions + lesson + bonus');
 
@@ -288,21 +290,21 @@ SELECT is((SELECT count(*)::int FROM rewards.balances WHERE learner_id = 'a00000
 -- ---- corrections are new reversal rows ---------------------------------------------------
 CREATE TEMP TABLE reversal AS
     SELECT rewards.reverse_entry((SELECT id FROM rewards.ledger WHERE learner_id = :A::uuid AND question_key = 'addition'),
-                                 'synthetic test correction') AS id;
+                                 'test_correction') AS id;
 SELECT is((SELECT entry_kind || '|' || amount || '|' || source_kind FROM rewards.ledger WHERE id = (SELECT id FROM reversal)),
     'reversal|-5|reversal', 'a correction is a new negative row');
 SELECT is((SELECT balance || '/' || lifetime_earned FROM rewards.balances WHERE learner_id = :A::uuid), '40/45',
     'the balance drops; the lifetime total keeps what was earned');
 SELECT ok(pg_temp.balance_ok(:A), 'sum(ledger) = balance after a reversal');
-SELECT throws_ok($$SELECT rewards.reverse_entry((SELECT id FROM rewards.ledger WHERE learner_id = 'a0000000-0000-4000-8000-000000000001' AND question_key = 'addition'), 'second reversal')$$,
+SELECT throws_ok($$SELECT rewards.reverse_entry((SELECT id FROM rewards.ledger WHERE learner_id = 'a0000000-0000-4000-8000-000000000001' AND question_key = 'addition'), 'test_correction')$$,
     '23505', NULL, 'an award can be reversed only once');
-SELECT throws_ok($$SELECT rewards.reverse_entry((SELECT id FROM reversal), 'reverse the reversal')$$, '22023', NULL, 'a reversal cannot itself be reversed');
-SELECT throws_ok($$INSERT INTO rewards.ledger (learner_id, entry_kind, amount, rule_code, rule_version, source_kind, reverses_ledger_id, accepted_at, accepted_day, reason)
-                   SELECT learner_id, 'reversal', -20, rule_code, rule_version, 'reversal', id, now(), rewards.haiti_day(now()), 'over-reversal'
+SELECT throws_ok($$SELECT rewards.reverse_entry((SELECT id FROM reversal), 'test_correction')$$, '22023', NULL, 'a reversal cannot itself be reversed');
+SELECT throws_ok($$INSERT INTO rewards.ledger (learner_id, entry_kind, amount, rule_code, rule_version, source_kind, reverses_ledger_id, accepted_at, accepted_day, reason_code)
+                   SELECT learner_id, 'reversal', -20, rule_code, rule_version, 'reversal', id, now(), rewards.haiti_day(now()), 'test_correction'
                    FROM rewards.ledger WHERE learner_id = 'a0000000-0000-4000-8000-000000000001' AND question_key = 'deux-etapes'$$,
     '23514', NULL, 'a reversal cannot remove more than the award it negates');
-SELECT throws_ok($$INSERT INTO rewards.ledger (learner_id, entry_kind, amount, rule_code, rule_version, source_kind, reverses_ledger_id, accepted_at, accepted_day, reason)
-                   SELECT 'a0000000-0000-4000-8000-000000000002', 'reversal', -5, rule_code, rule_version, 'reversal', id, now(), rewards.haiti_day(now()), 'wrong learner'
+SELECT throws_ok($$INSERT INTO rewards.ledger (learner_id, entry_kind, amount, rule_code, rule_version, source_kind, reverses_ledger_id, accepted_at, accepted_day, reason_code)
+                   SELECT 'a0000000-0000-4000-8000-000000000002', 'reversal', -5, rule_code, rule_version, 'reversal', id, now(), rewards.haiti_day(now()), 'test_correction'
                    FROM rewards.ledger WHERE learner_id = 'a0000000-0000-4000-8000-000000000001' AND question_key = 'deux-etapes'$$,
     '23514', NULL, 'a reversal cannot be booked against another learner');
 SELECT is(pg_temp.answer(:A, '18500000-0000-4000-8000-000000000010', :Q1, 'b'), 'accepted/duplicate/0',

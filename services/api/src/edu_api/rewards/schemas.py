@@ -15,9 +15,14 @@ from pydantic import BaseModel, Field
 
 class LedgerEntry(BaseModel):
     id: uuid.UUID
-    kind: Literal["award", "reversal"]
-    amount: int = Field(description="Gold. Positive for an award, negative for a reversal.")
-    source: Literal["question_first_correct", "lesson_first_completed", "achievement", "reversal"]
+    kind: Literal["award", "reversal", "adjustment"]
+    amount: int = Field(
+        description="Gold. Positive for an award, negative for a reversal; a staff "
+        "adjustment may be either."
+    )
+    source: Literal[
+        "question_first_correct", "lesson_first_completed", "achievement", "reversal", "adjustment"
+    ]
     lesson_id: uuid.UUID | None = None
     question_key: str | None = None
     achievement_code: str | None = None

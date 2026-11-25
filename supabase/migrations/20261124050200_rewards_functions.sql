@@ -441,7 +441,7 @@ BEGIN
 END;
 $$;
 
--- SEAM for the worker / staff lane (EXECUTE granted to NOBODY tonight):
+-- For the worker (EXECUTE granted to edu_worker in the next migration):
 -- reconcile up to p_max_learners learners that have unexamined operations.
 -- Learners are taken in id order so that two concurrent batches lock in the
 -- same order.
@@ -466,6 +466,7 @@ BEGIN
             WHERE r.result_code = 'accepted'
               AND NOT EXISTS (SELECT 1 FROM rewards.processed_operations p
                               WHERE p.learner_id = r.learner_id AND p.op_id = r.op_id)
+            ORDER BY r.learner_id
             LIMIT v_max
         ) pending
         ORDER BY pending.learner_id
@@ -480,13 +481,15 @@ END;
 $$;
 
 -- ----------------------------------------------------------------------------
--- SEAM for staff corrections (EXECUTE granted to NOBODY tonight)
+-- Internal reversal (EXECUTE granted to NOBODY)
 -- ----------------------------------------------------------------------------
 -- A correction never edits history: it appends the single reversal of one
 -- award. The reversed source key stays taken, so the same thing cannot be
--- earned again afterwards. When the staff lane lands, a staff-schema wrapper
--- should check the caller's role, call this, and write ops.audit_write.
-CREATE FUNCTION rewards.reverse_entry(p_ledger_id uuid, p_reason text)
+-- earned again afterwards. Staff reach it only through
+-- rewards.staff_reverse_entry (next migration), which checks the role and
+-- writes the audit event.
+CREATE FUNCTION rewards.reverse_entry(p_ledger_id uuid, p_reason_code text,
+                                      p_actor_id uuid DEFAULT NULL)
 RETURNS uuid
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
@@ -505,10 +508,11 @@ BEGIN
 
     INSERT INTO rewards.ledger (
         learner_id, entry_kind, amount, rule_code, rule_version, source_kind,
-        reverses_ledger_id, accepted_at, accepted_day, reason)
+        reverses_ledger_id, accepted_at, accepted_day, reason_code, actor_id)
     VALUES (
         v_original.learner_id, 'reversal', -v_original.amount, v_original.rule_code,
-        v_original.rule_version, 'reversal', p_ledger_id, v_now, rewards.haiti_day(v_now), p_reason)
+        v_original.rule_version, 'reversal', p_ledger_id, v_now, rewards.haiti_day(v_now),
+        p_reason_code, p_actor_id)
     RETURNING id INTO v_id;  -- a second reversal of the same row violates ledger_exactly_once
     RETURN v_id;
 END;
@@ -573,6 +577,7 @@ REVOKE ALL ON ALL FUNCTIONS IN SCHEMA rewards FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION rewards.award_for_operation(uuid) TO edu_api;
 GRANT EXECUTE ON FUNCTION rewards.reconcile_learner(integer) TO edu_api;
 GRANT EXECUTE ON FUNCTION rewards.haiti_day(timestamptz) TO edu_api;
--- NOT granted to anyone: apply_operation, reconcile_learner_internal,
--- reconcile_batch, rebuild_balance, rebuild_streak, reverse_entry,
--- erase_learner, lock_learner and the trigger functions.
+-- NOT granted here: apply_operation, reconcile_learner_internal,
+-- rebuild_balance, rebuild_streak, reverse_entry, erase_learner, lock_learner
+-- and the trigger functions (nobody); reconcile_batch (the worker, in the
+-- next migration, which needs the roles of the staff lane's B1).

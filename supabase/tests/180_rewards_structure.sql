@@ -102,11 +102,27 @@ SELECT is((SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p
     'edu_api may execute exactly award_for_operation, haiti_day and reconcile_learner');
 SELECT is((SELECT count(*)::int FROM pg_proc p JOIN pg_roles r ON true
            WHERE p.pronamespace = 'rewards'::regnamespace
-             AND p.proname IN ('apply_operation','reconcile_learner_internal','reconcile_batch','rebuild_balance',
-                               'rebuild_streak','reverse_entry','erase_learner','lock_learner')
+             AND p.proname IN ('apply_operation','reconcile_learner_internal','rebuild_balance','rebuild_streak',
+                               'reverse_entry','erase_learner','lock_learner','is_correction_reason',
+                               'validate_ledger_entry','apply_ledger_entry_to_balance',
+                               'prevent_history_change','protect_rule_version')
              AND NOT r.rolsuper AND r.rolname NOT LIKE 'pg\_%' AND r.rolname <> 'postgres'
              AND has_function_privilege(r.oid, p.oid, 'EXECUTE')), 0,
-    'the internal functions and the worker/staff/erasure seams are executable by NO non-owner role');
+    'the internal functions, the trigger functions and the erasure hook are executable by NO non-owner role');
+SELECT is((SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p
+           WHERE p.pronamespace = 'rewards'::regnamespace AND has_function_privilege('edu_worker', p.oid, 'EXECUTE')),
+    ARRAY['reconcile_batch'], 'edu_worker may execute exactly reconcile_batch');
+SELECT is((SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p
+           WHERE p.pronamespace = 'rewards'::regnamespace AND has_function_privilege('edu_staff', p.oid, 'EXECUTE')),
+    ARRAY['staff_adjust','staff_reverse_entry'], 'edu_staff may execute exactly the two audited admin functions');
+SELECT is((SELECT count(*)::int FROM information_schema.role_table_grants
+           WHERE table_schema = 'rewards' AND grantee IN ('edu_staff','edu_worker')), 0,
+    'edu_staff and edu_worker hold no table privilege in rewards');
+SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace IN ('ops'::regnamespace, 'staff'::regnamespace)
+           AND has_function_privilege('edu_api', p.oid, 'EXECUTE')), 0,
+    'edu_api still has nothing in ops or staff');
+SELECT is(has_schema_privilege('edu_staff', 'rewards', 'CREATE') OR has_schema_privilege('edu_worker', 'rewards', 'CREATE'), false,
+    'edu_staff and edu_worker cannot create objects in rewards');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'rewards'::regnamespace
            AND NOT COALESCE(p.proconfig = ARRAY['search_path=pg_catalog, pg_temp'], false)), 0,
     'every rewards function pins search_path to exactly "pg_catalog, pg_temp" (ruling R-03)');

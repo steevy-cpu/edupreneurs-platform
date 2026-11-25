@@ -646,9 +646,7 @@ async def test_a_correction_is_a_reversal_row_and_shows_in_the_api(
         "SELECT id FROM rewards.ledger WHERE learner_id = $1 AND source_kind = 'lesson_first_completed'",
         STUDENT_A,
     )
-    await admin.fetchval(
-        "SELECT rewards.reverse_entry($1, 'synthetic test correction')", lesson_row
-    )
+    await admin.fetchval("SELECT rewards.reverse_entry($1, 'test_correction')", lesson_row)
     body = await summary(on, tokens["student_a"])
     assert (body["balance"], body["lifetime_earned"]) == (15, 35)
     assert body["recent"][0]["kind"] == "reversal" and body["recent"][0]["amount"] == -LESSON_GOLD
