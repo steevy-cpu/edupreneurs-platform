@@ -103,11 +103,13 @@ SELECT is(has_schema_privilege('edu_api', 'content', 'CREATE'), false, 'the stud
 -- ---- functions ------------------------------------------------------------------
 SELECT is((SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p
            WHERE p.pronamespace = 'content'::regnamespace),
-    ARRAY['asset_object_key', 'attach_asset', 'audit', 'block_asset_hashes', 'blocks_required_format',
-          'detach_asset', 'guard_pack_manifest', 'guard_revision_asset', 'is_locale_text_map',
+    ARRAY['asset_object_key', 'attach_asset', 'audit', 'block_asset_hashes', 'blocks_accountable',
+          'blocks_required_format', 'detach_asset', 'guard_pack_manifest', 'guard_revision_asset', 'is_locale_text_map',
           'protect_asset', 'record_release_manifest', 'register_asset', 'release_required_format',
           'revision_required_format', 'staff_gate'],
-    'the content functions are the intended fifteen');
+    'the content functions are the intended sixteen (fifteen + the body gate of the review follow-up)');
+SELECT is((SELECT pg_get_function_identity_arguments(p.oid) FROM pg_proc p WHERE p.pronamespace = 'content'::regnamespace AND p.proname = 'record_release_manifest'),
+    'p_release_id uuid, p_manifest bytea', 'record_release_manifest exists once, taking the manifest BYTES: no caller-asserted hash or size (review H2)');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'content'::regnamespace
            AND (has_function_privilege('public', p.oid, 'EXECUTE')
              OR has_function_privilege('anon', p.oid, 'EXECUTE')
@@ -163,7 +165,7 @@ SELECT is(pg_temp.as_api(:A::uuid, 'DELETE FROM content.revision_assets RETURNIN
 SELECT is(pg_temp.as_api(:A::uuid, $$SELECT content.register_asset(sha256('x'), 1, 'image/png', 1, 1, NULL, '{"fr":"x"}', 'e0000000-0000-4000-8000-000000000001')$$), 'ERROR:42501', 'student API: cannot call the asset registration function');
 SELECT is(pg_temp.as_api(:EDITOR::uuid, $$SELECT content.register_asset(sha256('x'), 1, 'image/png', 1, 1, NULL, '{"fr":"x"}', 'e0000000-0000-4000-8000-000000000001')$$), 'ERROR:42501', 'student API: not even with a staff user''s identity');
 SELECT is(pg_temp.as_api(:EDITOR::uuid, $$SELECT content.attach_asset('c0000000-0000-4000-8000-000000000001', sha256('x'))$$), 'ERROR:42501', 'student API: cannot attach assets');
-SELECT is(pg_temp.as_api(:EDITOR::uuid, $$SELECT content.record_release_manifest('f0000000-0000-4000-8000-000000000001', '{}', sha256('x'), 1)$$), 'ERROR:42501', 'student API: cannot record a manifest');
+SELECT is(pg_temp.as_api(:EDITOR::uuid, $$SELECT content.record_release_manifest('f0000000-0000-4000-8000-000000000001', '{}'::bytea)$$), 'ERROR:42501', 'student API: cannot record a manifest');
 SELECT is(pg_temp.as_api(:A::uuid, $$SELECT content.staff_gate('editor')$$), 'ERROR:42501', 'student API: cannot call the staff seam');
 SELECT is(pg_temp.as_api(:A::uuid, $$SELECT content.revision_required_format('c0000000-0000-4000-8000-000000000001')$$), 'ERROR:42501', 'student API: cannot call the read helpers');
 SELECT is(pg_temp.as_api(:A::uuid, $$SELECT content.blocks_required_format('[]')$$), 'ERROR:42501', 'student API: cannot call even the pure helpers');

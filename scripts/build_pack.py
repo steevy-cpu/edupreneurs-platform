@@ -17,9 +17,10 @@ directory, then reads everything back and verifies it. It prints the size of
 each lesson and the manifest's SHA-256.
 
 What it does NOT do: it never writes to the database, never marks a release
-ready, and never contacts any other machine. Recording the manifest hash is a
-separate, audited staff action (`content.record_release_manifest`); the values
-to pass to it are printed at the end.
+ready, and never contacts any other machine. Recording the manifest is a
+separate, audited staff action: `content.record_release_manifest(release_id,
+<the bytes of manifest.json>)`. The database computes the hash and the size
+from those bytes itself; the values printed at the end are what it must report.
 
 SAFETY: like every script here, it refuses a database that is not on this
 machine (127.0.0.1 / localhost).

@@ -270,15 +270,15 @@ async def test_format_2_lesson_from_draft_to_recorded_manifest(
         await conn.execute("SELECT set_config('edu.actor_id', $1, true)", str(EDITOR))
         recorded = json.loads(
             await conn.fetchval(
-                "SELECT content.record_release_manifest($1, $2::jsonb, $3, $4)",
+                # The manifest's BYTES: the database computes the hash and the size itself.
+                "SELECT content.record_release_manifest($1, $2::bytea)",
                 release_id,
-                built.manifest_bytes.decode(),
-                bytes.fromhex(built.manifest_sha256),
-                len(built.manifest_bytes),
+                built.manifest_bytes,
             )
         )
         assert recorded["status"] == "ready" and recorded["total_bytes"] == built.total_bytes
         assert recorded["manifest_object_key"] == built.manifest_key
+        assert recorded["manifest_sha256"] == built.manifest_sha256
         row = await conn.fetchrow(
             "SELECT r.status, encode(r.manifest_sha256, 'hex') AS sha, r.compressed_bytes, m.content_format "
             "FROM app.pack_releases r JOIN content.pack_manifests m ON m.pack_release_id = r.id WHERE r.id = $1",
