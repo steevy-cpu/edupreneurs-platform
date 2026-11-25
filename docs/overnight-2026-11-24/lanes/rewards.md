@@ -397,6 +397,15 @@ on), **L1** (caps final per source key), **L2** (erasure contract), **L3** (curs
 **M3** (dating rule documented, covering index), **L3** (`no_active_rule` not final), **L4**
 (documented).
 
+**Final verification fixes (2026-11-25):** **QA5-R1** fixed: inside the hook's savepoint
+`lock_timeout` / `statement_timeout` are set to short values (`EDU_REWARDS_HOOK_LOCK_TIMEOUT_MS`
+250, `EDU_REWARDS_HOOK_STATEMENT_TIMEOUT_MS` 500) and the caller's values are restored on every
+path; a DDL lock on a rewards table or a row lock on the balance now costs ~0.27 s per 10-op push
+instead of ~5.05 s. **QA5-R2** fixed by migration `20261125000400_rewards_rule_switch_race.sql`:
+`try_award_event` takes a SHARE lock on the rule's rows before reading them, ordering it against
+`set_active_rule_version` (FOR UPDATE), so a stale `no_active_rule` decision can no longer survive
+a switch. Tests: `tests/integration/test_rewards_hook_timeouts.py`.
+
 **Open review findings** (not done tonight):
 
 | Id | Finding | State |
