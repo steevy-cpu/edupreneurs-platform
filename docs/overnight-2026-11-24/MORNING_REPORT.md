@@ -1,14 +1,14 @@
 # Morning report — overnight mission 2026-11-24 → 25
 
-Written by the director (Fable) at ≈04:50 EST and updated until the session ended; the last section
-says exactly where things stood at the final update.
+Written by the director (Fable). Last updated 07:50 EST on 2026-11-25; §9 says what was still
+running at that moment.
 
 **Read this first.** Nothing was merged into `main`. Nothing was deployed, linked to a hosted
 project, or run against real data. Every database was a disposable local stack with synthetic
 accounts. **No feature below is production-ready, and none is claimed complete**: the highest status
-reached by anything tonight is "tested locally and independently reviewed, with review fixes still
-open". The session was stopped twice by the account's usage limit (23:15–23:37 and 23:55–04:30), so
-about five of the planned hours did not happen.
+reached by anything tonight is "tested locally and independently reviewed, with review fixes that
+were not re-checked". The account's usage limit stopped every agent three times (23:15–23:37,
+23:55–04:30 and 04:51–07:38), so roughly eight of the planned hours did not happen.
 
 Companion files in this folder: [`00-PLAN.md`](00-PLAN.md) (rules, architecture ruling, director
 rulings R-01…R-04), [`LEDGER.md`](LEDGER.md), [`INCIDENTS.md`](INCIDENTS.md),
@@ -20,59 +20,69 @@ notes in `lanes/<lane>.md` on its branch (and here for the merged lanes).
 Eight implementation lanes ran in isolated Git worktrees, each with its own branch and its own
 disposable Supabase stack, plus independent reviewers on two further stacks.
 
-| Lane | Branch | What it contains | Status |
+| Lane | Branch · draft PR | What it contains | Status |
 |---|---|---|---|
-| Staff boundary, audit, editorial, roles | `overnight/staff-worker` | Roles `edu_staff`/`edu_worker`, `ops.audit_write`, staff role checks, `/v1/staff/me`; editorial workflow through the API (draft → review by a different person → pack → release/rollback); role administration; security-review fixes | B1: **REVIEWED** (security; fixes applied, fix not re-checked). Editorial slice and role admin: **TESTED-LOCAL**, not reviewed. Worker job leasing: see §9 |
-| Identity, onboarding state, lifecycle | `overnight/identity-onboarding` | `PATCH /v1/me`, forward-only onboarding state, deletion/export requests, erasure of one learner on synthetic users | **TESTED-LOCAL**; review interrupted (see §6) |
-| Word of the Day | `overnight/word-of-the-day` | Vocabulary with review workflow, immutable Haiti-date schedule, `GET /v1/daily-word` with ETag, staff routes | **TESTED-LOCAL**, not reviewed; see §9 for merge state |
-| Gold ledger, streaks, achievements | `overnight/rewards-gold` | Append-only ledger tied to accepted sync operations, rebuildable balances, flag-guarded hook in the push path, read API, admin reversal/adjustment | **REVIEWED** twice (approve with fixes); fix round partly done, see §6 |
-| Entitlements (no payments) | `overnight/entitlements` | Grant model, `GET /v1/entitlements`, admin grant/revoke/list, mock provider with exactly-once simulated events; offline lease as a written spec | **TESTED-LOCAL**; review interrupted |
-| Notifications + security basics | `overnight/notify-security` | Outbox with dummy adapter (nothing is sent), preferences, opt-in rate limiter, opt-in JSON logs, a performed dump/restore drill | **TESTED-LOCAL**, not reviewed |
-| Content format v2 | `overnight/content-format-v2` | v2 block and question contracts, 358 shared test vectors, plain-Python validators, deterministic pack manifests, `content` schema with rights gate | **TESTED-LOCAL**, not reviewed |
-| Native experience | `overnight/native-experience` (stacked on `mobile-02`) | Onboarding, tour, Word of the Day card, Gold (pending vs confirmed), leaderboard review screen; all six client flags default off | **REVIEWED** (approve with fixes; safe with flags off); **never run on an emulator or phone** |
-| Leaderboard | — | — | **NOT STARTED** |
-| Integration | `overnight/integration-2026-11-24` | Plan, ledger, reviews, and the merge of staff + identity + entitlements + notify + content | see §5 |
+| Staff boundary, audit, editorial, roles, worker | `overnight/staff-worker` · #4 | Roles `edu_staff`/`edu_worker`, `ops.audit_write`, staff role checks; editorial workflow through the API (draft → review by a different person → pack → release/rollback); role administration; worker job leasing; security hardening | First deliverable **REVIEWED** (fixes applied). Editorial, roles, worker and the re-check of the security fix: review running, see §9. MFA: design text only |
+| Identity, onboarding state, lifecycle | `overnight/identity-onboarding` · #5 | `PATCH /v1/me`, forward-only onboarding state, deletion/export requests, erasure of one learner on synthetic users | **REVIEWED** (erasure in depth; conventions not examined); high and two medium findings fixed, fixes **not re-checked** |
+| Word of the Day | `overnight/word-of-the-day` · #9 | Vocabulary with review workflow, immutable Haiti-date schedule with a 10-minute freeze, `GET /v1/daily-word` with ETag, 15 staff routes | **REVIEWED** (approve with fixes); fix round running, see §9 |
+| Gold ledger, streaks, achievements | `overnight/rewards-gold` · #12 | Append-only ledger tied to accepted sync operations, rebuildable balances, flag-guarded hook in the push path, read API, admin reversal/adjustment | **REVIEWED** twice; fix round applied, **not re-checked** |
+| Entitlements (no payments) | `overnight/entitlements` · #10 | Grant model, `GET /v1/entitlements`, admin grant/revoke/list, mock provider with exactly-once simulated events; offline lease as a written spec | **REVIEWED**; the medium finding fixed, four low open |
+| Notifications + security basics | `overnight/notify-security` · #6 | Outbox with dummy adapter (nothing is sent), preferences, opt-in rate limiter, opt-in JSON logs, a performed dump/restore drill | **REVIEWED** (approve with fixes); one medium and four low findings **open** |
+| Content format v2 | `overnight/content-format-v2` · #7 | v2 block and question contracts, 358 shared test vectors, plain-Python validators, deterministic pack manifests, `content` schema with rights gate | **TESTED-LOCAL**; review running, see §9 |
+| Native experience | `overnight/native-experience` (stacked on `mobile-02`) · #8 | Onboarding, tour, Word of the Day card, Gold (pending vs confirmed), leaderboard review screen; all six client flags default off | **REVIEWED** in source; high and medium findings fixed, **not re-checked**; **never run on an emulator or phone** |
+| Leaderboard | `overnight/leaderboard` (local) | Private rank from the Gold ledger | **IN PROGRESS** when this was written, see §9 |
+| Integration | `overnight/integration-2026-11-24` · #11 | Plan, ledger, reviews, and the merge of all eight backend lanes | **TESTED-LOCAL**, see §5 |
 
 Not attempted at all: learning extras (F5), exams, library, Jude, games, social.
 
 ## 2. The four features you prioritised
 
-**Word of the Day — backend TESTED-LOCAL, not independently reviewed; app card reviewed in source only.**
+**Word of the Day — TESTED-LOCAL and REVIEWED (approve with fixes); app card reviewed in source only.**
 Evidence that exists: an assignment table keyed by (`America/Port-au-Prince` date, locale) that
-becomes immutable once the date is today or past; `ensure_assignments` fills future dates from the
-approved pool (never "day modulo word count") and is idempotent under concurrency (8 connections);
-approved revisions are immutable, the reviewer cannot be the author, a word without cleared rights
-cannot be approved or served; tests for Haiti midnight, DST transitions (2017, 2015) and a no-DST
-year, missing translation (French fallback flagged), a word edited after assignment, rejected / draft
-/ future words invisible, response size (worst case 1,338 bytes), audio size cap. Lane gate after its
-second turn: 732 database assertions, 283 API tests (lane's own report). Audio is metadata only — no
-storage, no playback, no TTS. No view tracking (needs consent). All demo words are synthetic and
-unreviewed. **Blocked on you:** who may clear rights, audio limits, notification hour, Creole wording.
+becomes immutable once the date is today or past and is locked 10 minutes before it opens;
+`ensure_assignments` fills future dates from the approved pool (never "day modulo word count") and is
+idempotent under concurrency; approved revisions are immutable, the reviewer cannot be the author, a
+word without cleared rights cannot be approved or served. The independent reviewer could not change a
+published day's word through the API, the staff functions or the worker, and confirmed the day
+boundary one second either side of Haiti midnight in winter, summer, on DST change days and in a
+no-DST year (simulated clock — **no run was observed across a real midnight**). Lane gate: 910
+database assertions, 429 API tests; the reviewer reproduced both counts. One medium finding: a raw
+database session on the staff login (not reachable over HTTP) can commit a reschedule after the day
+has opened; fix round in progress (§9). Audio is metadata only — no storage, no playback, no TTS. No
+view tracking (needs consent). Demo words are synthetic and unreviewed. **Blocked on you:** who may
+clear rights; what a learner sees if rights on today's word are withdrawn (today: no word until
+restored, never a different word); audio limits; notification hour; Creole wording.
 
-**Gold, rewards, achievements — TESTED-LOCAL and REVIEWED twice; fix round open.**
+**Gold, rewards, achievements — TESTED-LOCAL and REVIEWED twice; fixes applied, not re-checked.**
 Two independent reviewers could not make the ledger award twice (replay, new op id, second device,
 other locale, newer revision, repeated completion), forge an award, or break `balance = sum(ledger)`
-under a concurrency storm; the 144 baseline API tests pass with the rewards flag off and on; push and
-pull responses are identical with the flag off and on; learning still commits when the rewards schema
-is broken or slow. Open at the time of writing: a stuck reward step can stall a push (medium, fix in
-progress), the period-dating rule the leaderboard needs, and a **product decision**: a bare "lesson
-completed" earns Gold with no answer required, so a script could reach the daily cap every day.
-All amounts are synthetic placeholders (**PO-09**). The flag `EDU_REWARDS_ENABLED` defaults off.
+under a concurrency storm; push and pull responses are identical with the flag off and on; learning
+still commits when the rewards schema is broken or slow. After the reviews the lane fixed: a push can
+no longer stall on a held lock (waits ≈200 ms, then defers and heals later); the ledger cursor no
+longer reveals platform-wide volume; erasure is not undone by a later request; a switched-off rule no
+longer loses awards. Lane gate: 961 database assertions; 465 API tests with the flag off and 465 with
+it on. On the integration branch the whole suite passes with the rewards flag on. **Decisions for you
+(PO-09):** all amounts and caps are placeholders; a lesson completion now earns Gold only after one
+server-scored answer in that lesson (placeholder default — without it a script could farm the daily
+cap); an honest learner who passes a cap forfeits that Gold for good. `EDU_REWARDS_ENABLED` defaults off.
 
-**Leaderboard — NOT STARTED.** It was deliberately gated behind the Gold ledger's reviews, and the
-usage-limit stops consumed the time. What exists: the specification (`briefs/leaderboard.md`: private
-"my rank", opt-in synthetic class cohort with server-assigned pseudonyms, no public or global ranking
-in any code path) and, in the app, a review screen behind a default-off flag whose production route
-shows an empty state. **Blocked on you in any case:** visibility and consent rules for minors.
+**Leaderboard — IN PROGRESS when this was written; see §9 for the final state.** It was gated behind
+the Gold ledger's reviews and then lost most of its time to the usage-limit stops. Scope attempted:
+a private "my Gold this period / my rank inside my cohort" view computed only from the ledger, behind
+a flag that defaults off; the opt-in cohort list was explicitly cut. There is **no public or global
+ranking in any code path**. In the app, the leaderboard review screen's production route shows an
+empty state. **Blocked on you in any case:** visibility and consent rules for minors, pseudonym policy.
 
-**Onboarding and product tour — backend TESTED-LOCAL (review interrupted); app REVIEWED in source,
-never seen on a screen.** Server: forward-only, replay-safe onboarding state and profile edit, account
-isolation tested. App: resumable flow (welcome → language → grade → offline explainer → ready),
-dismissible/replayable tour, per-account additive local tables, an upgrade test from a frozen
-Mobile-02 database that keeps every saved row. 319 Jest tests pass (baseline 157). Reviewer findings
-to fix before the matching flags are switched on are listed in `reviews/native-review.md` (one high:
-yesterday's word can stay labelled "Mot du jour" while the home screen stays mounted). **No screenshot
-exists**: layout at 320 dp and large text is unverified. 102 new Haitian Creole strings are drafts.
+**Onboarding and product tour — backend REVIEWED (erasure in depth, profile/onboarding sampled); app
+REVIEWED in source, never seen on a screen.** Server: forward-only, replay-safe onboarding state and
+profile edit, account isolation tested. App: resumable flow (welcome → language → grade → offline
+explainer → ready), dismissible/replayable tour, per-account additive local tables, an upgrade test
+from a frozen Mobile-02 database that keeps every saved row. 337 Jest tests pass (baseline 157). The
+source review's high finding (yesterday's word could stay labelled "Mot du jour" on a mounted screen)
+and its five medium findings are fixed with tests; four low ones are open in the lane doc; the fixes
+were not re-checked. **No screenshot exists**: an emulator pass was authorised at 04:45 and cut off
+by the usage limit before it started, so layout at 320 dp and large text is unverified. 103 new
+Haitian Creole strings are drafts.
 
 ## 3. Architecture decisions made tonight (please confirm or overrule)
 
@@ -131,13 +141,16 @@ make db-reset && make test-db && uv run pytest -q && make test-db
 | entitlements @ 43ca9b9 | 745 | 367 | lane report |
 | notify @ d960cd3 | 641 | 318 | lane report |
 | native @ 779657f | — | Jest 319 passed (baseline 157) | lane report |
-| **Integration** (staff + identity + entitlements + notify + content) | **1830 of 1830, PASS** | **1327 of 1328** | director, `integration-6lanes-b.log`, `integration-6lanes-pytest.log` |
+| **Integration** (all eight backend lanes) | **2740 of 2740, PASS** (run twice) | **1532 passed** flags off · **1532 passed** with `EDU_REWARDS_ENABLED=true` | director, `integration-final.log` |
 
-The one failing integration test is `test_billing_staff_api.py::test_learners_and_non_admin_staff_
-are_refused_and_the_refusal_is_audited`: it counts refused-request audit rows, which the staff
-security fixes now bound per actor per minute. The fix was requested from the entitlements lane.
-Logs are in `/Volumes/EdupreneursDev/logs/overnight-2026-11-24/`. **Not run on integration:** the
-mobile Jest suite, the mobile TypeScript check against the regenerated `schema.d.ts`, GitHub CI.
+Also on integration: lint, mypy strict and the OpenAPI freshness check are clean; the mobile contract
+check (`npm run check:api`) and both mobile TypeScript checks pass against the regenerated API types.
+**GitHub CI** (the repository's existing workflow) passed on draft PRs #4, #5, #7, #8, #9, #10, #11
+and #12; #6 had no result yet when this was written. Lane numbers that changed after this table was
+first written: identity 1007 / 506 at `6913435`, entitlements 925 / 514 at `50a6b52`, staff 593 / 376
+at `642ab5c`, vocab 910 / 429 at `a3c48a3`, rewards 961 / 465 at `ce5a64e`, notify 880 / 484 at
+`c77f376`, native Jest 337 at `e559e6b`. Logs: `/Volumes/EdupreneursDev/logs/overnight-2026-11-24/`.
+**Not run on integration:** the mobile Jest suite. Two director errors are recorded in §7.
 
 ## 6. Independent review results
 
@@ -147,9 +160,11 @@ mobile Jest suite, the mobile TypeScript check against the regenerated `schema.d
 | Rewards — security | Approve with fixes | Ledger held against every attack. Medium: push can stall while the rewards lock is held elsewhere; product question on Gold without evidence of learning. Three low | High (search_path) fixed; rest in progress |
 | Rewards — integration | Approve with fixes | No critical/high. Period-dating rule for the leaderboard; rule versions by acceptance time; app cannot show a pending *amount* | In progress |
 | Native — source review | Approve with fixes (safe with flags off) | High: stale "word of the day" label on a mounted screen. Medium: device-clock handling, revalidation rhythm, onboarding sync retry loop, grade step skipped on a new phone, stale streak | Sent to the lane |
-| Identity | interrupted by the usage limit | partial notes in the private logs folder | — |
-| Entitlements | interrupted by the usage limit | interim public report committed | — |
-| Notify, content, vocab, staff editorial/roles | **not reviewed** | — | — |
+| Identity | Approve with fixes — containment of the trigger-disabling window held under every test; erasure may stay in a draft PR, **must not be enabled** | High: a request racing an in-flight erasure left the id behind. Medium: audit row re-stored the id; worker could erase any id; valid token re-creates the profile | High and first two mediums fixed in `d6560ce`, **not re-checked**; profile re-creation open (needs PO-04) |
+| Entitlements | Approve with fixes, no critical/high | Medium: staff and purchase idempotency keys shared a namespace. Four low | Medium fixed; low findings open in the lane doc |
+| Word of the Day | Approve with fixes | Medium: reschedule can land after the day opened via a raw staff database session. Low: owner TRUNCATE; midnight protection untested | Fix round running (§9) |
+| Notify + limiter + logs | Approve with fixes, no critical/high; flags-off path confirmed unchanged | Medium: per-address limit can be dodged behind a proxy. Low: WebSocket handshake logs a query string; expired-token learners behind a shared carrier address get 429 | **Open** (lane stopped by the usage limit) — keep both opt-in flags off |
+| Content format v2; staff editorial / roles / worker + re-check of the security fix | running when this was written | — | see §9 |
 
 **Security finding that also affects `main` (ruling R-03).** With `SET search_path = ''`, PostgreSQL
 still resolves unqualified *type* names through a session's temporary schema first. A session able to
@@ -168,8 +183,9 @@ of this public repository (`/Volumes/EdupreneursDev/logs/overnight-2026-11-24/re
   54322). Lessons, profiles, accounts and schema are intact; the rows were synthetic and are gone.
 - **I-02:** all agents shared one scratchpad; one lane executed another lane's gate script by name
   collision. It stopped at a lint error; nothing changed.
-- **Director's own error:** a "keep both sides" merge resolution left the staff router registered
-  twice on the integration branch; found and fixed (`fix(integration): drop the superseded…`).
+- **Director's own errors:** "keep both sides" merge resolutions twice left routers registered more
+  than once on the integration branch (found and fixed, gates re-run afterwards); and the director
+  did not audit the mobile test harness for hard-coded container names before authorising a run (I-01).
 Details and containment: [`INCIDENTS.md`](INCIDENTS.md).
 
 ## 8. Performance and resources
@@ -183,10 +199,20 @@ Details and containment: [`INCIDENTS.md`](INCIDENTS.md).
 - Machine: internal disk 13 GiB free at start, 12 GiB at 04:30 (floor 7); dev volume 169 GiB free;
   load 2.5–4.8 on 8 cores; no emulator or native build was started.
 
-## 9. State at the final update
+## 9. State at the last update (07:50 EST)
 
-See the last section of [`CHECKPOINT.md`](CHECKPOINT.md) for branch heads, what was pushed, which
-pull requests exist, and what each lane had in flight when the session ended.
+Pushed and matching local heads: integration, staff `642ab5c`, identity `6913435`, Word of the Day
+`a3c48a3`, rewards `ce5a64e`, entitlements `50a6b52`, notify `c77f376`, content `d1f5bf7`, native
+`e559e6b`. Draft PRs #4–#12 are open; none is merged.
+
+Running when this was written (results, if they arrived, are appended below this section):
+- leaderboard step 1 (private rank) — uncommitted work on disk in the `leaderboard` worktree;
+- Word of the Day review-fix round — uncommitted work on disk in the `vocab` worktree;
+- independent reviews of content format v2 and of the staff lane's later work, including the
+  re-check of the security fix that concerns `main`.
+
+Not done: notify review fixes; emulator screenshots; the R-01 contract flip; mobile Jest on
+integration; re-checks of the fixes in identity, rewards and native.
 
 ## 10. Decisions only you can make (`BLOCKED_BY_OWNER`)
 
@@ -213,7 +239,7 @@ pull requests exist, and what each lane had in flight when the session ended.
 
 ## 12. Recommended next steps, in order
 
-1. Finish the interrupted reviews (identity, entitlements) and run the missing ones (notify, content, vocab, staff editorial/roles); re-check the staff security fix.
+1. Re-check the fixes that no reviewer has seen again (staff security fix if §9 does not show it, identity erasure, rewards, native) and close the open notify findings.
 2. Close the open review findings in rewards and native.
 3. Merge rewards and Word of the Day into the integration branch; make the single R-01 commit (flip the constants, extend the pinned path set, regenerate `openapi.json` and `schema.d.ts`); run the mobile suite there through a harness that derives its container from `supabase/config.toml` (fixes I-01 permanently).
 4. Emulator pass on the seven screens the native lane listed, one build at a time, with screenshots.
