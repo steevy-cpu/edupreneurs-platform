@@ -10,7 +10,14 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from edu_api.account import service
-from edu_api.account.schemas import OnboardingResponse, OnboardingUpdate, ProfilePatch
+from edu_api.account.schemas import (
+    AccountExport,
+    AccountRequests,
+    DeletionRequestResponse,
+    OnboardingResponse,
+    OnboardingUpdate,
+    ProfilePatch,
+)
 from edu_api.config import Settings
 from edu_api.deps import CurrentPrincipal, Db
 from edu_api.errors import error_responses
@@ -67,10 +74,60 @@ def _onboarding_routes(router: APIRouter) -> None:
         return await service.advance_onboarding(db, principal.user_id, body)
 
 
+def _lifecycle_routes(router: APIRouter) -> None:
+    @router.get(
+        "/me/account-requests",
+        response_model=AccountRequests,
+        responses=error_responses(401, 503),
+        summary="The signed-in learner's own deletion request and last export",
+    )
+    async def get_account_requests(principal: CurrentPrincipal, db: Db) -> AccountRequests:
+        return await service.get_requests(db, principal.user_id)
+
+    @router.post(
+        "/me/deletion-request",
+        response_model=DeletionRequestResponse,
+        responses=error_responses(401, 503),
+        summary="Ask for the signed-in learner's own account to be deleted",
+    )
+    async def post_deletion_request(principal: CurrentPrincipal, db: Db) -> DeletionRequestResponse:
+        """Records the request. **Nothing is deleted by this call** and the
+        learner can keep using the app. Idempotent: while a request is open,
+        asking again returns that same request. No deadline is promised."""
+        return await service.request_deletion(db, principal.user_id)
+
+    @router.delete(
+        "/me/deletion-request",
+        response_model=DeletionRequestResponse,
+        responses=error_responses(401, 503),
+        summary="Withdraw the signed-in learner's open deletion request",
+    )
+    async def delete_deletion_request(
+        principal: CurrentPrincipal, db: Db
+    ) -> DeletionRequestResponse:
+        """Idempotent: with no open request nothing changes and the most recent
+        request (or `null`) is returned."""
+        return await service.cancel_deletion(db, principal.user_id)
+
+    @router.post(
+        "/me/export",
+        response_model=AccountExport,
+        responses=error_responses(401, 503),
+        summary="Export the signed-in learner's own data",
+    )
+    async def post_export(principal: CurrentPrincipal, db: Db) -> AccountExport:
+        """The caller's own profile, onboarding state, lesson progress and
+        practice attempts. Bounded (see `limits` / `truncated`). Each call is
+        recorded."""
+        return await service.export_data(db, principal.user_id)
+
+
 def build_router(settings: Settings) -> APIRouter:
     router = APIRouter(prefix="/v1", tags=["account"])
     if settings.profile_edit_enabled:
         _profile_routes(router)
     if settings.onboarding_enabled:
         _onboarding_routes(router)
+    if settings.account_lifecycle_enabled:
+        _lifecycle_routes(router)
     return router

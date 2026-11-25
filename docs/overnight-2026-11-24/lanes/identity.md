@@ -11,7 +11,7 @@ every flag off the API and `packages/contracts/openapi.json` are byte-identical 
 |---|---|
 | `EDU_PROFILE_EDIT_ENABLED` | `PATCH /v1/me` |
 | `EDU_ONBOARDING_ENABLED` | `GET /v1/me/onboarding`, `PUT /v1/me/onboarding` |
-| `EDU_ACCOUNT_LIFECYCLE_ENABLED` | see slice 3 |
+| `EDU_ACCOUNT_LIFECYCLE_ENABLED` | `GET /v1/me/account-requests`, `POST` / `DELETE /v1/me/deletion-request`, `POST /v1/me/export` |
 
 Because the committed OpenAPI document is generated with default settings, these routes are **not**
 in `openapi.json` / `schema.d.ts` yet. The contracts below are the reference until an owner turns a
@@ -202,6 +202,163 @@ PO-04 (what personal data, on whose consent, which ages, who consents for a mino
 - **safe behaviour for consent *unknown***: every consent-gated feature must treat it as **not
   granted**. Nothing in this lane may be used as a stand-in for a consent answer.
 
+## Slice 3 — account lifecycle mechanics (synthetic users only)
+
+Flag `EDU_ACCOUNT_LIFECYCLE_ENABLED`, default **off**. Everything below was exercised only with
+synthetic accounts on a disposable local stack. It must stay off until PO-04 and legal advice say
+who may request what, on whose authority (a minor's request? a guardian's?), and how long anything
+is kept. **No retention period, grace period or deadline is stored or implied anywhere** — a test
+fails if such a column appears.
+
+### Learner routes
+
+None of the four takes a body or a parameter, so none can name another user.
+
+| Route | Response `200` |
+|---|---|
+| `GET /v1/me/account-requests` | `{"deletion_request": DeletionRequest \| null, "last_export": ExportRecord \| null}` (most recent of each) |
+| `POST /v1/me/deletion-request` | `{"deletion_request": DeletionRequest}` — idempotent: while a request is open, the same request is returned. **Deletes nothing**; the learner keeps full use of the app |
+| `DELETE /v1/me/deletion-request` | `{"deletion_request": DeletionRequest \| null}` — cancels the open request; with none open, returns the most recent one unchanged (or `null`) |
+| `POST /v1/me/export` | `AccountExport` (below); each call is recorded as a processed export |
+
+```json
+DeletionRequest {"id":"…","status":"requested|cancelled|processed","requested_at":"…","cancelled_at":null}
+ExportRecord    {"id":"…","status":"processed","requested_at":"…","processed_at":"…"}
+AccountExport   {"format":"mep-account-export-1","export_id":"…","generated_at":"…","user_id":"…",
+  "profile":{"grade_code":"9AF","preferred_locale":"fr","display_name":null,"created_at":"…","updated_at":"…"},
+  "onboarding":{"state":"ready","onboarding_version":1,"tour_version_seen":0,"tour_dismissed":false,
+                "completed_at":"…","created_at":"…","updated_at":"…"} | null,
+  "lesson_progress":[{"lesson_id":"…","last_revision_id":"…","completed_at":"…","last_opened_at":null,"updated_at":"…"}],
+  "practice_attempts":[{"id":"…","lesson_revision_id":"…","question_revision_id":"…","response":{"choice_id":"b"},
+                        "score":1.0,"scoring_version":"mcq-v1","client_recorded_at":null,"accepted_at":"…"}],
+  "counts":{"lesson_progress":1,"practice_attempts":2},
+  "limits":{"lesson_progress":2000,"practice_attempts":2000},
+  "truncated":{"lesson_progress":false,"practice_attempts":false}}
+```
+
+Errors: 401 `unauthenticated`, 404 `not_found` (flag off), 503 `dependency_unavailable`.
+
+The export is **bounded**: at most 2000 progress rows and the 2000 most recent attempts (0.66 MB
+measured with 2000 synthetic attempts); `counts` gives the true totals and `truncated` says what was cut. It
+does not include sync receipts or the change feed (technical copies of the same attempts and
+completions) nor data held by other modules.
+
+Database: `account.deletion_requests`, `account.export_requests` (own-row `SELECT` under RLS, no
+write privilege), `account.get_own_requests()`, `request_deletion()`, `cancel_deletion_request()`,
+`export_own_data()` — all definer, actor from the transaction, no parameter, `EXECUTE` to `edu_api`.
+Export rows are written directly as `processed` because the export is produced in the same
+transaction; `requested` / `cancelled` exist for a later asynchronous path.
+
+### Erasure — the problem
+
+`app.practice_attempts`, `app.sync_receipts`, `app.account_change_feed` (and `app.audit_events`)
+each carry a `BEFORE UPDATE OR DELETE … FOR EACH ROW` trigger whose function raises
+unconditionally, for every role including the owner. `app.learner_profiles` cannot be deleted
+while those rows exist (`ON DELETE RESTRICT`), and `auth.users` cannot be deleted while the profile
+exists. So today a learner **cannot** be erased at all. The constraint for this lane: change no
+object in `app`, and do not weaken the triggers for anyone else.
+
+### Options considered
+
+| | Option | Changes an `app` object? | Weakens protection for others? | Verdict |
+|---|---|---|---|---|
+| A | **`SET LOCAL session_replication_role = replica`** inside one definer function, only around the deletes of this learner's rows, then back to `origin` | No — no catalog row changes | No — the setting is local to one session and one transaction | **Chosen** |
+| B | `ALTER TABLE … DISABLE TRIGGER`, delete, `ENABLE TRIGGER`, in one transaction | Yes (`pg_trigger`), even if the net change is nil | Not visibly (other writers block on the table lock until commit), but it takes a `SHARE ROW EXCLUSIVE` lock on three hot tables — every learner's sync stalls — and a crash-safe proof rests on DDL being transactional | Rejected: violates "no change in `app`", and stalls all sync |
+| C | Add an escape hatch to `app.prevent_append_only_change()` (e.g. honour a custom setting) | Yes — rewrites a verified guard | Yes — a custom setting can be set by **any** role, including `edu_api` | Rejected: strictly worse |
+| D | `TRUNCATE` / copy-the-others-out-and-back | No | Yes — rewrites every learner's history under an exclusive lock | Rejected |
+| E | Keep the rows, overwrite or pseudonymise the learner id | — | — | Impossible: `UPDATE` is blocked by the same trigger, and the id is a foreign key to the profile |
+| F | Do nothing in the database; leave rows and delete only the Auth account | No | No | Impossible (`RESTRICT`), and not an erasure |
+
+### The chosen design
+
+`account.erase_learner(p_user_id uuid) RETURNS jsonb` — `SECURITY DEFINER`, owned by `postgres`,
+`search_path = ''`. In one transaction:
+
+1. Refuse a `NULL` id, a session that is not in `origin` mode, and any account with staff records
+   (erasing an author/reviewer is a different, undesigned procedure).
+2. Lock the learner's profile and sync rows. A concurrent sync **for this learner** waits and then
+   fails; no other learner is blocked (no table lock is taken).
+3. **Hooks.** Call `<schema>.erase_learner(uuid)` for every schema registered in
+   `account.erasure_hooks`, in `position` order (seeded: `notify`, `leaderboard`, `rewards`,
+   `vocab`, `billing`; a registered schema without a hook is reported as `absent`). A hook must
+   return `jsonb` and be owned by the migration owner. A function named `erase_learner` in a schema
+   that is **not** registered stops the erasure — a new module cannot be skipped silently, and an
+   unknown function is never executed as owner.
+4. Remove this schema's own rows. The open deletion request becomes `processed` with
+   `user_id = NULL`: the fact is kept, the identity is not.
+5. **Pre-check.** Row-lock the learner's rows in the three append-only tables (so nothing can
+   start referencing them meanwhile), then for every foreign key (in any schema) that references
+   one of those tables, prove no row points at this learner's rows; otherwise stop. This is what
+   makes step 6 safe, because foreign keys are also trigger-based.
+6. **The window.** `SET LOCAL session_replication_role = replica`; delete the learner's rows from
+   `account_change_feed`, `sync_receipts`, `practice_attempts`; de-identify (not delete) audit
+   events that name the learner (`actor_id` / `target_id` set to `NULL`, `details` replaced by
+   `{"redacted": true}` if they contain the id); `SET LOCAL session_replication_role = origin`.
+7. With every trigger and foreign key enforced again: delete `lesson_progress`,
+   `account_sync_state`, `learner_profiles`. Any child row the function did not know about aborts
+   here.
+8. **Postcondition.** Scan every `uuid` column of every table outside the Supabase-managed schemas
+   for the id; if it is found anywhere, raise — everything rolls back.
+9. Call the audit seam with `account.learner_erased`, **no target id**, counts only. Return the
+   counts and hook results (the report never contains the id).
+
+Why this does not weaken the triggers for anyone else: `session_replication_role` is a
+per-session, transaction-local setting. No row of `pg_trigger` changes; a second session — even the
+table owner — is refused throughout (tested with two real connections). Only a privileged role may
+set it: the function's owner can, a caller cannot (tested: the executor role is refused both `SET`
+and `set_config`), and the function has no dynamic SQL built from caller input.
+
+### What is proven, and what is only designed
+
+Proven by tests on the local stack (`124_account_erasure.sql`,
+`tests/integration/test_account_lifecycle.py`):
+
+- A synthetic learner with attempts, progress, receipts (accepted and rejected), change feed,
+  onboarding, an open and a cancelled deletion request, an export record and audit events is erased;
+  afterwards the id appears in **no** `uuid`, `text` or JSON column of `app`, `account`, `public`
+  or a test module — and the orchestrator's own scanner agrees.
+- Another learner's rows in every one of those tables are byte-identical before and after; they
+  keep syncing and their change version stays gap-free.
+- The 16 `app` triggers are the same catalog rows with the same definitions and enabled state, and
+  every `app` function is unchanged (source, settings, ACL). After the erasure, `DELETE` / `UPDATE`
+  on the append-only tables is refused again, including for the owner, and foreign keys bite again.
+- It runs when called by a **non-owner role holding only `EXECUTE`** (a stand-in for `edu_worker`,
+  created inside the test transaction). That role can do nothing by itself.
+- Fail-closed cases, each leaving everything in place: unknown module holding the id; unregistered
+  hook; foreign key onto an append-only row that a hook forgot; staff account; session already in
+  `replica`.
+- After the erasure the **local Auth server deletes the account** (`DELETE /auth/v1/admin/users/…`
+  → 200); before it, the same call is refused.
+- Idempotent: erasing again, or erasing an unknown id, succeeds with zero counts.
+- All 209 baseline database tests and 144 baseline API tests still pass, unmodified.
+
+Designed, **not** built or not proven:
+
+- **Executor wiring (B1 seam).** As migrated, `EXECUTE` on `erase_learner` is granted to nobody.
+  When `edu_worker` / `staff.require_role` exist: a follow-up migration grants `EXECUTE` (and
+  `USAGE` on `account`) to `edu_worker`, adds a staff-`admin` wrapper calling
+  `staff.require_role('admin')` first, wires `audit_seam` to `ops.audit_write`, and repeats test
+  124 under the real roles. Nothing calls `erase_learner` automatically: no job, no timer.
+- **Hosted Supabase.** The design depends on the migration owner being allowed to set
+  `session_replication_role`. On the local image this is granted to `postgres` by the `supautils`
+  extension (`supautils.privileged_role_allowed_configs` lists it); the hosted platform is believed
+  to be configured the same way but **this was not verified** (no hosted project may be touched).
+  On plain PostgreSQL a superuser would run `GRANT SET ON PARAMETER session_replication_role TO
+  <owner>`. If a platform refuses, `erase_learner` fails with `42501` before deleting anything.
+- **Auth.** Deleting or disabling the `auth.users` account is Supabase Auth's job and must be
+  orchestrated with the erasure: a still-valid access token (up to one hour) lets the erased
+  learner's device create a fresh, empty profile on its next request (tested: no old data comes
+  back). Order for the future worker: revoke sessions / ban → `erase_learner` → delete the Auth
+  user → run `erase_learner` once more if a shell profile reappeared.
+- **Other modules' hooks** do not exist in this branch; only the calling convention is tested
+  (with a test module).
+- **Scale.** The postcondition scan and the audit de-identification read whole tables (one
+  existence query per `uuid` column). Fine for a rare, worker-run job; needs indexes or a narrower
+  scan before large volumes.
+- **Device copies.** Erasure on the server does not wipe a phone's local database; the app must
+  clear local data when the account is gone (native lane).
+- **Backups / logs** are outside the database and outside this lane.
+
 ## Tests
 
 | File | What it proves |
@@ -209,9 +366,13 @@ PO-04 (what personal data, on whose consent, which ages, who consents for a mino
 | `supabase/tests/120_account_structure.sql` | schema private; RLS everywhere; read-only policies for `edu_api` only; no grant to PUBLIC / anon / authenticated / authenticator / service_role; functions pinned, owned by `postgres`, none callable by `edu_api` takes a user parameter; `edu_api` unchanged |
 | `supabase/tests/121_account_profile.sql` | own row only; validation; rejection is atomic; B untouched; audit call arguments (field names only) |
 | `supabase/tests/122_account_onboarding.sql` | forward-only; version rule; tour merges; isolation; no direct writes; returning-learner rule; learning data untouched |
+| `supabase/tests/123_account_lifecycle.sql` | requests are own-row, idempotent, delete nothing; no retention column; export isolation and size bound; audit call arguments |
+| `supabase/tests/124_account_erasure.sql` | the erasure proof described above |
 | `tests/unit/test_account_schemas.py` | display-name normalisation; strict request models |
 | `tests/integration/test_account_profile.py` | the route through the real API with real local Auth tokens; flags off = `main`; isolation; Data API cannot reach `account` |
 | `tests/integration/test_account_onboarding.py` | resumability, parallel replays, account switch, returning learner, no consent-like field |
+
+| `tests/integration/test_account_lifecycle.py` | lifecycle routes through the real API; export isolation; end-to-end erasure including deletion of the Auth account; session-locality of the trigger suspension |
 
 ## BLOCKED_BY_OWNER
 
@@ -219,6 +380,11 @@ PO-04 (what personal data, on whose consent, which ages, who consents for a mino
 |---|---|---|
 | PO-04 | Personal data, consent, age band, who consents for minors | no consent data anywhere; consent unknown = not granted; all three flags off |
 | PO-04 | May the display name value appear in a change feed / audit record | names of changed fields only |
+| PO-04 / legal | Who may request deletion or export (a minor? a guardian? a school?), identity checks, response deadlines | request mechanics only, flag off, no deadline stored |
+| PO-04 / legal | Retention: how long requests, the de-identified "processed" record, audit events and backups are kept | nothing is purged or scheduled; no retention value exists in code |
+| PO-04 / legal | Audit history versus erasure: delete, keep, or de-identify audit events about an erased learner | de-identify (keep the event, drop the id); reversible choice inside `erase_learner` |
+| PO-04 / legal | Whether an export must also contain data of other modules, receipts, the change feed | profile, onboarding, progress, attempts only |
+| owner | Running any erasure on a real account | not possible: `EXECUTE` granted to nobody |
 | — | Turning the flags on by default (changes the published contract) | off; contracts documented here |
 
 ## Known gaps
@@ -226,4 +392,10 @@ PO-04 (what personal data, on whose consent, which ages, who consents for a mino
 - Profile edits are not audited until the B1 seam is wired (see above).
 - No offline profile operation (design above); profile changes do not appear in `/v1/sync/pull`.
 - Onboarding state changes are not audited (not required by the brief; they carry no personal data).
+- Lifecycle: see "Designed, not built or not proven" above (executor wiring, hosted check, Auth
+  orchestration, other modules' hooks, scale, device copies).
+- No rate limit on `POST /v1/me/export` (each call reads up to 4000 rows and writes one record).
+- A token that outlives its deleted Auth account makes `GET /v1/me` answer 500 (the profile insert
+  violates the foreign key to `auth.users`). This is existing behaviour of `main`, not introduced
+  here; mapping it to 401 belongs to the API foundation.
 - Haitian Creole wording: this lane ships no user-facing strings.

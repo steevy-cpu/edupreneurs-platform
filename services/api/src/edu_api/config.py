@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     profile_edit_enabled: bool = False
     #: EDU_ONBOARDING_ENABLED — `GET` / `PUT /v1/me/onboarding`.
     onboarding_enabled: bool = False
+    #: EDU_ACCOUNT_LIFECYCLE_ENABLED — deletion requests and data export. Mechanics
+    #: proven on synthetic users only; keep off until PO-04 is decided.
+    account_lifecycle_enabled: bool = False
     # --- end identity lane ---------------------------------------------------
 
     @field_validator("auth_algorithms")

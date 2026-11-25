@@ -15,7 +15,14 @@ from sqlalchemy import bindparam, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from edu_api.account.schemas import OnboardingResponse, OnboardingUpdate, ProfilePatch
+from edu_api.account.schemas import (
+    AccountExport,
+    AccountRequests,
+    DeletionRequestResponse,
+    OnboardingResponse,
+    OnboardingUpdate,
+    ProfilePatch,
+)
 from edu_api.db.session import Database
 from edu_api.errors import ApiError
 from edu_api.identity import MeResponse, ensure_learner_profile, load_profile
@@ -28,6 +35,10 @@ _ADVANCE_ONBOARDING = text(
     "SELECT account.advance_onboarding("
     ":state, :onboarding_version, :tour_version_seen, :tour_dismissed) AS outcome"
 )
+_GET_REQUESTS = text("SELECT account.get_own_requests() AS outcome")
+_REQUEST_DELETION = text("SELECT account.request_deletion() AS outcome")
+_CANCEL_DELETION = text("SELECT account.cancel_deletion_request() AS outcome")
+_EXPORT = text("SELECT account.export_own_data() AS outcome")
 
 _PROFILE_REJECTIONS: dict[str, tuple[str, str]] = {
     "grade_not_available": (
@@ -86,3 +97,30 @@ async def advance_onboarding(
             },
         )
     return OnboardingResponse.model_validate(outcome)
+
+
+async def get_requests(db: Database, user_id: uuid.UUID) -> AccountRequests:
+    async with db.transaction(user_id, read_only=True) as conn:
+        outcome = await _outcome(conn, _GET_REQUESTS, {})
+    return AccountRequests.model_validate(outcome)
+
+
+async def request_deletion(db: Database, user_id: uuid.UUID) -> DeletionRequestResponse:
+    async with db.transaction(user_id) as conn:
+        await ensure_learner_profile(conn, user_id)
+        outcome = await _outcome(conn, _REQUEST_DELETION, {})
+    return DeletionRequestResponse.model_validate(outcome)
+
+
+async def cancel_deletion(db: Database, user_id: uuid.UUID) -> DeletionRequestResponse:
+    async with db.transaction(user_id) as conn:
+        await ensure_learner_profile(conn, user_id)
+        outcome = await _outcome(conn, _CANCEL_DELETION, {})
+    return DeletionRequestResponse.model_validate(outcome)
+
+
+async def export_data(db: Database, user_id: uuid.UUID) -> AccountExport:
+    async with db.transaction(user_id) as conn:
+        await ensure_learner_profile(conn, user_id)
+        outcome = await _outcome(conn, _EXPORT, {})
+    return AccountExport.model_validate(outcome)
