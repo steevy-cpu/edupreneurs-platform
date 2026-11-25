@@ -19,7 +19,7 @@ from edu_api.config import Settings, get_settings
 from edu_api.db.session import Database, build_engine
 from edu_api.errors import install_error_handlers
 from edu_api.middleware import BodyLimitMiddleware, RequestIdMiddleware
-from edu_api.routers import catalog, health, me, sync
+from edu_api.routers import account, catalog, health, me, sync
 
 
 def create_app(
@@ -83,4 +83,5 @@ def create_app(
     app.include_router(me.router)
     app.include_router(catalog.router)
     app.include_router(sync.router)
+    app.include_router(account.build_router(settings))
     return app
