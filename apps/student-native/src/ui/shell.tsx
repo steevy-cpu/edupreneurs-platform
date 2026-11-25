@@ -3,6 +3,7 @@ import React from 'react';
 import { Alert } from 'react-native';
 
 import { ConnectivityPill, DesignProvider, ScreenFrame, TabBar, TabKey, TopBar } from '../design';
+import { wasUnreachable } from '../core/sync/engine';
 import { useApp } from './AppContext';
 
 const TAB_ROUTE: Record<TabKey, '/home' | '/learn' | '/review' | '/profile'> = {
@@ -32,7 +33,7 @@ export function Themed({ children }: { children: React.ReactNode }) {
  */
 export function OfflinePill() {
   const { sync } = useApp();
-  return sync.phase === 'idle' && sync.lastReport?.outcome === 'offline' ? <ConnectivityPill online={false} /> : null;
+  return sync.phase === 'idle' && wasUnreachable(sync.lastReport) ? <ConnectivityPill online={false} /> : null;
 }
 
 /** One of the four main destinations: wordmark on top, tab bar at the bottom. */
