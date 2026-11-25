@@ -4,6 +4,7 @@ Branch `overnight/native-experience`, based on `mobile-02` (54fec1c). Nothing he
 emulator, a simulator or a phone: every statement about behaviour comes from Jest (real SQLite files,
 real screen components rendered with stand-ins for `react-native` and `expo-router`). **Layout,
 colours, touch targets and large-text behaviour are unverified.**
+(Later addition: section 12 records one emulator pass at 320 dp; everything else above still holds.)
 
 ## 1. What exists
 
@@ -334,3 +335,106 @@ Report: `/Volumes/EdupreneursDev/logs/overnight-2026-11-24/reviews/native-review
 | Key | Français | Kreyòl (draft) |
 |---|---|---|
 | `rewardsStreakAsOf` | Série au {date} : {days} jour(s) | Seri jiska {date}: {days} jou |
+
+## 12. Emulator pass (2026-11-25, 04:46–04:50 local)
+
+This supersedes the "nothing was run on an emulator" statement at the top for the screens listed
+here only. Large text (200 %), screen readers, real phones and Maestro remain unverified.
+
+**Provenance, stated plainly.** The 14 PNGs in `docs/overnight-2026-11-24/screenshots/native/` were
+captured on the Android emulator by the first emulator session of this lane, which was cut off before
+it could write anything down. A second session selected them from that session's scratch folder,
+opened every one of them, and wrote this section; **it did not boot the emulator again**. What is
+known about the run comes from the logs it left (`emulator.log`, `metro.log`, `api.log`, `seed.sql`
+in the lane's scratch folder):
+
+- AVD `edu_api24`, Android 7.0 (API 24), 480 x 800 px at 240 dpi = **320 x 533 dp**, default font
+  scale. Every screenshot is therefore already the narrow-width case; no `wm size` override was used.
+- Metro served the JavaScript from this worktree's `apps/student-native` (1391 modules); the lane's
+  API ran on port 8010 against the lane's own backend stack and answered 404 to
+  `/v1/me/onboarding`, `/v1/rewards/summary` and `/v1/daily-word` (these routes are not on this branch).
+- Signed in as the synthetic account `student_a`.
+- Not recorded anywhere: which debug APK was installed and the exact flag values (onboarding, tour,
+  word, Gold and leaderboard-review are visibly on).
+
+**Three kinds of screenshot:**
+- *real flow* — the signed-in app as it behaves on this branch.
+- *seeded cache* — real screens of the signed-in app, but the Word of the Day and Gold values were
+  inserted by hand into the on-device cache tables (`daily_word_cache`, `rewards_summary_cache`) with
+  the `seed.sql` left in the scratch folder. The word "persévérance / pèseverans", the balance 120,
+  the streak 3/7 and "Valeurs provisoires" are invented. No server produced them.
+- *design preview* — the `/design/leaderboard` route with the eight `…-TEST` fixture names.
+
+From 04:49 on, the header shows the "Hors ligne / San entènèt" pill (the API had been stopped or was
+unreachable by then; the logs do not say which). All four Creole onboarding screenshots are in that
+state, so they also show how the pill sits in the onboarding header.
+
+| File | Shows | Locale | Width | Kind |
+|---|---|---|---|---|
+| `fr-01-welcome.png` | Onboarding 1/5, welcome | fr | 320 dp | real flow |
+| `fr-03-grade-top.png` | Onboarding 3/5, grade step as it opens (nothing selected) | fr | 320 dp | real flow |
+| `fr-04-offline-scrolled.png` | Onboarding 4/5, offline explainer, scrolled to the end | fr | 320 dp | real flow |
+| `fr-05-ready.png` | Onboarding 5/5, ready (9AF chosen) | fr | 320 dp | real flow |
+| `fr-07-home-tour-invite.png` | Accueil after onboarding, scrolled to the tour card | fr | 320 dp | real flow |
+| `fr-08-tour-1.png` | Tour, step 1/4 | fr | 320 dp | real flow |
+| `fr-09-profile-bottom.png` | Profil, bottom: tour row and leaderboard row | fr | 320 dp | real flow |
+| `fr-11-leaderboard-preview-top.png` | Leaderboard review screen, podium | fr | 320 dp | design preview |
+| `fr-12-home-seeded-word.png` | Accueil with Gold row and Word of the Day card | fr | 320 dp | seeded cache |
+| `fr-13-profile-gold.png` | Profil with the Gold card populated | fr | 320 dp | seeded cache |
+| `ht-01-welcome.png` | Onboarding 1/5, welcome, offline pill | ht | 320 dp | real flow |
+| `ht-02-language.png` | Onboarding 2/5, language (Kreyòl selected) | ht | 320 dp | real flow |
+| `ht-03-grade-selected.png` | Onboarding 3/5, grade list scrolled, NS2 selected | ht | 320 dp | real flow |
+| `ht-04-offline.png` | Onboarding 4/5, offline explainer, scrolled to the end | ht | 320 dp | real flow |
+
+Also seen in the scratch folder but not committed (to stay under the file limit): French language
+step, French grade step with a selection, ready step in Creole, tour step 4/4, Accueil top, Profil
+top and middle (Gold empty state "Ton Gold s’affichera ici après ta prochaine synchronisation."),
+the production `/leaderboard` empty state ("Pas encore de classement"), the leaderboard list with
+the "Toi" row, and the Creole Accueil/Profil with seeded values. They show nothing that contradicts
+the list below.
+
+### Defects and doubts visible in the screenshots (reported, not fixed)
+
+1. **Grade step, 320 dp: no class is visible when the step opens** (`fr-03-grade-top.png`). The
+   title (two lines), the body (three lines) and the "Pas encore de connexion" notice fill the
+   space above the two pinned buttons; the notice's lower edge is cut by the footer and the first
+   chip is below the fold. In Creole the first chip is half visible. A learner must guess that the
+   list scrolls. "Continuer" is greyed out at that moment, which makes the screen look blocked.
+2. **Grade step: the two pinned buttons take about a quarter of the screen height** (roughly 200 of
+   800 px). With the back-button row that leaves about 4.5 chips of scrolling area for 7 classes
+   (`ht-03-grade-selected.png`).
+3. **Grade step shows "Pas encore de connexion : voici la liste des classes" at 04:46 while the API
+   was running and had just answered a sync request.** No catalogue request reached the API before
+   that screen. Either the step does not fetch the catalogue or it shows the notice before the
+   answer arrives. To check; a learner with a connection is told there is none.
+4. **French grade title breaks inside the hyphenated verb**: "En quelle classe es-" / "tu ?".
+5. **Welcome step: one of the three points is visible** above the pinned buttons in French; in
+   Creole the second one is cut through the middle by the footer.
+6. **Offline explainer: the progress bar, the title and the first row are scrolled away in the only
+   captures there are** (French and Creole). The top of that step ("Comment ça marche sans internet",
+   "Télécharge tes leçons") has not been seen. The step needs a scroll to reach its last row at 320 dp.
+7. **Header with the offline pill** (`ht-*`): in the tour, the pill pushes the title "Vizit gide"
+   off-centre to the left (in French without the pill it is centred). In onboarding the pill sits
+   alone on the right of the back button, which reads oddly on screens that explain offline use.
+8. **Podium, 320 dp**: "Flamboyant-TEST" wraps onto two lines ("Flamboyant-" / "TEST") while the
+   other two names take one line, so the three name/Gold labels sit at three different heights
+   above the columns. Longer pseudonyms will wrap worse. The order on screen is 2-1-3 (already
+   noted as L5 for screen readers).
+9. **Untranslated/French formatting in Creole**: the Gold card reads
+   "Sèvè a konfime l · 25/11/2026 à 04:48:51" (French "à"; already L6). The language chip
+   "Français" stays in French in the Creole interface (may be intended as the language's own name).
+10. **"(s)" plurals are visible**: "Série en cours : 3 jour(s)", "Meilleure série : 7 jour(s)" (L6).
+11. **Icons look like placeholders**: the Gold row on Accueil and the "Synchronisation plus tard" row
+    use a small dot / small ring in a pale circle; the offline pill uses the same ring. They read as
+    missing icons rather than as symbols.
+12. **Profil**: "Choisir ma classe et ma matière" wraps onto two lines inside its button, and
+    "Dernière synchronisation : 25/11/2026 à 04:46:16" wraps with the time alone on the second line
+    (seen in the uncommitted Profil captures). Nothing is clipped.
+13. **Accueil greets "Bonjour student.a"** — the part of the e-mail address before the @, not a name.
+14. **Profil shows "Mathématiques · 9AF" right after onboarding** although the learner only chose a
+    class; the subject was not chosen by the learner in this run. To check whether it is a default.
+
+No clipped or overlapping text, no cut-off button and no raw string key was seen in any of the
+captures. Not captured at all: the lower part of the Word of the Day card (example, gloss, audio
+line), the stale-word label "Dernier mot téléchargé", the Gold "En attente" state, tour steps 2 and
+3, the podium `state=podium` variant, anything at large text, and any width other than 320 dp.
