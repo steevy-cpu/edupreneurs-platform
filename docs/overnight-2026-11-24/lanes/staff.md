@@ -1,0 +1,148 @@
+# Lane STAFF — B1: shared platform interface
+
+Status: **B1 delivered and tested on the lane's local stack only.** Nothing here is deployed, linked
+to a hosted project or merged into `main`. B2 (editorial slice, role administration, worker, MFA
+design) is not started.
+
+## What exists after B1
+
+| Piece | Where |
+|---|---|
+| Group roles `edu_staff`, `edu_worker`; schemas `ops`, `staff`; 7 functions | `supabase/migrations/20261124010000_platform_roles_ops_staff.sql` |
+| Login roles `edu_staff_login`, `edu_worker_login` (local, random passwords in `.env`) | `scripts/local_stack.py` (`env`, `provision`) |
+| Staff pool, `require_staff`, `StaffDb` | `services/api/src/edu_api/staff/` |
+| `GET /v1/staff/me` | `services/api/src/edu_api/routers/staff.py` |
+| Fixtures and helpers for tests | `tests/staff_fixtures.py` |
+| Tests | `supabase/tests/100_platform_structure.sql`, `supabase/tests/101_staff_boundary_and_audit.sql`, `tests/integration/test_staff_boundary.py`, `tests/unit/test_staff_settings.py` |
+
+Nothing was created, altered or granted in schema `app`; the four verified migrations, `seed.sql`
+and the existing tests are untouched.
+
+## Database interface
+
+```
+ops.audit_write(p_action text, p_target_kind text, p_target_id uuid,
+                p_outcome text, p_details jsonb DEFAULT '{}') RETURNS uuid      EXECUTE: edu_staff, edu_worker
+staff.actor_roles() RETURNS text[]                                              EXECUTE: edu_staff
+staff.actor_has_role(VARIADIC p_roles text[]) RETURNS boolean                   EXECUTE: edu_staff
+staff.require_role(VARIADIC p_roles text[]) RETURNS uuid                        EXECUTE: edu_staff
+internal, EXECUTE granted to nobody:
+ops.actor_kind_for(p_role name) RETURNS text
+ops.check_audit_details(p_details jsonb) RETURNS void
+staff.check_role_names(p_roles text[]) RETURNS void
+```
+
+All four callable functions are `SECURITY DEFINER`, owned by `postgres`, `SET search_path = ''`.
+`edu_staff` and `edu_worker` have `USAGE` on their schema(s) and **nothing else**: no `USAGE` on
+`app`, no table or column privilege anywhere. `edu_api` has nothing in `ops` or `staff`.
+
+### `ops.audit_write`
+
+- `actor_id` is `app.current_actor_id()`; `actor_kind` comes from the session's database login
+  (`session_user`): a login using `edu_staff` → `staff`, `edu_worker` → `worker`, `edu_api` → `user`,
+  anything else (for example `postgres`) → `system`. Neither can be passed in, and neither `SET ROLE`
+  nor a definer function changes `session_user`. A definer function of another schema calls
+  `ops.audit_write` as its owner and the event is still attributed to the real login.
+- `actor_kind` names the **channel**, not the person: a learner refused on a staff route is recorded
+  with `actor_kind = 'staff'`, `outcome = 'denied'` and the learner's id.
+- A staff session without an actor cannot write an event (`42501`). Worker events have no actor.
+- Input limits (violations raise `22023`, and the message never repeats the rejected value):
+  - `p_action`: dotted lower-case code, 2–6 segments, ≤ 100 characters (`lesson_revision.submit`).
+  - `p_target_kind`: `NULL` or snake_case, 2–40 characters; `p_target_id` needs a target kind.
+  - `p_outcome`: `allowed`, `denied` or `error`.
+  - `p_details`: a **flat** JSON object, ≤ 2048 bytes, ≤ 24 keys, snake_case keys; values are
+    `null`, booleans, numbers, strings matching `^[A-Za-z0-9_.:/{}+-]{0,120}$`, or arrays (≤ 24) of
+    such strings / numbers / booleans. No nested objects, no whitespace, no `@`, no non-ASCII: a
+    sentence, a name or an e-mail address typed by a learner is rejected by shape. Put identifiers,
+    status codes, counts and timestamps here; point at the row with `p_target_kind` / `p_target_id`.
+- The row is part of the caller's transaction. If the transaction rolls back (for example because
+  `staff.require_role` raised), the row is gone too. A refusal that must be remembered is therefore
+  written by the API in its own committed transaction (`require_staff` does this).
+- `app.audit_events` stays append-only (existing trigger) and unreadable for all three API roles.
+  There is no read path for audit events yet.
+
+### `staff.*` role checks
+
+- Roles are the active rows of `app.staff_roles` for the transaction's actor.
+- `staff.require_role('editor', 'admin')` returns the actor id or raises `42501` with a message that
+  does not say which roles were needed. No actor → `42501`.
+- A role name outside `editor | reviewer | publisher | admin`, a `NULL` name, or an empty list raises
+  `22023` instead of silently never matching.
+- Every later `staff.*` workflow function must start with `staff.require_role(...)` and every
+  migration that adds a function to `ops`/`staff` must end with
+  `REVOKE ALL ON ALL FUNCTIONS IN SCHEMA … FROM PUBLIC, anon, authenticated` followed by exact
+  `GRANT`s. `100_platform_structure.sql` pins the list of functions and who may execute them, so it
+  has to be updated in the same change (staff lane only).
+
+## API interface
+
+```python
+from edu_api.staff.deps import AnyStaff, StaffDb, StaffPrincipal, require_staff, STAFF_ROLES
+
+
+@router.post("/v1/staff/things", responses=error_responses(401, 403, 503))
+async def create_thing(
+    staff: Annotated[StaffPrincipal, Depends(require_staff("editor", "admin"))],
+    db: StaffDb,
+) -> ...:
+    async with db.transaction(staff.user_id) as conn:
+        await conn.execute(text("SELECT staff.some_function(...)"))
+```
+
+- `require_staff(*roles)` → dependency returning `StaffPrincipal(user_id, roles, principal)`.
+  No argument = any active staff role (`AnyStaff` is that, ready to use). Unknown role names raise
+  `ValueError` when the route is defined.
+- Order of checks: token (401 `unauthenticated`) → staff side configured (503 `staff_unavailable`)
+  → active roles read through the staff pool **on every request** → 403 `forbidden`, with one
+  `staff.access` / `denied` audit event whose details are `method`, `route` (the route template,
+  never the raw URL) and `required_roles`.
+- `StaffDb` is the `Database` on `app.state.staff_db` (`None` when not configured). Same
+  `transaction(actor_id)` contract as the student pool.
+- Settings: `EDU_STAFF_DATABASE_URL` (optional, `postgresql+asyncpg://…`),
+  `EDU_STAFF_DB_POOL_SIZE` (2), `EDU_STAFF_DB_MAX_OVERFLOW` (3).
+- `GET /v1/staff/me` → `{"user_id": "...", "roles": ["editor"]}`.
+
+## Local environment
+
+`make db-reset` (or `uv run python scripts/local_stack.py env` followed by `… provision`) now also
+writes `EDU_STAFF_DATABASE_URL`, `EDU_WORKER_DATABASE_URL`, `LOCAL_STAFF_DB_PASSWORD` and
+`LOCAL_WORKER_DB_PASSWORD` to the git-ignored `.env` and creates the two login roles, each a member
+of exactly its own group. Existing passwords in `.env` are kept.
+
+## Tests
+
+See the module docstring of `tests/staff_fixtures.py` for the fixtures (`staff_app`, `staff_client`,
+`staff_tokens`, `make_staff`) and helpers (`create_account`, `create_staff_account`,
+`set_role_active`, `remove_account`, `build_staff_settings`, `staff_url`, `worker_url`).
+
+## Deviations from the brief, and why
+
+1. **Staff routes are left out of the OpenAPI document while the staff side is not configured.**
+   The existing test `test_openapi_contract` (read-only) pins the exact set of paths of the default
+   application and the committed `packages/contracts/openapi.json`. The staff router is always
+   mounted (so an unconfigured deployment answers 503, as specified) but is documented only when
+   `EDU_STAFF_DATABASE_URL` is set. Consequence: `packages/contracts/openapi.json` and the mobile
+   `schema.d.ts` are byte-identical to `main` and contain no staff route. A separate staff contract
+   file can be exported later if a staff client needs generated types.
+2. **`staff.actor_roles()` was added** to the interface (one extra function) so that
+   `GET /v1/staff/me` and `require_staff` need a single round trip.
+3. **`pg_has_role(…, 'USAGE')` instead of plain membership** for `actor_kind`: in PostgreSQL 16+ the
+   role that creates a group (here `postgres`) automatically holds an ADMIN-only membership in it,
+   which must not make owner sessions count as `staff`.
+4. **Unconfigured staff side answers 503 with code `staff_unavailable`** (no `Retry-After`), not
+   `dependency_unavailable`: retrying does not help. A configured but unreachable staff database
+   answers the usual 503 `dependency_unavailable` with `Retry-After: 5`.
+
+## Known gaps (B1)
+
+- No second factor for staff (design is a B2 item; nothing is implemented or claimed).
+- No rate limit on refused staff requests: every refusal appends one audit row, so a signed-in
+  account can grow `app.audit_events` by repeating a refused call. Belongs with the rate-limiting
+  work of the notify/security lane.
+- No read path, retention rule or export for audit events.
+- Role checks do not look at the Auth account state (banned / deleted) beyond the access token being
+  valid; an already issued token of a banned account keeps its roles until the token expires or the
+  role row is deactivated.
+- The "no free text" rule for audit details is structural (shape and character set). It cannot stop
+  a caller from deliberately encoding text into an allowed token.
+- Hosted provisioning of `edu_staff_login` / `edu_worker_login` is not written (local only).
