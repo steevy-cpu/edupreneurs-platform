@@ -4,7 +4,14 @@
  */
 import type { Locale } from '../../src/core/api/types';
 import type { AccountStore } from '../../src/core/db/accountStore';
-import type { DailyWordFetch, ExperienceRemote, ProfilePatch, RemoteDailyWord, RemoteOnboarding } from '../../src/core/experience/remote';
+import type {
+  DailyWordFetch,
+  ExperienceRemote,
+  ProfilePatch,
+  RemoteDailyWord,
+  RemoteOnboarding,
+  RemoteRewardsSummary,
+} from '../../src/core/experience/remote';
 import { ApiError } from '../../src/core/api/errors';
 import { translator } from '../../src/core/i18n/strings';
 import { FakeApp, Phone } from './screenHarness';
@@ -95,6 +102,16 @@ export class FakeRemote implements ExperienceRemote {
     if (!word) throw new ApiError('client', 'daily_word_not_available', 404);
     if (etag && etag === FakeRemote.etagOf(word)) return { kind: 'not_modified' };
     return { kind: 'word', word: JSON.parse(JSON.stringify(word)) as RemoteDailyWord, etag: FakeRemote.etagOf(word) };
+  }
+
+  // ------------------------------------------------------------------------ gold
+  /** The server's summary for the signed-in learner; null answers 404 (feature off on the server). Synthetic numbers. */
+  rewards: RemoteRewardsSummary | null = null;
+
+  async getRewardsSummary(): Promise<RemoteRewardsSummary> {
+    this.reach('GET /v1/rewards/summary');
+    if (!this.rewards) throw new ApiError('client', 'not_found', 404);
+    return JSON.parse(JSON.stringify(this.rewards)) as RemoteRewardsSummary;
   }
 }
 

@@ -58,6 +58,19 @@ export interface RemoteDailyWord {
   audio: { mime: string | null; bytes: number | null; duration_ms: number | null } | null;
 }
 
+/**
+ * `GET /v1/rewards/summary` (briefs/rewards.md). Only what this app displays is
+ * kept. Every number comes from the server's ledger; the app sends none.
+ */
+export interface RemoteRewardsSummary {
+  /** Confirmed Gold: the sum of the server's ledger for this learner. */
+  balance: number;
+  /** Days with accepted learning, by the server's Haiti calendar. Null when the server sent no streak. */
+  streak: { current: number; longest: number } | null;
+  /** How many achievements the server has awarded. */
+  achievements: number;
+}
+
 export type DailyWordFetch = { kind: 'word'; word: RemoteDailyWord; etag: string | null } | { kind: 'not_modified' };
 
 export interface ExperienceRemote {
@@ -70,6 +83,8 @@ export interface ExperienceRemote {
    * word is assigned today, and with another code when the feature is off on the server.
    */
   getDailyWord(locale: Locale, etag: string | null): Promise<DailyWordFetch>;
+  /** The learner's confirmed Gold, streak and achievements. 404 (kind `client`) when the feature is off on the server. */
+  getRewardsSummary(): Promise<RemoteRewardsSummary>;
 }
 
 // -------------------------------------------------------------------- validators
@@ -152,6 +167,33 @@ export function parseRemoteDailyWord(body: unknown, requested: Locale): RemoteDa
   };
 }
 
+function safeInteger(value: unknown): number | null {
+  return typeof value === 'number' && Number.isSafeInteger(value) ? value : null;
+}
+
+/**
+ * Accepts `streak: {current, longest}` (assumed) and the flat spellings
+ * `current_streak` / `longest_streak`, in case the backend settles on those.
+ */
+export function parseRemoteRewardsSummary(body: unknown): RemoteRewardsSummary {
+  if (!isObject(body)) return invalid();
+  const balance = safeInteger(body.balance);
+  // A ledger of awards and reversals cannot sum below zero for a learner; a negative or fractional balance is not shown.
+  if (balance === null || balance < 0) return invalid();
+  const nested = isObject(body.streak) ? body.streak : null;
+  const current = safeInteger(nested ? (nested.current ?? nested.current_days) : body.current_streak);
+  const longest = safeInteger(nested ? (nested.longest ?? nested.longest_days) : body.longest_streak);
+  const streak = current !== null && current >= 0 ? { current, longest: Math.max(current, longest ?? 0) } : null;
+  // A list of awards (assumed) or, as this app stores it once validated, their count.
+  const counted = safeInteger(body.achievements);
+  const achievements = Array.isArray(body.achievements)
+    ? body.achievements.filter((item) => isObject(item) && typeof item.code === 'string').length
+    : counted !== null && counted >= 0
+      ? counted
+      : 0;
+  return { balance, streak, achievements };
+}
+
 // ------------------------------------------------------------------------ client
 export interface ExperienceApiOptions {
   baseUrl: string;
@@ -203,6 +245,10 @@ export class ExperienceApi implements ExperienceRemote {
     });
     if (response.status === 304) return { kind: 'not_modified' };
     return { kind: 'word', word: parseRemoteDailyWord(this.ok(response).body, locale), etag: response.etag };
+  }
+
+  async getRewardsSummary(): Promise<RemoteRewardsSummary> {
+    return parseRemoteRewardsSummary(this.ok(await this.send('GET', '/v1/rewards/summary')).body);
   }
 
   /** Throws the app's usual error for a non-2xx answer. */

@@ -77,7 +77,7 @@ describe('upgrade from the Mobile-02 local schema (version 1)', () => {
     expect(await dumpV1Tables(raw)).toEqual(before);
     await raw.close();
     expect(await userVersion(A)).toBeGreaterThanOrEqual(2);
-    expect(await tableNames(A)).toEqual(expect.arrayContaining(['attempts', 'lesson_progress', 'meta', 'onboarding_state', 'outbox', 'question_progress', 'tour_state', 'daily_word_cache']));
+    expect(await tableNames(A)).toEqual(expect.arrayContaining(['attempts', 'lesson_progress', 'meta', 'onboarding_state', 'outbox', 'question_progress', 'tour_state', 'daily_word_cache', 'rewards_summary_cache']));
   });
 
   test('a learner who used the app before the upgrade is a returning learner: never sent through onboarding', async () => {

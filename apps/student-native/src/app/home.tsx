@@ -18,6 +18,7 @@ import {
 } from '../core/learning/overview';
 import { AppText, Button, HeroCard, Icon, ListRow, LoadingState, MessageState, Notice, ProgressBar, SectionHeader, space } from '../design';
 import { DailyWordCard } from '../ui/experience/DailyWordCard';
+import { RewardsRow } from '../ui/experience/Rewards';
 import { TourInvite } from '../ui/experience/TourInvite';
 import { perfHomeReady, perfTap } from '../ui/perf';
 import { useRemote } from '../ui/remote';
@@ -148,6 +149,19 @@ export default function Home() {
     />
   ) : null;
 
+  // Confirmed Gold (flag off by default): one row, only once the server has sent a balance.
+  const rewardsRow = FLAGS.rewards ? (
+    <RewardsRow
+      t={t}
+      account={app.session.account}
+      remote={remote}
+      pendingActions={sync.summary.pending}
+      syncedAt={sync.summary.lastSyncAt}
+      now={app.services.env.now}
+      isActive={() => app.session.isActive()}
+    />
+  ) : null;
+
   const next = pickContinueLesson(view.standings, view.lastLessonId);
   const context = next ? findLessonContext(view.catalog, next.lessonId) : null;
   const totals = totalsOf(view.standings);
@@ -174,6 +188,7 @@ export default function Home() {
           onAction={() => router.replace('/learn')}
         />
         {pendingRow}
+        {rewardsRow}
         {dailyWord}
         {tourInvite}
       </TabScreen>
@@ -223,6 +238,8 @@ export default function Home() {
       </HeroCard>
 
       {pendingRow}
+
+      {rewardsRow}
 
       {dailyWord}
 

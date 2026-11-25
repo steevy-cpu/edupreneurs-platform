@@ -129,6 +129,14 @@ export interface StoredDailyWord {
   fetchedAt: string;
 }
 
+export interface RewardsRow {
+  /** The validated server summary as received, or null when none has ever been downloaded. */
+  body: unknown | null;
+  fetchedAt: string | null;
+  lastAttemptAt: string | null;
+  lastOutcome: 'updated' | 'unavailable' | 'unreachable' | null;
+}
+
 export const EMPTY_TOUR: TourRecord = { versionSeen: 0, dismissed: false, inProgress: false, step: 0, updatedAt: '', needsPush: false };
 
 async function readOnboarding(db: SqlExecutor): Promise<OnboardingRecord | null> {
@@ -261,6 +269,44 @@ export class ExperienceStore {
        ON CONFLICT (locale) DO UPDATE SET last_attempt_at = excluded.last_attempt_at, last_outcome = excluded.last_outcome,
          fetched_at = CASE WHEN ? = 1 AND body_json IS NOT NULL THEN excluded.last_attempt_at ELSE fetched_at END`,
       [locale, at, outcome, confirmed ? 1 : 0],
+    );
+  }
+
+  // ------------------------------------------------------------------ gold / streak
+  async getRewards(): Promise<RewardsRow | null> {
+    const row = await this.db.first<{
+      body_json: string | null;
+      fetched_at: string | null;
+      last_attempt_at: string | null;
+      last_outcome: RewardsRow['lastOutcome'];
+    }>('SELECT * FROM rewards_summary_cache WHERE id = 1');
+    if (!row) return null;
+    let body: unknown | null = null;
+    if (row.body_json && row.fetched_at) {
+      try {
+        body = JSON.parse(row.body_json) as unknown;
+      } catch {
+        body = null;
+      }
+    }
+    return { body, fetchedAt: body === null ? null : row.fetched_at, lastAttemptAt: row.last_attempt_at, lastOutcome: row.last_outcome };
+  }
+
+  async putRewards(body: unknown, at: string): Promise<void> {
+    await this.db.run(
+      `INSERT INTO rewards_summary_cache (id, body_json, fetched_at, last_attempt_at, last_outcome) VALUES (1, ?, ?, ?, 'updated')
+       ON CONFLICT (id) DO UPDATE SET body_json = excluded.body_json, fetched_at = excluded.fetched_at,
+         last_attempt_at = excluded.last_attempt_at, last_outcome = excluded.last_outcome`,
+      [JSON.stringify(body), at, at],
+    );
+  }
+
+  /** An attempt that brought nothing: the last confirmed summary stays exactly as it was. */
+  async noteRewardsAttempt(at: string, outcome: 'unavailable' | 'unreachable'): Promise<void> {
+    await this.db.run(
+      `INSERT INTO rewards_summary_cache (id, last_attempt_at, last_outcome) VALUES (1, ?, ?)
+       ON CONFLICT (id) DO UPDATE SET last_attempt_at = excluded.last_attempt_at, last_outcome = excluded.last_outcome`,
+      [at, outcome],
     );
   }
 }

@@ -83,4 +83,22 @@ export const EXPERIENCE_MIGRATION_V3: Migration = {
   ],
 };
 
-export const EXPERIENCE_MIGRATIONS: Migration[] = [EXPERIENCE_MIGRATION_V2, EXPERIENCE_MIGRATION_V3];
+/**
+ * Gold and streak: the last summary the SERVER sent for this account, kept so
+ * Profil can show it offline. It is a copy for display only — the phone never
+ * computes, adds to or edits a Gold amount.
+ */
+export const EXPERIENCE_MIGRATION_V4: Migration = {
+  version: 4,
+  statements: [
+    `CREATE TABLE rewards_summary_cache (
+       id               INTEGER PRIMARY KEY CHECK (id = 1),
+       body_json        TEXT,
+       fetched_at       TEXT,
+       last_attempt_at  TEXT,
+       last_outcome     TEXT
+     )`,
+  ],
+};
+
+export const EXPERIENCE_MIGRATIONS: Migration[] = [EXPERIENCE_MIGRATION_V2, EXPERIENCE_MIGRATION_V3, EXPERIENCE_MIGRATION_V4];

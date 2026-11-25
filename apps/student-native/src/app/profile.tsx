@@ -7,6 +7,8 @@ import { FLAGS } from '../core/experience/flags';
 import { startTour, TOUR_STEPS } from '../core/experience/tour';
 import { LessonStanding, PREF_GRADE, PREF_SUBJECT, savedLessonStandings, syncDisplayOf, totalsOf } from '../core/learning/overview';
 import { AppText, Button, Card, Chip, ListRow, LoadingState, Notice, Pill, SectionHeader, space, SyncStatusCard, useLayout } from '../design';
+import { RewardsCard } from '../ui/experience/Rewards';
+import { useRemote } from '../ui/remote';
 import { TabScreen, useSignOut } from '../ui/shell';
 import { useSignedIn } from '../ui/useSession';
 
@@ -39,6 +41,7 @@ function Stat({ value, label }: { value: string; label: string }) {
 export default function Profile() {
   const app = useSignedIn();
   const router = useRouter();
+  const remote = useRemote();
   const { leaving, confirmSignOut } = useSignOut();
   const [view, setView] = useState<ProfileView | null>(null);
   const session = app?.session;
@@ -143,6 +146,19 @@ export default function Profile() {
         ) : null}
       </View>
 
+      {FLAGS.rewards ? (
+        <RewardsCard
+          t={t}
+          locale={app.locale}
+          account={app.session.account}
+          remote={remote}
+          pendingActions={summary.pending}
+          syncedAt={summary.lastSyncAt}
+          now={app.services.env.now}
+          isActive={() => app.session.isActive()}
+        />
+      ) : null}
+
       <SyncStatusCard
         state={display}
         pendingCount={summary.pending}
@@ -173,6 +189,16 @@ export default function Profile() {
               .catch(() => undefined)
               .then(() => router.push('/tour'));
           }}
+        />
+      ) : null}
+
+      {FLAGS.leaderboardReview ? (
+        <ListRow
+          icon="review"
+          tone="highlight"
+          title={t('lbProfileEntry')}
+          subtitle={t('lbProfileEntryHint')}
+          onPress={() => router.push('/leaderboard')}
         />
       ) : null}
 
