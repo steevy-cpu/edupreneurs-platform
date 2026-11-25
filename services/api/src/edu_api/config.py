@@ -57,6 +57,18 @@ class Settings(BaseSettings):
     pull_default_limit: int = Field(default=100, ge=1)
     pull_max_limit: int = Field(default=200, ge=1)
 
+    # --- Rewards lane (overnight 2026-11-24): Gold ledger, streaks, achievements ---
+    #: OFF by default. Off = the push path and every response are exactly as
+    #: before, and /v1/rewards/* answers 404. Reward amounts are synthetic
+    #: placeholders until the owner decides PO-09.
+    rewards_enabled: bool = False
+    rewards_ledger_default_limit: int = Field(default=20, ge=1, le=100)
+    rewards_ledger_max_limit: int = Field(default=100, ge=1, le=500)
+    rewards_recent_limit: int = Field(default=5, ge=1, le=20)
+    #: Most unexamined operations healed by one summary request.
+    rewards_reconcile_limit: int = Field(default=200, ge=1, le=500)
+    # --- end rewards lane ---
+
     @field_validator("auth_algorithms")
     @classmethod
     def _only_asymmetric(cls, value: tuple[str, ...]) -> tuple[str, ...]:

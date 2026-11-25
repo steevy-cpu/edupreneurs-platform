@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -35,6 +36,11 @@ from edu_api.sync.schemas import (
 )
 
 logger = logging.getLogger("edu_api.sync")
+
+#: Optional step run inside the push transaction right after an operation is
+#: accepted (connection, learner id, op id). It must contain its own failures:
+#: see edu_api.rewards.hook. ``None`` (the default) = the original push path.
+AcceptedHook = Callable[[AsyncConnection, uuid.UUID, uuid.UUID], Awaitable[None]]
 
 _APPLY = text(
     "SELECT app.sync_apply_operation("
@@ -99,7 +105,12 @@ async def _current_version(conn: AsyncConnection, learner_id: uuid.UUID) -> int:
 
 
 async def push(
-    db: Database, learner_id: uuid.UUID, request: PushRequest, *, max_ops: int
+    db: Database,
+    learner_id: uuid.UUID,
+    request: PushRequest,
+    *,
+    max_ops: int,
+    on_accepted: AcceptedHook | None = None,
 ) -> PushResponse:
     _check_envelope(request, max_ops)
     prepared = [_prepare(op) for op in request.ops]
@@ -128,6 +139,8 @@ async def push(
                 )
             ).scalar_one()
             results.append(_to_result(item.op.op_id, outcome))
+            if on_accepted is not None and outcome["status"] == "accepted":
+                await on_accepted(conn, learner_id, item.op.op_id)
         server_version = await _current_version(conn, learner_id)
 
     for result in results:
