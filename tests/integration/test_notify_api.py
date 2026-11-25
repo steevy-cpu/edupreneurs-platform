@@ -58,6 +58,35 @@ async def test_with_the_flag_off_the_routes_answer_like_unknown_paths(
     assert (await client.get(LIST, params={"cursor": "x" * 500})).status_code == 404
 
 
+async def test_with_the_flag_off_a_bad_body_or_method_is_still_the_standard_404(
+    client: httpx.AsyncClient, tokens: dict[str, str]
+) -> None:
+    """Review L-3: the flag is decided before the body is parsed and before the
+    method is checked, so a malformed body (was 422) or a wrong method (was 405)
+    cannot tell a caller that the route exists. Same body as an unknown path."""
+    unknown = await client.get("/v1/no-such-route")
+    assert unknown.status_code == 404
+    expected = {k: v for k, v in unknown.json()["error"].items() if k != "request_id"}
+    broken = {"content": b"{not json", "headers": {"content-type": "application/json"}}
+    cases = [
+        ("PUT", PREFS, {**broken, "headers": {**broken["headers"], **bearer(tokens["student_a"])}}),
+        ("PUT", PREFS, broken),  # no token
+        ("PUT", PREFS, {"content": b"", "headers": {"content-type": "application/json"}}),
+        ("PUT", PREFS, {"json": {"push_enabled": "not-a-bool"}}),
+        ("POST", LIST, {"headers": bearer(tokens["student_a"])}),
+        ("DELETE", PREFS, {}),
+        ("PATCH", PREFS, {"headers": bearer(tokens["student_a"])}),
+        ("POST", PREFS, {"json": {}}),
+    ]
+    for method, path, kwargs in cases:
+        response = await client.request(method, path, **kwargs)
+        assert response.status_code == 404, (method, path, kwargs)
+        error = response.json()["error"]
+        assert {k: v for k, v in error.items() if k != "request_id"} == expected, (method, path)
+        assert set(error) == set(unknown.json()["error"]), (method, path)
+        assert "allow" not in response.headers, (method, path)
+
+
 async def test_routes_are_left_out_of_the_contract_by_one_constant(
     client: httpx.AsyncClient, notify_client: httpx.AsyncClient
 ) -> None:

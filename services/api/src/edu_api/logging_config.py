@@ -31,7 +31,10 @@ stores usually have wider access and longer retention than the database. So:
   has both. Rotating the key unlinks old logs.
 
 Records from third-party libraries are kept only from WARNING up (they are not
-vetted for what they log). Other log records keep their developer-written message, passed through a
+vetted for what they log). That includes uvicorn: only its fixed lifecycle
+messages ("Started server process", ...) are kept at INFO; per-connection records
+(a refused WebSocket handshake) carry the raw request target and are dropped.
+Other log records keep their developer-written message, passed through a
 redaction filter as a backstop (tokens, bearer headers, e-mail addresses), and
 exceptions are reduced to the exception TYPE and code locations: exception
 messages can carry submitted values and are dropped.
@@ -104,18 +107,42 @@ def actor_tag(user_id: uuid.UUID, key: bytes) -> str:
     return hmac.new(key, user_id.bytes, hashlib.sha256).hexdigest()[:16]
 
 
+#: uvicorn INFO messages that are fixed text: server lifecycle only. Every other
+#: uvicorn INFO record (a refused WebSocket handshake, a per-connection line)
+#: embeds the peer address and the raw request target, query string included.
+#: Matched on the message TEMPLATE (``record.msg``), never on the formatted text.
+_UVICORN_LIFECYCLE = (
+    "Started server process",
+    "Waiting for application startup",
+    "Application startup complete",
+    "Waiting for application shutdown",
+    "Application shutdown complete",
+    "Finished server process",
+    "Shutting down",
+    "Uvicorn running on",
+)
+
+
+def _is_uvicorn_lifecycle(record: logging.LogRecord) -> bool:
+    template = record.msg
+    return isinstance(template, str) and template.startswith(_UVICORN_LIFECYCLE)
+
+
 class OwnCodeOrWarning(logging.Filter):
     """Third-party libraries are not vetted for what they put in a log line (an
     HTTP client logs full URLs, a driver may log statements). In JSON mode their
     records are kept only from WARNING up; this service's own loggers and
     uvicorn's lifecycle messages are kept from INFO."""
 
-    _OWN = ("edu_api", "uvicorn")
+    _OWN = ("edu_api",)
 
     def filter(self, record: logging.LogRecord) -> bool:
         if record.levelno >= logging.WARNING:
             return True
-        return record.name.split(".", 1)[0] in self._OWN
+        root = record.name.split(".", 1)[0]
+        if root == "uvicorn":
+            return _is_uvicorn_lifecycle(record)
+        return root in self._OWN
 
 
 class JsonFormatter(logging.Formatter):
@@ -167,11 +194,15 @@ def install_json_logging(
     if root.level == logging.NOTSET or root.level > logging.INFO:
         root.setLevel(logging.INFO)
 
+    # uvicorn's loggers do not propagate to the root handler, so the filter must be
+    # on uvicorn's own handlers too (otherwise its INFO records pass unfiltered).
+    uvicorn_filter = OwnCodeOrWarning()
     restyled: list[tuple[logging.Handler, logging.Formatter | None]] = []
     for name in ("uvicorn", "uvicorn.error"):
         for other in logging.getLogger(name).handlers:
             restyled.append((other, other.formatter))
             other.setFormatter(formatter)
+            other.addFilter(uvicorn_filter)
     uvicorn_access = logging.getLogger("uvicorn.access")
     access_was_disabled = uvicorn_access.disabled
     uvicorn_access.disabled = True
@@ -183,6 +214,7 @@ def install_json_logging(
         root.setLevel(previous_level)
         for other, previous in restyled:
             other.setFormatter(previous)
+            other.removeFilter(uvicorn_filter)
         uvicorn_access.disabled = access_was_disabled
 
     return handler, undo
