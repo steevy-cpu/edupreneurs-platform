@@ -142,4 +142,7 @@ def create_app(
         app.state.notify_db = notify_database
     app.include_router(notifications.router)
     app.include_router(staff.router)
+    app.include_router(staff.router)
+    app.include_router(entitlements.build_router())
+    app.include_router(staff_billing.build_router())
     return app

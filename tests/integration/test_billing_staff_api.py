@@ -31,6 +31,7 @@ from tests.helpers import STUDENT_A, STUDENT_B, bearer
 from tests.staff_fixtures import (  # noqa: F401
     StaffAccount,
     make_staff,
+    reset_denial_windows,
     set_role_active,
     staff_app,
     staff_client,
@@ -149,12 +150,15 @@ async def test_learners_and_non_admin_staff_are_refused_and_the_refusal_is_audit
     for user_id, token in callers:
         before = len(await audit_of(admin, user_id))
         for method, path, kwargs in three_routes(STUDENT_B):
+            # persisted refusals are bounded per actor per minute: open a new window
+            await reset_denial_windows(admin, user_id)
             response = await billing_staff_client.request(
                 method, path, headers=bearer(token), **kwargs
             )
             assert_error(response, 403, "forbidden")
             assert str(STUDENT_B) not in response.text
         # a malformed body is still a 403: nothing about the route is revealed
+        await reset_denial_windows(admin, user_id)
         response = await billing_staff_client.post(
             GRANTS, headers=bearer(token), json={"nonsense": True}
         )
@@ -335,6 +339,11 @@ async def test_reusing_a_key_for_a_different_grant_is_a_409_and_changes_nothing(
         ({"scope": {"kind": "lesson", "id": str(SEED_GRADE)}}, 422, "validation_error"),
         ({"learner_id": "not-a-uuid"}, 422, "validation_error"),
         ({"learner_id": str(uuid.UUID(int=7))}, 422, "invalid_entitlement_request"),
+        (
+            {"idempotency_key": "order:0d5c0e2e-6a0f-4a6e-9b61-3f5e5b0c9a11"},
+            422,
+            "invalid_entitlement_request",
+        ),
         (
             {"scope": {"kind": "grade", "id": str(uuid.UUID(int=8))}},
             422,

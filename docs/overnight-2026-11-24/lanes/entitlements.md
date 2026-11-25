@@ -95,6 +95,33 @@ Last full run (`/Volumes/EdupreneursDev/logs/overnight-2026-11-24/tmp/entitlemen
 pgTAP 745 passed / 0 failed, before and after pytest; pytest 367 passed / 0 failed; lint, mypy and
 `export_openapi.py --check` pass.
 
+### Independent review (QA-1, at `43ca9b9`): verdict APPROVE WITH FIXES, no CRITICAL or HIGH
+
+Full text: `/Volumes/EdupreneursDev/logs/overnight-2026-11-24/reviews/entitlements-review-FULL.md`.
+
+Fixed after the review:
+- **M1 (MEDIUM)** — idempotency keys starting with `order:` are reserved for purchase grants;
+  `billing.grant_entitlement` refuses them for every other source (`22023`, HTTP 422), so a staff
+  grant can no longer block the payment message of a pending order. Tested in pgTAP 222 and over HTTP.
+- **L5 (partly)** — the `billing_clean` fixture restores `USAGE` on the schema for `edu_api` before
+  each test, so a killed "billing unreachable" run heals itself.
+
+Open review findings (not fixed tonight):
+- **L1** — replaying a key whose grant was revoked answers `200 replayed: true` although the learner
+  has no access; "same request" compares neither `reason_code` nor `starts_at`.
+- **L2** — an order snapshots amount and currency but not the plan's scope and duration; a plan
+  edited between order and payment grants the new scope for the old price (only the owner can edit plans).
+- **L3** — erasure leaves the raw payload of provider events never linked to an order, and grant
+  audit rows keep the learner id inside `details`.
+- **L4** — a refund message for an order that was never paid records a full refund row.
+- **L5 (rest)** — the "billing unreachable" test still commits a `REVOKE` on the local database.
+- If the M1 guard were ever bypassed, `apply_provider_event` would still raise instead of storing
+  the event as rejected.
+- Notes N2–N9 of the review (two admins can grant to each other; `MockProvider` environment is a
+  caller-supplied string; the `billing.erasing` marker is owner-mistake protection only; sections
+  2–4, 9 and 10 of this document are stale and superseded by section 0).
+- Tests the review lists as missing for L1–L4, and a temporary-object shadowing test.
+
 ## 1. What exists
 
 | Piece | Where | State |
