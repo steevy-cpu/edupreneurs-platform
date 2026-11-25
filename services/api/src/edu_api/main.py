@@ -21,7 +21,8 @@ from edu_api.errors import install_error_handlers
 from edu_api.logging_config import AccessLogMiddleware, install_json_logging
 from edu_api.middleware import BodyLimitMiddleware, RequestIdMiddleware
 from edu_api.ratelimit import RateLimitMiddleware, build_rate_limiter
-from edu_api.routers import catalog, health, me, notifications, sync
+from edu_api.routers import catalog, health, me, notifications, staff, sync
+from edu_api.staff.db import build_staff_database
 
 
 def create_app(
@@ -44,6 +45,9 @@ def create_app(
 
     # Creating the engine opens no connection; the first request does.
     database = Database(build_engine(settings))
+    # The staff side has its own pool and its own database login (edu_staff_login).
+    # None when EDU_STAFF_DATABASE_URL is unset: staff routes then answer 503.
+    staff_database = build_staff_database(settings)
     # Lane notify: only when the flag is on; its own small pool (see config.py).
     notify_database = (
         notifications.build_database(settings) if settings.notifications_enabled else None
@@ -53,6 +57,8 @@ def create_app(
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         yield
         await database.dispose()
+        if staff_database is not None:
+            await staff_database.dispose()
         if notify_database is not None:
             await notify_database.dispose()
         if jwks_cache is not None:
@@ -71,6 +77,7 @@ def create_app(
     )
     app.state.settings = settings
     app.state.db = database
+    app.state.staff_db = staff_database
     app.state.token_verifier = TokenVerifier(
         key_provider,
         issuer=settings.auth_issuer,
@@ -111,6 +118,9 @@ def create_app(
     app.include_router(me.router)
     app.include_router(catalog.router)
     app.include_router(sync.router)
+    # Documented only where the staff side is switched on, so the learner
+    # contract (packages/contracts/openapi.json) is unchanged by its existence.
+    app.include_router(staff.router, include_in_schema=staff_database is not None)
     # Always registered (ruling R-01); every route answers 404 while the flag is off.
     if notify_database is not None:
         app.state.notify_db = notify_database

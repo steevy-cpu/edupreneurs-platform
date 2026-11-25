@@ -57,9 +57,17 @@ class Settings(BaseSettings):
     pull_default_limit: int = Field(default=100, ge=1)
     pull_max_limit: int = Field(default=200, ge=1)
 
+    # --- Staff boundary (overnight 2026-11-24, staff lane) -------------------
+    #: Optional. Must log in as ``edu_staff_login`` (member of ``edu_staff`` only).
+    #: When unset the staff side is off: every ``/v1/staff`` route answers 503
+    #: and none of them appears in the OpenAPI document.
+    staff_database_url: SecretStr | None = None
+    staff_db_pool_size: int = Field(default=2, ge=1, le=20)
+    staff_db_max_overflow: int = Field(default=3, ge=0, le=20)
+
     # --- Notifications (lane notify; policy is product decision PO-10) ---------
-    #: Off by default: the routes are not mounted at all and no extra database
-    #: pool is created. Turning it on sends NOTHING; it only lets a learner read
+    #: Off by default: the routes answer 404 and no extra database pool is
+    #: created. Turning it on sends NOTHING; it only lets a learner read
     #: their own in-app list and edit their own preferences.
     notifications_enabled: bool = False
     #: Notification routes use their OWN small pool so that a slow or broken
@@ -121,6 +129,19 @@ class Settings(BaseSettings):
     def _asyncpg_url(cls, value: SecretStr) -> SecretStr:
         if not value.get_secret_value().startswith("postgresql+asyncpg://"):
             raise ValueError("database_url must start with postgresql+asyncpg://")
+        return value
+
+    # --- Staff boundary (overnight 2026-11-24, staff lane) -------------------
+    @field_validator("staff_database_url", mode="before")
+    @classmethod
+    def _blank_staff_url_is_unset(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
+
+    @field_validator("staff_database_url")
+    @classmethod
+    def _staff_asyncpg_url(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is not None and not value.get_secret_value().startswith("postgresql+asyncpg://"):
+            raise ValueError("staff_database_url must start with postgresql+asyncpg://")
         return value
 
 
