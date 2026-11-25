@@ -127,7 +127,7 @@ export default function Onboarding() {
     }
     if (FLAGS.onboardingSync && remote) {
       // Background only: the flow is finished whether or not the server hears about it now.
-      void syncOnboarding(account, remote, { now, isActive: () => app.session.isActive() });
+      void syncOnboarding(account, remote, { now, isActive: () => app.session.isActive(), force: true });
     }
     router.replace(destination);
   };

@@ -20,7 +20,7 @@ import {
   serverStateOf,
   skipOnboardingGrade,
 } from '../../src/core/experience/onboarding';
-import { onboardingSyncDue, syncOnboarding } from '../../src/core/experience/onboardingSync';
+import { ONBOARDING_SYNC_SPACING_MS, onboardingSyncDue, syncOnboarding } from '../../src/core/experience/onboardingSync';
 import { ExperienceApi, parseRemoteOnboarding } from '../../src/core/experience/remote';
 import type { OnboardingRecord } from '../../src/core/experience/store';
 import { FakeRemote } from '../support/experienceHarness';
@@ -147,7 +147,11 @@ describe('forward-only merge with the server', () => {
   });
 
   test('server ahead: resume further on; server behind: nothing goes backwards and a push is owed', () => {
-    expect(mergeServerOnboarding(local({}), 'downloads_informed', at)).toMatchObject({ status: 'in_progress', step: 'ready', furthestStep: 'ready' });
+    // what another phone reached is remembered, but the step on screen is not moved under the learner (review M4)
+    expect(mergeServerOnboarding(local({}), 'downloads_informed', at)).toMatchObject({ status: 'in_progress', step: 'grade', furthestStep: 'ready' });
+    // flow not opened here yet: start further on only when this phone already has a grade
+    expect(mergeServerOnboarding(null, 'profile_selected', at, true)).toMatchObject({ step: 'downloads', furthestStep: 'downloads' });
+    expect(mergeServerOnboarding(null, 'profile_selected', at, false)).toMatchObject({ step: 'welcome', furthestStep: 'downloads' });
     const ahead = local({ step: 'ready', furthestStep: 'ready' });
     expect(mergeServerOnboarding(ahead, 'new', at)).toMatchObject({ step: 'ready', furthestStep: 'ready', serverState: 'new', needsPush: true });
     const finished = local({ status: 'completed', step: 'ready', furthestStep: 'ready' });
@@ -177,6 +181,9 @@ describe('server sync (flag onboardingSync)', () => {
     expect(await onboardingSyncDue(account)).toBe(false);
 
     remote.calls.length = 0;
+    expect(await syncOnboarding(account, remote, { now })).toBe('spaced'); // too soon: no request at all
+    expect(remote.calls).toEqual([]);
+    clock += ONBOARDING_SYNC_SPACING_MS;
     expect(await syncOnboarding(account, remote, { now })).toBe('nothing_to_do');
     expect(remote.calls).toEqual(['GET /v1/me/onboarding']);
   });
@@ -189,8 +196,105 @@ describe('server sync (flag onboardingSync)', () => {
     expect(await syncOnboarding(account, remote, { now })).toBe('failed');
     expect(await account.experience.getOnboarding()).toMatchObject({ status: 'skipped', needsPush: true, serverState: null });
     remote.mode = 'online';
+    clock += ONBOARDING_SYNC_SPACING_MS;
     expect(await syncOnboarding(account, remote, { now })).toBe('synced');
     expect(remote.onboarding.state).toBe('ready');
+  });
+
+  test('review M3: a PATCH the server refuses (404 profile editing off, 422 grade not offered) is final — no endless retry', async () => {
+    for (const status of [404, 422]) {
+      const remote = new FakeRemote();
+      remote.patchRefusal = status;
+      await account.experience.updateOnboarding((current) => (current ? { ...current, profileNeedsPush: true, updatedAt: `t-${status}` } : null));
+      if (!(await account.experience.getOnboarding())) {
+        await beginOrResumeOnboarding(account, now());
+        await goToOnboardingStep(account, 'grade', now());
+        await selectOnboardingGrade(account, 'NS4', now());
+        await confirmOnboardingGrade(account, now());
+        await finishOnboarding(account, 'completed', now());
+      }
+      clock += ONBOARDING_SYNC_SPACING_MS;
+      await syncOnboarding(account, remote, { now });
+      expect(await account.experience.getOnboarding()).toMatchObject({ profileNeedsPush: false, needsPush: false });
+      expect(await onboardingSyncDue(account)).toBe(false); // Accueil will not ask again
+      expect(remote.calls.filter((call) => call.startsWith('PATCH'))).toHaveLength(1);
+    }
+  });
+
+  test('review M3: a server error on PATCH is NOT final (retried later), and visits in between make no request', async () => {
+    const remote = new FakeRemote();
+    await beginOrResumeOnboarding(account, now());
+    await goToOnboardingStep(account, 'grade', now());
+    await selectOnboardingGrade(account, '9AF', now());
+    await confirmOnboardingGrade(account, now());
+    const patch = jest.spyOn(remote, 'patchProfile').mockRejectedValueOnce(new ApiError('server', 'server_error', 503));
+    clock += ONBOARDING_SYNC_SPACING_MS;
+    expect(await syncOnboarding(account, remote, { now })).toBe('failed');
+    expect((await account.experience.getOnboarding())?.profileNeedsPush).toBe(true);
+    remote.calls.length = 0;
+    for (let visit = 0; visit < 5; visit += 1) expect(await syncOnboarding(account, remote, { now })).toBe('spaced');
+    expect(remote.calls).toEqual([]);
+    patch.mockRestore();
+    clock += ONBOARDING_SYNC_SPACING_MS;
+    expect(await syncOnboarding(account, remote, { now })).toBe('synced');
+    expect(remote.profile).toMatchObject({ grade_code: '9AF' });
+  });
+
+  test('review M3: overlapping calls share one run', async () => {
+    const remote = new FakeRemote();
+    await beginOrResumeOnboarding(account, now());
+    await finishOnboarding(account, 'skipped', now());
+    clock += ONBOARDING_SYNC_SPACING_MS;
+    const outcomes = await Promise.all([syncOnboarding(account, remote, { now }), syncOnboarding(account, remote, { now }), syncOnboarding(account, remote, { now })]);
+    expect(outcomes).toEqual(['synced', 'synced', 'synced']);
+    expect(remote.calls.filter((call) => call.startsWith('GET /v1/me/onboarding'))).toHaveLength(1);
+    expect(remote.calls.filter((call) => call.startsWith('PUT'))).toHaveLength(1);
+  });
+
+  test('review L4: a choice made while the request is in flight keeps its "to send" flag', async () => {
+    const remote = new FakeRemote();
+    await beginOrResumeOnboarding(account, now());
+    await goToOnboardingStep(account, 'grade', now());
+    await selectOnboardingGrade(account, '9AF', now());
+    await confirmOnboardingGrade(account, now());
+    const original = remote.patchProfile.bind(remote);
+    jest.spyOn(remote, 'patchProfile').mockImplementationOnce(async (body) => {
+      await account.experience.updateOnboarding((current) => ({ ...current!, updatedAt: 'changed-during-request', profileNeedsPush: true }));
+      return original(body);
+    });
+    clock += ONBOARDING_SYNC_SPACING_MS;
+    await syncOnboarding(account, remote, { now });
+    expect((await account.experience.getOnboarding())?.profileNeedsPush).toBe(true);
+  });
+
+  test('review M4: new phone, the server knows the grade (profile_selected): no jump past the grade step, and the grade is prefilled', async () => {
+    const remote = new FakeRemote();
+    remote.onboarding.state = 'profile_selected';
+    remote.serverProfile = { grade_code: 'NS2', preferred_locale: 'fr' };
+    await beginOrResumeOnboarding(account, now()); // the learner is on the welcome step
+    clock += ONBOARDING_SYNC_SPACING_MS;
+    await syncOnboarding(account, remote, { now });
+    expect(await account.experience.getOnboarding()).toMatchObject({ step: 'welcome', furthestStep: 'downloads', gradeCode: 'NS2', status: 'in_progress' });
+    expect(await account.getPreference('grade_code')).toBeNull(); // confirmed by the learner on the grade step, not behind their back
+    await goToOnboardingStep(account, 'grade', now());
+    await confirmOnboardingGrade(account, now());
+    expect(await account.getPreference('grade_code')).toBe('NS2');
+  });
+
+  test('review M4: finished elsewhere (ready) — the server’s grade becomes the phone’s grade, so Apprendre has courses', async () => {
+    const remote = new FakeRemote();
+    remote.onboarding.state = 'ready';
+    remote.serverProfile = { grade_code: '9AF', preferred_locale: 'ht' };
+    clock += ONBOARDING_SYNC_SPACING_MS;
+    await syncOnboarding(account, remote, { now });
+    expect(await onboardingGate(account, now())).toBe('done');
+    expect(await account.getPreference('grade_code')).toBe('9AF');
+    // a phone that already has a grade does not ask for the profile at all
+    const again = new FakeRemote();
+    again.onboarding.state = 'ready';
+    clock += ONBOARDING_SYNC_SPACING_MS;
+    await syncOnboarding(account, again, { now });
+    expect(again.calls).not.toContain('GET /v1/me');
   });
 
   test('a new phone for a learner the server already knows: onboarding is not required after the first sync', async () => {
@@ -210,7 +314,7 @@ describe('server sync (flag onboardingSync)', () => {
     await goToOnboardingStep(account, 'language', now());
     await syncOnboarding(account, remote, { now });
     expect(remote.onboarding).toEqual({ state: 'downloads_informed', onboarding_version: 1, tour_version_seen: 2, tour_dismissed: true });
-    expect(await account.experience.getOnboarding()).toMatchObject({ step: 'ready', furthestStep: 'ready', status: 'in_progress' });
+    expect(await account.experience.getOnboarding()).toMatchObject({ step: 'language', furthestStep: 'ready', status: 'in_progress' });
   });
 
   test('a session that ended while the request was in flight writes nothing', async () => {

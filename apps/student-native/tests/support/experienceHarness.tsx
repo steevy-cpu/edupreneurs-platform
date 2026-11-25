@@ -11,6 +11,7 @@ import type {
   RemoteDailyWord,
   RemoteOnboarding,
   RemoteOnboardingUpdate,
+  RemoteProfile,
   RemoteRewardsSummary,
 } from '../../src/core/experience/remote';
 import { ApiError } from '../../src/core/api/errors';
@@ -58,11 +59,20 @@ export class FakeRemote implements ExperienceRemote {
   mode: 'online' | 'offline' = 'online';
   onboarding: RemoteOnboarding = { state: 'new', onboarding_version: 0, tour_version_seen: 0, tour_dismissed: false };
   profile: ProfilePatch = {};
+  /** What `GET /v1/me` knows about the learner. */
+  serverProfile: RemoteProfile = { grade_code: null, preferred_locale: null };
+  /** Set to make `PATCH /v1/me` refuse with this HTTP status (404: profile editing off; 422: grade not offered). */
+  patchRefusal: number | null = null;
   readonly calls: string[] = [];
 
   private reach(call: string): void {
     this.calls.push(call);
     if (this.mode === 'offline') throw new ApiError('network', 'unreachable');
+  }
+
+  async getProfile(): Promise<RemoteProfile> {
+    this.reach('GET /v1/me');
+    return { ...this.serverProfile };
   }
 
   async getOnboarding(): Promise<RemoteOnboarding> {
@@ -92,6 +102,7 @@ export class FakeRemote implements ExperienceRemote {
 
   async patchProfile(body: ProfilePatch): Promise<void> {
     this.reach(`PATCH /v1/me ${JSON.stringify(body)}`);
+    if (this.patchRefusal) throw new ApiError('client', this.patchRefusal === 404 ? 'not_found' : 'grade_not_available', this.patchRefusal);
     this.profile = { ...this.profile, ...body };
   }
 

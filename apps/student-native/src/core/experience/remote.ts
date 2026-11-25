@@ -95,7 +95,21 @@ export type DailyWordFetch =
   | { kind: 'word'; word: RemoteDailyWord; etag: string | null; serverDate: string | null }
   | { kind: 'not_modified'; serverDate: string | null };
 
+/** The two fields of `GET /v1/me` (an existing, generated contract) that onboarding can prefill from. */
+export interface RemoteProfile {
+  grade_code: string | null;
+  preferred_locale: Locale | null;
+}
+
+export function parseRemoteProfile(body: unknown): RemoteProfile {
+  if (!isObject(body)) return invalid();
+  const code = isObject(body.grade) && typeof body.grade.code === 'string' && /^[A-Z0-9]{2,8}$/.test(body.grade.code) ? body.grade.code : null;
+  return { grade_code: code, preferred_locale: body.preferred_locale === 'fr' || body.preferred_locale === 'ht' ? body.preferred_locale : null };
+}
+
 export interface ExperienceRemote {
+  /** The learner's server profile (`GET /v1/me`). */
+  getProfile(): Promise<RemoteProfile>;
   getOnboarding(): Promise<RemoteOnboarding>;
   putOnboarding(body: RemoteOnboardingUpdate): Promise<RemoteOnboarding>;
   patchProfile(body: ProfilePatch): Promise<void>;
@@ -256,6 +270,10 @@ export class ExperienceApi implements ExperienceRemote {
     this.baseUrl = options.baseUrl.replace(/\/+$/, '');
     this.fetchImpl = options.fetchImpl ?? ((input, init) => fetch(input, init));
     this.timeoutMs = options.timeoutMs ?? 15_000;
+  }
+
+  async getProfile(): Promise<RemoteProfile> {
+    return parseRemoteProfile(this.ok(await this.send('GET', '/v1/me')).body);
   }
 
   async getOnboarding(): Promise<RemoteOnboarding> {

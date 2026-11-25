@@ -199,6 +199,8 @@ export function mergeServerOnboarding(
   current: OnboardingRecord | null,
   server: ServerOnboardingState,
   now: Date,
+  /** Does this phone have a grade for the account? Without one the learner is never carried past the grade step. */
+  hasLocalGrade = true,
 ): OnboardingRecord | null {
   const at = now.toISOString();
   if (current === null) {
@@ -208,7 +210,8 @@ export function mergeServerOnboarding(
     return {
       flowVersion: ONBOARDING_FLOW_VERSION,
       status: 'in_progress',
-      step,
+      // Not opened on this phone yet: start further on only if the phone already has what the skipped steps collect.
+      step: hasLocalGrade ? step : 'welcome',
       furthestStep: step,
       gradeCode: null,
       startedAt: at,
@@ -230,10 +233,11 @@ export function mergeServerOnboarding(
   if (server === 'ready') {
     return { ...current, status: 'returning', completedAt: at, updatedAt: at, serverState: server, serverSyncedAt: at, needsPush: false };
   }
+  // The learner may be looking at a step right now: what another phone reached is remembered
+  // (`furthestStep`), but the visible step is not moved under them. Only `ready` ends the flow.
   const step = stepForServerState(server);
   return {
     ...current,
-    step: furthest(current.step, step),
     furthestStep: furthest(current.furthestStep, step),
     updatedAt: at,
     serverState: server,

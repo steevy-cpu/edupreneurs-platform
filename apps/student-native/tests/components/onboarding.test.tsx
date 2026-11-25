@@ -353,7 +353,11 @@ describe('server sync (flag onboardingSync, off by default)', () => {
     expect(await app.session.account.experience.getOnboarding()).toMatchObject({ status: 'skipped', needsPush: true });
 
     remote.mode = 'online';
-    const home = await phone.render(<Home />);
+    let home = await phone.render(<Home />);
+    await home.settle();
+    expect(remote.onboarding.state).toBe('new'); // too soon after the failed attempt: Accueil does not hammer the server
+    app.services.env.now = () => new Date('2026-11-24T13:00:00.000Z'); // later
+    home = await phone.render(<Home />);
     await home.settle();
     expect(remote.onboarding.state).toBe('ready');
     expect((await app.session.account.experience.getOnboarding())?.needsPush).toBe(false);

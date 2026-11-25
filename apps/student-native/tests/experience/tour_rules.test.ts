@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { AccountStore } from '../../src/core/db/accountStore';
-import { onboardingSyncDue, syncOnboarding } from '../../src/core/experience/onboardingSync';
+import { ONBOARDING_SYNC_SPACING_MS, onboardingSyncDue, syncOnboarding } from '../../src/core/experience/onboardingSync';
 import { EMPTY_TOUR } from '../../src/core/experience/store';
 import { dismissTour, finishTour, setTourStep, startTour, TOUR_STEPS, TOUR_VERSION, tourOffer } from '../../src/core/experience/tour';
 import { FakeRemote } from '../support/experienceHarness';
@@ -95,6 +95,7 @@ test('the flags reach the server with the onboarding sync and only ever grow', a
   // Another phone already saw a NEWER tour: this phone adopts it and sends nothing back.
   remote.onboarding.tour_version_seen = TOUR_VERSION + 1;
   remote.calls.length = 0;
+  clock += ONBOARDING_SYNC_SPACING_MS;
   await syncOnboarding(account, remote, { now });
   expect((await account.experience.getTour()).versionSeen).toBe(TOUR_VERSION + 1);
   expect(remote.calls.filter((call) => call.startsWith('PUT'))).toEqual([]);
