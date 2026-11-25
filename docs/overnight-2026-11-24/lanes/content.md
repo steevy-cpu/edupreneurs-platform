@@ -102,3 +102,106 @@ verified module and is untouched: the server still rejects every kind other than
 `mcq` with `unsupported_question_kind`. Two further facts a future migration must
 handle: `app.question_revisions.kind` accepts `numeric` and `short_text` but
 **not `true_false`**, and the sync payload schema only models `choice_id`.
+
+## 4. Assets and the rights gate (schema `content`)
+
+Migration `20261124030100_content_assets_and_pack_manifests.sql` (after staff B1,
+`20261124010000`). Nothing is created in `app`; no foreign key points at the five
+learning tables (R-02); every function pins `search_path = pg_catalog, pg_temp` (R-03).
+
+| Table | Holds |
+|---|---|
+| `content.assets` | one row per file: `sha256` (identity, primary key), derived `object_key`, `bytes`, `mime` (allow-list webp/png/jpeg/mp4/mpeg), intrinsic size or duration, `alt_text` per locale, `source_id` → `app.content_sources`, `created_by` |
+| `content.revision_assets` | which lesson revision uses which asset (FK to `app.lesson_revisions`), with the asset's `source_id` |
+| `content.pack_manifests` | the real manifest of a release: hash, sizes, counts, `content_format`, who recorded it; append-only |
+
+Private: RLS on, **no policy**, no table grant to anyone. `edu_api`, `edu_worker`,
+`anon`, `authenticated`, `authenticator`, `service_role` cannot use the schema.
+`edu_staff` has `USAGE` and `EXECUTE` on four functions only. No learner read or
+write path exists; no per-learner row is stored, so there is no `erase_learner` hook.
+
+**Rights gate without touching `app`.** `revision_assets` has two composite foreign
+keys: `(asset_sha256, source_id)` → `content.assets` and `(lesson_revision_id,
+source_id)` → `app.lesson_revision_sources`. An asset can therefore only be attached
+to a revision that *cites the asset's own source*, and that citation cannot be
+removed while the asset is attached. The existing guards in `app` then apply
+unchanged: approval requires every cited source to be rights-cleared; a pack cannot
+be finalized while one is not. Attachments freeze at the first editorial review
+(trigger), so nothing can be attached to a reviewed or approved revision.
+Tested in `141_content_integrity.sql`, including the invariant "no approved
+revision is linked to an asset whose source is not cleared".
+
+## 5. Staff write path
+
+`SECURITY DEFINER`, owner `postgres`, actor from `staff.require_role` (never a
+parameter), each successful write audited through `ops.audit_write` in the same
+transaction (ids, hashes, enum codes and numbers only — never alt text).
+
+| Function | Roles | Does |
+|---|---|---|
+| `content.register_asset(sha256, bytes, mime, width, height, duration_ms, alt_text, source_id)` | editor, admin | records metadata; idempotent for identical metadata, `23505` otherwise |
+| `content.attach_asset(revision_id, sha256)` / `content.detach_asset(...)` | editor, admin | drafts only; `23503` if the revision does not cite the asset's source |
+| `content.record_release_manifest(release_id, manifest, manifest_sha256, manifest_bytes)` | publisher, admin | checks the manifest against the database (pack identity, ordered lessons, referenced assets attached, asset sizes/types, totals, **declared format ≥ required format**), then moves the release `building → ready` with the real hash and inserts the `pack_manifests` row |
+
+The two functions `content.staff_gate` and `content.audit` are the only places
+that mention `staff.*` / `ops.*`. **No HTTP route was added** (R-01 not needed;
+`openapi.json` unchanged): the role matrix is tested at SQL level as `edu_staff`
+in `142_content_staff_functions.sql`. There is no upload endpoint and no file
+ever leaves this machine.
+
+What the database cannot check: it cannot read object storage, so it does not
+re-hash lesson objects. The recorded hash is trusted from the publisher; the
+verifier (`verify_pack`) is what compares stored bytes with it.
+
+## 6. Canonical manifest and pack builder
+
+Specification: module docstrings of `edu_api/content/pack.py` and `canonical.py`;
+schemas `pack-manifest.v1.schema.json`, `pack-lesson.v1.schema.json`.
+
+- Canonical JSON `edu-canon-json-1`: NFC, sorted ASCII keys, integers only, no
+  whitespace, UTF-8 — what `JSON.stringify` gives for sorted keys.
+- Objects: `packs/<pack_key>/<locale>/<revision>/manifest.json`,
+  `lessons/sha256/<aa>/<sha256>.json`, `assets/sha256/<aa>/<sha256>`
+  (content-addressed: shared lessons and pictures are stored and downloaded once).
+- No timestamp or random value: identical input → identical bytes. Golden vector
+  `vectors/pack-manifest.json` (hash also pinned in the test); 25 shuffled
+  re-builds and a separate Python process with another hash seed give the same bytes.
+- `scripts/build_pack.py build | build-file | verify` — local directory only,
+  read-only on the database, refuses a non-local database host, atomic writes,
+  manifest written last, everything read back and verified.
+- Corruption: for every object of the golden pack, a flipped byte, truncation,
+  appended byte, emptied file and deletion are each rejected with the object named.
+  A manifest rewritten consistently with a forged lesson is only caught by the
+  recorded hash — which is why the hash lives in the database.
+
+Measured (local, synthetic; uncompressed / with gzip on manifest and lesson objects):
+
+| Pack | Manifest | Lesson object(s) | Assets | Total | gzip estimate |
+|---|---|---|---|---|---|
+| seed `math-9af` fr (1 format-1 lesson, 5 questions) | 1 223 B | 3 115 B | 0 | 4 338 B | 1 393 B |
+| golden format-2 (3 lessons, 5 questions, 2 PNG + 1 audio placeholder) | 2 998 B | 4 422 B | 485 B | 7 905 B | — |
+| synthetic format-2 from the database (1 lesson: math, PNG, table) | 1 027 B | 723 B | 662 B | 2 412 B | 1 642 B |
+
+These are tiny synthetic lessons; they say nothing yet about real lesson sizes.
+
+## 7. Known gaps and owner decisions
+
+- **PO-08 `BLOCKED_BY_OWNER`**: block list, budgets, and how mathematics is drawn.
+  No renderer exists; `math.asset` allows a pre-rendered image either way.
+- Format 2 is not served: no endpoint reads `Edu-Content-Formats`. A format-2
+  release made current today would be served by the unchanged `/v1/lessons` to old
+  apps. Nothing in the database stops that activation (it would need a trigger in
+  `app`); the activation function of the staff lane should call
+  `content.release_required_format` and require a `content.pack_manifests` row.
+- A release can still be moved to `ready` by other privileged SQL without a
+  recorded manifest (seed and test fixtures do); `content.pack_manifests` is the
+  marker of a real one.
+- New question kinds are not scored by the server; `true_false` is not an accepted
+  `question_revisions.kind`.
+- The database does not validate lesson bodies; the builder does. Asset checks are
+  hash, size, file signature, and PNG dimensions — JPEG/WebP dimensions and audio
+  duration are trusted from metadata.
+- `app.pack_releases.compressed_bytes` receives the total *uncompressed* pack bytes.
+- No inline mathematics inside paragraphs, list items or table cells.
+- No resumable download, device-side activation, or object-store adapter.
+- Haitian Creole strings in vectors are draft wording pending native review.
