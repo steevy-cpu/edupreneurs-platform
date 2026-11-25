@@ -64,8 +64,7 @@ class Settings(BaseSettings):
 
     # --- Staff boundary (overnight 2026-11-24, staff lane) -------------------
     #: Optional. Must log in as ``edu_staff_login`` (member of ``edu_staff`` only).
-    #: When unset the staff side is off: every ``/v1/staff`` route answers 503
-    #: and none of them appears in the OpenAPI document.
+    #: When unset the staff side is off: every ``/v1/staff`` route answers 503.
     staff_database_url: SecretStr | None = None
     staff_db_pool_size: int = Field(default=2, ge=1, le=20)
     staff_db_max_overflow: int = Field(default=3, ge=0, le=20)

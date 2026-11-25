@@ -208,6 +208,19 @@ async def remove_account(admin: asyncpg.Pool, env: dict[str, str], user_id: uuid
         )
 
 
+async def reset_denial_windows(admin: asyncpg.Pool, *user_ids: uuid.UUID) -> None:
+    """Forget the 60-second "refusal already audited" windows (all, or of the given
+    accounts), so that a test's next refused request is written to the audit log
+    again. A test-only shortcut for waiting a minute."""
+    if user_ids:
+        await admin.execute(
+            "DELETE FROM ops.access_denial_windows WHERE actor_id = ANY($1::uuid[])",
+            list(user_ids),
+        )
+    else:
+        await admin.execute("DELETE FROM ops.access_denial_windows")
+
+
 MakeStaff = Callable[..., Awaitable[StaffAccount]]
 
 
@@ -224,3 +237,51 @@ async def make_staff(admin: asyncpg.Pool, local_env: dict[str, str]) -> AsyncIte
     yield factory
     for account in created:
         await remove_account(admin, local_env, account.user_id)
+
+
+# --- synthetic lesson content (content format v1) ---------------------------------
+def sample_blocks(tag: str = "a") -> list[dict[str, object]]:
+    """Blocks that satisfy packages/contracts/content/lesson-blocks.schema.json."""
+    return [
+        {"key": "titre", "type": "heading", "text": f"Leçon synthétique {tag}"},
+        {
+            "key": "intro",
+            "type": "paragraph",
+            "text": "Contenu de test inventé, sans source externe.",
+        },
+        {
+            "key": "exemple",
+            "type": "example",
+            "title": "Exemple",
+            "steps": ["2 + 2 = 4", "4 + 1 = 5"],
+        },
+        {"key": "astuce", "type": "callout", "tone": "tip", "text": "Vérifie toujours ton calcul."},
+    ]
+
+
+def sample_question(key: str = "q1", correct: str = "b") -> dict[str, object]:
+    """One question that satisfies question-mcq.schema.json (plus question_key and kind)."""
+    return {
+        "question_key": key,
+        "kind": "mcq",
+        "prompt": {"text": "Combien font 2 + 2 ?"},
+        "response_spec": {
+            "choices": [
+                {"id": "a", "text": "3"},
+                {"id": "b", "text": "4"},
+                {"id": "c", "text": "5"},
+            ]
+        },
+        "answer_key": {"correct_choice_id": correct},
+        "explanation": {"text": "2 + 2 = 4."},
+    }
+
+
+def sample_revision_body(locale: str = "fr", tag: str = "a") -> dict[str, object]:
+    """Request body for POST /v1/staff/lessons/{lesson_id}/revisions."""
+    return {
+        "locale": locale,
+        "title": f"Leçon synthétique {tag}",
+        "blocks": sample_blocks(tag),
+        "questions": [sample_question("q1", "b"), sample_question("q2", "c")],
+    }

@@ -92,9 +92,7 @@ def create_app(
     app.include_router(me.router)
     app.include_router(catalog.router)
     app.include_router(sync.router)
-    # Documented only where the staff side is switched on, so the learner
-    # contract (packages/contracts/openapi.json) is unchanged by its existence.
-    app.include_router(staff.router, include_in_schema=staff_database is not None)
+    app.include_router(staff.router)
     app.include_router(daily_word_router)  # 404 unless EDU_DAILY_WORD_ENABLED (ruling R-01)
     app.include_router(staff_vocab_router)
     return app

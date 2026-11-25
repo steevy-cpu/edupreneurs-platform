@@ -55,7 +55,7 @@ def test_the_staff_url_must_use_asyncpg() -> None:
         make_settings(staff_database_url=SecretStr("postgresql://edu_staff_login@127.0.0.1/x"))
 
 
-async def test_a_configured_staff_side_has_its_own_pool_and_documents_its_routes() -> None:
+async def test_a_configured_staff_side_has_its_own_pool_and_an_unchanged_contract() -> None:
     settings = make_settings(staff_database_url=SecretStr(STAFF_URL), staff_db_pool_size=3)
     app = create_app(settings)
     try:
@@ -64,7 +64,9 @@ async def test_a_configured_staff_side_has_its_own_pool_and_documents_its_routes
         assert app.state.staff_db.engine.url.username == "edu_staff_login"
         assert app.state.db.engine.url.username != "edu_staff_login"
         assert app.state.staff_db.engine.pool.size() == 3  # type: ignore[attr-defined]
-        assert "/v1/staff/me" in app.openapi()["paths"]
+        # ruling R-01: registered (the integration tests call it), but not in the
+        # published contract on lane branches
+        assert not [path for path in app.openapi()["paths"] if path.startswith("/v1/staff")]
     finally:
         await app.state.db.dispose()
         await app.state.staff_db.dispose()
@@ -77,3 +79,22 @@ def test_require_staff_knows_exactly_the_four_roles() -> None:
     assert callable(require_staff())
     with pytest.raises(ValueError, match="unknown staff role"):
         require_staff("Editor")
+
+
+def test_an_exported_staff_url_does_not_change_the_published_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """scripts/export_openapi.py reads the process environment: a developer shell
+    with EDU_STAFF_DATABASE_URL exported must still produce the same openapi.json."""
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+    import export_openapi
+
+    monkeypatch.delenv("EDU_STAFF_DATABASE_URL", raising=False)
+    without = export_openapi.render()
+    monkeypatch.setenv("EDU_STAFF_DATABASE_URL", STAFF_URL)
+    assert export_openapi.render() == without
+    assert "/v1/staff" not in without
+    assert export_openapi.TARGET.read_text(encoding="utf-8") == without
