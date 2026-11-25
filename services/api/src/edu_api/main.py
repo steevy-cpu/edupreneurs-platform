@@ -19,7 +19,7 @@ from edu_api.config import Settings, get_settings
 from edu_api.db.session import Database, build_engine
 from edu_api.errors import install_error_handlers
 from edu_api.middleware import BodyLimitMiddleware, RequestIdMiddleware
-from edu_api.routers import catalog, health, me, sync
+from edu_api.routers import catalog, health, me, notifications, sync
 
 
 def create_app(
@@ -40,11 +40,17 @@ def create_app(
 
     # Creating the engine opens no connection; the first request does.
     database = Database(build_engine(settings))
+    # Lane notify: only when the flag is on; its own small pool (see config.py).
+    notify_database = (
+        notifications.build_database(settings) if settings.notifications_enabled else None
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         yield
         await database.dispose()
+        if notify_database is not None:
+            await notify_database.dispose()
         if jwks_cache is not None:
             await jwks_cache.aclose()
 
@@ -83,4 +89,7 @@ def create_app(
     app.include_router(me.router)
     app.include_router(catalog.router)
     app.include_router(sync.router)
+    if notify_database is not None:
+        app.state.notify_db = notify_database
+        app.include_router(notifications.router)
     return app

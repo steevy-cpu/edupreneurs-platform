@@ -57,6 +57,19 @@ class Settings(BaseSettings):
     pull_default_limit: int = Field(default=100, ge=1)
     pull_max_limit: int = Field(default=200, ge=1)
 
+    # --- Notifications (lane notify; policy is product decision PO-10) ---------
+    #: Off by default: the routes are not mounted at all and no extra database
+    #: pool is created. Turning it on sends NOTHING; it only lets a learner read
+    #: their own in-app list and edit their own preferences.
+    notifications_enabled: bool = False
+    #: Notification routes use their OWN small pool so that a slow or broken
+    #: `notify` schema can never use up the connections lessons and sync need.
+    notify_db_pool_size: int = Field(default=2, ge=1, le=10)
+    notify_db_pool_timeout_s: float = Field(default=1.0, gt=0)
+    notify_db_statement_timeout_ms: int = Field(default=2000, ge=100)
+    notifications_default_limit: int = Field(default=20, ge=1)
+    notifications_max_limit: int = Field(default=50, ge=1)
+
     @field_validator("auth_algorithms")
     @classmethod
     def _only_asymmetric(cls, value: tuple[str, ...]) -> tuple[str, ...]:
