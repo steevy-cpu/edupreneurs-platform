@@ -1,6 +1,6 @@
 -- billing grants: exactly-once, overlap, expiry boundary, revocation, scope
--- matching, the staff seam, audit and the erasure hook. Runs as the owner
--- (the only role that can execute these functions today).
+-- matching, the staff functions (as the staff API role), audit and the erasure
+-- hook. The internal writers run as the owner: no other role can execute them.
 BEGIN;
 SELECT * FROM no_plan();
 
@@ -110,6 +110,15 @@ SELECT is(billing.learner_is_entitled_at(:EDITOR, 'course', :COURSE, now()), tru
 SELECT is(billing.learner_is_entitled_at(:EDITOR, 'all', NULL, now()), false, 'grade grant does not cover all');
 SELECT is(billing.learner_is_entitled_at(:EDITOR, 'grade', gen_random_uuid(), now()), false, 'grade grant does not cover another grade');
 SELECT is(billing.learner_is_entitled_at(:EDITOR, 'course', gen_random_uuid(), now()), false, 'grade grant does not cover a course outside the grade');
+-- no existence probe: a draft or archived course of the SAME grade answers exactly like an unknown id
+INSERT INTO app.courses (id, grade_id, subject_id, slug, titles, visibility)
+SELECT x.id, c.grade_id, c.subject_id, x.slug, '{"fr":"Cours synthetique"}', x.visibility
+FROM app.courses c, (VALUES ('b0000000-0000-4000-8000-0000000000d1'::uuid, 'probe-draft', 'draft'),
+                            ('b0000000-0000-4000-8000-0000000000d2'::uuid, 'probe-archived', 'archived')) AS x(id, slug, visibility)
+WHERE c.id = :COURSE;
+SELECT is(billing.learner_is_entitled_at(:EDITOR, 'course', 'b0000000-0000-4000-8000-0000000000d1', now()), false, 'grade grant: a DRAFT course of the grade answers false, like an unknown id');
+SELECT is(billing.learner_is_entitled_at(:EDITOR, 'course', 'b0000000-0000-4000-8000-0000000000d2', now()), false, 'grade grant: an ARCHIVED course of the grade answers false, like an unknown id');
+SELECT is(billing.learner_is_entitled_at(:ADMIN, 'course', 'b0000000-0000-4000-8000-0000000000d1', now()), false, 'a course grant elsewhere: the same false for the draft course');
 SELECT is(billing.learner_is_entitled_at(:ADMIN, 'course', :COURSE, now()), true, 'course grant covers its course');
 SELECT is(billing.learner_is_entitled_at(:ADMIN, 'grade', :GRADE, now()), false, 'course grant does not cover the whole grade');
 SELECT is(billing.learner_is_entitled_at(:ADMIN, 'all', NULL, now()), false, 'course grant does not cover all');
@@ -126,57 +135,96 @@ SELECT set_config('edu.actor_id', '', true);
 SELECT is(billing.is_entitled(), false, 'is_entitled: no actor, not entitled');
 
 -- ============================================================================
--- Staff grant / revoke through the marked seam (role admin; audited)
+-- Staff grant / revoke / list: role admin, as the staff API role, audited
 -- ============================================================================
+-- Run one statement AS THE STAFF API ROLE with the given actor. Returns the
+-- first column of the first row as text, or 'ERROR:<sqlstate>'.
+GRANT edu_staff TO postgres WITH INHERIT FALSE, SET TRUE;
+CREATE FUNCTION pg_temp.as_staff(p_actor uuid, p_sql text) RETURNS text
+LANGUAGE plpgsql AS $fn$
+DECLARE v_out text;
+BEGIN
+    PERFORM set_config('edu.actor_id', COALESCE(p_actor::text, ''), true);
+    EXECUTE 'SET LOCAL ROLE edu_staff';
+    BEGIN
+        EXECUTE p_sql INTO v_out;
+    EXCEPTION WHEN OTHERS THEN
+        v_out := 'ERROR:' || SQLSTATE;
+    END;
+    EXECUTE 'RESET ROLE';
+    PERFORM set_config('edu.actor_id', '', true);
+    RETURN v_out;
+END;
+$fn$;
 -- The seed has an editor and a reviewer but no admin. The reviewer is made an
 -- admin inside this transaction only.
 INSERT INTO app.staff_roles (user_id, role) VALUES (:ADMIN, 'admin');
 SELECT is((SELECT count(*)::int FROM app.audit_events), 0, 'no audit record exists before the first staff action');
 
-SELECT throws_ok($$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000002', 'all', NULL, 30, 'gift', 'no actor', 'staff-key-0000')$$, '42501', 'No verified actor in this transaction', 'no actor: staff grant refused');
-SELECT set_config('edu.actor_id', :A, true);
-SELECT throws_ok($$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, 30, 'gift', 'self service', 'staff-key-0001')$$, '42501', 'Staff role required', 'a learner cannot staff-grant');
-SELECT set_config('edu.actor_id', :EDITOR, true);
-SELECT throws_ok($$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000002', 'all', NULL, 30, 'gift', 'editor is not admin', 'staff-key-0002')$$, '42501', 'Staff role required', 'an editor (not admin) cannot staff-grant');
-SELECT throws_ok($$SELECT billing.staff_list_entitlements('a0000000-0000-4000-8000-000000000002')$$, '42501', 'Staff role required', 'an editor cannot list a learner''s grants');
+SELECT is(pg_temp.as_staff(NULL, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000002', 'all', NULL, 30, 'gift', 'goodwill', 'staff-key-0000')$$), 'ERROR:42501', 'no actor: staff grant refused');
+SELECT is(pg_temp.as_staff(:A::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, 30, 'gift', 'goodwill', 'staff-key-0001')$$), 'ERROR:42501', 'a learner cannot staff-grant, even on the staff connection');
+SELECT is(pg_temp.as_staff(:EDITOR::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000002', 'all', NULL, 30, 'gift', 'goodwill', 'staff-key-0002')$$), 'ERROR:42501', 'an editor (not admin) cannot staff-grant');
+SELECT is(pg_temp.as_staff(:EDITOR::uuid, $$SELECT billing.staff_list_entitlements('a0000000-0000-4000-8000-000000000002')$$), 'ERROR:42501', 'an editor cannot list a learner''s grants');
+SELECT is(pg_temp.as_staff(:EDITOR::uuid, format($$SELECT billing.staff_revoke_entitlement(%L, 'correction')$$, (SELECT id FROM billing.entitlements WHERE idempotency_key = 'grant-key-0001'))), 'ERROR:42501', 'an editor cannot revoke');
 UPDATE app.staff_roles SET is_active = false WHERE user_id = :ADMIN AND role = 'admin';
-SELECT set_config('edu.actor_id', :ADMIN, true);
-SELECT throws_ok($$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000002', 'all', NULL, 30, 'gift', 'inactive admin', 'staff-key-0003')$$, '42501', 'Staff role required', 'an INACTIVE admin role does not count');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000002', 'all', NULL, 30, 'gift', 'goodwill', 'staff-key-0003')$$), 'ERROR:42501', 'an INACTIVE admin role does not count');
 UPDATE app.staff_roles SET is_active = true WHERE user_id = :ADMIN AND role = 'admin';
 SELECT is((SELECT count(*)::int FROM billing.entitlements WHERE idempotency_key LIKE 'staff-key-%'), 0, 'refused staff grants created nothing');
+SELECT is((SELECT count(*)::int FROM billing.entitlement_revocations WHERE reason_code = 'staff_revoke' AND source_ref LIKE 'staff:%'), 0, 'the refused revocation revoked nothing');
 
-SELECT is(billing.staff_grant_entitlement(:A, 'grade', :GRADE, 30, 'school_licence', '  Synthetic school licence for the pilot class  ', 'staff-key-0010') ->> 'status', 'granted', 'an admin grants');
+-- the staff role reaches billing ONLY through the three functions
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, 'SELECT count(*) FROM billing.entitlements'), 'ERROR:42501', 'edu_staff (even an admin) cannot read the grants table');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, 'SELECT count(*) FROM billing.orders'), 'ERROR:42501', 'edu_staff cannot read orders');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, 'SELECT count(*) FROM billing.provider_events'), 'ERROR:42501', 'edu_staff cannot read provider events');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$INSERT INTO billing.entitlements (learner_id, scope_kind, starts_at, ends_at, source, idempotency_key) VALUES ('a0000000-0000-4000-8000-000000000002', 'all', now(), now() + interval '10 years', 'gift', 'staff-direct-insert') RETURNING 1$$), 'ERROR:42501', 'edu_staff cannot insert a grant around the function');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$UPDATE billing.entitlements SET ends_at = ends_at + interval '1 year' RETURNING 1$$), 'ERROR:42501', 'edu_staff cannot extend a grant by editing it');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.grant_entitlement('a0000000-0000-4000-8000-000000000002', 'all', NULL, now(), now() + interval '3000 days', 'purchase', NULL, 'staff-internal-writer', NULL)$$), 'ERROR:42501', 'edu_staff cannot call the internal writer (no unaudited, unbounded grant)');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, format($$SELECT billing.revoke_entitlement(%L, 'staff_revoke', NULL)$$, (SELECT id FROM billing.entitlements WHERE idempotency_key = 'grant-key-0001'))), 'ERROR:42501', 'edu_staff cannot call the internal revoker (no unaudited revocation)');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.apply_provider_event('mock', 'evt-by-staff', 'payment.succeeded', '{}')$$), 'ERROR:42501', 'edu_staff cannot apply a provider event');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.create_order('synthetic-all-30', 'HTG', 'mock', 'order-by-staff-1')$$), 'ERROR:42501', 'edu_staff cannot create an order');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.erase_learner('a0000000-0000-4000-8000-000000000002')$$), 'ERROR:42501', 'edu_staff cannot run the erasure hook');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, 'SELECT billing.is_entitled()'), 'ERROR:42501', 'edu_staff cannot call the learner-facing reader');
+SELECT is((SELECT count(*)::int FROM app.audit_events), 0, 'none of the refused attempts wrote an audit row inside this transaction');
+
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'grade', 'b0000000-0000-4000-8000-000000000001', 30, 'school_licence', 'school_agreement', 'staff-key-0010') ->> 'status'$$), 'granted', 'an admin grants');
 SELECT is((SELECT granted_by FROM billing.entitlements WHERE idempotency_key = 'staff-key-0010'), :ADMIN::uuid, 'the grant records WHO granted, taken from the verified actor');
+SELECT is((SELECT source_ref FROM billing.entitlements WHERE idempotency_key = 'staff-key-0010'), 'staff:school_agreement', 'the grant records the reason code');
 SELECT is((SELECT ends_at - starts_at FROM billing.entitlements WHERE idempotency_key = 'staff-key-0010'), interval '720 hours', 'a staff grant lasts days x 24 hours exactly');
 SELECT is((SELECT starts_at FROM billing.entitlements WHERE idempotency_key = 'staff-key-0010'), now(), 'a staff grant starts on the server clock by default');
-SELECT is((SELECT actor_id::text || '|' || actor_kind || '|' || action || '|' || target_kind || '|' || outcome FROM app.audit_events WHERE target_id = (SELECT id FROM billing.entitlements WHERE idempotency_key = 'staff-key-0010')),
-          'a0000000-0000-4000-8000-000000000004|staff|billing.entitlement.grant|billing_entitlement|allowed', 'the grant is audited with actor, kind, action and outcome');
-SELECT is((SELECT details ->> 'reason' FROM app.audit_events WHERE action = 'billing.entitlement.grant'), 'Synthetic school licence for the pilot class', 'the audit record carries the trimmed reason');
-SELECT is(billing.staff_grant_entitlement(:A, 'grade', :GRADE, 30, 'school_licence', 'retry of the same request', 'staff-key-0010') ->> 'replayed', 'true', 'the same staff request again is a replay');
+SELECT is((SELECT actor_id::text || '|' || action || '|' || target_kind || '|' || outcome FROM app.audit_events WHERE target_id = (SELECT id FROM billing.entitlements WHERE idempotency_key = 'staff-key-0010')),
+          'a0000000-0000-4000-8000-000000000004|billing.entitlement.grant|billing_entitlement|allowed', 'the grant is audited with actor, action, target and outcome');
+SELECT is((SELECT details FROM app.audit_events WHERE action = 'billing.entitlement.grant'),
+          '{"status":"granted","replayed":false,"learner_id":"a0000000-0000-4000-8000-000000000001","scope_kind":"grade","scope_id":"b0000000-0000-4000-8000-000000000001","duration_days":30,"source":"school_licence","reason_code":"school_agreement"}'::jsonb,
+          'the audit details are ids, codes and numbers only: no free text, no idempotency key');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'grade', 'b0000000-0000-4000-8000-000000000001', 30, 'school_licence', 'school_agreement', 'staff-key-0010') ->> 'replayed'$$), 'true', 'the same staff request again is a replay');
 SELECT is((SELECT count(*)::int FROM billing.entitlements WHERE idempotency_key = 'staff-key-0010'), 1, '... one grant row');
 SELECT is((SELECT count(*)::int FROM app.audit_events WHERE action = 'billing.entitlement.grant'), 2, '... and the retry is audited too');
-SELECT is(billing.staff_grant_entitlement(:A, 'grade', :GRADE, 300, 'school_licence', 'try to extend by reusing the key', 'staff-key-0010') ->> 'status', 'conflict', 'reusing the key with a longer duration is a conflict');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'grade', 'b0000000-0000-4000-8000-000000000001', 300, 'school_licence', 'school_agreement', 'staff-key-0010') ->> 'status'$$), 'conflict', 'reusing the key with a longer duration is a conflict');
 SELECT is((SELECT outcome FROM app.audit_events WHERE action = 'billing.entitlement.grant' AND details ->> 'status' = 'conflict'), 'denied', '... audited as denied');
 
-SELECT throws_ok($$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, 30, 'purchase', 'pretend purchase', 'staff-key-0011')$$, '22023', NULL, 'staff cannot create a purchase grant');
-SELECT throws_ok($$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, 0, 'gift', 'zero days', 'staff-key-0012')$$, '22023', NULL, 'zero days refused');
-SELECT throws_ok($$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, 367, 'gift', 'more than a year', 'staff-key-0013')$$, '22023', NULL, 'more than 366 days per staff grant refused');
-SELECT throws_ok($$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, 30, 'gift', '  x ', 'staff-key-0014')$$, '22023', NULL, 'a reason is required');
-SELECT throws_ok($$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000004', 'all', NULL, 30, 'gift', 'for myself', 'staff-key-0015')$$, '42501', 'Staff cannot grant an entitlement to themselves', 'an admin cannot grant to themselves');
-SELECT throws_ok($$SELECT billing.staff_grant_entitlement(gen_random_uuid(), 'all', NULL, 30, 'gift', 'nobody', 'staff-key-0016')$$, '22023', 'Unknown learner', 'unknown learner refused');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, 30, 'purchase', 'goodwill', 'staff-key-0011')$$), 'ERROR:22023', 'staff cannot create a purchase grant');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, 0, 'gift', 'goodwill', 'staff-key-0012')$$), 'ERROR:22023', 'zero days refused');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, 367, 'gift', 'goodwill', 'staff-key-0013')$$), 'ERROR:22023', 'more than 366 days per staff grant refused');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, 30, 'gift', 'Because the learner asked nicely', 'staff-key-0014')$$), 'ERROR:22023', 'a free-text reason is refused: only reason codes');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, 30, 'gift', NULL, 'staff-key-0014')$$), 'ERROR:22023', 'a reason code is required');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000004', 'all', NULL, 30, 'gift', 'goodwill', 'staff-key-0015')$$), 'ERROR:42501', 'an admin cannot grant to themselves');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.staff_grant_entitlement(gen_random_uuid(), 'all', NULL, 30, 'gift', 'goodwill', 'staff-key-0016')$$), 'ERROR:22023', 'unknown learner refused');
+SELECT is((SELECT count(*)::int FROM billing.entitlements WHERE idempotency_key LIKE 'staff-key-%'), 1, 'refused requests created no grant');
 
-SELECT is(billing.staff_revoke_entitlement((SELECT id FROM billing.entitlements WHERE idempotency_key = 'staff-key-0010'), 'Granted to the wrong synthetic account') ->> 'status', 'revoked', 'an admin revokes');
-SELECT is((SELECT revoked_by::text || '|' || reason_code FROM billing.entitlement_revocations WHERE entitlement_id = (SELECT id FROM billing.entitlements WHERE idempotency_key = 'staff-key-0010')),
-          'a0000000-0000-4000-8000-000000000004|staff_revoke', 'the revocation records who and why');
-SELECT is((SELECT count(*)::int FROM app.audit_events WHERE action = 'billing.entitlement.revoke' AND outcome = 'allowed' AND actor_kind = 'staff'), 1, 'the revocation is audited');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, format($$SELECT billing.staff_revoke_entitlement(%L, 'granted_in_error') ->> 'status'$$, (SELECT id FROM billing.entitlements WHERE idempotency_key = 'staff-key-0010'))), 'revoked', 'an admin revokes');
+SELECT is((SELECT revoked_by::text || '|' || reason_code || '|' || source_ref FROM billing.entitlement_revocations WHERE entitlement_id = (SELECT id FROM billing.entitlements WHERE idempotency_key = 'staff-key-0010')),
+          'a0000000-0000-4000-8000-000000000004|staff_revoke|staff:granted_in_error', 'the revocation records who and why (a code)');
+SELECT is((SELECT details FROM app.audit_events WHERE action = 'billing.entitlement.revoke' AND outcome = 'allowed'),
+          '{"replayed":false,"reason_code":"granted_in_error"}'::jsonb, 'the revocation is audited, with a code only');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, format($$SELECT billing.staff_revoke_entitlement(%L, 'duplicate') ->> 'replayed'$$, (SELECT id FROM billing.entitlements WHERE idempotency_key = 'staff-key-0010'))), 'true', 'revoking again is a replay');
 SELECT is(billing.learner_is_entitled_at(:A, 'grade', :GRADE, now()), true, 'A still has access through the separate all grant: revoking one grant leaves the others');
-SELECT throws_ok($$SELECT billing.staff_revoke_entitlement(gen_random_uuid(), 'no such grant')$$, 'P0002', NULL, 'revoking an unknown grant is refused');
-SELECT throws_ok(format($$SELECT billing.staff_revoke_entitlement(%L, NULL)$$, (SELECT id FROM billing.entitlements WHERE idempotency_key = 'grant-key-0001')), '22023', NULL, 'a revocation reason is required');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.staff_revoke_entitlement(gen_random_uuid(), 'correction')$$), 'ERROR:P0002', 'revoking an unknown grant is refused');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, format($$SELECT billing.staff_revoke_entitlement(%L, 'he was rude')$$, (SELECT id FROM billing.entitlements WHERE idempotency_key = 'grant-key-0001'))), 'ERROR:22023', 'a free-text revocation reason is refused');
 
-SELECT is(jsonb_array_length(billing.staff_list_entitlements(:B)), 3, 'an admin lists every grant of a learner');
-SELECT is((SELECT string_agg(x ->> 'state', ',' ORDER BY x ->> 'state') FROM jsonb_array_elements(billing.staff_list_entitlements(:B)) x), 'active,revoked,scheduled', 'each grant carries its state now');
-SELECT is((SELECT count(*)::int FROM app.audit_events WHERE action = 'billing.entitlement.list' AND target_id = :B), 2, 'reading a learner''s grants is audited');
-SELECT set_config('edu.actor_id', '', true);
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT jsonb_array_length(billing.staff_list_entitlements('a0000000-0000-4000-8000-000000000002'))$$), '3', 'an admin lists every grant of a learner');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT string_agg(x ->> 'state', ',' ORDER BY x ->> 'state') FROM jsonb_array_elements(billing.staff_list_entitlements('a0000000-0000-4000-8000-000000000002')) x$$), 'active,revoked,scheduled', 'each grant carries its state now');
+SELECT is((SELECT count(*)::int FROM app.audit_events WHERE action = 'billing.entitlement.list' AND target_kind = 'learner' AND target_id = :B AND details = '{"count":3}'), 2, 'reading a learner''s grants is audited');
+SELECT is((SELECT count(*)::int FROM app.audit_events WHERE actor_id IS DISTINCT FROM :ADMIN::uuid), 0, 'every audit row of this section is attributed to the acting admin');
 
 -- ============================================================================
 -- Erasure hook

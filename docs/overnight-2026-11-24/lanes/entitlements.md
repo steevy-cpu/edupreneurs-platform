@@ -7,6 +7,94 @@ synthetic accounts. Nothing here was deployed, linked to a hosted project, or ru
 **There is no paywall.** No lesson, catalogue or sync code path reads `billing`. No payment provider
 is contacted, no provider SDK is installed, no price has been decided.
 
+## 0. Update — rulings R-01, R-03 and staff wiring (this section supersedes what it contradicts below)
+
+Applied after the first report; sections 3, 4, 9 and 10 below were written before it.
+
+- **R-01.** Both routers are always registered and stay out of the OpenAPI document through one
+  module constant each (`INCLUDE_IN_SCHEMA = False` in `routers/entitlements.py` and
+  `routers/staff_billing.py`). While `EDU_ENTITLEMENTS_ENABLED` is off every lane route answers the
+  standard `404 not_found`, with or without a token. `openapi.json` and `schema.d.ts` are unchanged.
+  A test flips the constants and checks bearer security and the single error shape on all four operations.
+- **R-03.** All 14 `billing` functions pin `search_path = pg_catalog, pg_temp` (pinned by the
+  structure test). Staff reasons are **enum codes**; no free text is accepted, stored or audited.
+- **Staff wiring (B1 merged, `5d6ae47`).** The seam functions are gone: `billing.staff_*` call
+  `staff.require_role('admin')` and `ops.audit_write` directly, and `edu_staff` holds `USAGE` on the
+  schema and `EXECUTE` on exactly those three functions — no table privilege. Because the staff
+  migration sorts before this lane's, the wiring was done by editing the two unmerged migrations in
+  place; **there is no `20261124070300` migration**.
+- **Probe closed.** A grade grant resolves a course to its grade only if the course is published, so
+  `billing.is_entitled('course', id)` answers `false` alike for an unknown id, a draft or archived
+  course and a course the learner is not entitled to.
+
+### Staff routes (`/v1/staff/billing`, role `admin`, staff pool `edu_staff_login`)
+
+Common errors: `401 unauthenticated`; `403 forbidden` (not staff, staff without `admin`, deactivated
+role, or a self-grant — refusals at the gate are written as `staff.access` / `denied` by
+`require_staff` in their own transaction); `404 not_found` (flag off); `422 validation_error`;
+`503 staff_unavailable` (no staff database configured) / `dependency_unavailable` /
+`entitlements_unavailable`.
+
+**`POST /v1/staff/billing/grants`**
+
+```json
+{"learner_id": "a0000000-0000-4000-8000-000000000001",
+ "scope": {"kind": "grade", "id": "b0000000-0000-4000-8000-000000000001"},
+ "duration_days": 90, "source": "school_licence", "reason_code": "school_agreement",
+ "idempotency_key": "school-2026-class-9a-0001"}
+```
+
+`200`:
+
+```json
+{"entitlement_id": "0b9f2f4e-5f2b-4c1e-9a57-1d6c0e8a4f10", "replayed": false,
+ "starts_at": "2026-11-24T05:00:00Z", "ends_at": "2027-02-22T05:00:00Z"}
+```
+
+- `source` ∈ `gift | promo | school_licence | trial | staff_grant | migration` (never `purchase`);
+  `reason_code` ∈ `goodwill | promotion | school_agreement | trial | migration | correction`;
+  `duration_days` 1–366; `idempotency_key` 8–200 characters of `[A-Za-z0-9_.:-]`; unknown fields
+  are refused (no `starts_at`, `ends_at`, `granted_by`, note or amount can be sent).
+- Same key + same request → `200` with the original grant and `replayed: true` (also for another
+  admin, and under 10 simultaneous submissions). Same key + different learner, scope, source or
+  duration → `409 idempotency_key_conflict`, nothing written, audited as `denied`.
+- Unknown learner, grade or course → `422 invalid_entitlement_request`.
+
+**`POST /v1/staff/billing/grants/{entitlement_id}/revoke`** — body `{"reason_code": "granted_in_error"}`
+with `reason_code` ∈ `granted_in_error | duplicate | misuse | learner_request | correction`. `200`:
+`{"entitlement_id": "…", "replayed": false, "revoked_at": "2026-11-24T05:10:00Z"}`. Revoking again
+returns the first revocation with `replayed: true`. Unknown id → `404 entitlement_not_found`.
+
+**`GET /v1/staff/billing/learners/{learner_id}/grants`** — `200`:
+
+```json
+{"learner_id": "a0000000-0000-4000-8000-000000000001",
+ "grants": [{"id": "0b9f2f4e-5f2b-4c1e-9a57-1d6c0e8a4f10",
+             "scope": {"kind": "all", "id": null},
+             "starts_at": "2026-11-24T05:00:00Z", "ends_at": "2026-12-24T05:00:00Z",
+             "source": "gift", "state": "revoked", "order_id": null,
+             "granted_by": "a0000000-0000-4000-8000-000000000004",
+             "created_at": "2026-11-24T05:00:00Z",
+             "revoked_at": "2026-11-24T05:10:00Z", "revocation_reason": "staff_revoke"}]}
+```
+
+`state` ∈ `active | scheduled | expired | revoked`; oldest first; an unknown learner gives an empty list.
+
+Audit rows (`actor_kind = staff`, actor = the verified admin): `billing.entitlement.grant`
+(details: `status, replayed, learner_id, scope_kind, scope_id, duration_days, source, reason_code`),
+`billing.entitlement.revoke` (`replayed, reason_code`), `billing.entitlement.list` (`count`).
+Provider events: `billing.provider_event.entitlement_granted|order_refunded`
+(`provider, provider_event_row, entitlement_id, plan_code, amount_minor, currency`). The
+idempotency key and anything typed by a person are never audited.
+
+Gaps closed by this update: denied staff attempts are now audited (at the HTTP gate), and the
+course-existence probe. Still open: a call refused *inside* the function after passing the gate
+(self-grant, unknown learner) rolls back and leaves no audit row.
+
+Last full run (`/Volumes/EdupreneursDev/logs/overnight-2026-11-24/tmp/entitlements/gate-3.log`, exit 0):
+pgTAP 745 passed / 0 failed, before and after pytest; pytest 367 passed / 0 failed; lint, mypy and
+`export_openapi.py --check` pass.
+
 ## 1. What exists
 
 | Piece | Where | State |
@@ -15,10 +103,10 @@ is contacted, no provider SDK is installed, no price has been decided.
 | Functions, policies, grants, staff seam | `supabase/migrations/20261124070200_billing_functions.sql` | tested (pgTAP 220–223) |
 | `GET /v1/entitlements` (flag `EDU_ENTITLEMENTS_ENABLED`, default **off**) | `services/api/src/edu_api/routers/entitlements.py`, `edu_api/billing/` | tested through the real API with real local Auth tokens |
 | Simulated provider (pure, in-process) | `services/api/src/edu_api/billing/mock_provider.py` | unit + integration tested |
-| Staff grant / revoke / list | `billing.staff_*` SQL functions | tested at SQL level; **EXECUTE granted to nobody**; no HTTP route yet |
+| Staff grant / revoke / list | `billing.staff_*` + `routers/staff_billing.py` | tested at SQL level and through HTTP as `edu_staff_login` |
 | Offline lease | section 6 of this file | **specification only — nothing implemented** |
 
-Not built: HTTP staff routes (`/v1/staff/billing`, waits for the staff lane's B1), checkout, any
+Not built: checkout, any
 real provider, entitlement-aware catalogue or pack download, lease signing or verification.
 
 ## 2. Model

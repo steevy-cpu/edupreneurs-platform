@@ -112,6 +112,9 @@ SELECT is((SELECT learner_id::text || '|' || scope_kind || '|' || source || '|' 
 SELECT is((SELECT starts_at FROM billing.entitlements WHERE order_id = :'o1'), now(), 'the grant starts on the server clock');
 SELECT is(billing.learner_is_entitled_at(:A, 'all', NULL, now()), true, 'the learner is entitled');
 SELECT is((SELECT actor_kind || '|' || action || '|' || outcome FROM app.audit_events WHERE target_id = :'o1'), 'system|billing.provider_event.entitlement_granted|allowed', 'the access change is audited as a system action');
+SELECT is((SELECT details - 'provider_event_row' - 'entitlement_id' FROM app.audit_events WHERE target_id = :'o1'),
+          '{"provider":"mock","plan_code":"synthetic-all-30","amount_minor":50000,"currency":"HTG"}'::jsonb,
+          'the audit details carry the provider, plan code and amount in minor units: no raw payload, no free text');
 
 -- duplicate delivery of the same message
 SELECT is(billing.apply_provider_event('mock', 'evt-pay-1', 'payment.succeeded', pg_temp.msg(:'o1', 50000, 'HTG', 'synthetic-all-30')) ->> 'replayed', 'true', 'the same message again is a replay');

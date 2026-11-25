@@ -27,6 +27,7 @@ from fastapi import FastAPI
 from edu_api.billing.mock_provider import MockProvider
 from edu_api.main import create_app
 from tests.conftest import build_settings
+from tests.staff_fixtures import build_staff_settings, dispose_app
 
 BILLING_TABLES = (
     "billing.refunds, billing.entitlement_revocations, billing.entitlements, "
@@ -60,7 +61,21 @@ async def entitlements_app(local_env: dict[str, str], **overrides: Any) -> Async
     try:
         yield application
     finally:
-        await application.state.db.dispose()
+        await dispose_app(application)
+
+
+@asynccontextmanager
+async def entitlements_staff_app(
+    local_env: dict[str, str], **overrides: Any
+) -> AsyncIterator[FastAPI]:
+    """The API with the flag on AND the staff side configured (edu_staff_login pool)."""
+    application = create_app(
+        build_staff_settings(local_env, entitlements_enabled=True, **overrides)
+    )
+    try:
+        yield application
+    finally:
+        await dispose_app(application)
 
 
 @asynccontextmanager
@@ -73,6 +88,18 @@ async def http(application: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
 @pytest.fixture
 async def billing_client(local_env: dict[str, str]) -> AsyncIterator[httpx.AsyncClient]:
     async with entitlements_app(local_env) as application, http(application) as client:
+        yield client
+
+
+@pytest.fixture
+async def billing_staff_app(local_env: dict[str, str]) -> AsyncIterator[FastAPI]:
+    async with entitlements_staff_app(local_env) as application:
+        yield application
+
+
+@pytest.fixture
+async def billing_staff_client(billing_staff_app: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
+    async with http(billing_staff_app) as client:
         yield client
 
 

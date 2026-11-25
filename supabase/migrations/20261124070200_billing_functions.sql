@@ -4,9 +4,13 @@
 --   edu_api (the student API)   USAGE on the schema; SELECT on a few columns of
 --                               its OWN grants and their revocations (RLS);
 --                               EXECUTE on billing.is_entitled(). Nothing else.
---   everyone else               nothing. Every function that can create, extend
---                               or revoke a grant, create an order or apply a
---                               provider event has EXECUTE granted to NOBODY.
+--   edu_staff (the staff API)   USAGE on the schema; EXECUTE on the three
+--                               billing.staff_* functions (role `admin`, checked
+--                               again inside each one, every call audited).
+--                               No table privilege at all.
+--   everyone else               nothing. The internal writers, the order and
+--                               provider-event functions and the erasure hook
+--                               have EXECUTE granted to NOBODY.
 --
 -- "No client request can create or extend a grant" (Platform-06 gate) is
 -- therefore a privilege fact, not an API convention: the role the student API
@@ -14,74 +18,18 @@
 -- function that writes.
 --
 -- All functions follow the overnight plan §3 pattern: owned by postgres,
--- SECURITY DEFINER where they must see or write rows, SET search_path = '',
--- schema-qualified SQL, bounded inputs, no dynamic SQL, and the acting person is
--- always app.current_actor_id() — never a parameter.
-
--- ============================================================================
--- >>> STAFF SEAM — the ONLY two places that know how staff are recognised and
--- >>> how an audit record is written. The staff lane's shared interface
--- >>> (staff.require_role / ops.audit_write) does not exist in this database
--- >>> yet. When it is merged, a follow-up migration in this lane's block
--- >>> replaces the two BODIES below with
--- >>>     RETURN staff.require_role(VARIADIC p_roles);
--- >>>     PERFORM ops.audit_write(p_action, p_target_kind, p_target_id, p_outcome, p_details);
--- >>> and grants EXECUTE on the billing.staff_* functions to edu_staff.
--- >>> Nothing else in this file changes.
--- ============================================================================
-
--- Seam 1 of 2: returns the verified actor if they hold one of the roles, else
--- raises 42501. Same contract as staff.require_role(VARIADIC text[]).
-CREATE FUNCTION billing._require_staff(VARIADIC p_roles text[])
-RETURNS uuid
-LANGUAGE plpgsql STABLE SECURITY DEFINER
-SET search_path = ''
-AS $$
-DECLARE
-    v_actor uuid := app.current_actor_id();
-BEGIN
-    IF v_actor IS NULL THEN
-        RAISE EXCEPTION 'No verified actor in this transaction' USING ERRCODE = '42501';
-    END IF;
-    IF p_roles IS NULL OR cardinality(p_roles) = 0 OR NOT EXISTS (
-        SELECT 1 FROM app.staff_roles s
-        WHERE s.user_id = v_actor AND s.is_active AND s.role = ANY (p_roles)
-    ) THEN
-        RAISE EXCEPTION 'Staff role required' USING ERRCODE = '42501';
-    END IF;
-    RETURN v_actor;
-END;
-$$;
-
--- Seam 2 of 2: one audit record. Same parameters as ops.audit_write(). Until
--- that exists, this writes app.audit_events directly as the function owner
--- (the existing append-only trigger on that table still applies).
-CREATE FUNCTION billing._audit(
-    p_action text,
-    p_target_kind text,
-    p_target_id uuid,
-    p_outcome text,
-    p_details jsonb DEFAULT '{}'::jsonb
-)
-RETURNS void
-LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
-AS $$
-DECLARE
-    v_actor uuid := app.current_actor_id();
-    v_kind text;
-BEGIN
-    v_kind := CASE
-        WHEN v_actor IS NULL THEN 'system'
-        WHEN EXISTS (SELECT 1 FROM app.staff_roles s WHERE s.user_id = v_actor AND s.is_active) THEN 'staff'
-        ELSE 'user'
-    END;
-    INSERT INTO app.audit_events (actor_id, actor_kind, action, target_kind, target_id, outcome, details)
-    VALUES (v_actor, v_kind, p_action, p_target_kind, p_target_id, p_outcome,
-            COALESCE(p_details, '{}'::jsonb));
-END;
-$$;
--- <<< END OF STAFF SEAM
+-- SECURITY DEFINER where they must see or write rows, schema-qualified SQL,
+-- bounded inputs, no dynamic SQL, and the acting person is always
+-- app.current_actor_id() — never a parameter.
+-- Ruling R-03: every function pins `search_path = pg_catalog, pg_temp` (the
+-- temporary schema explicitly LAST, so a session's temporary objects can never
+-- shadow a catalog type or function); every non-catalog object is qualified.
+--
+-- Staff and audit come from the shared platform interface (staff lane, B1):
+-- staff.require_role(...) raises 42501 unless the verified actor holds the
+-- role; ops.audit_write(...) records the action. Audit details carry ids, enum
+-- codes and numbers only — never free text (ruling R-03 item 3), which is why a
+-- staff action takes a reason CODE and not a sentence.
 
 -- ============================================================================
 -- Guards (triggers): history cannot be rewritten, even by the owner by mistake
@@ -90,7 +38,7 @@ $$;
 -- transaction-local marker `billing.erasing`. The marker gives nothing to a
 -- role without write privileges (and no role but the owner has any).
 CREATE FUNCTION billing.guard_grant_history()
-RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $$
+RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
     IF TG_OP = 'DELETE' AND current_setting('billing.erasing', true) = 'on' THEN
         RETURN OLD;
@@ -106,7 +54,7 @@ CREATE TRIGGER no_edit_revocations BEFORE UPDATE OR DELETE ON billing.entitlemen
 -- A provider event is written once. Erasure may blank its raw payload (which
 -- can carry personal data such as a payer's phone number) and nothing else.
 CREATE FUNCTION billing.guard_provider_event()
-RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $$
+RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
     IF TG_OP = 'UPDATE' AND current_setting('billing.erasing', true) = 'on'
        AND NEW.payload = '{}'::jsonb AND NEW.payload_erased_at IS NOT NULL
@@ -121,7 +69,7 @@ CREATE TRIGGER no_edit_provider_events BEFORE UPDATE OR DELETE ON billing.provid
     FOR EACH ROW EXECUTE FUNCTION billing.guard_provider_event();
 
 CREATE FUNCTION billing.guard_refund()
-RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $$
+RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
     RAISE EXCEPTION 'Refund records are append-only';
 END;
@@ -132,7 +80,7 @@ CREATE TRIGGER no_edit_refunds BEFORE UPDATE OR DELETE ON billing.refunds
 -- An order's money facts never change; its state only moves forward; the
 -- learner link can only be removed, and only by erasure.
 CREATE FUNCTION billing.guard_order()
-RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $$
+RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
     IF TG_OP = 'DELETE' THEN
         RAISE EXCEPTION 'Orders are never deleted';
@@ -163,7 +111,7 @@ CREATE TRIGGER guard_order BEFORE UPDATE OR DELETE ON billing.orders
 -- ============================================================================
 -- Scope matching:
 --   a grant for 'all'      covers every request;
---   a grant for a grade    covers that grade and every course of that grade;
+--   a grant for a grade    covers that grade and every PUBLISHED course of it;
 --   a grant for a course   covers that course only.
 -- A request for 'all' is satisfied only by an 'all' grant.
 -- Internal (EXECUTE: nobody). The time is a parameter so that the boundary
@@ -176,7 +124,7 @@ CREATE FUNCTION billing.learner_is_entitled_at(
 )
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
     SELECT p_learner_id IS NOT NULL AND p_at IS NOT NULL AND COALESCE(
         (p_scope_kind = 'all' AND p_scope_id IS NULL)
@@ -193,8 +141,12 @@ AS $$
               e.scope_kind = 'all'
               OR (p_scope_kind = 'grade' AND e.scope_kind = 'grade' AND e.scope_grade_id = p_scope_id)
               OR (p_scope_kind = 'course' AND e.scope_kind = 'course' AND e.scope_course_id = p_scope_id)
+              -- Only a PUBLISHED course is resolved to its grade, so the answer is the
+              -- same (false) for an unknown id, an unpublished course and a course of
+              -- another grade: the function cannot be used to probe for drafts.
               OR (p_scope_kind = 'course' AND e.scope_kind = 'grade' AND e.scope_grade_id = (
-                      SELECT c.grade_id FROM app.courses c WHERE c.id = p_scope_id))
+                      SELECT c.grade_id FROM app.courses c
+                      WHERE c.id = p_scope_id AND c.visibility = 'published'))
           )
     )
 $$;
@@ -205,7 +157,7 @@ $$;
 CREATE FUNCTION billing.is_entitled(p_scope_kind text DEFAULT 'all', p_scope_id uuid DEFAULT NULL)
 RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
     SELECT billing.learner_is_entitled_at(app.current_actor_id(), p_scope_kind, p_scope_id, now())
 $$;
@@ -232,7 +184,7 @@ CREATE FUNCTION billing.grant_entitlement(
 )
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_grade uuid;
@@ -318,7 +270,7 @@ CREATE FUNCTION billing.revoke_entitlement(
 )
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_id uuid;
@@ -352,34 +304,37 @@ END;
 $$;
 
 -- ============================================================================
--- Staff actions (role `admin`, audited). EXECUTE: NOBODY until the staff
--- boundary is merged — see the STAFF SEAM above.
+-- Staff actions (role `admin`, audited). EXECUTE: edu_staff.
 -- ============================================================================
 -- A staff grant lasts p_duration_days x 24 hours from p_starts_at (default: now,
 -- server clock). 'purchase' is not a staff source: a purchase grant can only
 -- come from a verified provider event. An admin cannot grant to themselves.
+-- p_reason_code is an enum, not prose: it is stored and audited as a code.
 CREATE FUNCTION billing.staff_grant_entitlement(
     p_learner_id uuid,
     p_scope_kind text,
     p_scope_id uuid,
     p_duration_days integer,
     p_source text,
-    p_reason text,
+    p_reason_code text,
     p_idempotency_key text,
     p_starts_at timestamptz DEFAULT NULL
 )
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
-    v_actor uuid := billing._require_staff('admin');
+    v_actor uuid := staff.require_role('admin');
     v_starts timestamptz := COALESCE(p_starts_at, now());
     v_outcome jsonb;
 BEGIN
-    IF p_learner_id IS NULL OR p_duration_days IS NULL OR p_duration_days NOT BETWEEN 1 AND 366
-       OR p_reason IS NULL OR char_length(btrim(p_reason)) NOT BETWEEN 3 AND 500 THEN
+    IF p_learner_id IS NULL OR p_duration_days IS NULL OR p_duration_days NOT BETWEEN 1 AND 366 THEN
         RAISE EXCEPTION 'Malformed staff grant arguments' USING ERRCODE = '22023';
+    END IF;
+    IF p_reason_code IS NULL OR p_reason_code NOT IN (
+        'goodwill', 'promotion', 'school_agreement', 'trial', 'migration', 'correction') THEN
+        RAISE EXCEPTION 'Unknown staff grant reason code' USING ERRCODE = '22023';
     END IF;
     IF p_source IS NULL OR p_source NOT IN ('gift', 'promo', 'school_licence', 'trial', 'staff_grant', 'migration') THEN
         RAISE EXCEPTION 'Staff cannot grant with this source' USING ERRCODE = '22023';
@@ -391,9 +346,10 @@ BEGIN
     v_outcome := billing.grant_entitlement(
         p_learner_id, p_scope_kind, p_scope_id,
         v_starts, v_starts + make_interval(hours => p_duration_days * 24),
-        p_source, NULL, p_idempotency_key, v_actor);
+        p_source, 'staff:' || p_reason_code, p_idempotency_key, v_actor);
 
-    PERFORM billing._audit(
+    -- ids, enum codes and numbers only (the idempotency key is client text: not audited)
+    PERFORM ops.audit_write(
         'billing.entitlement.grant', 'billing_entitlement',
         (v_outcome ->> 'entitlement_id')::uuid,
         CASE WHEN v_outcome ->> 'status' = 'granted' THEN 'allowed' ELSE 'denied' END,
@@ -405,30 +361,34 @@ BEGIN
             'scope_id', p_scope_id,
             'duration_days', p_duration_days,
             'source', p_source,
-            'reason', btrim(p_reason)));
+            'reason_code', p_reason_code));
     RETURN v_outcome;
 END;
 $$;
 
-CREATE FUNCTION billing.staff_revoke_entitlement(p_entitlement_id uuid, p_reason text)
+CREATE FUNCTION billing.staff_revoke_entitlement(p_entitlement_id uuid, p_reason_code text)
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
-    v_actor uuid := billing._require_staff('admin');
+    v_actor uuid := staff.require_role('admin');
     v_outcome jsonb;
 BEGIN
-    IF p_entitlement_id IS NULL OR p_reason IS NULL
-       OR char_length(btrim(p_reason)) NOT BETWEEN 3 AND 500 THEN
+    IF p_entitlement_id IS NULL THEN
         RAISE EXCEPTION 'Malformed staff revocation arguments' USING ERRCODE = '22023';
     END IF;
-    v_outcome := billing.revoke_entitlement(p_entitlement_id, 'staff_revoke', v_actor);
-    PERFORM billing._audit(
+    IF p_reason_code IS NULL OR p_reason_code NOT IN (
+        'granted_in_error', 'duplicate', 'misuse', 'learner_request', 'correction') THEN
+        RAISE EXCEPTION 'Unknown staff revocation reason code' USING ERRCODE = '22023';
+    END IF;
+    v_outcome := billing.revoke_entitlement(
+        p_entitlement_id, 'staff_revoke', v_actor, 'staff:' || p_reason_code);
+    PERFORM ops.audit_write(
         'billing.entitlement.revoke', 'billing_entitlement', p_entitlement_id, 'allowed',
         jsonb_build_object(
             'replayed', (v_outcome ->> 'replayed')::boolean,
-            'reason', btrim(p_reason)));
+            'reason_code', p_reason_code));
     RETURN v_outcome;
 END;
 $$;
@@ -437,10 +397,10 @@ $$;
 CREATE FUNCTION billing.staff_list_entitlements(p_learner_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
-    v_actor uuid := billing._require_staff('admin');
+    v_actor uuid := staff.require_role('admin');
     v_rows jsonb;
 BEGIN
     IF p_learner_id IS NULL THEN
@@ -469,7 +429,7 @@ BEGIN
     LEFT JOIN billing.entitlement_revocations r ON r.entitlement_id = e.id
     WHERE e.learner_id = p_learner_id;
 
-    PERFORM billing._audit(
+    PERFORM ops.audit_write(
         'billing.entitlement.list', 'learner', p_learner_id, 'allowed',
         jsonb_build_object('count', jsonb_array_length(v_rows)));
     RETURN v_rows;
@@ -490,7 +450,7 @@ CREATE FUNCTION billing.create_order(
 )
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := app.current_actor_id();
@@ -583,7 +543,7 @@ CREATE FUNCTION billing.apply_provider_event(
 )
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_digest bytea;
@@ -742,13 +702,14 @@ BEGIN
         VALUES (v_order.id, v_event_id, v_amount, v_currency);
     END IF;
 
-    -- Access changes go to the audit trail (through the seam).
+    -- Access changes go to the audit trail: ids, codes and amounts only.
     IF v_code IN ('entitlement_granted', 'order_refunded') THEN
-        PERFORM billing._audit(
+        PERFORM ops.audit_write(
             'billing.provider_event.' || v_code, 'billing_order', v_order.id, 'allowed',
             jsonb_build_object(
                 'provider', p_provider, 'provider_event_row', v_event_id,
-                'entitlement_id', v_entitlement_id));
+                'entitlement_id', v_entitlement_id, 'plan_code', v_plan.code,
+                'amount_minor', v_amount, 'currency', v_currency));
     END IF;
 
     RETURN jsonb_build_object('status', v_outcome, 'code', v_code, 'replayed', false, 'result', v_result);
@@ -767,7 +728,7 @@ $$;
 CREATE FUNCTION billing.erase_learner(p_user_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_revocations integer;
@@ -836,11 +797,14 @@ CREATE POLICY revocations_select_own ON billing.entitlement_revocations
 -- orders, provider_events, refunds. And no INSERT/UPDATE/DELETE anywhere.
 
 GRANT EXECUTE ON FUNCTION billing.is_entitled(text, uuid) TO edu_api;
+
+-- The staff API role: three audited functions, no table at all.
+GRANT USAGE ON SCHEMA billing TO edu_staff;
+GRANT EXECUTE ON FUNCTION billing.staff_grant_entitlement(uuid, text, uuid, integer, text, text, text, timestamptz) TO edu_staff;
+GRANT EXECUTE ON FUNCTION billing.staff_revoke_entitlement(uuid, text) TO edu_staff;
+GRANT EXECUTE ON FUNCTION billing.staff_list_entitlements(uuid) TO edu_staff;
 -- Every other billing function is callable by its owner only:
---   _require_staff, _audit                      the staff seam
 --   learner_is_entitled_at                      internal reader
 --   grant_entitlement, revoke_entitlement       internal writers
---   staff_grant_entitlement, staff_revoke_entitlement, staff_list_entitlements
---                                               awaiting the staff boundary (edu_staff)
 --   create_order, apply_provider_event          awaiting PO-06 (checkout) and a webhook role
 --   erase_learner                               called by the account-erasure orchestrator

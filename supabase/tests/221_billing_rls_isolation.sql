@@ -86,17 +86,17 @@ SELECT is(pg_temp.as_api(:B::uuid, $$UPDATE billing.entitlement_revocations SET 
 SELECT is(pg_temp.as_api(:A::uuid, format('INSERT INTO billing.entitlement_revocations (entitlement_id, reason_code) VALUES (%L, $$staff_revoke$$) RETURNING 1', (SELECT id FROM billing.entitlements WHERE idempotency_key = 'rls-fixture-b-all'))), 'ERROR:42501', 'A cannot revoke B''s grant');
 
 SELECT is(pg_temp.as_api(:A::uuid, $$SELECT billing.grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, now(), now() + interval '30 days', 'gift', NULL, 'self-grant-by-function', NULL)$$), 'ERROR:42501', 'A cannot call the grant function');
-SELECT is(pg_temp.as_api(:A::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, 30, 'gift', 'self service', 'self-grant-by-staff-function')$$), 'ERROR:42501', 'A cannot call the staff grant function');
-SELECT is(pg_temp.as_api(:EDITOR::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, 30, 'gift', 'through the student api', 'staff-grant-through-student-api')$$), 'ERROR:42501', 'a staff user cannot call the staff grant function through the student API');
-SELECT is(pg_temp.as_api(:A::uuid, format('SELECT billing.staff_revoke_entitlement(%L, $$spite$$)', (SELECT id FROM billing.entitlements WHERE idempotency_key = 'rls-fixture-b-all'))), 'ERROR:42501', 'A cannot call the staff revoke function');
+SELECT is(pg_temp.as_api(:A::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, 30, 'gift', 'goodwill', 'self-grant-by-staff-function')$$), 'ERROR:42501', 'A cannot call the staff grant function');
+SELECT is(pg_temp.as_api(:EDITOR::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, 30, 'gift', 'goodwill', 'staff-grant-through-student-api')$$), 'ERROR:42501', 'a staff user cannot call the staff grant function through the student API');
+SELECT is(pg_temp.as_api(:A::uuid, format('SELECT billing.staff_revoke_entitlement(%L, $$correction$$)', (SELECT id FROM billing.entitlements WHERE idempotency_key = 'rls-fixture-b-all'))), 'ERROR:42501', 'A cannot call the staff revoke function');
 SELECT is(pg_temp.as_api(:A::uuid, format('SELECT billing.revoke_entitlement(%L, $$staff_revoke$$, NULL)', (SELECT id FROM billing.entitlements WHERE idempotency_key = 'rls-fixture-b-all'))), 'ERROR:42501', 'A cannot call the revoke function');
 SELECT is(pg_temp.as_api(:A::uuid, $$SELECT billing.staff_list_entitlements('a0000000-0000-4000-8000-000000000002')$$), 'ERROR:42501', 'A cannot list B''s grants through the staff function');
 SELECT is(pg_temp.as_api(:A::uuid, $$SELECT billing.learner_is_entitled_at('a0000000-0000-4000-8000-000000000002', 'all', NULL, now())$$), 'ERROR:42501', 'A cannot ask whether B is entitled');
 SELECT is(pg_temp.as_api(:A::uuid, $$SELECT billing.create_order('synthetic-all-30', 'HTG', 'mock', 'client-made-order-1')$$), 'ERROR:42501', 'A cannot create an order (no checkout exists)');
 SELECT is(pg_temp.as_api(:A::uuid, $$SELECT billing.apply_provider_event('mock', 'evt-forged-by-client', 'payment.succeeded', '{"order_id":"00000000-0000-4000-8000-000000000000","amount_minor":1,"currency":"HTG","plan_code":"synthetic-all-30"}')$$), 'ERROR:42501', 'A cannot apply a provider event');
 SELECT is(pg_temp.as_api(:A::uuid, $$SELECT billing.erase_learner('a0000000-0000-4000-8000-000000000002')$$), 'ERROR:42501', 'A cannot erase B''s billing data');
-SELECT is(pg_temp.as_api(:A::uuid, $$SELECT billing._require_staff('admin')$$), 'ERROR:42501', 'A cannot call the staff seam');
-SELECT is(pg_temp.as_api(:A::uuid, $$SELECT billing._audit('billing.forged', 'x', NULL, 'allowed')$$), 'ERROR:42501', 'A cannot write an audit record through the seam');
+SELECT is(pg_temp.as_api(:A::uuid, $$SELECT staff.require_role('admin')$$), 'ERROR:42501', 'A cannot reach the staff role check');
+SELECT is(pg_temp.as_api(:A::uuid, $$SELECT ops.audit_write('billing.entitlement.grant', NULL, NULL, 'allowed')$$), 'ERROR:42501', 'A cannot forge a billing audit record');
 SELECT is((SELECT count(*)::int FROM billing.entitlements), 4, 'after every attempt there are still exactly the 4 fixture grants');
 SELECT is((SELECT count(*)::int FROM billing.entitlement_revocations), 1, '... and exactly the 1 fixture revocation');
 

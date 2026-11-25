@@ -121,28 +121,51 @@ SELECT is((SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p
     ARRAY['is_entitled'],
     'edu_api may execute exactly one billing function: the read-only is_entitled');
 SELECT is((SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p
+           WHERE p.pronamespace = 'billing'::regnamespace AND has_function_privilege('edu_staff', p.oid, 'EXECUTE')),
+    ARRAY['staff_grant_entitlement','staff_list_entitlements','staff_revoke_entitlement'],
+    'edu_staff may execute exactly the three audited staff functions');
+SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'billing'::regnamespace
+           AND has_function_privilege('edu_worker', p.oid, 'EXECUTE')), 0,
+    'edu_worker may execute no billing function');
+SELECT is((SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p
            WHERE p.pronamespace = 'billing'::regnamespace
-             AND EXISTS (SELECT 1 FROM pg_roles r WHERE r.rolname NOT IN ('postgres','supabase_admin','edu_api','edu_api_login')
+             AND EXISTS (SELECT 1 FROM pg_roles r WHERE r.rolname NOT IN ('postgres','supabase_admin','edu_api','edu_api_login','edu_staff','edu_staff_login')
                            AND NOT r.rolsuper AND has_function_privilege(r.oid, p.oid, 'EXECUTE'))),
     NULL,
-    'no other role can execute any billing function: staff, order, provider-event and erasure functions are granted to nobody');
+    'no other role can execute any billing function: internal writers, order, provider-event and erasure functions are granted to nobody');
 SELECT is((SELECT p.provolatile::text FROM pg_proc p WHERE p.pronamespace = 'billing'::regnamespace AND p.proname = 'is_entitled'),
     's', 'is_entitled is STABLE (it cannot write)');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'billing'::regnamespace
-           AND NOT COALESCE(p.proconfig @> ARRAY['search_path=""'], false)), 0,
-    'every billing function pins an empty search_path');
+           AND p.proconfig IS DISTINCT FROM ARRAY['search_path=pg_catalog, pg_temp']), 0,
+    'every billing function pins search_path to exactly "pg_catalog, pg_temp" and sets nothing else (ruling R-03)');
+SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'billing'::regnamespace
+           AND p.prosecdef AND pg_get_userbyid(p.proowner) <> 'postgres'), 0,
+    'every SECURITY DEFINER billing function is owned by postgres');
+SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'billing'::regnamespace AND p.prosecdef), 10,
+    '10 billing functions are SECURITY DEFINER (the 4 trigger guards are not)');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'billing'::regnamespace
            AND pg_get_userbyid(p.proowner) <> 'postgres'), 0,
     'every billing function is owned by the migration owner (postgres)');
-SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'billing'::regnamespace), 16,
-    '16 billing functions exist');
+SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'billing'::regnamespace), 14,
+    '14 billing functions exist');
 SELECT is((SELECT count(*)::int FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
            WHERE c.relnamespace = 'billing'::regnamespace AND NOT t.tgisinternal), 5,
     '5 history guards are installed');
 
--- ---- the staff roles are NOT created by this lane ------------------------------
+-- ---- staff side: functions only, through the shared platform interface --------------
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'billing'::regnamespace
-           AND p.proname LIKE 'staff\_%'), 3, 'three staff functions await the staff boundary');
+           AND p.proname LIKE 'staff\_%'), 3, 'three staff-facing functions exist');
+SELECT is(has_schema_privilege('edu_staff', 'billing', 'USAGE'), true, 'edu_staff can use schema billing');
+SELECT is(has_schema_privilege('edu_staff', 'billing', 'CREATE'), false, 'edu_staff cannot create objects in billing');
+SELECT is(has_schema_privilege('edu_worker', 'billing', 'USAGE'), false, 'edu_worker cannot use schema billing');
+SELECT is((SELECT count(*)::int FROM pg_class c WHERE c.relnamespace = 'billing'::regnamespace AND c.relkind = 'r'
+           AND (has_any_column_privilege('edu_staff', c.oid, 'SELECT') OR has_any_column_privilege('edu_staff', c.oid, 'INSERT')
+             OR has_any_column_privilege('edu_staff', c.oid, 'UPDATE') OR has_table_privilege('edu_staff', c.oid, 'DELETE')
+             OR has_table_privilege('edu_staff', c.oid, 'TRUNCATE'))), 0,
+    'edu_staff holds no privilege on any billing table: everything it does is an audited function');
+SELECT is((SELECT count(*)::int FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+           WHERE n.nspname IN ('ops', 'staff') AND has_function_privilege('edu_api', p.oid, 'EXECUTE')), 0,
+    'edu_api gained nothing in schemas ops and staff');
 
 -- ---- nothing was added to schema app ---------------------------------------------
 SELECT is((SELECT count(*)::int FROM pg_tables WHERE schemaname = 'app'), 22, 'schema app still has exactly 22 tables');

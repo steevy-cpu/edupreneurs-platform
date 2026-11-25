@@ -16,6 +16,8 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 
+from edu_api.routers import entitlements as entitlements_router
+from edu_api.routers import staff_billing as staff_billing_router
 from tests.billing_fixtures import (
     SEED_COURSE,
     SEED_GRADE,
@@ -212,7 +214,9 @@ async def test_the_route_is_read_only(
         "/v1/billing/events",
         "/v1/billing/webhook",
         "/v1/billing/mock/events",
-        "/v1/staff/billing/grants",
+        "/v1/staff/billing/orders",
+        "/v1/staff/billing/plans",
+        "/v1/staff/billing/events",
         "/v1/orders",
     ],
 )
@@ -531,30 +535,77 @@ async def test_billing_schema_is_not_reachable_through_the_supabase_data_api(
 
 
 # ------------------------------------------------------------------ contract
+STAFF_PATHS = {
+    "/v1/staff/billing/grants",
+    "/v1/staff/billing/grants/{entitlement_id}/revoke",
+    "/v1/staff/billing/learners/{learner_id}/grants",
+}
+
+
 @pytest.mark.parametrize("environment", ["local", "test", "staging", "production"])
-async def test_openapi_with_the_flag_on_adds_exactly_one_read_only_route(
+async def test_lane_routes_stay_out_of_the_generated_contract(
     local_env: dict[str, str], environment: str
 ) -> None:
+    """Ruling R-01: registered, but not in the OpenAPI document on this branch."""
+    assert entitlements_router.INCLUDE_IN_SCHEMA is False
+    assert staff_billing_router.INCLUDE_IN_SCHEMA is False
     async with (
         entitlements_app(local_env, environment=environment) as application,
         http(application) as client,
     ):
         spec = (await client.get("/openapi.json")).json()
-    assert set(spec["paths"]) == BASELINE_PATHS | {"/v1/entitlements"}, environment
+        # registered all the same: they answer 401, not 404, without a token
+        assert (await client.get("/v1/entitlements")).status_code == 401
+        assert (await client.post("/v1/staff/billing/grants", json={})).status_code == 401
+    assert set(spec["paths"]) == BASELINE_PATHS, environment
+
+
+@pytest.mark.parametrize("environment", ["test", "production"])
+async def test_with_the_schema_constant_on_the_contract_is_complete_and_uniform(
+    local_env: dict[str, str], monkeypatch: pytest.MonkeyPatch, environment: str
+) -> None:
+    """What the director switches on at integration: bearer security on every
+    operation, and no error response other than the standard shape."""
+    monkeypatch.setattr(entitlements_router, "INCLUDE_IN_SCHEMA", True)
+    monkeypatch.setattr(staff_billing_router, "INCLUDE_IN_SCHEMA", True)
+    async with (
+        entitlements_app(local_env, environment=environment) as application,
+        http(application) as client,
+    ):
+        spec = (await client.get("/openapi.json")).json()
+    added = set(spec["paths"]) - BASELINE_PATHS
+    assert added == {"/v1/entitlements"} | STAFF_PATHS, environment
     assert set(spec["paths"]["/v1/entitlements"]) == {"get"}, "read-only in every environment"
-    operation = spec["paths"]["/v1/entitlements"]["get"]
-    assert set(operation["responses"]) == {"200", "401", "503"}
+    assert {path: set(spec["paths"][path]) for path in STAFF_PATHS} == {
+        "/v1/staff/billing/grants": {"post"},
+        "/v1/staff/billing/grants/{entitlement_id}/revoke": {"post"},
+        "/v1/staff/billing/learners/{learner_id}/grants": {"get"},
+    }
+    staff_item = {"200", "401", "403", "404", "422", "503"}
+    expected_statuses = {
+        ("/v1/entitlements", "get"): {"200", "401", "404", "503"},
+        ("/v1/staff/billing/grants", "post"): {"200", "401", "403", "404", "409", "422", "503"},
+        ("/v1/staff/billing/grants/{entitlement_id}/revoke", "post"): staff_item,
+        ("/v1/staff/billing/learners/{learner_id}/grants", "get"): staff_item,
+    }
     error_ref = {"$ref": "#/components/schemas/ErrorResponse"}
-    for status in ("401", "503"):
-        assert operation["responses"][status]["content"]["application/json"]["schema"] == error_ref
-    assert operation["security"] == [{"HTTPBearer": []}]
+    for (path, method), statuses in expected_statuses.items():
+        operation = spec["paths"][path][method]
+        assert set(operation["responses"]) == statuses, (path, method)
+        assert operation["security"] == [{"HTTPBearer": []}], (path, method)
+        for status, response in operation["responses"].items():
+            if status != "200":
+                assert response["content"]["application/json"]["schema"] == error_ref, (
+                    path,
+                    status,
+                )
     assert "HTTPValidationError" not in spec["components"]["schemas"], "one error shape only"
     flag = spec["components"]["schemas"]["EntitlementsResponse"]["properties"][
         "free_content_always_available"
     ]
     assert flag.get("const") is True, "the contract itself says it can only be true"
-    for path in spec["paths"]:
-        assert not any(word in path for word in ("provider", "webhook", "mock", "order", "staff"))
+    for path in added:
+        assert not any(word in path for word in ("provider", "webhook", "mock", "order", "plan"))
 
 
 async def test_a_grant_for_a_staff_account_is_just_a_grant(

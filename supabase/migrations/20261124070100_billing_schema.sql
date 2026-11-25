@@ -23,7 +23,7 @@
 -- MONEY is always an integer number of minor units plus an ISO-4217 currency
 -- code. There is no floating-point or `numeric` amount anywhere.
 --
--- Functions, grants to the student API role and the staff seam are in the next
+-- Functions, policies and grants (student API role, staff API role) are in the next
 -- migration (20261124070200_billing_functions.sql).
 
 CREATE SCHEMA billing;
