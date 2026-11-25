@@ -9,6 +9,7 @@
  */
 import type { Locale } from '../api/types';
 import type { ContentStore } from '../db/contentStore';
+import { SyncReport, wasUnreachable } from '../sync/engine';
 
 export interface GradeOption {
   code: string;
@@ -46,4 +47,24 @@ export async function gradeChoices(content: ContentStore, locale: Locale): Promi
     .map(([code, label]) => ({ code, label }))
     .sort((a, b) => (order.get(a.code) ?? 99) - (order.get(b.code) ?? 99) || a.code.localeCompare(b.code));
   return { grades, fromCatalog: true };
+}
+
+/**
+ * What to tell the learner about the class list, using only what is actually known.
+ *
+ *  none            the list comes from the downloaded catalogue: nothing to say
+ *  loading         a sync is running or waiting to retry: the catalogue may arrive in a moment
+ *  offline         the last sync could not reach the server at all: only then "no connection"
+ *  not_downloaded  no catalogue yet and no failed attempt (not tried, or the server answered): say what is
+ *                  true, that the courses are not on the phone yet, and nothing about the connection
+ */
+export type GradeListNotice = 'none' | 'loading' | 'offline' | 'not_downloaded';
+
+export function gradeListNotice(
+  fromCatalog: boolean,
+  sync: { phase: 'idle' | 'syncing' | 'waiting_to_retry'; lastReport: SyncReport | null },
+): GradeListNotice {
+  if (fromCatalog) return 'none';
+  if (sync.phase !== 'idle') return 'loading';
+  return wasUnreachable(sync.lastReport) ? 'offline' : 'not_downloaded';
 }

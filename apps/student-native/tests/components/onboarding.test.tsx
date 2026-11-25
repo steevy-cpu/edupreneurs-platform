@@ -12,8 +12,11 @@ import { PREF_GRADE, PREF_SUBJECT } from '../../src/core/learning/overview';
 import Home from '../../src/app/home';
 import LessonReader from '../../src/app/lesson/[id]';
 import Onboarding from '../../src/app/onboarding';
+import type { SyncReport } from '../../src/core/sync/engine';
+import { OfflinePill } from '../../src/ui/shell';
 import { FakeRemote, RestartablePhone } from '../support/experienceHarness';
 import { navigation } from '../support/expoRouterMock';
+import { testDevice } from '../support/reactNativeMock';
 import { resetFlags } from '../support/flagsMock';
 import { catalog, LESSON_ID, lessonSnapshot } from '../support/screenHarness';
 
@@ -127,8 +130,10 @@ describe('the five steps', () => {
     await screen.press('Continuer');
 
     // 3. class: the built-in list, clearly presented as such
-    expect(screen.has('En quelle classe es-tu ?')).toBe(true);
-    expect(screen.has('Pas encore de connexion : voici la liste des classes.')).toBe(true);
+    expect(screen.has('Quelle est ta classe ?')).toBe(true);
+    // Nothing was attempted yet, so the screen does not claim anything about the connection.
+    expect(screen.has('Les cours ne sont pas encore téléchargés. Voici la liste habituelle des classes.')).toBe(true);
+    expect(screen.has('Pas de connexion')).toBe(false);
     const grades = screen.labels().filter((label) => /^(\dAF|NS\d) · /.test(label));
     expect(grades).toEqual([
       '7AF · 7e année fondamentale',
@@ -380,5 +385,159 @@ describe('server sync (flag onboardingSync, off by default)', () => {
     const screen = await phone.render(<Onboarding />);
     await screen.settle();
     expect(screen.redirect()).toBe('/home');
+  });
+});
+
+// ---------------------------------------------------------------- class step: truthful status and layout
+const report = (overrides: Partial<SyncReport>): SyncReport => ({
+  outcome: 'ok', confirmed: 0, needsAttention: 0, pulled: 0, errorCode: null, ...overrides,
+});
+
+async function openGradeStep(locale: 'fr' | 'ht' = 'fr') {
+  const app = await phone.signInLive('student.a', locale);
+  return app;
+}
+async function toGrade(screen: Awaited<ReturnType<RestartablePhone['render']>>, next: string, ok: string) {
+  await screen.press(next);
+  await screen.press(ok);
+}
+
+describe('class step: what it says about the connection', () => {
+  const NOT_DOWNLOADED = 'Les cours ne sont pas encore téléchargés';
+  const OFFLINE = 'Pas de connexion pour le moment';
+  const LOADING = 'Chargement des cours';
+
+  async function gradeText(setup: (app: Awaited<ReturnType<typeof openGradeStep>>) => void, locale: 'fr' | 'ht' = 'fr') {
+    const app = await openGradeStep(locale);
+    setup(app);
+    const screen = await phone.render(<Onboarding />);
+    await toGrade(screen, locale === 'fr' ? 'Commencer' : 'Kòmanse', locale === 'fr' ? 'Continuer' : 'Kontinye');
+    return screen.text();
+  }
+
+  test('never tried: "not downloaded", no claim about the connection', async () => {
+    const text = await gradeText(() => undefined);
+    expect(text).toContain(NOT_DOWNLOADED);
+    expect(text).not.toContain(OFFLINE);
+  });
+
+  test('the last request succeeded: still no "no connection"', async () => {
+    const text = await gradeText((app) => void (app.sync.lastReport = report({ outcome: 'ok' })));
+    expect(text).toContain(NOT_DOWNLOADED);
+    expect(text).not.toContain(OFFLINE);
+  });
+
+  test('the server answered with an error: reachable, so no "no connection"', async () => {
+    const text = await gradeText(
+      (app) => void (app.sync.lastReport = report({ outcome: 'offline', errorCode: 'dependency_unavailable', serverAnswered: true })),
+    );
+    expect(text).toContain(NOT_DOWNLOADED);
+    expect(text).not.toContain(OFFLINE);
+  });
+
+  test('a sync in progress: "loading"', async () => {
+    const text = await gradeText((app) => void (app.sync.phase = 'syncing'));
+    expect(text).toContain(LOADING);
+    expect(text).not.toContain(OFFLINE);
+    expect(text).not.toContain(NOT_DOWNLOADED);
+  });
+
+  test('only when the server could not be reached at all: "no connection"', async () => {
+    const text = await gradeText((app) => void (app.sync.lastReport = report({ outcome: 'offline', errorCode: 'unreachable' })));
+    expect(text).toContain(OFFLINE);
+    expect(text).not.toContain(NOT_DOWNLOADED);
+  });
+
+  test('a downloaded catalogue: no status line at all, even after a failed sync', async () => {
+    const app = await openGradeStep();
+    await phone.content.saveCatalog(catalog('fr'), SAVED_AT);
+    app.sync.lastReport = report({ outcome: 'offline', errorCode: 'unreachable' });
+    const screen = await phone.render(<Onboarding />);
+    await toGrade(screen, 'Commencer', 'Continuer');
+    for (const fragment of [NOT_DOWNLOADED, OFFLINE, LOADING]) expect(screen.has(fragment)).toBe(false);
+  });
+
+  test('Creole, never tried', async () => {
+    expect(await gradeText(() => undefined, 'ht')).toContain('Kou yo poko telechaje');
+  });
+
+  test('Creole, loading', async () => {
+    expect(await gradeText((app) => void (app.sync.phase = 'syncing'), 'ht')).toContain('Kou yo ap chaje');
+  });
+
+  test('Creole, unreachable', async () => {
+    const text = await gradeText((app) => void (app.sync.lastReport = report({ outcome: 'offline', errorCode: 'unreachable' })), 'ht');
+    expect(text).toContain('Pa gen koneksyon pou kounye a');
+  });
+
+  test('the header "Hors ligne" pill follows the same rule', async () => {
+    const app = await phone.signInLive('student.a');
+    const pill = async () => (await phone.render(<OfflinePill />)).text();
+    app.sync.lastReport = report({ outcome: 'ok' });
+    expect(await pill()).not.toContain('Hors ligne');
+    app.sync.lastReport = report({ outcome: 'offline', errorCode: 'dependency_unavailable', serverAnswered: true });
+    expect(await pill()).not.toContain('Hors ligne');
+    app.sync.phase = 'syncing';
+    app.sync.lastReport = report({ outcome: 'offline', errorCode: 'unreachable' });
+    expect(await pill()).not.toContain('Hors ligne');
+    app.sync.phase = 'idle';
+    expect(await pill()).toContain('Hors ligne');
+  });
+});
+
+describe('welcome and class steps: nothing hidden behind the footer', () => {
+  const inScroll = (screen: Awaited<ReturnType<RestartablePhone['render']>>, label: string) =>
+    screen.scrollContent().some((node) => node.props.accessibilityLabel === label);
+  const inFooter = (screen: Awaited<ReturnType<RestartablePhone['render']>>) => screen.footerButtons();
+
+  afterEach(() => {
+    testDevice.fontScale = 1;
+  });
+
+  test('welcome, normal text: only "Commencer" is pinned; the skip button and all three points scroll with the content', async () => {
+    await phone.signInLive('student.a');
+    const screen = await phone.render(<Onboarding />);
+    expect(inFooter(screen)).toEqual(['Commencer']);
+    expect(inScroll(screen, 'Passer l’introduction')).toBe(true);
+    const text = screen.texts();
+    for (const point of ['Des leçons courtes, classe par classe', 'Des exercices avec la correction expliquée', 'Ton travail reste enregistré sur ce téléphone']) {
+      expect(text.indexOf(point)).toBeGreaterThan(text.indexOf('Bienvenue sur Edupreneurs'));
+    }
+    // The three points come before the longer sentence, so they are what is seen first.
+    expect(text.indexOf('Ton travail reste enregistré sur ce téléphone')).toBeLessThan(
+      text.indexOf('Lis tes leçons et fais tes exercices sur ce téléphone, même sans internet.'),
+    );
+  });
+
+  test('welcome in Creole has the same structure', async () => {
+    await phone.signInLive('student.a', 'ht');
+    const screen = await phone.render(<Onboarding />);
+    expect(inFooter(screen)).toEqual(['Kòmanse']);
+    expect(inScroll(screen, 'Sote entwodiksyon an')).toBe(true);
+  });
+
+  test('class step: the classes come right after the title; only "Continuer" is pinned', async () => {
+    await phone.signInLive('student.a');
+    const screen = await phone.render(<Onboarding />);
+    await toGrade(screen, 'Commencer', 'Continuer');
+    expect(inFooter(screen)).toEqual(['Continuer']);
+    expect(inScroll(screen, 'Je choisirai plus tard')).toBe(true);
+    const order = (fragment: string) => screen.texts().findIndex((text) => text.includes(fragment));
+    expect(order('Quelle est ta classe ?')).toBeLessThan(order('7AF'));
+    expect(order('NS4')).toBeLessThan(order('Les cours ne sont pas encore téléchargés'));
+    expect(order('Les cours ne sont pas encore téléchargés')).toBeLessThan(order('L’application te montre'));
+    expect(screen.text()).not.toContain('es-'); // no hyphenated word to break across lines
+  });
+
+  test('very large text: nothing is pinned, the main button comes before the secondary one', async () => {
+    testDevice.fontScale = 2;
+    await phone.signInLive('student.a');
+    const screen = await phone.render(<Onboarding />);
+    expect(inFooter(screen)).toEqual([]);
+    await toGrade(screen, 'Commencer', 'Continuer');
+    expect(inFooter(screen)).toEqual([]);
+    const labels = screen.scrollContent().map((node) => node.props.accessibilityLabel);
+    expect(labels.indexOf('Continuer')).toBeGreaterThan(labels.indexOf('NS4 · Nouveau Secondaire 4'));
+    expect(labels.indexOf('Je choisirai plus tard')).toBeGreaterThan(labels.indexOf('Continuer'));
   });
 });

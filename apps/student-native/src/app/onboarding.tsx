@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { Locale } from '../core/api/types';
 import { FLAGS } from '../core/experience/flags';
-import { GradeChoices, gradeChoices } from '../core/experience/grades';
+import { GradeChoices, gradeChoices, gradeListNotice } from '../core/experience/grades';
 import {
   beginOrResumeOnboarding,
   confirmOnboardingGrade,
@@ -21,7 +21,7 @@ import { syncOnboarding } from '../core/experience/onboardingSync';
 import { ONBOARDING_STEPS } from '../core/experience/schema';
 import type { OnboardingRecord, OnboardingStep } from '../core/experience/store';
 import type { StringKey } from '../core/i18n/strings';
-import { AppText, Button, Card, Chip, ListRow, LoadingState, Notice, ScreenFrame, space, StepStrip, TopBar } from '../design';
+import { AppText, Button, Card, Chip, ListRow, LoadingState, Notice, ScreenFrame, space, StepStrip, TopBar, useLayout } from '../design';
 import { useRemote } from '../ui/remote';
 import { OfflinePill } from '../ui/shell';
 import { useSignedIn } from '../ui/useSession';
@@ -51,6 +51,7 @@ export default function Onboarding() {
   const app = useSignedIn();
   const router = useRouter();
   const remote = useRemote();
+  const { roomy } = useLayout();
   const [record, setRecord] = useState<OnboardingRecord | null>(null);
   const [choices, setChoices] = useState<GradeChoices | null>(null);
   const [busy, setBusy] = useState(false);
@@ -153,27 +154,33 @@ export default function Onboarding() {
   let action: React.ReactNode;
 
   switch (record.step) {
-    case 'welcome':
+    case 'welcome': {
+      const skip = (
+        <Button label={t('onbSkipAll')} variant="secondary" disabled={busy} testID="onboarding-skip" onPress={() => void finish('skipped', '/home')} />
+      );
+      // Short phones: only the one main button is pinned; the three points come first and the rest follows them.
       body = (
         <>
-          <AppText variant="display" accessibilityRole="header">
+          <AppText variant="title" accessibilityRole="header">
             {t('onbWelcomeTitle')}
           </AppText>
-          <AppText>{t('onbWelcomeBody')}</AppText>
           <View style={styles.stack}>
             <ListRow icon="learn" title={t('onbWelcomePoint1')} />
             <ListRow icon="check" tone="accent" title={t('onbWelcomePoint2')} />
             <ListRow icon="download" tone="highlight" title={t('onbWelcomePoint3')} />
           </View>
+          <AppText>{t('onbWelcomeBody')}</AppText>
+          {roomy ? skip : null}
         </>
       );
       action = (
         <>
           <Button label={t('onbStart')} busy={busy} testID="onboarding-start" onPress={() => void goTo('language')} />
-          <Button label={t('onbSkipAll')} variant="secondary" disabled={busy} testID="onboarding-skip" onPress={() => void finish('skipped', '/home')} />
+          {roomy ? null : skip}
         </>
       );
       break;
+    }
 
     case 'language':
       body = (
@@ -198,18 +205,30 @@ export default function Onboarding() {
       action = <Button label={t('onbContinue')} busy={busy} testID="onboarding-continue" onPress={() => void goTo('grade')} />;
       break;
 
-    case 'grade':
+    case 'grade': {
+      const notice = gradeListNotice(choices.fromCatalog, app.sync);
+      const noticeText = {
+        none: null,
+        loading: t('onbGradeLoading'),
+        offline: t('onbGradeOfflineList'),
+        not_downloaded: t('onbGradeNotDownloaded'),
+      }[notice];
+      const later = (
+        <Button
+          label={t('onbGradeLater')}
+          variant="secondary"
+          disabled={busy}
+          testID="onboarding-grade-later"
+          onPress={() => void commit(() => skipOnboardingGrade(account, now()))}
+        />
+      );
+      // The classes come first (a short title, then the list) so some are visible without scrolling at 320 dp;
+      // the explanation, the one-line status and "later" follow the list. Only "Continuer" is pinned.
       body = (
         <>
-          <AppText variant="display" accessibilityRole="header">
+          <AppText variant="title" accessibilityRole="header">
             {t('onbGradeTitle')}
           </AppText>
-          <AppText color="textSecondary">{t('onbGradeBody')}</AppText>
-          {choices.fromCatalog ? null : (
-            <Notice tone="info" role="text">
-              {t('onbGradeOfflineList')}
-            </Notice>
-          )}
           {/* One full-width choice per line: long class names wrap instead of being cut at 320 dp or large text. */}
           <View accessibilityRole="radiogroup" style={styles.stack}>
             {choices.grades.map((grade) => (
@@ -222,6 +241,13 @@ export default function Onboarding() {
               />
             ))}
           </View>
+          {noticeText ? (
+            <Notice tone="info" role="text">
+              {noticeText}
+            </Notice>
+          ) : null}
+          <AppText color="textSecondary">{t('onbGradeBody')}</AppText>
+          {roomy ? later : null}
         </>
       );
       action = (
@@ -233,16 +259,11 @@ export default function Onboarding() {
             testID="onboarding-continue"
             onPress={() => void commit(() => confirmOnboardingGrade(account, now()))}
           />
-          <Button
-            label={t('onbGradeLater')}
-            variant="secondary"
-            disabled={busy}
-            testID="onboarding-grade-later"
-            onPress={() => void commit(() => skipOnboardingGrade(account, now()))}
-          />
+          {roomy ? null : later}
         </>
       );
       break;
+    }
 
     case 'downloads':
       body = (
