@@ -58,10 +58,17 @@ class Settings(BaseSettings):
     pull_max_limit: int = Field(default=200, ge=1)
 
     # --- Word of the Day (lane VOCAB, overnight 2026-11-24) ----------------------
-    #: ``EDU_DAILY_WORD_ENABLED``. Off by default: ``GET /v1/daily-word`` is then
-    #: not mounted at all, so the API (and its OpenAPI document) is exactly as
-    #: before and the path answers the standard 404.
+    #: ``EDU_DAILY_WORD_ENABLED``. Off by default: ``GET /v1/daily-word`` then
+    #: answers the standard 404 ``not_found`` to everyone, as on ``main``.
     daily_word_enabled: bool = False
+
+    # --- Staff boundary (overnight 2026-11-24, staff lane) -------------------
+    #: Optional. Must log in as ``edu_staff_login`` (member of ``edu_staff`` only).
+    #: When unset the staff side is off: every ``/v1/staff`` route answers 503
+    #: and none of them appears in the OpenAPI document.
+    staff_database_url: SecretStr | None = None
+    staff_db_pool_size: int = Field(default=2, ge=1, le=20)
+    staff_db_max_overflow: int = Field(default=3, ge=0, le=20)
 
     @field_validator("auth_algorithms")
     @classmethod
@@ -78,6 +85,19 @@ class Settings(BaseSettings):
     def _asyncpg_url(cls, value: SecretStr) -> SecretStr:
         if not value.get_secret_value().startswith("postgresql+asyncpg://"):
             raise ValueError("database_url must start with postgresql+asyncpg://")
+        return value
+
+    # --- Staff boundary (overnight 2026-11-24, staff lane) -------------------
+    @field_validator("staff_database_url", mode="before")
+    @classmethod
+    def _blank_staff_url_is_unset(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
+
+    @field_validator("staff_database_url")
+    @classmethod
+    def _staff_asyncpg_url(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is not None and not value.get_secret_value().startswith("postgresql+asyncpg://"):
+            raise ValueError("staff_database_url must start with postgresql+asyncpg://")
         return value
 
 
