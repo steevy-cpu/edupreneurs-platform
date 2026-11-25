@@ -253,3 +253,40 @@ async def test_erase_learner_removes_everything_the_api_could_show(
     assert listed.json() == {"items": [], "next_cursor": None}
     other = await notify_client.get("/v1/notifications", headers=bearer(tokens["student_b"]))
     assert len(other.json()["items"]) == 1
+
+
+async def test_quiet_hours_that_begin_after_the_claim_stop_the_delivery(
+    notify_client: httpx.AsyncClient,
+    tokens: dict[str, str],
+    enqueue: Enqueue,
+    worker_engine: AsyncEngine,
+    outside_quiet_hours: None,
+    admin: asyncpg.Pool,
+) -> None:
+    """Review L-2 against the real functions: the row is claimed outside quiet hours,
+    the window begins before the worker reaches it. Nothing may be sent, no attempt
+    is spent, and the delivery is put off to the end of the window."""
+    await _opt_in(notify_client, tokens["student_a"])
+    await enqueue(STUDENT_A, "sync_reminder", channels=("push",))
+
+    class QuietAfterClaim(SqlOutboxPort):
+        async def claim_due(self, channel: str, *, limit: int, lease_seconds: int):  # type: ignore[no-untyped-def]
+            rows = await super().claim_due(channel, limit=limit, lease_seconds=lease_seconds)
+            await admin.execute(
+                "UPDATE notify.policy SET "
+                "quiet_start = ((now() AT TIME ZONE 'America/Port-au-Prince') - interval '1 hour')::time, "
+                "quiet_end = ((now() AT TIME ZONE 'America/Port-au-Prince') + interval '2 hours')::time"
+            )
+            return rows
+
+    adapter = DummyLocalAdapter()
+    summary = await deliver_due(QuietAfterClaim(worker_engine), adapter)
+    assert (summary.claimed, summary.delivered, summary.skipped) == (1, 0, 1)
+    assert len(adapter.records) == 0
+    row = await admin.fetchrow(
+        "SELECT state, attempt_count, lease_token, next_attempt_at - now() AS wait "
+        "FROM notify.deliveries"
+    )
+    assert (row["state"], row["attempt_count"], row["lease_token"]) == ("pending", 0, None)
+    assert 3600 < row["wait"].total_seconds() <= 2 * 3600 + 5
+    assert await admin.fetchval("SELECT count(*) FROM notify.delivery_attempts") == 0

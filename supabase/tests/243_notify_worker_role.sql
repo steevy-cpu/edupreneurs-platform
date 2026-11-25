@@ -38,8 +38,8 @@ UPDATE notify.policy SET
 -- ---- structure ------------------------------------------------------------------
 SELECT is((SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p
            WHERE p.pronamespace = 'notify'::regnamespace AND has_function_privilege('edu_worker', p.oid, 'EXECUTE')),
-    ARRAY['claim_due','enqueue','record_attempt'],
-    'edu_worker may execute exactly claim_due, enqueue and record_attempt');
+    ARRAY['claim_due','enqueue','recheck_lease','record_attempt'],
+    'edu_worker may execute exactly claim_due, enqueue, recheck_lease and record_attempt');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'notify'::regnamespace
            AND has_function_privilege('edu_staff', p.oid, 'EXECUTE')), 0,
     'edu_staff may execute nothing in notify');
@@ -109,6 +109,28 @@ SELECT isnt(pg_temp.as_role('edu_worker', NULL, $$SELECT notify.enqueue('a000000
 SELECT is(pg_temp.as_role('edu_worker', NULL, $$SELECT count(*) FROM notify.claim_due('push')$$), '0', 'during quiet hours the worker is handed nothing');
 SELECT is((SELECT d.state || '/' || d.attempt_count FROM notify.deliveries d JOIN notify.outbox o ON o.id = d.outbox_id
            WHERE o.recipient_id = :A AND d.state <> 'delivered'), 'pending/0', '... and no attempt is spent');
+
+-- ---- recheck_lease (review finding L-2): the last question before an adapter call ----
+UPDATE notify.policy SET
+    quiet_start = ((now() AT TIME ZONE 'America/Port-au-Prince') + interval '6 hours')::time,
+    quiet_end = ((now() AT TIME ZONE 'America/Port-au-Prince') + interval '7 hours')::time;
+UPDATE notify.deliveries SET next_attempt_at = now() WHERE state = 'pending';
+SELECT is(pg_temp.as_role('edu_worker', NULL, $$SELECT count(*) FROM notify.claim_due('push')$$), '1', 'outside quiet hours the night job is leased');
+SELECT lease_token AS ltoken, outbox_id AS levent FROM notify.deliveries WHERE state = 'leased' \gset
+SELECT is(pg_temp.as_role('edu_worker', NULL, format($$SELECT notify.recheck_lease(%L, 'push', gen_random_uuid())$$, :'levent')), 'stale', 'recheck with a foreign lease token is stale');
+SELECT is(pg_temp.as_role('edu_worker', NULL, format($$SELECT notify.recheck_lease(%L, 'push', %L)$$, :'levent', :'ltoken')), 'send', 'recheck of a live lease outside quiet hours says send');
+SELECT is(pg_temp.as_role('edu_api', :A::uuid, format($$SELECT notify.recheck_lease(%L, 'push', %L)$$, :'levent', :'ltoken')), 'ERROR:42501', 'edu_api cannot recheck leases');
+SELECT is(pg_temp.as_role('edu_staff', :EDITOR::uuid, format($$SELECT notify.recheck_lease(%L, 'push', %L)$$, :'levent', :'ltoken')), 'ERROR:42501', 'edu_staff cannot recheck leases');
+UPDATE notify.policy SET
+    quiet_start = ((now() AT TIME ZONE 'America/Port-au-Prince') - interval '1 hour')::time,
+    quiet_end = ((now() AT TIME ZONE 'America/Port-au-Prince') + interval '2 hours')::time;
+SELECT is(pg_temp.as_role('edu_worker', NULL, format($$SELECT notify.recheck_lease(%L, 'push', %L)$$, :'levent', :'ltoken')), 'deferred', 'quiet hours began after the claim: deferred');
+SELECT is((SELECT d.state || '/' || d.attempt_count || '/' || (d.lease_token IS NULL) || '/' || (d.next_attempt_at > now())
+           FROM notify.deliveries d WHERE d.outbox_id = :'levent'), 'pending/0/true/true', '... back to pending, attempt given back, due after the window');
+SELECT is(pg_temp.as_role('edu_worker', NULL, format($$SELECT notify.recheck_lease(%L, 'push', %L)$$, :'levent', :'ltoken')), 'stale', 'the old token is stale after a deferral');
+UPDATE notify.deliveries SET state = 'leased', lease_token = :'ltoken', next_attempt_at = now() - interval '1 second', attempt_count = 1
+WHERE outbox_id = :'levent';
+SELECT is(pg_temp.as_role('edu_worker', NULL, format($$SELECT notify.recheck_lease(%L, 'push', %L)$$, :'levent', :'ltoken')), 'stale', 'a lease that has run out is stale');
 
 SELECT * FROM finish();
 ROLLBACK;

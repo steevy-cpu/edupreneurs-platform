@@ -314,3 +314,34 @@ async def test_trusted_proxy_setting_decides_which_address_is_counted(
         # hops=0: the header is client-controlled text and is ignored (one bucket).
         # hops=1: the proxy's entry is the client (three clients, three buckets).
         assert statuses == expected_statuses, hops
+
+
+async def test_a_second_forwarded_header_line_cannot_choose_the_counted_address(
+    local_env: dict[str, str],
+) -> None:
+    """Review M-1 through the whole stack: the proxy's entry is on the LAST header
+    line, so the client's own first line must not change the address counted."""
+    application = create_app(
+        build_settings(
+            local_env,
+            rate_limit_enabled=True,
+            rate_limit_anonymous_burst=3,
+            rate_limit_anonymous_per_minute=1,
+            rate_limit_trusted_proxy_hops=1,
+        )
+    )
+    transport = httpx.ASGITransport(app=application, client=("10.0.0.1", 4000))
+    try:
+        async with httpx.AsyncClient(transport=transport, base_url="http://api.test") as http:
+            statuses = []
+            for index in range(6):
+                headers = httpx.Headers(
+                    [
+                        ("X-Forwarded-For", f"198.51.100.{index}"),  # chosen by the client
+                        ("X-Forwarded-For", "203.0.113.7"),  # appended by the trusted proxy
+                    ]
+                )
+                statuses.append((await http.get("/v1/me", headers=headers)).status_code)
+    finally:
+        await application.state.db.dispose()
+    assert statuses == [401, 401, 401, 429, 429, 429]

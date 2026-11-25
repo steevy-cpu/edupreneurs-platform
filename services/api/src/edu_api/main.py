@@ -141,6 +141,7 @@ def create_app(
     app.include_router(account.build_router())
     app.include_router(entitlements.build_router())
     app.include_router(staff_billing.build_router())
+    app.include_router(staff.router)
     # Always registered (ruling R-01); every route answers 404 while the flag is off.
     if notify_database is not None:
         app.state.notify_db = notify_database

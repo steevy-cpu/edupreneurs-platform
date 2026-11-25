@@ -220,3 +220,40 @@ def test_ipv6_clients_are_counted_per_64_prefix() -> None:
     other = client_address(scope("2001:db8:1:3::1"), 0)
     assert first == second == "2001:db8:1:2::/64" and other != first
     assert client_address(scope("::ffff:192.0.2.7"), 0) == "192.0.2.7"
+
+
+def multi_line_scope(peer: str, *lines: str) -> dict[str, object]:
+    return {
+        "client": (peer, 5000),
+        "headers": [(b"x-forwarded-for", line.encode()) for line in lines],
+    }
+
+
+def test_forwarded_header_lines_are_joined_in_order_before_choosing_the_entry() -> None:
+    """Review M-1: a proxy may append its entry as a NEW header line. The client's
+    own first line must not be taken for the proxy's entry."""
+    forged_then_proxy = multi_line_scope("10.9.9.9", "1.2.3.4", "203.0.113.7")
+    assert client_address(forged_then_proxy, 1) == "203.0.113.7"
+    assert client_address(forged_then_proxy, 2) == "1.2.3.4"
+    # Same result as the equivalent single comma-joined line.
+    assert client_address(scope("10.9.9.9", "1.2.3.4, 203.0.113.7"), 1) == "203.0.113.7"
+    # Three lines, mixed with commas inside a line; order is the order received.
+    mixed = multi_line_scope("10.9.9.9", "1.1.1.1, 2.2.2.2", "3.3.3.3", "4.4.4.4")
+    assert [client_address(mixed, hops) for hops in (1, 2, 3, 4)] == [
+        "4.4.4.4",
+        "3.3.3.3",
+        "2.2.2.2",
+        "1.1.1.1",
+    ]
+
+
+def test_forwarded_header_lines_tolerate_empty_entries_and_short_lists() -> None:
+    # Empty lines and empty comma entries are not entries.
+    sparse = multi_line_scope("10.9.9.9", "", "1.2.3.4,, ", "", "203.0.113.7")
+    assert client_address(sparse, 1) == "203.0.113.7"
+    assert client_address(sparse, 2) == "1.2.3.4"
+    # Fewer usable entries than trusted hops: the socket peer, never a client-chosen entry.
+    assert client_address(sparse, 3) == "10.9.9.9"
+    assert client_address(multi_line_scope("10.9.9.9", "", " , "), 1) == "10.9.9.9"
+    # hops = 0 still ignores the header entirely, however many lines there are.
+    assert client_address(multi_line_scope("10.9.9.9", "1.2.3.4", "203.0.113.7"), 0) == "10.9.9.9"
