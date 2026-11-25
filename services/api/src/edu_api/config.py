@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     pull_default_limit: int = Field(default=100, ge=1)
     pull_max_limit: int = Field(default=200, ge=1)
 
+    # --- Word of the Day (lane VOCAB, overnight 2026-11-24) ----------------------
+    #: ``EDU_DAILY_WORD_ENABLED``. Off by default: ``GET /v1/daily-word`` is then
+    #: not mounted at all, so the API (and its OpenAPI document) is exactly as
+    #: before and the path answers the standard 404.
+    daily_word_enabled: bool = False
+
     @field_validator("auth_algorithms")
     @classmethod
     def _only_asymmetric(cls, value: tuple[str, ...]) -> tuple[str, ...]:
