@@ -137,7 +137,7 @@ SELECT is((SELECT row(status, revision, created_by, approved_by)::text FROM app.
     row('draft', 1, 'a0000000-0000-4000-8000-000000000003'::uuid, NULL::uuid)::text, 'a revision starts as a draft of the actor');
 SELECT is((SELECT count(*)::int FROM app.question_revisions WHERE lesson_revision_id = (SELECT id FROM ids WHERE label = 'rev')), 1, 'with its questions');
 
--- another editor is not the author; an admin may act for the author
+-- another editor is not the author (neither is an admin: see 106)
 INSERT INTO app.staff_roles (user_id, role) VALUES (:PUBLISHER, 'editor');
 SELECT is(pg_temp.staff(:PUBLISHER::uuid, format($$SELECT staff.update_revision(%L, 'Vol', '[{"key":"a","type":"paragraph","text":"y"}]', '[]')$$, (SELECT id FROM ids WHERE label = 'rev'))), 'ERROR:42501:not_the_author', 'another editor cannot change the draft');
 SELECT is(pg_temp.staff(:PUBLISHER::uuid, format($$SELECT staff.submit_revision(%L)$$, (SELECT id FROM ids WHERE label = 'rev'))), 'ERROR:42501:not_the_author', 'another editor cannot submit the draft');
@@ -167,8 +167,10 @@ SELECT is((SELECT count(*)::int FROM app.pack_releases WHERE pack_key = 't103-pa
 SELECT isnt(pg_temp.staff(:REVIEWER::uuid, format($$SELECT staff.review_revision(%L, 'approved', 'ok')$$, (SELECT id FROM ids WHERE label = 'rev'))), NULL, 'an independent reviewer approves');
 SELECT is((SELECT row(status, approved_by, approved_at = now())::text FROM app.lesson_revisions WHERE id = (SELECT id FROM ids WHERE label = 'rev')),
     row('approved', 'a0000000-0000-4000-8000-000000000004'::uuid, true)::text, 'approved by the reviewer, at server time');
+SELECT is(pg_temp.staff(:EDITOR::uuid, format($$SELECT staff.update_revision(%L, 'Tard', '[{"key":"a","type":"paragraph","text":"y"}]', '[]')$$, (SELECT id FROM ids WHERE label = 'rev'))),
+    'ERROR:P0001:Approved/packed lesson revisions are immutable', 'TRIGGER: not even the author edits an approved revision');
 SELECT is(pg_temp.staff(:ADMIN::uuid, format($$SELECT staff.update_revision(%L, 'Tard', '[{"key":"a","type":"paragraph","text":"y"}]', '[]')$$, (SELECT id FROM ids WHERE label = 'rev'))),
-    'ERROR:P0001:Approved/packed lesson revisions are immutable', 'TRIGGER: not even an admin edits an approved revision');
+    'ERROR:42501:not_the_author', 'an admin is not the author (review fix M-B2-1; see 106)');
 SELECT is(pg_temp.staff(:REVIEWER::uuid, format($$SELECT staff.review_revision(%L, 'rejected', NULL)$$, (SELECT id FROM ids WHERE label = 'rev'))), 'ERROR:ED409:revision_not_in_review', 'an approved revision is not reviewed again');
 
 -- packs
