@@ -208,6 +208,19 @@ async def remove_account(admin: asyncpg.Pool, env: dict[str, str], user_id: uuid
         )
 
 
+async def reset_denial_windows(admin: asyncpg.Pool, *user_ids: uuid.UUID) -> None:
+    """Forget the 60-second "refusal already audited" windows (all, or of the given
+    accounts), so that a test's next refused request is written to the audit log
+    again. A test-only shortcut for waiting a minute."""
+    if user_ids:
+        await admin.execute(
+            "DELETE FROM ops.access_denial_windows WHERE actor_id = ANY($1::uuid[])",
+            list(user_ids),
+        )
+    else:
+        await admin.execute("DELETE FROM ops.access_denial_windows")
+
+
 MakeStaff = Callable[..., Awaitable[StaffAccount]]
 
 

@@ -72,7 +72,7 @@ SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname = 'app'
     'no app policy mentions edu_staff or edu_worker');
 
 -- ---- functions ------------------------------------------------------------------------
-SELECT functions_are('ops', ARRAY['actor_kind_for','check_audit_details','audit_write'],
+SELECT functions_are('ops', ARRAY['actor_kind_for','check_audit_details','audit_write','audit_access_denied','erase_learner'],
     'ops holds exactly the expected functions');
 SELECT functions_are('staff', ARRAY['check_role_names','actor_roles','actor_has_role','require_role'],
     'staff holds exactly the expected functions');
@@ -99,8 +99,8 @@ SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace IN ('ops'::r
 SELECT is((SELECT array_agg(n.nspname || '.' || p.proname ORDER BY (n.nspname || '.' || p.proname) COLLATE "C") FROM pg_proc p
            JOIN pg_namespace n ON n.oid = p.pronamespace
            WHERE n.nspname IN ('ops','staff') AND has_function_privilege('edu_staff', p.oid, 'EXECUTE')),
-    ARRAY['ops.audit_write','staff.actor_has_role','staff.actor_roles','staff.require_role'],
-    'edu_staff may execute exactly audit_write and the three role checks');
+    ARRAY['ops.audit_access_denied','ops.audit_write','staff.actor_has_role','staff.actor_roles','staff.require_role'],
+    'edu_staff may execute exactly the functions granted to it');
 SELECT is((SELECT array_agg(n.nspname || '.' || p.proname ORDER BY (n.nspname || '.' || p.proname) COLLATE "C") FROM pg_proc p
            JOIN pg_namespace n ON n.oid = p.pronamespace
            WHERE n.nspname IN ('ops','staff') AND has_function_privilege('edu_worker', p.oid, 'EXECUTE')),
@@ -119,8 +119,8 @@ SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace IN ('ops'::r
 SELECT is((SELECT array_agg(n.nspname || '.' || p.proname ORDER BY (n.nspname || '.' || p.proname) COLLATE "C") FROM pg_proc p
            JOIN pg_namespace n ON n.oid = p.pronamespace
            WHERE n.nspname IN ('ops','staff') AND p.prosecdef),
-    ARRAY['ops.audit_write','staff.actor_has_role','staff.actor_roles','staff.require_role'],
-    'exactly the four callable functions are SECURITY DEFINER; the internal helpers are not');
+    ARRAY['ops.audit_access_denied','ops.audit_write','ops.erase_learner','staff.actor_has_role','staff.actor_roles','staff.require_role'],
+    'exactly these functions are SECURITY DEFINER; the internal helpers are not');
 
 SELECT * FROM finish();
 ROLLBACK;

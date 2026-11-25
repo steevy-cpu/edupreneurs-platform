@@ -30,6 +30,7 @@ from tests.staff_fixtures import (  # noqa: F401  (fixtures are used by name)
     dispose_app,
     make_staff,
     remove_account,
+    reset_denial_windows,
     set_role_active,
     staff_app,
     staff_client,
@@ -77,6 +78,12 @@ def assert_error(response: httpx.Response, status: int, code: str) -> None:
     assert error["code"] == code
     assert set(error) <= {"code", "message", "request_id", "details"}
     assert error["request_id"]
+
+
+@pytest.fixture(autouse=True)
+async def fresh_denial_windows(admin: asyncpg.Pool) -> None:
+    """Each test starts with no "refusal already audited" window open."""
+    await reset_denial_windows(admin)
 
 
 # ------------------------------------------------- staff side switched off (default)
@@ -148,6 +155,63 @@ async def test_a_learner_token_is_refused_and_the_refusal_is_audited(
         await admin.fetchval("SELECT count(*) FROM app.staff_roles WHERE user_id = $1", STUDENT_A)
         == 0
     )
+
+
+async def test_repeated_refusals_do_not_grow_the_audit_log(
+    staff_client: httpx.AsyncClient, tokens: dict[str, str], admin: asyncpg.Pool
+) -> None:
+    """At most one persisted refusal per account per 60 seconds, whatever the client does."""
+    before_a = len(await denied_events(admin, STUDENT_A))
+    before_b = len(await denied_events(admin, STUDENT_B))
+    total_before = await admin.fetchval("SELECT count(*) FROM app.audit_events")
+
+    responses = [
+        await staff_client.get("/v1/staff/me", headers=bearer(tokens["student_a"]))
+        for _ in range(25)
+    ]
+    responses += await asyncio.gather(
+        *(staff_client.get("/v1/staff/me", headers=bearer(tokens["student_a"])) for _ in range(25))
+    )
+    # every single request is still refused, in the same way
+    assert {r.status_code for r in responses} == {403}
+    assert {r.json()["error"]["code"] for r in responses} == {"forbidden"}
+    assert len(await denied_events(admin, STUDENT_A)) == before_a + 1
+
+    # another account is not silenced by the first one's window
+    assert_error(
+        await staff_client.get("/v1/staff/me", headers=bearer(tokens["student_b"])),
+        403,
+        "forbidden",
+    )
+    assert len(await denied_events(admin, STUDENT_B)) == before_b + 1
+    assert await admin.fetchval("SELECT count(*) FROM app.audit_events") == total_before + 2
+    assert (
+        await admin.fetchval(
+            "SELECT suppressed FROM ops.access_denial_windows WHERE actor_id = $1", STUDENT_A
+        )
+        == 49
+    )
+
+    # once the window has passed (moved back by hand instead of waiting a minute),
+    # the next refusal is written again and reports what was left out
+    await admin.execute(
+        "UPDATE ops.access_denial_windows SET window_started_at = now() - interval '61 seconds' "
+        "WHERE actor_id = $1",
+        STUDENT_A,
+    )
+    assert_error(
+        await staff_client.get("/v1/staff/me", headers=bearer(tokens["student_a"])),
+        403,
+        "forbidden",
+    )
+    events = await denied_events(admin, STUDENT_A)
+    assert len(events) == before_a + 2
+    assert events[-1]["details"] == {
+        "method": "GET",
+        "route": "/v1/staff/me",
+        "required_roles": ["any"],
+        "suppressed_before": 49,
+    }
 
 
 async def test_an_allowed_staff_request_writes_no_access_event(

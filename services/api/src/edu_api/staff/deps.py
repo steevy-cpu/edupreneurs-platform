@@ -18,7 +18,8 @@ What ``require_staff`` does, in order:
    (no caching: a revoked role stops working at once);
 4. without one of the required roles the caller gets 403 ``forbidden`` and the
    refusal is written to the audit log as ``staff.access`` / ``denied`` in its
-   own committed transaction.
+   own committed transaction — at most one event per actor per 60 seconds;
+   further refusals in that window are counted, not stored.
 
 This is the API's gate. It is not the only one: every ``staff.*`` database
 function checks the role again with ``staff.require_role``.
@@ -44,9 +45,8 @@ from edu_api.errors import ApiError
 STAFF_ROLES = frozenset({"editor", "reviewer", "publisher", "admin"})
 
 _ACTOR_ROLES = text("SELECT staff.actor_roles()")
-_AUDIT_DENIED = text(
-    "SELECT ops.audit_write('staff.access', NULL, NULL, 'denied', CAST(:details AS jsonb))"
-)
+#: Bounded in SQL: at most one persisted refusal per actor per 60-second window.
+_AUDIT_DENIED = text("SELECT ops.audit_access_denied(CAST(:details AS jsonb))")
 
 
 @dataclass(frozen=True)
