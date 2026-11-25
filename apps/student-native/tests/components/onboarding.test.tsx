@@ -82,6 +82,15 @@ describe('who sees the flow', () => {
     expect(flow.redirect()).toBe('/home');
   });
 
+  test('review L3: opening the onboarding route directly does not start the flow for such an account either', async () => {
+    const app = await phone.signIn('student.a');
+    await app.session.account.setPreference(PREF_GRADE, '9AF');
+    const flow = await phone.render(<Onboarding />); // Accueil was never shown
+    expect(flow.redirect()).toBe('/home');
+    expect(await app.session.account.experience.getOnboarding()).toMatchObject({ status: 'returning' });
+    expect((await phone.render(<Home />)).redirect()).toBeNull();
+  });
+
   test('signed out: sign-in, not onboarding', async () => {
     const app = await phone.signIn('student.a');
     (app as { session: unknown }).session = null;

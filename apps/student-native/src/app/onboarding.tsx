@@ -12,6 +12,7 @@ import {
   goToOnboardingStep,
   isFinished,
   noteOnboardingLocale,
+  onboardingGate,
   selectOnboardingGrade,
   skipOnboardingGrade,
   stepIndex,
@@ -63,6 +64,9 @@ export default function Onboarding() {
       let live = true;
       (async () => {
         const { content, env } = app.services;
+        // Same rule as Accueil first: an account that is already a returning learner is recorded as such,
+        // so opening this route directly (a link) cannot put it through the flow.
+        await onboardingGate(session.account, env.now());
         const opened = await beginOrResumeOnboarding(session.account, env.now());
         const grades = await gradeChoices(content, locale);
         if (!live || !session.isActive()) return;

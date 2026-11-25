@@ -9,6 +9,7 @@
  *  - ADDITIVE ONLY: `CREATE TABLE` / `INSERT` into the new tables. No statement
  *    alters, drops, rewrites or deletes from an existing table, so every saved
  *    answer, completion and queued operation survives the upgrade untouched.
+ *  - Statement by statement they are also safe to run twice (IF NOT EXISTS, INSERT OR IGNORE).
  *  - Each migration runs in one transaction together with its version bump
  *    (see `migrate` in db/driver.ts): a phone that dies half-way keeps the old
  *    schema and simply tries again at the next start.
@@ -25,7 +26,7 @@ const NOW_ISO = `strftime('%Y-%m-%dT%H:%M:%fZ','now')`;
 export const EXPERIENCE_MIGRATION_V2: Migration = {
   version: 2,
   statements: [
-    `CREATE TABLE onboarding_state (
+    `CREATE TABLE IF NOT EXISTS onboarding_state (
        id                  INTEGER PRIMARY KEY CHECK (id = 1),
        flow_version        INTEGER NOT NULL,
        status              TEXT NOT NULL CHECK (status IN ('in_progress','completed','skipped','returning')),
@@ -40,7 +41,7 @@ export const EXPERIENCE_MIGRATION_V2: Migration = {
        needs_push          INTEGER NOT NULL DEFAULT 1,
        profile_needs_push  INTEGER NOT NULL DEFAULT 0
      )`,
-    `CREATE TABLE tour_state (
+    `CREATE TABLE IF NOT EXISTS tour_state (
        id            INTEGER PRIMARY KEY CHECK (id = 1),
        version_seen  INTEGER NOT NULL DEFAULT 0,
        dismissed     INTEGER NOT NULL DEFAULT 0,
@@ -54,7 +55,7 @@ export const EXPERIENCE_MIGRATION_V2: Migration = {
     // That learner is a RETURNING user and is never sent through the first-run
     // flow. A brand-new database has an empty `meta` table at this point (the
     // owner row is written after the migrations), so nothing is inserted.
-    `INSERT INTO onboarding_state
+    `INSERT OR IGNORE INTO onboarding_state
        (id, flow_version, status, step, furthest_step, started_at, updated_at, completed_at, needs_push)
      SELECT 1, 0, 'returning', 'ready', 'ready', ${NOW_ISO}, ${NOW_ISO}, ${NOW_ISO}, 1
      WHERE EXISTS (SELECT 1 FROM meta WHERE key = 'account_id')`,
@@ -70,7 +71,7 @@ export const EXPERIENCE_MIGRATION_V2: Migration = {
 export const EXPERIENCE_MIGRATION_V3: Migration = {
   version: 3,
   statements: [
-    `CREATE TABLE daily_word_cache (
+    `CREATE TABLE IF NOT EXISTS daily_word_cache (
        locale           TEXT PRIMARY KEY NOT NULL CHECK (locale IN ('fr','ht')),
        haiti_date       TEXT,
        valid_until      TEXT,
@@ -92,7 +93,7 @@ export const EXPERIENCE_MIGRATION_V3: Migration = {
 export const EXPERIENCE_MIGRATION_V4: Migration = {
   version: 4,
   statements: [
-    `CREATE TABLE rewards_summary_cache (
+    `CREATE TABLE IF NOT EXISTS rewards_summary_cache (
        id               INTEGER PRIMARY KEY CHECK (id = 1),
        body_json        TEXT,
        fetched_at       TEXT,

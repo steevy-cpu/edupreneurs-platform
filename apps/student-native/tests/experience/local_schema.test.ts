@@ -11,6 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { AccountStore } from '../../src/core/db/accountStore';
+import { EXPERIENCE_MIGRATIONS } from '../../src/core/experience/schema';
 import { beginOrResumeOnboarding, goToOnboardingStep, onboardingGate } from '../../src/core/experience/onboarding';
 import { buildV1AccountDatabase, dumpV1Tables } from '../support/legacySchema';
 import { FaultPlan, nodeDatabases } from '../support/nodeSqlite';
@@ -107,7 +108,7 @@ describe('upgrade from the Mobile-02 local schema (version 1)', () => {
 
   test('an upgrade that fails half-way leaves the old database intact; the next start finishes it', async () => {
     const before = await v1File(A);
-    const faults: FaultPlan = { shouldFail: (sql) => sql.includes('CREATE TABLE tour_state') };
+    const faults: FaultPlan = { shouldFail: (sql) => sql.includes('CREATE TABLE IF NOT EXISTS tour_state') };
     await expect(AccountStore.open(await nodeDatabases(dir, faults)(`account-${A}`), A)).rejects.toThrow('SQLITE_FULL');
 
     expect(await userVersion(A)).toBe(1);
@@ -121,6 +122,20 @@ describe('upgrade from the Mobile-02 local schema (version 1)', () => {
     expect((await store.experience.getOnboarding())?.status).toBe('returning');
     await store.close();
   });
+});
+
+test('review L2: every experience migration statement can be run a second time without error or change', async () => {
+  await v1File(A);
+  const store = await AccountStore.open(await nodeDatabases(dir)(`account-${A}`), A);
+  const before = await store.experience.getOnboarding();
+  await store.close();
+  const raw = await nodeDatabases(dir)(`account-${A}`);
+  for (const migration of EXPERIENCE_MIGRATIONS) for (const statement of migration.statements) await raw.run(statement);
+  await raw.close();
+  const again = await AccountStore.open(await nodeDatabases(dir)(`account-${A}`), A);
+  expect(await again.experience.getOnboarding()).toEqual(before);
+  expect(await again.attemptCount()).toBe(4);
+  await again.close();
 });
 
 describe('a new account database', () => {
