@@ -725,6 +725,72 @@ async def test_a_correction_is_a_reversal_row_and_shows_in_the_api(
     assert await assert_balance_matches_ledger(admin, STUDENT_A) == 15
 
 
+async def test_erasure_is_not_undone_by_a_summary_or_a_reconcile(
+    on: httpx.AsyncClient, tokens: dict[str, str], admin: asyncpg.Pool
+) -> None:
+    """Security review L2. The orchestrator's contract: in ONE transaction call
+    the hook (it keeps the learner's rewards lock until commit), remove the
+    learner's receipts, commit. Requests racing with it recreate nothing."""
+    await push(on, tokens["student_a"], [answer_op(Q1, Q1_CORRECT), completed_op(SEED_REV_FR)])
+    await push(on, tokens["student_b"], [answer_op(Q1, Q1_CORRECT)])
+    assert (await summary(on, tokens["student_a"]))["balance"] == 35
+
+    async with admin.acquire() as conn:
+        transaction = conn.transaction()
+        await transaction.start()
+        await conn.fetchval("SELECT rewards.erase_learner($1)", STUDENT_A)
+        # While the erasure is still open: a summary (lazy reconcile) and a
+        # retried push arrive for the same learner.
+        racing = [
+            asyncio.create_task(on.get("/v1/rewards/summary", headers=bearer(tokens["student_a"])))
+            for _ in range(3)
+        ]
+        await asyncio.sleep(0.3)
+        await conn.execute(
+            "TRUNCATE app.practice_attempts, app.sync_receipts, app.account_change_feed, "
+            "app.lesson_progress, app.account_sync_state"
+        )
+        await transaction.commit()
+    responses = await asyncio.gather(*racing)
+    assert [r.status_code for r in responses] == [200] * 3
+    # A request that read before the commit may still show the old balance
+    # (the erasure was not committed yet); none may show anything else.
+    assert {r.json()["balance"] for r in responses} <= {0, 35}
+
+    for _ in range(2):
+        body = await summary(on, tokens["student_a"])
+        assert (body["balance"], body["recent"], body["achievements"]) == (0, [], [])
+        assert body["streak"]["longest_days"] == 0 and body["up_to_date"] is True
+    assert await admin.fetchval("SELECT rewards.reconcile_batch(20, 200)") is not None
+    for table in (
+        "ledger",
+        "balances",
+        "processed_operations",
+        "activity_days",
+        "streak_state",
+        "achievement_awards",
+    ):
+        assert (
+            await admin.fetchval(
+                f"SELECT count(*) FROM rewards.{table} WHERE learner_id = $1", STUDENT_A
+            )
+            == 0
+        ), table
+
+
+async def test_receipts_left_behind_after_erasure_are_re_derived_as_documented(
+    on: httpx.AsyncClient, tokens: dict[str, str], admin: asyncpg.Pool
+) -> None:
+    """The other half of the contract, stated honestly: the hook alone is not an
+    account deletion. If the caller leaves accepted receipts in place, the next
+    reconcile rebuilds the rewards from them — exactly once, never doubled."""
+    await push(on, tokens["student_a"], [answer_op(Q1, Q1_CORRECT), completed_op(SEED_REV_FR)])
+    await admin.fetchval("SELECT rewards.erase_learner($1)", STUDENT_A)
+    assert await ledger_total(admin, STUDENT_A) == (0, 0)
+    assert (await summary(on, tokens["student_a"]))["balance"] == 35
+    assert await assert_balance_matches_ledger(admin, STUDENT_A) == 35
+
+
 async def test_erasure_hook_removes_every_rewards_row_of_one_learner(
     on: httpx.AsyncClient, tokens: dict[str, str], admin: asyncpg.Pool
 ) -> None:

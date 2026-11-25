@@ -5,7 +5,9 @@
 
 from __future__ import annotations
 
+import base64
 import datetime as dt
+import json
 import uuid
 from typing import Any
 
@@ -313,6 +315,15 @@ async def test_ledger_pages_newest_first_with_an_opaque_cursor(
     assert ids == [e["id"] for e in everything["entries"]], "pages do not overlap or skip"
     assert sum(e["amount"] for e in everything["entries"]) == everything["balance"]
 
+    # Security review L3: the cursor names one of the caller's OWN entries and
+    # nothing global — no table-wide sequence number to watch grow.
+    raw = first["next_cursor"]
+    document = json.loads(base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4)))
+    assert set(document) == {"v", "a", "t", "i"}
+    assert document["i"] == first["entries"][-1]["id"]
+    global_seq = await admin.fetchval("SELECT max(seq) FROM rewards.ledger")
+    assert global_seq not in document.values()
+
     # New entries do not disturb a walk that is already in progress.
     await push(on, tokens["student_a"], [completed_op(lesson["revision_id"])])
     assert (await page(limit=3, cursor=first["next_cursor"]))["entries"] == second["entries"]
@@ -326,14 +337,16 @@ async def test_ledger_cursor_and_limit_validation(
     async def get(token: str, **params: Any) -> httpx.Response:
         return await on.get("/v1/rewards/ledger", params=params, headers=bearer(token))
 
-    for bad in ("garbage", "e30", encode_ledger_cursor(STUDENT_B, 5), "x" * 150):
+    now = dt.datetime.now(dt.UTC)
+    some_id = uuid.uuid4()
+    for bad in ("garbage", "e30", encode_ledger_cursor(STUDENT_B, now, some_id), "x" * 150):
         response = await get(tokens["student_a"], cursor=bad)
         assert response.status_code == 422, bad
         assert response.json()["error"]["code"] == "invalid_cursor"
     # A cursor is bound to its account: A's cursor is useless to B.
-    assert (await get(tokens["student_b"], cursor=encode_ledger_cursor(STUDENT_A, 2**40))).json()[
-        "error"
-    ]["code"] == "invalid_cursor"
+    assert (
+        await get(tokens["student_b"], cursor=encode_ledger_cursor(STUDENT_A, now, some_id))
+    ).json()["error"]["code"] == "invalid_cursor"
 
     for params in ({"limit": 0}, {"limit": 101}, {"limit": "many"}, {"cursor": "x" * 201}):
         response = await get(tokens["student_a"], **params)
@@ -341,7 +354,10 @@ async def test_ledger_cursor_and_limit_validation(
         assert response.json()["error"]["code"] == "validation_error"
     assert (await get(tokens["student_a"], limit=100)).status_code == 200
     # A well-formed cursor pointing past the oldest entry is simply an empty page.
-    empty = (await get(tokens["student_a"], cursor=encode_ledger_cursor(STUDENT_A, 1))).json()
+    long_ago = dt.datetime(2000, 1, 1, tzinfo=dt.UTC)
+    empty = (
+        await get(tokens["student_a"], cursor=encode_ledger_cursor(STUDENT_A, long_ago, some_id))
+    ).json()
     assert (empty["entries"], empty["has_more"], empty["next_cursor"]) == ([], False, None)
 
 

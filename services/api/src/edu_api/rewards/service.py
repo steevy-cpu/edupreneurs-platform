@@ -50,15 +50,18 @@ _ACHIEVEMENTS = text(
     "ORDER BY a.awarded_at, a.achievement_code"
 )
 
-_LEDGER_PAGE = text(
-    "SELECT id, seq, entry_kind, amount, source_kind, lesson_id, question_key, "
+_LEDGER_COLUMNS = (
+    "SELECT id, entry_kind, amount, source_kind, lesson_id, question_key, "
     "       achievement_code, source_op_id, accepted_day, created_at "
-    "FROM rewards.ledger "
-    "WHERE learner_id = :learner_id AND seq < :before "
-    "ORDER BY seq DESC LIMIT :limit"
+    "FROM rewards.ledger WHERE learner_id = :learner_id "
 )
+_LEDGER_ORDER = "ORDER BY created_at DESC, id DESC LIMIT :limit"
 
-_NEWEST = 2**63 - 1
+_LEDGER_NEWEST = text(_LEDGER_COLUMNS + _LEDGER_ORDER)
+#: Keyset paging on the caller's own (created_at, id) — never a global sequence.
+_LEDGER_BEFORE = text(
+    _LEDGER_COLUMNS + "AND (created_at, id) < (:before_at, :before_id) " + _LEDGER_ORDER
+)
 
 
 def _entry(row: Any) -> LedgerEntry:
@@ -110,9 +113,7 @@ async def summary(
         streak_row = (await conn.execute(_STREAK, {"learner_id": learner_id})).one_or_none()
         achievement_rows = (await conn.execute(_ACHIEVEMENTS, {"learner_id": learner_id})).all()
         recent_rows = (
-            await conn.execute(
-                _LEDGER_PAGE, {"learner_id": learner_id, "before": _NEWEST, "limit": recent_limit}
-            )
+            await conn.execute(_LEDGER_NEWEST, {"learner_id": learner_id, "limit": recent_limit})
         ).all()
 
     if streak_row is None:
@@ -149,30 +150,31 @@ async def summary(
 async def ledger_page(
     db: Database, learner_id: uuid.UUID, cursor: str | None, *, limit: int
 ) -> LedgerPage:
-    before = _NEWEST
+    statement = _LEDGER_NEWEST
+    params: dict[str, Any] = {"learner_id": learner_id, "limit": limit + 1}
     if cursor is not None:
         try:
-            before = decode_ledger_cursor(learner_id, cursor)
+            before_at, before_id = decode_ledger_cursor(learner_id, cursor)
         except InvalidLedgerCursor:
             raise ApiError(
                 422,
                 "invalid_cursor",
                 "This cursor cannot be used. Request the ledger again without a cursor.",
             ) from None
+        statement = _LEDGER_BEFORE
+        params.update(before_at=before_at, before_id=before_id)
 
     async with db.transaction(learner_id, read_only=True) as conn:
         balance, _ = await _balance(conn, learner_id)
-        rows = (
-            await conn.execute(
-                _LEDGER_PAGE, {"learner_id": learner_id, "before": before, "limit": limit + 1}
-            )
-        ).all()
+        rows = (await conn.execute(statement, params)).all()
 
     has_more = len(rows) > limit
     page = rows[:limit]
     return LedgerPage(
         entries=[_entry(row) for row in page],
-        next_cursor=encode_ledger_cursor(learner_id, page[-1].seq) if has_more else None,
+        next_cursor=(
+            encode_ledger_cursor(learner_id, page[-1].created_at, page[-1].id) if has_more else None
+        ),
         has_more=has_more,
         balance=balance,
     )

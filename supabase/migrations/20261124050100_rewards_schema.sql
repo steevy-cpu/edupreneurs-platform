@@ -90,7 +90,8 @@ CREATE TABLE rewards.achievement_definitions (
 -- ============================================================================
 CREATE TABLE rewards.ledger (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    -- Monotonic insertion order; used only for stable paging.
+    -- Global insertion order. INTERNAL ONLY: it counts every learner's rows, so
+    -- it must never reach a client (the API pages on created_at + id instead).
     seq bigint GENERATED ALWAYS AS IDENTITY UNIQUE,
     learner_id uuid NOT NULL REFERENCES app.learner_profiles(user_id) ON DELETE RESTRICT,
     entry_kind text NOT NULL CHECK (entry_kind IN ('award', 'reversal', 'adjustment')),
@@ -167,7 +168,8 @@ CREATE TABLE rewards.ledger (
             AND adjustment_id IS NOT NULL AND actor_id IS NOT NULL AND reason_code IS NOT NULL)
     )
 );
-CREATE INDEX idx_ledger_learner_seq ON rewards.ledger (learner_id, seq DESC);
+-- Paging for the learner API: newest first, keyed by the row's own instant and id.
+CREATE INDEX idx_ledger_learner_recent ON rewards.ledger (learner_id, created_at DESC, id DESC);
 CREATE INDEX idx_ledger_caps_lesson ON rewards.ledger (learner_id, rule_code, lesson_id)
     WHERE entry_kind = 'award';
 CREATE INDEX idx_ledger_caps_day ON rewards.ledger (learner_id, accepted_day, rule_code)
@@ -284,7 +286,9 @@ DECLARE
     v_receipt record;
     v_original record;
 BEGIN
-    NEW.created_at := now();
+    -- Wall-clock instant of THIS insert (not the transaction start), so rows of
+    -- one learner are ordered by it even inside a single transaction.
+    NEW.created_at := clock_timestamp();
 
     IF NEW.source_kind = 'reversal' THEN
         SELECT l.learner_id, l.entry_kind, l.amount, l.rule_code, l.rule_version INTO v_original

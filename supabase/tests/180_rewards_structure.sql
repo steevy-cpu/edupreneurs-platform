@@ -35,7 +35,7 @@ SELECT is((SELECT count(*)::int FROM pg_constraint k
                                  'app.lesson_progress'::regclass, 'app.account_sync_state'::regclass,
                                  'app.account_change_feed'::regclass)), 0,
     'no foreign key onto the sync tables (they must stay truncatable and compactable)');
-SELECT has_index('rewards', 'ledger', 'idx_ledger_learner_seq', 'paging index');
+SELECT has_index('rewards', 'ledger', 'idx_ledger_learner_recent', 'paging index (created_at, id) — not the global sequence');
 SELECT has_index('rewards', 'ledger', 'idx_ledger_day', 'period aggregate index');
 SELECT col_has_check('rewards', 'ledger', 'amount', 'ledger amounts are checked (non-zero, bounded)');
 SELECT col_has_check('rewards', 'balances', 'balance', 'a balance cannot be negative');

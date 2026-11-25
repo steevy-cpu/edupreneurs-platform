@@ -576,10 +576,18 @@ $$;
 -- Erasure hook (plan §3; EXECUTE granted to NOBODY — the account orchestrator
 -- calls it as owner)
 -- ----------------------------------------------------------------------------
--- Removes every rewards row of one learner. ORDER MATTERS for the caller:
--- erase (or keep out of reach) the learner's accepted receipts FIRST, otherwise
--- a later reconciliation would faithfully re-derive the rewards from them; and
--- call this BEFORE deleting app.learner_profiles (foreign keys are RESTRICT).
+-- Removes every rewards row of one learner and KEEPS THE LEARNER'S REWARDS LOCK
+-- UNTIL THE CALLER COMMITS (it is a transaction-scoped advisory lock), so no
+-- award or reconcile for that learner can run in between.
+--
+-- CONTRACT for the account orchestrator, all in ONE transaction:
+--   1. SELECT rewards.erase_learner(<id>);            -- takes the lock
+--   2. remove the learner's app.sync_receipts (and the other learning rows);
+--   3. delete app.learner_profiles (rewards foreign keys are RESTRICT);
+--   4. COMMIT.
+-- A reconcile that was waiting on the lock then finds no receipt and recreates
+-- nothing. If receipts are left behind after the commit, reconciliation WILL
+-- faithfully re-derive the rewards from them — that is what receipts are for.
 CREATE FUNCTION rewards.erase_learner(p_user_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
