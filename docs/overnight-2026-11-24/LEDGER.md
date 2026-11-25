@@ -2,7 +2,7 @@
 
 Status values: `PLANNED`, `IN_PROGRESS`, `BLOCKED`, `FAILED`, `TESTED_LOCAL`, `REVIEWED`, `READY_FOR_HUMAN_REVIEW`.
 `REVIEWED` here means an independent reviewer examined it; open findings are listed. Nothing is merged into `main`; nothing is deployed.
-Worktrees: `/Volumes/EdupreneursDev/worktrees/overnight/<lane>`. Logs: `/Volumes/EdupreneursDev/logs/overnight-2026-11-24/`. Last update 04:50 EST.
+Worktrees: `/Volumes/EdupreneursDev/worktrees/overnight/<lane>`. Logs: `/Volumes/EdupreneursDev/logs/overnight-2026-11-24/`. Row statuses below are as of 04:50 EST; **the final state of every lane is in `MORNING_REPORT.md` §1, §6 and §9** (leaderboard step 1 done, PR #13; all lanes reviewed except leaderboard; integration 3025 pgTAP / 1754 pytest).
 
 | Task | Scope | Agent | Branch @ head | Depends on | Status | Tests performed (lane's own stack unless stated) | Reviewer result | Open defects | PR | Blockers |
 |---|---|---|---|---|---|---|---|---|---|---|

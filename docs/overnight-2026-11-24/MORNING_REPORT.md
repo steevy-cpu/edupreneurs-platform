@@ -1,7 +1,7 @@
 # Morning report — overnight mission 2026-11-24 → 25
 
-Written by the director (Fable). Last updated 07:50 EST on 2026-11-25; §9 says what was still
-running at that moment.
+Written by the director (Fable). **Final version, 09:00 EST on 2026-11-25.** Nothing was still running
+when it was written; §9 is the closing state.
 
 **Read this first.** Nothing was merged into `main`. Nothing was deployed, linked to a hosted
 project, or run against real data. Every database was a disposable local stack with synthetic
@@ -22,15 +22,15 @@ disposable Supabase stack, plus independent reviewers on two further stacks.
 
 | Lane | Branch · draft PR | What it contains | Status |
 |---|---|---|---|
-| Staff boundary, audit, editorial, roles, worker | `overnight/staff-worker` · #4 | Roles `edu_staff`/`edu_worker`, `ops.audit_write`, staff role checks; editorial workflow through the API (draft → review by a different person → pack → release/rollback); role administration; worker job leasing; security hardening | First deliverable **REVIEWED** (fixes applied). Editorial, roles, worker and the re-check of the security fix: review running, see §9. MFA: design text only |
+| Staff boundary, audit, editorial, roles, worker | `overnight/staff-worker` · #4 | Roles `edu_staff`/`edu_worker`, `ops.audit_write`, staff role checks; editorial workflow through the API (draft → review by a different person → pack → release/rollback); role administration; worker job leasing; security hardening | **REVIEWED** twice. The security fix that concerns `main` was re-checked and is **closed**. The second review's medium finding (an admin could publish content nobody else reviewed) is fixed in `33aa2e2`, not re-checked. MFA: design text only |
 | Identity, onboarding state, lifecycle | `overnight/identity-onboarding` · #5 | `PATCH /v1/me`, forward-only onboarding state, deletion/export requests, erasure of one learner on synthetic users | **REVIEWED** (erasure in depth; conventions not examined); high and two medium findings fixed, fixes **not re-checked** |
-| Word of the Day | `overnight/word-of-the-day` · #9 | Vocabulary with review workflow, immutable Haiti-date schedule with a 10-minute freeze, `GET /v1/daily-word` with ETag, 15 staff routes | **REVIEWED** (approve with fixes); fix round running, see §9 |
+| Word of the Day | `overnight/word-of-the-day` · #9 | Vocabulary with review workflow, immutable Haiti-date schedule with a 10-minute freeze, `GET /v1/daily-word` with ETag, 15 staff routes | **REVIEWED** (approve with fixes); all three findings fixed in `0d607ec`, not re-checked |
 | Gold ledger, streaks, achievements | `overnight/rewards-gold` · #12 | Append-only ledger tied to accepted sync operations, rebuildable balances, flag-guarded hook in the push path, read API, admin reversal/adjustment | **REVIEWED** twice; fix round applied, **not re-checked** |
 | Entitlements (no payments) | `overnight/entitlements` · #10 | Grant model, `GET /v1/entitlements`, admin grant/revoke/list, mock provider with exactly-once simulated events; offline lease as a written spec | **REVIEWED**; the medium finding fixed, four low open |
 | Notifications + security basics | `overnight/notify-security` · #6 | Outbox with dummy adapter (nothing is sent), preferences, opt-in rate limiter, opt-in JSON logs, a performed dump/restore drill | **REVIEWED** (approve with fixes); one medium and four low findings **open** |
-| Content format v2 | `overnight/content-format-v2` · #7 | v2 block and question contracts, 358 shared test vectors, plain-Python validators, deterministic pack manifests, `content` schema with rights gate | **TESTED-LOCAL**; review running, see §9 |
-| Native experience | `overnight/native-experience` (stacked on `mobile-02`) · #8 | Onboarding, tour, Word of the Day card, Gold (pending vs confirmed), leaderboard review screen; all six client flags default off | **REVIEWED** in source; high and medium findings fixed, **not re-checked**; **never run on an emulator or phone** |
-| Leaderboard | `overnight/leaderboard` (local) | Private rank from the Gold ledger | **IN PROGRESS** when this was written, see §9 |
+| Content format v2 | `overnight/content-format-v2` · #7 | v2 block and question contracts, 358 shared test vectors, plain-Python validators, deterministic pack manifests, `content` schema with rights gate | **REVIEWED** (approve with fixes, two high findings on contract-only code); highs and mediums fixed in `660a87b`…`d53d0a1`, not re-checked; preconditions for shipping any v2 content are listed in the lane doc |
+| Native experience | `overnight/native-experience` (stacked on `mobile-02`) · #8 | Onboarding, tour, Word of the Day card, Gold (pending vs confirmed), leaderboard review screen; all six client flags default off | **REVIEWED** in source; high and medium findings fixed, not re-checked; 14 emulator screenshots at 320 dp with a list of visible layout defects (§2) |
+| Leaderboard | `overnight/leaderboard` · #13 | Step 1 only: private rank from the Gold ledger, flag off | **TESTED-LOCAL**, **not reviewed**; cohort list, membership endpoints and staff routes not built |
 | Integration | `overnight/integration-2026-11-24` · #11 | Plan, ledger, reviews, and the merge of all eight backend lanes | **TESTED-LOCAL**, see §5 |
 
 Not attempted at all: learning extras (F5), exams, library, Jude, games, social.
@@ -46,9 +46,11 @@ word without cleared rights cannot be approved or served. The independent review
 published day's word through the API, the staff functions or the worker, and confirmed the day
 boundary one second either side of Haiti midnight in winter, summer, on DST change days and in a
 no-DST year (simulated clock — **no run was observed across a real midnight**). Lane gate: 910
-database assertions, 429 API tests; the reviewer reproduced both counts. One medium finding: a raw
-database session on the staff login (not reachable over HTTP) can commit a reschedule after the day
-has opened; fix round in progress (§9). Audio is metadata only — no storage, no playback, no TTS. No
+database assertions, 429 API tests; the reviewer reproduced both counts. The review's medium finding (a raw
+database session on the staff login, not reachable over HTTP, could commit a reschedule after the day
+had opened) is fixed with a per-day lock and tested with two sessions and a real commit; residual
+risk: such a session can make that day answer "no word" until it ends — never a different word.
+After the fix: 926 database assertions, 433 API tests (fix not re-checked by a reviewer). Audio is metadata only — no storage, no playback, no TTS. No
 view tracking (needs consent). Demo words are synthetic and unreviewed. **Blocked on you:** who may
 clear rights; what a learner sees if rights on today's word are withdrawn (today: no word until
 restored, never a different word); audio limits; notification hour; Creole wording.
@@ -66,12 +68,19 @@ it on. On the integration branch the whole suite passes with the rewards flag on
 server-scored answer in that lesson (placeholder default — without it a script could farm the daily
 cap); an honest learner who passes a cap forfeits that Gold for good. `EDU_REWARDS_ENABLED` defaults off.
 
-**Leaderboard — IN PROGRESS when this was written; see §9 for the final state.** It was gated behind
-the Gold ledger's reviews and then lost most of its time to the usage-limit stops. Scope attempted:
-a private "my Gold this period / my rank inside my cohort" view computed only from the ledger, behind
-a flag that defaults off; the opt-in cohort list was explicitly cut. There is **no public or global
-ranking in any code path**. In the app, the leaderboard review screen's production route shows an
-empty state. **Blocked on you in any case:** visibility and consent rules for minors, pseudonym policy.
+**Leaderboard — step 1 TESTED-LOCAL, not reviewed; the rest NOT BUILT.** What exists
+(`overnight/leaderboard`, draft PR #13): schema `leaderboard` and `GET /v1/leaderboard/me?period=`
+behind `EDU_LEADERBOARD_ENABLED` (default off) — the caller's own Gold for the week or all time and,
+only if opted into a synthetic cohort, their own rank and the cohort size. It is computed only from
+the Gold ledger (staff adjustments excluded, negative sums clamped, ties share a position, staff and
+opted-out or erased accounts excluded at refresh and again at every read) and **never returns anyone
+else's data; there is no public or global ranking in any code path**. 172 database assertions and 24
+API tests. **Not built:** the cohort list (podium data), opt-in/opt-out endpoints, staff routes, any
+scheduled refresh — enrolment and refresh are owner-run SQL only, so nothing can reach a real learner.
+Known gap: no minimum cohort size, so in a cohort of two your rank reveals the other member's relative
+Gold. In the app, the leaderboard screen's production route shows an empty state; the podium exists
+only as a design preview with `-TEST` names. **Blocked on you:** who may consent for a minor, whether
+real children are ever shown rankings, pseudonym policy.
 
 **Onboarding and product tour — backend REVIEWED (erasure in depth, profile/onboarding sampled); app
 REVIEWED in source, never seen on a screen.** Server: forward-only, replay-safe onboarding state and
@@ -80,8 +89,15 @@ explainer → ready), dismissible/replayable tour, per-account additive local ta
 from a frozen Mobile-02 database that keeps every saved row. 337 Jest tests pass (baseline 157). The
 source review's high finding (yesterday's word could stay labelled "Mot du jour" on a mounted screen)
 and its five medium findings are fixed with tests; four low ones are open in the lane doc; the fixes
-were not re-checked. **No screenshot exists**: an emulator pass was authorised at 04:45 and cut off
-by the usage limit before it started, so layout at 320 dp and large text is unverified. 103 new
+were not re-checked. **Seen on an emulator once:** 14 screenshots at 320 dp (Android API 24) are in
+`docs/overnight-2026-11-24/screenshots/native/` on the native branch — onboarding in French and
+Creole, tour, Accueil, Profil (real signed-in flow), plus the podium preview and Word/Gold cards
+filled from a hand-seeded local cache (labelled as such). Defects visible in them, **not fixed**:
+the grade step opens with no class visible and a greyed "Continuer" (title, intro and a "no
+connection yet" notice fill the space above two pinned buttons), and that notice appeared while the
+API was up; the welcome step shows one of three points above the footer; the French title breaks as
+"es-/tu ?"; Accueil greets the learner by the local part of their e-mail. Large text and other
+widths were not captured. 103 new
 Haitian Creole strings are drafts.
 
 ## 3. Architecture decisions made tonight (please confirm or overrule)
@@ -141,12 +157,12 @@ make db-reset && make test-db && uv run pytest -q && make test-db
 | entitlements @ 43ca9b9 | 745 | 367 | lane report |
 | notify @ d960cd3 | 641 | 318 | lane report |
 | native @ 779657f | — | Jest 319 passed (baseline 157) | lane report |
-| **Integration** (all eight backend lanes) | **2740 of 2740, PASS** (run twice) | **1532 passed** flags off · **1532 passed** with `EDU_REWARDS_ENABLED=true` | director, `integration-final.log` |
+| **Integration** (all nine backend lanes incl. leaderboard, and every review-fix round) | **3025 of 3025, PASS** (run twice) | **1754 passed** flags off · **1754 passed** with `EDU_REWARDS_ENABLED=true` | director, `integration-final-4.log` |
 
 Also on integration: lint, mypy strict and the OpenAPI freshness check are clean; the mobile contract
 check (`npm run check:api`) and both mobile TypeScript checks pass against the regenerated API types.
-**GitHub CI** (the repository's existing workflow) passed on draft PRs #4, #5, #7, #8, #9, #10, #11
-and #12; #6 had no result yet when this was written. Lane numbers that changed after this table was
+**GitHub CI** (the repository's existing workflow) passed on draft PRs #4 to #12 before the last
+fix commits were pushed; check the current status of each PR, including #13. Lane numbers that changed after this table was
 first written: identity 1007 / 506 at `6913435`, entitlements 925 / 514 at `50a6b52`, staff 593 / 376
 at `642ab5c`, vocab 910 / 429 at `a3c48a3`, rewards 961 / 465 at `ce5a64e`, notify 880 / 484 at
 `c77f376`, native Jest 337 at `e559e6b`. Logs: `/Volumes/EdupreneursDev/logs/overnight-2026-11-24/`.
@@ -162,9 +178,11 @@ at `642ab5c`, vocab 910 / 429 at `a3c48a3`, rewards 961 / 465 at `ce5a64e`, noti
 | Native — source review | Approve with fixes (safe with flags off) | High: stale "word of the day" label on a mounted screen. Medium: device-clock handling, revalidation rhythm, onboarding sync retry loop, grade step skipped on a new phone, stale streak | Sent to the lane |
 | Identity | Approve with fixes — containment of the trigger-disabling window held under every test; erasure may stay in a draft PR, **must not be enabled** | High: a request racing an in-flight erasure left the id behind. Medium: audit row re-stored the id; worker could erase any id; valid token re-creates the profile | High and first two mediums fixed in `d6560ce`, **not re-checked**; profile re-creation open (needs PO-04) |
 | Entitlements | Approve with fixes, no critical/high | Medium: staff and purchase idempotency keys shared a namespace. Four low | Medium fixed; low findings open in the lane doc |
-| Word of the Day | Approve with fixes | Medium: reschedule can land after the day opened via a raw staff database session. Low: owner TRUNCATE; midnight protection untested | Fix round running (§9) |
+| Word of the Day | Approve with fixes | Medium: reschedule can land after the day opened via a raw staff database session. Low: owner TRUNCATE; midnight protection untested | All three fixed in `0d607ec`, **not re-checked** |
 | Notify + limiter + logs | Approve with fixes, no critical/high; flags-off path confirmed unchanged | Medium: per-address limit can be dodged behind a proxy. Low: WebSocket handshake logs a query string; expired-token learners behind a shared carrier address get 429 | **Open** (lane stopped by the usage limit) — keep both opt-in flags off |
-| Content format v2; staff editorial / roles / worker + re-check of the security fix | running when this was written | — | see §9 |
+| Staff — second review (editorial, roles, worker) + re-check | Approve with fixes. **The high finding of the first review is closed**: the original attack was refused as each of the three real database logins | Medium: an admin could rewrite another editor's draft and approve it. Low: control character → 500; duplicate lesson in a pack; no takedown route; last-admin check | Medium and first two lows fixed in `33aa2e2`, **not re-checked**; last two open |
+| Content format v2 | Approve with fixes | High: verifier accepted a format-1 pack with a format-2 question kind; release recording trusted a caller-supplied hash and unvalidated bodies. Medium: math accepted markup-shaped text; depth bypass; unchecked totals/duplicates; invisible characters. Not live: no v2 content or activation path exists | Highs and mediums fixed (`d53d0a1`), **not re-checked**; six preconditions before any v2 content ships are in the lane doc, three not done |
+| Leaderboard | **not reviewed** | — | — |
 
 **Security finding that also affects `main` (ruling R-03).** With `SET search_path = ''`, PostgreSQL
 still resolves unqualified *type* names through a session's temporary schema first. A session able to
@@ -174,7 +192,10 @@ functions and against the verified baseline function on `main`. Nothing is hoste
 live exposure. Fix shipped in the staff lane: `REVOKE TEMPORARY ON DATABASE … FROM PUBLIC` plus tests,
 and every new function uses `search_path = pg_catalog, pg_temp`. The reproduction steps are kept out
 of this public repository (`/Volumes/EdupreneursDev/logs/overnight-2026-11-24/reviews/*-FULL.md`).
-**`main` itself is unchanged and still has the weakness until the staff branch is merged.**
+An independent reviewer re-ran the original attack against the fixed branch as each of the three real
+database logins: refused in every case. **`main` itself is unchanged and still has the weakness until
+the staff branch (PR #4) — or at least its TEMP revoke — is merged.** Before hosting: add a deploy-time
+assertion that no API role holds TEMP.
 
 ## 7. Incidents
 
@@ -199,20 +220,19 @@ Details and containment: [`INCIDENTS.md`](INCIDENTS.md).
 - Machine: internal disk 13 GiB free at start, 12 GiB at 04:30 (floor 7); dev volume 169 GiB free;
   load 2.5–4.8 on 8 cores; no emulator or native build was started.
 
-## 9. State at the last update (07:50 EST)
+## 9. Closing state (09:00 EST)
 
-Pushed and matching local heads: integration, staff `642ab5c`, identity `6913435`, Word of the Day
-`a3c48a3`, rewards `ce5a64e`, entitlements `50a6b52`, notify `c77f376`, content `d1f5bf7`, native
-`e559e6b`. Draft PRs #4–#12 are open; none is merged.
+Nothing is running. Every branch is pushed and matches its local head: integration, staff `33aa2e2`,
+identity `6913435`, Word of the Day `58ce157`, rewards `ce5a64e`, leaderboard `472f792`, entitlements
+`50a6b52`, notify `c77f376`, content `d53d0a1`, native `9bdc15f`. Draft PRs #4–#13 are open; none is
+merged; nothing is deployed. The disposable lane stacks (Docker projects `edu-on-*`) are still
+running and can be stopped with `npx supabase stop` in each worktree; the shared stack was not
+touched after incident I-01. No emulator, Metro or API process is running.
 
-Running when this was written (results, if they arrived, are appended below this section):
-- leaderboard step 1 (private rank) — uncommitted work on disk in the `leaderboard` worktree;
-- Word of the Day review-fix round — uncommitted work on disk in the `vocab` worktree;
-- independent reviews of content format v2 and of the staff lane's later work, including the
-  re-check of the security fix that concerns `main`.
-
-Not done: notify review fixes; emulator screenshots; the R-01 contract flip; mobile Jest on
-integration; re-checks of the fixes in identity, rewards and native.
+Not done: notify review fixes (one medium, four low — keep its two opt-in flags off); the R-01
+contract flip; mobile Jest on integration; leaderboard steps 2–3 and its review; fixing the layout
+defects seen in the screenshots; re-checks of the fix rounds (identity, rewards, native, vocab,
+content, staff editorial).
 
 ## 10. Decisions only you can make (`BLOCKED_BY_OWNER`)
 
@@ -235,13 +255,13 @@ integration; re-checks of the fixes in identity, rewards and native.
 2. `account.erase_learner` in `overnight/identity-onboarding` (`…020300_account_lifecycle.sql`) — the most powerful function written tonight, with its review interrupted.
 3. The rewards ledger's uniqueness design and the push hook (`overnight/rewards-gold`), with both review reports.
 4. The Word of the Day schedule immutability and freeze rule (`overnight/word-of-the-day`), not yet reviewed by anyone.
-5. The native onboarding flow on a real small Android phone — nobody has seen it rendered.
+5. The onboarding screenshots (native branch, `docs/overnight-2026-11-24/screenshots/native/`), starting with the grade step that looks blocked on a 320 dp screen.
 
 ## 12. Recommended next steps, in order
 
 1. Re-check the fixes that no reviewer has seen again (staff security fix if §9 does not show it, identity erasure, rewards, native) and close the open notify findings.
 2. Close the open review findings in rewards and native.
 3. Merge rewards and Word of the Day into the integration branch; make the single R-01 commit (flip the constants, extend the pinned path set, regenerate `openapi.json` and `schema.d.ts`); run the mobile suite there through a harness that derives its container from `supabase/config.toml` (fixes I-01 permanently).
-4. Emulator pass on the seven screens the native lane listed, one build at a time, with screenshots.
-5. Only then start the leaderboard lane from `briefs/leaderboard.md`, after the PO-09 and visibility decisions.
+4. Fix the layout defects seen at 320 dp, then a fresh emulator pass including large text.
+5. Review leaderboard step 1; build its cohort view only after the PO-09 and visibility decisions.
 6. Worker process and schedules (job leasing, daily word assignment, reward reconcile, notification delivery) — today these are library functions exercised by tests only.
