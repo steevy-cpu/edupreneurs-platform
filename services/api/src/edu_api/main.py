@@ -144,4 +144,5 @@ def create_app(
     if notify_database is not None:
         app.state.notify_db = notify_database
     app.include_router(notifications.router)
+    app.include_router(staff.router)
     return app
