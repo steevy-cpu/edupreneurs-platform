@@ -6,22 +6,52 @@ API refuses anything the published contract would refuse.
 ``tests/unit/test_staff_content_models.py`` checks both against the same
 vectors with a real JSON Schema validator.
 
-On top of the schemas, three rules that a schema cannot express:
-block keys are unique in a lesson, question keys and choice ids are unique, and
-the correct choice is one of the offered choices.
+On top of the schemas, four rules that a schema cannot express:
+block keys are unique in a lesson, question keys and choice ids are unique,
+the correct choice is one of the offered choices, and no text contains a
+control character (Unicode category Cc: U+0000-U+001F, U+007F-U+009F) other
+than tab and line feed. PostgreSQL cannot store U+0000 in ``text`` or ``jsonb``
+at all, and the others have no place in text shown to learners.
 """
 
 from __future__ import annotations
 
+import re
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
 _STRICT = ConfigDict(extra="forbid", strict=True)
 
+# Category Cc is exactly U+0000-U+001F and U+007F-U+009F. Tab (U+0009) and line
+# feed (U+000A) stay allowed; carriage return and everything else do not.
+_CONTROL_CHARACTER = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
+
+
+def _refuse_control_characters(value: str) -> str:
+    found = _CONTROL_CHARACTER.search(value)
+    if found is not None:
+        raise ValueError(
+            f"control character U+{ord(found.group()):04X} is not allowed "
+            "(only tab and line feed are)"
+        )
+    return value
+
+
+#: Add to any free-text request field: refuses control characters with 422.
+NoControlCharacters = AfterValidator(_refuse_control_characters)
+
+
 BlockKey = Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,63}$")]
-LongText = Annotated[str, StringConstraints(min_length=1, max_length=4000)]
-ShortText = Annotated[str, StringConstraints(min_length=1, max_length=200)]
+LongText = Annotated[str, StringConstraints(min_length=1, max_length=4000), NoControlCharacters]
+ShortText = Annotated[str, StringConstraints(min_length=1, max_length=200), NoControlCharacters]
 ChoiceId = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,64}$")]
 
 
@@ -45,7 +75,7 @@ class Example(BaseModel):
     type: Literal["example"]
     title: ShortText | None = None
     steps: Annotated[
-        list[Annotated[str, StringConstraints(min_length=1, max_length=500)]],
+        list[Annotated[str, StringConstraints(min_length=1, max_length=500), NoControlCharacters]],
         Field(min_length=1, max_length=20),
     ]
 
@@ -71,18 +101,18 @@ Block = Annotated[Heading | Paragraph | Example | Callout, Field(discriminator="
 
 class _Text1000(BaseModel):
     model_config = _STRICT
-    text: Annotated[str, StringConstraints(min_length=1, max_length=1000)]
+    text: Annotated[str, StringConstraints(min_length=1, max_length=1000), NoControlCharacters]
 
 
 class _Text2000(BaseModel):
     model_config = _STRICT
-    text: Annotated[str, StringConstraints(min_length=1, max_length=2000)]
+    text: Annotated[str, StringConstraints(min_length=1, max_length=2000), NoControlCharacters]
 
 
 class Choice(BaseModel):
     model_config = _STRICT
     id: ChoiceId
-    text: Annotated[str, StringConstraints(min_length=1, max_length=300)]
+    text: Annotated[str, StringConstraints(min_length=1, max_length=300), NoControlCharacters]
 
 
 class ResponseSpec(BaseModel):

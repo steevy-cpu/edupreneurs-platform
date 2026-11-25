@@ -210,3 +210,33 @@ def test_stored_json_is_exactly_what_the_contract_describes() -> None:
     assert BLOCKS_SCHEMA.is_valid(content.blocks_json())
     stored = content.questions_json()[0]
     assert MCQ_SCHEMA.is_valid({k: stored[k] for k in GOOD_QUESTION})
+
+
+# --- control characters (review finding L-B2-1): stricter than the schema on purpose ---
+@pytest.mark.parametrize(
+    "bad", ["\u0000", "\u0001", "\u0008", "\u000b", "\u000c", "\r", "\u001f", "\u007f", "\u009f"]
+)
+def test_control_characters_are_refused_in_every_text(bad: str) -> None:
+    text = f"a{bad}b"
+    assert not model_accepts_blocks(blocks_with(0, text=text))
+    assert not model_accepts_blocks(blocks_with(1, text=text))
+    assert not model_accepts_blocks(blocks_with(2, title=text))
+    assert not model_accepts_blocks(blocks_with(2, steps=["ok", text]))
+    assert not model_accepts_blocks(blocks_with(4, text=text))
+    with pytest.raises(ValidationError):
+        RevisionContent.model_validate({"title": text, "blocks": GOOD_BLOCKS})
+    for path in (("prompt", "text"), ("explanation", "text")):
+        question = copy.deepcopy(GOOD_QUESTION)
+        question[path[0]][path[1]] = text
+        assert not model_accepts_question(question)
+    question = copy.deepcopy(GOOD_QUESTION)
+    question["response_spec"]["choices"][0]["text"] = text
+    assert not model_accepts_question(question)
+
+
+@pytest.mark.parametrize("fine", ["a\tb", "a\nb", "é — €", "a\u200bb"])
+def test_tab_line_feed_and_ordinary_unicode_are_accepted(fine: str) -> None:
+    assert model_accepts_blocks(blocks_with(1, text=fine))
+    question = copy.deepcopy(GOOD_QUESTION)
+    question["prompt"]["text"] = fine
+    assert model_accepts_question(question)

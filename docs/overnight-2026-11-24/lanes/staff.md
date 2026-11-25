@@ -170,10 +170,10 @@ when a rule is broken the trigger raises and the API answers 409 with a stable c
 | `POST /lessons/{lesson_id}/revisions` `{locale, title, blocks, questions}` → 201 revision | editor, admin | `create_revision` | `lesson_revision.create` |
 | `GET /revisions?status=&mine=&limit=` | any | `list_revisions` | — |
 | `GET /revisions/{revision_id}` | any | `get_revision` | — |
-| `PUT /revisions/{revision_id}` `{title, blocks, questions}` | author (or admin) | `update_revision` | `lesson_revision.update` |
-| `POST /revisions/{revision_id}/sources` `{source_id}` | author (or admin) | `attach_source` | `lesson_revision.attach_source` |
-| `DELETE /revisions/{revision_id}/sources/{source_id}` → 204 | author (or admin) | `detach_source` | `lesson_revision.detach_source` |
-| `POST /revisions/{revision_id}/submit` | author (or admin) | `submit_revision` | `lesson_revision.submit` |
+| `PUT /revisions/{revision_id}` `{title, blocks, questions}` | author only (an admin is not an exception) | `update_revision` | `lesson_revision.update` |
+| `POST /revisions/{revision_id}/sources` `{source_id}` | author only (an admin is not an exception) | `attach_source` | `lesson_revision.attach_source` |
+| `DELETE /revisions/{revision_id}/sources/{source_id}` → 204 | author only (an admin is not an exception) | `detach_source` | `lesson_revision.detach_source` |
+| `POST /revisions/{revision_id}/submit` | author only (an admin is not an exception) | `submit_revision` | `lesson_revision.submit` |
 | `POST /revisions/{revision_id}/reviews` `{verdict, notes?}` → 201 | reviewer, admin — never the author | `review_revision` | `lesson_revision.review` |
 | `POST /sources` `{source_title, source_uri?}` → 201 `{source_id}` | editor, admin | `create_source` | `content_source.create` |
 | `GET /sources?limit=` | any | `list_sources` | — |
@@ -214,7 +214,7 @@ Error codes (standard error shape):
 | 404 | `unit_not_found`, `lesson_not_found`, `revision_not_found`, `source_not_found`, `source_not_attached`, `pack_release_not_found` |
 | 409 from the functions | `lesson_slug_taken`, `revision_in_review`, `revision_not_draft`, `revision_has_no_source`, `revision_not_in_review`, `pack_release_not_ready`, `pack_release_not_retired` |
 | 409 from the triggers | `author_cannot_review`, `revision_immutable`, `revision_already_reviewed`, `sources_not_cleared`, `approval_needs_independent_review`, `pack_item_not_approved`, `pack_finalized`, `pack_empty`, `pack_invalid_transition`, `source_in_use`, `editorial_rule_violation` (any trigger message without a translation) |
-| 422 | `validation_error` (request shape), `pack_items_duplicated`, `invalid_content` and the `*_invalid` codes of the functions |
+| 422 | `validation_error` (request shape, control characters in text), `pack_items_duplicated`, `pack_lesson_duplicated`, `invalid_content` and the `*_invalid` codes of the functions |
 
 Example — create a draft:
 
@@ -366,6 +366,52 @@ plan with the needed MFA options is used; staff session lifetime.
 staff route and 200 on learner routes; an `aal2` token passes; a forged `aal` claim cannot exist
 (signature); step-up window honoured; `staff.require_role` refuses without `edu.actor_aal = aal2`
 even when called directly on the staff connection; reset is audited and admin-only.
+
+## Open review findings
+
+Independent review of B2 at `642ab5c` (verdict: approve with fixes). Fixed in migration
+`20261124010600_staff_editorial_review_fixes.sql` and `edu_api/staff/content.py`; tests in
+`supabase/tests/106_staff_editorial_review_fixes.sql`, `tests/integration/test_staff_review_fixes.py`
+and `tests/unit/test_staff_content_models.py`.
+
+**Fixed**
+
+- **M-B2-1 (medium) — an admin could publish content nobody else reviewed, under an editor's name.**
+  `staff.require_author` had an admin exception, so an admin could rewrite another person's draft
+  (`created_by` unchanged) and then approve it. Now only the author changes a draft, attaches or
+  detaches its sources, or submits it: anyone else, admin included, gets 403 `forbidden`
+  (`42501 not_the_author`, audited as a denial). An admin who wants different content writes a new
+  revision, is its author, and cannot review it (409 `author_cannot_review`, baseline trigger).
+  An admin may still approve a revision whose text is entirely the author's.
+- **L-B2-2 — a pack could contain two revisions of the same lesson.** `staff.build_pack` now refuses
+  it: 422 `pack_lesson_duplicated` (a pack has one locale, so this is one revision per lesson and
+  locale). Releases built before this fix are not changed.
+- **L-B2-1 — a NUL character in lesson text gave 500.** Every text of a revision (title, heading,
+  paragraph, callout, example title and steps, question prompt, choices, explanation) and the
+  free-text fields `source_title`, `rights_notes` and review `notes` refuse control characters
+  (Unicode category Cc: U+0000–U+001F, U+007F–U+009F) with 422 `validation_error`. Tab and line
+  feed stay allowed. **Carriage return is refused**, so a client must send `\n`, not `\r\n`.
+  This is stricter than the published JSON schemas, which do not express it.
+
+**Open (not fixed)**
+
+- **L-B2-3 — no way to take content down through the API.** Setting the source of live content to
+  `blocked` returns 204 and the lesson stays readable. There is no route to revoke a release, and
+  `rollback` needs an earlier retired release, so the first release of a pack cannot be withdrawn
+  without direct SQL. Review's note: not required by the brief; for a platform for minors a takedown
+  path (publisher/admin, audited) should exist before real use.
+- **L-B2-4 — "last admin" counts role rows, not accounts that can still sign in.** `revoke_role`
+  (`20261124010300_staff_role_admin.sql`) checks that another active admin row exists; it does not
+  look at `auth.users` (deleted or banned). The last usable admin can therefore be revoked if a dead
+  account still holds an active admin row. Review's suggested fix: join `auth.users` (not deleted,
+  not banned) in the check, as `check_role_target` does. Found by reasoning, not reproduced.
+- Review notes on test coverage still open: last-admin check with a deleted/banned other admin;
+  concurrent release of several ready releases and rollback to a revoked release (behaviour correct,
+  not pinned by a test); a deploy-time assertion of the TEMP revoke outside the test database
+  (N-P1a).
+- Not examined by the review: `staff/errors.py` message mapping in detail, `scripts/local_stack.py`,
+  this document's accuracy and the MFA design text, worker graceful shutdown and bounded
+  concurrency, hosted Supabase behaviour, performance.
 
 ## Local environment
 

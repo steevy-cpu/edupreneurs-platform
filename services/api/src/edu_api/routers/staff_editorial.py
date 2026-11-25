@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from edu_api.errors import error_responses
 from edu_api.staff.calls import as_jsonb, call_staff, staff_sql
-from edu_api.staff.content import RevisionContent
+from edu_api.staff.content import NoControlCharacters, RevisionContent
 from edu_api.staff.deps import AnyStaff, StaffDb, StaffPrincipal, require_staff
 
 router = APIRouter()
@@ -157,7 +157,9 @@ class RevisionIn(RevisionContent):
 
 class SourceIn(BaseModel):
     model_config = _STRICT
-    source_title: Annotated[str, StringConstraints(min_length=1, max_length=240)]
+    source_title: Annotated[
+        str, StringConstraints(min_length=1, max_length=240), NoControlCharacters
+    ]
     source_uri: (
         Annotated[str, StringConstraints(max_length=2000, pattern=r"^https?://\S+$")] | None
     ) = None
@@ -166,7 +168,9 @@ class SourceIn(BaseModel):
 class SourceRightsIn(BaseModel):
     model_config = _STRICT
     rights_status: RightsStatus
-    rights_notes: Annotated[str, StringConstraints(max_length=2000)] | None = None
+    rights_notes: Annotated[str, StringConstraints(max_length=2000), NoControlCharacters] | None = (
+        None
+    )
 
 
 class AttachSourceIn(BaseModel):
@@ -177,7 +181,7 @@ class AttachSourceIn(BaseModel):
 class ReviewIn(BaseModel):
     model_config = _STRICT
     verdict: Literal["approved", "rejected", "changes_requested"]
-    notes: Annotated[str, StringConstraints(max_length=4000)] | None = None
+    notes: Annotated[str, StringConstraints(max_length=4000), NoControlCharacters] | None = None
 
 
 class PackIn(BaseModel):
@@ -327,7 +331,7 @@ async def get_revision(
 async def update_revision(
     revision_id: uuid.UUID, body: RevisionContent, request: Request, staff: Author, db: StaffDb
 ) -> RevisionDetail:
-    """The author only (or an admin). A revision that is in review, reviewed,
+    """The author only — an admin is not an exception. A revision that is in review, reviewed,
     approved or published cannot be changed: 409."""
     await call_staff(
         request,
@@ -388,7 +392,7 @@ async def detach_source(
 async def submit_revision(
     revision_id: uuid.UUID, request: Request, staff: Author, db: StaffDb
 ) -> RevisionDetail:
-    """The author only (or an admin). Needs at least one attached source."""
+    """The author only — an admin is not an exception. Needs at least one attached source."""
     await call_staff(request, db, staff, _SUBMIT, {"revision_id": revision_id})
     return await _revision(request, db, staff, revision_id)
 

@@ -573,11 +573,9 @@ async def test_only_the_author_changes_a_draft(
             "held_roles": ["editor"],
         }
     ]
-    # an admin may step in
-    assert (await desk.put(desk.reviewer, f"/revisions/{rid}", body)).status_code == 200
-    assert (await desk.get(desk.author, f"/revisions/{rid}")).json()["created_by"] == str(
-        desk.author.user_id
-    ), "authorship does not move"
+    # an admin is no exception (review finding M-B2-1; more in test_staff_review_fixes.py)
+    assert_error(await desk.put(desk.reviewer, f"/revisions/{rid}", body), 403, "forbidden")
+    assert (await desk.get(desk.author, f"/revisions/{rid}")).json()["title"] == draft["title"]
 
 
 async def test_content_is_frozen_once_submitted_reviewed_or_approved(desk: Desk) -> None:
@@ -668,7 +666,8 @@ async def test_a_rejected_revision_stays_closed_and_a_new_revision_starts_again(
 async def test_an_unreviewed_revision_cannot_enter_a_pack(desk: Desk, admin: asyncpg.Pool) -> None:
     lesson_id = await desk.lesson()
     approved = await desk.approved(lesson_id)
-    draft = await desk.draft(lesson_id)
+    # a draft of ANOTHER lesson: two revisions of one lesson in a pack are refused earlier (422)
+    draft = await desk.draft(await desk.lesson())
     in_review = await desk.draft(await desk.lesson())
     await desk.post(
         desk.author,
