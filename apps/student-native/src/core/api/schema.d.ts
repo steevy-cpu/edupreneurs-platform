@@ -103,7 +103,17 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Change the signed-in learner's own study settings
+         * @description Change any of `grade_code`, `preferred_locale`, `display_name`.
+         *
+         *     Omitted fields are kept; unknown fields are rejected. The profile is
+         *     always the caller's own (from the verified token). Returns the profile
+         *     exactly as `GET /v1/me` does. Repeating the same request changes nothing.
+         *
+         *     Answers 404 `not_found` while profile editing is switched off on the server.
+         */
+        patch: operations["patch_me_v1_me_patch"];
         trace?: never;
     };
     "/v1/sync/pull": {
@@ -416,6 +426,29 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /**
+         * ProfilePatch
+         * @description Fields of the caller's own profile to change. Omitted fields are kept.
+         */
+        ProfilePatch: {
+            /**
+             * Display Name
+             * @description Private study name shown only to the learner: 1-80 characters after trimming, no control characters or line breaks. `null` clears it. It is never a public name.
+             */
+            display_name?: string | null;
+            /**
+             * Grade Code
+             * @description Code of an existing, active grade (for example `9AF`).
+             * @example 9AF
+             */
+            grade_code?: string;
+            /**
+             * Preferred Locale
+             * @description `fr` (French) or `ht` (Haitian Creole).
+             * @enum {string}
+             */
+            preferred_locale?: "fr" | "ht";
+        };
         /** PullResponse */
         PullResponse: {
             /**
@@ -684,6 +717,66 @@ export interface operations {
             };
             /** @description Missing or invalid access token. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A dependency (database or auth key service) is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    patch_me_v1_me_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProfilePatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+            /** @description Missing or invalid access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found (or not published). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed. */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

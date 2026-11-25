@@ -541,6 +541,44 @@
         "title": "PracticeQuestion",
         "type": "object"
       },
+      "ProfilePatch": {
+        "additionalProperties": false,
+        "description": "Fields of the caller's own profile to change. Omitted fields are kept.",
+        "properties": {
+          "display_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Private study name shown only to the learner: 1-80 characters after trimming, no control characters or line breaks. `null` clears it. It is never a public name.",
+            "title": "Display Name"
+          },
+          "grade_code": {
+            "description": "Code of an existing, active grade (for example `9AF`).",
+            "examples": [
+              "9AF"
+            ],
+            "pattern": "^[A-Z0-9]{2,8}$",
+            "title": "Grade Code",
+            "type": "string"
+          },
+          "preferred_locale": {
+            "description": "`fr` (French) or `ht` (Haitian Creole).",
+            "enum": [
+              "fr",
+              "ht"
+            ],
+            "title": "Preferred Locale",
+            "type": "string"
+          }
+        },
+        "title": "ProfilePatch",
+        "type": "object"
+      },
       "PullResponse": {
         "properties": {
           "changes": {
@@ -977,6 +1015,81 @@
         "summary": "The signed-in learner's own profile",
         "tags": [
           "identity"
+        ]
+      },
+      "patch": {
+        "description": "Change any of `grade_code`, `preferred_locale`, `display_name`.\n\nOmitted fields are kept; unknown fields are rejected. The profile is\nalways the caller's own (from the verified token). Returns the profile\nexactly as `GET /v1/me` does. Repeating the same request changes nothing.\n\nAnswers 404 `not_found` while profile editing is switched off on the server.",
+        "operationId": "patch_me_v1_me_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfilePatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found (or not published)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A dependency (database or auth key service) is unavailable."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Change the signed-in learner's own study settings",
+        "tags": [
+          "account"
         ]
       }
     },

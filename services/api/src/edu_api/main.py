@@ -19,7 +19,7 @@ from edu_api.config import Settings, get_settings
 from edu_api.db.session import Database, build_engine
 from edu_api.errors import install_error_handlers
 from edu_api.middleware import BodyLimitMiddleware, RequestIdMiddleware
-from edu_api.routers import catalog, health, me, staff, sync
+from edu_api.routers import account, catalog, health, me, staff, sync
 from edu_api.staff.db import build_staff_database
 
 
@@ -93,4 +93,5 @@ def create_app(
     # Documented only where the staff side is switched on, so the learner
     # contract (packages/contracts/openapi.json) is unchanged by its existence.
     app.include_router(staff.router, include_in_schema=staff_database is not None)
+    app.include_router(account.build_router())
     return app

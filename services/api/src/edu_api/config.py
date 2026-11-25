@@ -57,6 +57,17 @@ class Settings(BaseSettings):
     pull_default_limit: int = Field(default=100, ge=1)
     pull_max_limit: int = Field(default=200, ge=1)
 
+    # --- Identity lane (overnight 2026-11-24). Every flag defaults to OFF: while
+    # a flag is off its routes answer the standard 404 `not_found`.
+    #: EDU_PROFILE_EDIT_ENABLED — `PATCH /v1/me`.
+    profile_edit_enabled: bool = False
+    #: EDU_ONBOARDING_ENABLED — `GET` / `PUT /v1/me/onboarding`.
+    onboarding_enabled: bool = False
+    #: EDU_ACCOUNT_LIFECYCLE_ENABLED — deletion requests and data export. Mechanics
+    #: proven on synthetic users only; keep off until PO-04 is decided.
+    account_lifecycle_enabled: bool = False
+    # --- end identity lane ---------------------------------------------------
+
     # --- Staff boundary (overnight 2026-11-24, staff lane) -------------------
     #: Optional. Must log in as ``edu_staff_login`` (member of ``edu_staff`` only).
     #: When unset the staff side is off: every ``/v1/staff`` route answers 503
