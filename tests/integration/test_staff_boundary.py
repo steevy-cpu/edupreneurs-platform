@@ -19,6 +19,7 @@ from sqlalchemy.exc import DBAPIError
 
 from edu_api.db.session import Database
 from edu_api.main import create_app
+from edu_api.routers import staff as staff_router
 from edu_api.staff.deps import StaffPrincipal, require_staff
 from tests.helpers import EDITOR, REVIEWER, STUDENT_A, STUDENT_B, bearer
 from tests.staff_fixtures import (  # noqa: F401  (fixtures are used by name)
@@ -28,6 +29,7 @@ from tests.staff_fixtures import (  # noqa: F401  (fixtures are used by name)
     dispose_app,
     make_staff,
     remove_account,
+    reset_denial_windows,
     set_role_active,
     staff_app,
     staff_client,
@@ -57,6 +59,12 @@ def assert_error(response: httpx.Response, status: int, code: str) -> None:
     assert error["code"] == code
     assert set(error) <= {"code", "message", "request_id", "details"}
     assert error["request_id"]
+
+
+@pytest.fixture(autouse=True)
+async def fresh_denial_windows(admin: asyncpg.Pool) -> None:
+    """Each test starts with no "refusal already audited" window open."""
+    await reset_denial_windows(admin)
 
 
 # ------------------------------------------------- staff side switched off (default)
@@ -118,7 +126,13 @@ async def test_a_learner_token_is_refused_and_the_refusal_is_audited(
         "target_kind": None,
         "target_id": None,
         "outcome": "denied",
-        "details": {"method": "GET", "route": "/v1/staff/me", "required_roles": ["any"]},
+        "details": {
+            "method": "GET",
+            "route": "/v1/staff/me",
+            "check": "route",
+            "held_roles": [],
+            "required_roles": ["any"],
+        },
     }
     assert others_before == await admin.fetchval(
         "SELECT count(*) FROM app.audit_events WHERE actor_id IS DISTINCT FROM $1", STUDENT_A
@@ -128,6 +142,65 @@ async def test_a_learner_token_is_refused_and_the_refusal_is_audited(
         await admin.fetchval("SELECT count(*) FROM app.staff_roles WHERE user_id = $1", STUDENT_A)
         == 0
     )
+
+
+async def test_repeated_refusals_do_not_grow_the_audit_log(
+    staff_client: httpx.AsyncClient, tokens: dict[str, str], admin: asyncpg.Pool
+) -> None:
+    """At most one persisted refusal per account per 60 seconds, whatever the client does."""
+    before_a = len(await denied_events(admin, STUDENT_A))
+    before_b = len(await denied_events(admin, STUDENT_B))
+    total_before = await admin.fetchval("SELECT count(*) FROM app.audit_events")
+
+    responses = [
+        await staff_client.get("/v1/staff/me", headers=bearer(tokens["student_a"]))
+        for _ in range(25)
+    ]
+    responses += await asyncio.gather(
+        *(staff_client.get("/v1/staff/me", headers=bearer(tokens["student_a"])) for _ in range(25))
+    )
+    # every single request is still refused, in the same way
+    assert {r.status_code for r in responses} == {403}
+    assert {r.json()["error"]["code"] for r in responses} == {"forbidden"}
+    assert len(await denied_events(admin, STUDENT_A)) == before_a + 1
+
+    # another account is not silenced by the first one's window
+    assert_error(
+        await staff_client.get("/v1/staff/me", headers=bearer(tokens["student_b"])),
+        403,
+        "forbidden",
+    )
+    assert len(await denied_events(admin, STUDENT_B)) == before_b + 1
+    assert await admin.fetchval("SELECT count(*) FROM app.audit_events") == total_before + 2
+    assert (
+        await admin.fetchval(
+            "SELECT suppressed FROM ops.access_denial_windows WHERE actor_id = $1", STUDENT_A
+        )
+        == 49
+    )
+
+    # once the window has passed (moved back by hand instead of waiting a minute),
+    # the next refusal is written again and reports what was left out
+    await admin.execute(
+        "UPDATE ops.access_denial_windows SET window_started_at = now() - interval '61 seconds' "
+        "WHERE actor_id = $1",
+        STUDENT_A,
+    )
+    assert_error(
+        await staff_client.get("/v1/staff/me", headers=bearer(tokens["student_a"])),
+        403,
+        "forbidden",
+    )
+    events = await denied_events(admin, STUDENT_A)
+    assert len(events) == before_a + 2
+    assert events[-1]["details"] == {
+        "method": "GET",
+        "route": "/v1/staff/me",
+        "check": "route",
+        "held_roles": [],
+        "required_roles": ["any"],
+        "suppressed_before": 49,
+    }
 
 
 async def test_an_allowed_staff_request_writes_no_access_event(
@@ -223,6 +296,8 @@ async def test_a_route_can_require_specific_roles(
         "method": "GET",
         # the route TEMPLATE: the id from the URL is not copied into the audit log
         "route": "/v1/staff/test-only/publish/{thing_id}",
+        "check": "route",
+        "held_roles": ["editor"],
         "required_roles": ["admin", "publisher"],
     }
     assert str(thing) not in json.dumps(editor_events[-1]["details"])
@@ -344,6 +419,11 @@ async def test_the_three_pools_use_three_separate_least_privilege_logins(
 
 
 STAFF_FORBIDDEN_SQL = [
+    "CREATE TEMP TABLE loot (x int)",
+    "CREATE DOMAIN pg_temp.text AS pg_catalog.text",
+    "CREATE FUNCTION pg_temp.evil() RETURNS int LANGUAGE sql AS 'SELECT 1'",
+    "SET SESSION AUTHORIZATION postgres",
+    "SET SESSION AUTHORIZATION edu_api_login",
     "SELECT * FROM app.staff_roles",
     "INSERT INTO app.staff_roles (user_id, role) VALUES ('a0000000-0000-4000-8000-000000000003', 'admin')",
     "UPDATE app.staff_roles SET is_active = true",
@@ -622,19 +702,37 @@ async def _audit_count(env: dict[str, str]) -> int:
 
 
 # ------------------------------------------------------------------ contract
-async def test_staff_routes_follow_the_api_contract_rules(
+async def test_staff_routes_stay_out_of_the_published_contract_on_this_branch(
     staff_client: httpx.AsyncClient,
 ) -> None:
+    """Ruling R-01: registered and working, but absent from the OpenAPI document."""
+    assert staff_router.INCLUDE_IN_SCHEMA is False
     spec = (await staff_client.get("/openapi.json")).json()
+    assert not [path for path in spec["paths"] if path.startswith("/v1/staff")]
+
+
+async def test_staff_routes_follow_the_api_contract_rules_once_included(
+    local_env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With INCLUDE_IN_SCHEMA on (as the director will set it at integration)."""
+    monkeypatch.setattr(staff_router, "router", staff_router.build_router(include_in_schema=True))
+    application = create_app(build_staff_settings(local_env))
+    try:
+        spec = application.openapi()
+    finally:
+        await dispose_app(application)
     staff_paths = {path: ops for path, ops in spec["paths"].items() if path.startswith("/v1/staff")}
-    assert set(staff_paths) == {"/v1/staff/me"}
+    assert "/v1/staff/me" in staff_paths and len(staff_paths) >= 12
+    assert all(
+        operation["tags"] == ["staff"] for ops in staff_paths.values() for operation in ops.values()
+    )
     error_ref = {"$ref": "#/components/schemas/ErrorResponse"}
     for path, operations in staff_paths.items():
         for operation in operations.values():
             assert operation["security"] == [{"HTTPBearer": []}], path
             assert {"401", "403", "503"} <= set(operation["responses"]), path
             for status, response in operation["responses"].items():
-                if status != "200":
+                if not status.startswith("2"):
                     assert response["content"]["application/json"]["schema"] == error_ref, (
                         path,
                         status,
