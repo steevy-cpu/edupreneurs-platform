@@ -56,7 +56,7 @@ describe('test harness target derivation', () => {
 
   test('refuses the shared stack unless explicitly allowed', () => {
     const input = { configText: config('mon-edupreneur', 54321, 54322), env: env(54322, 54321), isRunning: up };
-    expect(() => stack.deriveTarget({ ...input, processEnv: {} })).toThrow(/shared stack/);
+    expect(() => stack.deriveTarget({ ...input, processEnv: {} })).toThrow(/separate worktree with its own project_id/);
     expect(() => stack.deriveTarget({ ...input, processEnv: { EDU_TEST_ALLOW_SHARED_STACK: '0' } })).toThrow(/shared stack/);
     expect(stack.deriveTarget({ ...input, processEnv: { EDU_TEST_ALLOW_SHARED_STACK: '1' } }).dbContainer).toBe(
       'supabase_db_mon-edupreneur',

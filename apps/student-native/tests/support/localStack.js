@@ -100,7 +100,7 @@ function deriveTarget({ configText, env, processEnv = process.env, isRunning = d
     throw new Error(
       `supabase/config.toml project_id is the shared stack "${SHARED_PROJECT_ID}". The test harness TRUNCATEs ` +
         'learning tables, so it refuses to run there. Use your own stack, or set EDU_TEST_ALLOW_SHARED_STACK=1 ' +
-        'if you really mean it.',
+        'if you really mean it (the recommended way is a separate worktree with its own project_id).',
     );
   }
 

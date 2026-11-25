@@ -78,6 +78,10 @@ jobs:
 
       - name: Mobile app — core tests (real SQLite, real local API and Auth)
         working-directory: apps/student-native
+        env:
+          # The runner's stack is disposable and uses the default project_id (mon-edupreneur), which the
+          # test harness otherwise refuses. This is the only place the override is set.
+          EDU_TEST_ALLOW_SHARED_STACK: "1"
         run: npx jest
 
       - name: Stop local stack
