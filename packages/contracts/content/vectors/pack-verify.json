@@ -1,0 +1,389 @@
+{
+  "vector_format": 1,
+  "suite": "pack-verify",
+  "description": "Verifier-side cases for stored packs (pack-manifest-1). Each case is a complete stored pack: 'objects' lists every object by key with its exact bytes as text ('utf8', to be encoded as UTF-8; these packs have no binary assets), the manifest is the object at 'manifest_key'. Verify WITHOUT a trusted manifest hash. expect is {intact: true} or {error: code} with the code of the FIRST problem (order of checks: manifest canonical form, manifest structure incl. the format rule and plain-text titles, manifest key, assets, lesson positions, uniqueness, totals, then each lesson object). Every refused pack here is self-consistent (hashes, sizes and keys match), so only the rule named in the description refuses it. Written with ASCII-only JSON escapes.",
+  "cases": [
+    {
+      "id": "v-ok-format-1",
+      "description": "An intact format-1 pack (the pack of 'v1-pack-one-lesson' in pack-manifest.json).",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":969,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":969,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":1,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "intact": true
+      }
+    },
+    {
+      "id": "v-ok-format-2",
+      "description": "An intact format-2 pack without assets.",
+      "manifest_key": "packs/synthetic-fractions/ht/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/33/33937956bb5f75289519f18fa5a78739c28467dc632ec057adb306f4099eaaf2.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"intro\",\"text\":\"Yon fraksyon montre yon pati nan yon antye.\",\"type\":\"paragraph\"},{\"alt\":\"youn sou de\",\"key\":\"fomil\",\"notation\":\"edu-math-1\",\"source\":\"\\\\frac{1}{2}\",\"type\":\"math\"}],\"content_format\":2,\"lesson_id\":\"b1000000-0000-4000-8000-000000000001\",\"locale\":\"ht\",\"questions\":[],\"revision\":1,\"revision_id\":\"c1000000-0000-4000-8000-000000000011\",\"title\":\"Fraksyon yo\"}"
+        },
+        {
+          "key": "packs/synthetic-fractions/ht/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":2,\"lessons\":[{\"assets\":[],\"bytes\":416,\"content_format\":2,\"lesson_id\":\"b1000000-0000-4000-8000-000000000001\",\"object_key\":\"lessons/sha256/33/33937956bb5f75289519f18fa5a78739c28467dc632ec057adb306f4099eaaf2.json\",\"position\":1,\"questions\":[],\"revision\":1,\"revision_id\":\"c1000000-0000-4000-8000-000000000011\",\"sha256\":\"33937956bb5f75289519f18fa5a78739c28467dc632ec057adb306f4099eaaf2\",\"title\":\"Fraksyon yo\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"ht\",\"pack_key\":\"synthetic-fractions\",\"release_id\":\"f1000000-0000-4000-8000-000000000003\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":416,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":0,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "intact": true
+      }
+    },
+    {
+      "id": "v-format-1-pack-with-numeric-question",
+      "description": "Review H1. Self-consistent pack, manifest and lesson both declare format 1, but the question is 'numeric' (a format-2 kind). A format-1 lesson entry may only list 'mcq' questions.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/32/32e9f688e01ce519292edefb57add01ad63ced36cb8ab3c741102b42d2f56c3c.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"scoring_version\":\"numeric-v1\",\"tolerance\":\"0\",\"value\":\"1\"},\"explanation\":{\"text\":\"Deux moiti\u00e9s font un entier.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"numeric\",\"position\":1,\"prompt\":{\"text\":\"Combien font 1/2 + 1/2 ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"allow_fraction\":false}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":972,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/32/32e9f688e01ce519292edefb57add01ad63ced36cb8ab3c741102b42d2f56c3c.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"numeric\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"32e9f688e01ce519292edefb57add01ad63ced36cb8ab3c741102b42d2f56c3c\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":972,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":1,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "manifest.structure"
+      }
+    },
+    {
+      "id": "v-format-1-lesson-with-numeric-question-in-format-2-pack",
+      "description": "The pack declares format 2 but the lesson still declares format 1 while carrying a format-2 question kind.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/32/32e9f688e01ce519292edefb57add01ad63ced36cb8ab3c741102b42d2f56c3c.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"scoring_version\":\"numeric-v1\",\"tolerance\":\"0\",\"value\":\"1\"},\"explanation\":{\"text\":\"Deux moiti\u00e9s font un entier.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"numeric\",\"position\":1,\"prompt\":{\"text\":\"Combien font 1/2 + 1/2 ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"allow_fraction\":false}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":2,\"lessons\":[{\"assets\":[],\"bytes\":972,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/32/32e9f688e01ce519292edefb57add01ad63ced36cb8ab3c741102b42d2f56c3c.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"numeric\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"32e9f688e01ce519292edefb57add01ad63ced36cb8ab3c741102b42d2f56c3c\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":972,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":1,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "manifest.structure"
+      }
+    },
+    {
+      "id": "v-lesson-declares-more-than-it-needs",
+      "description": "A lesson declares exactly the smallest format that carries it: only format-1 blocks and 'mcq' questions but content_format 2 is refused.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/3b/3b3281b04d28516d7ec060712a29c768e3d8e8a8d926aa88dc9424d9d645a505.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":2,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":2,\"lessons\":[{\"assets\":[],\"bytes\":969,\"content_format\":2,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/3b/3b3281b04d28516d7ec060712a29c768e3d8e8a8d926aa88dc9424d9d645a505.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"3b3281b04d28516d7ec060712a29c768e3d8e8a8d926aa88dc9424d9d645a505\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":969,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":1,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "lesson.content_format"
+      }
+    },
+    {
+      "id": "v-format-1-lesson-with-format-2-block",
+      "description": "A format-1 lesson object holding a format-2 block type.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/f4/f4f71930398587753df2a3f32805ff8254ace391d3ed8125b56148dad1622ab8.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"},{\"items\":[\"un\",\"deux\"],\"key\":\"liste\",\"style\":\"bullet\",\"type\":\"list\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":1038,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/f4/f4f71930398587753df2a3f32805ff8254ace391d3ed8125b56148dad1622ab8.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"f4f71930398587753df2a3f32805ff8254ace391d3ed8125b56148dad1622ab8\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":1038,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":1,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "lesson.blocks"
+      }
+    },
+    {
+      "id": "v-format-1-pack-lists-format-2-lesson",
+      "description": "A format-1 manifest never lists a lesson of a higher format.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":969,\"content_format\":2,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":969,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":1,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "manifest.structure"
+      }
+    },
+    {
+      "id": "v-totals-wrong-lesson-bytes",
+      "description": "Review M3. 'totals' is recomputed from the two lists and must be equal.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":969,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":1,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":1,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "manifest.totals"
+      }
+    },
+    {
+      "id": "v-totals-wrong-questions",
+      "description": "Review M3. 'totals' is recomputed from the two lists and must be equal.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":969,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":969,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":999,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "manifest.totals"
+      }
+    },
+    {
+      "id": "v-totals-wrong-lessons",
+      "description": "Review M3. 'totals' is recomputed from the two lists and must be equal.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":969,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":969,\"lessons\":2,\"optional_asset_bytes\":0,\"questions\":1,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "manifest.totals"
+      }
+    },
+    {
+      "id": "v-totals-wrong-assets",
+      "description": "Review M3. 'totals' is recomputed from the two lists and must be equal.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":969,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":1,\"lesson_bytes\":969,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":1,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "manifest.totals"
+      }
+    },
+    {
+      "id": "v-totals-wrong-required-asset-bytes",
+      "description": "Review M3. 'totals' is recomputed from the two lists and must be equal.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":969,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":969,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":1,\"required_asset_bytes\":5}}"
+        }
+      ],
+      "expect": {
+        "error": "manifest.totals"
+      }
+    },
+    {
+      "id": "v-totals-wrong-optional-asset-bytes",
+      "description": "Review M3. 'totals' is recomputed from the two lists and must be equal.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":969,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":969,\"lessons\":1,\"optional_asset_bytes\":5,\"questions\":1,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "manifest.totals"
+      }
+    },
+    {
+      "id": "v-lesson-listed-twice",
+      "description": "Review M3. The same lesson object listed at two positions (totals consistent).",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":969,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4\",\"title\":\"Comparer deux fractions\"},{\"assets\":[],\"bytes\":969,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json\",\"position\":999,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":1938,\"lessons\":2,\"optional_asset_bytes\":0,\"questions\":2,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "manifest.duplicate"
+      }
+    },
+    {
+      "id": "v-lesson-id-twice",
+      "description": "Two revisions of the same lesson in one pack.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "lessons/sha256/44/4435a8352ad368cc82a75b6eaa35c4e6d066fa28a223178760f1b1358ee096dd.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-0000000000ff\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":969,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4\",\"title\":\"Comparer deux fractions\"},{\"assets\":[],\"bytes\":656,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/44/4435a8352ad368cc82a75b6eaa35c4e6d066fa28a223178760f1b1358ee096dd.json\",\"position\":2,\"questions\":[],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-0000000000ff\",\"sha256\":\"4435a8352ad368cc82a75b6eaa35c4e6d066fa28a223178760f1b1358ee096dd\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":1625,\"lessons\":2,\"optional_asset_bytes\":0,\"questions\":1,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "manifest.duplicate"
+      }
+    },
+    {
+      "id": "v-question-listed-twice",
+      "description": "Review M3. The same question (same id, same position) twice in the lesson object and in the manifest entry.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/96/969137abdf5efb853630cb717e64c359b6b6c316e573ff36a6c23048d773486a.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}},{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":1283,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/96/969137abdf5efb853630cb717e64c359b6b6c316e573ff36a6c23048d773486a.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"},{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"969137abdf5efb853630cb717e64c359b6b6c316e573ff36a6c23048d773486a\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":1283,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":2,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "manifest.duplicate"
+      }
+    },
+    {
+      "id": "v-question-id-twice",
+      "description": "The same question id at two positions.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/1c/1cba354789756a4e6a43bf1364dc73971219c0b4dff0299ad53ee1c9496fdc54.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}},{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":2,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer-2\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":1285,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/1c/1cba354789756a4e6a43bf1364dc73971219c0b4dff0299ad53ee1c9496fdc54.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"},{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":2,\"question_key\":\"comparer-2\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"1cba354789756a4e6a43bf1364dc73971219c0b4dff0299ad53ee1c9496fdc54\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":1285,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":2,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "manifest.duplicate"
+      }
+    },
+    {
+      "id": "v-question-position-twice",
+      "description": "Two questions at the same position.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/c7/c799b2fd850705976abff7194aefbee227447520ce4217d4a87e8e8927d63141.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}},{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-0000000000ff\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer-2\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":1285,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/c7/c799b2fd850705976abff7194aefbee227447520ce4217d4a87e8e8927d63141.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"},{\"id\":\"d1000000-0000-4000-8000-0000000000ff\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer-2\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"c799b2fd850705976abff7194aefbee227447520ce4217d4a87e8e8927d63141\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":1285,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":2,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "manifest.duplicate"
+      }
+    },
+    {
+      "id": "v-title-markup",
+      "description": "Review M3. A lesson title is plain text: no control character, no '<' directly followed by a letter, '/', '!' or '?'.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/05/05435a378fba16c4a6ea17b2b44ec95b34f8a640a899c043db8b825bb8a14d33.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"<script>alert(1)</script>\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":971,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/05/05435a378fba16c4a6ea17b2b44ec95b34f8a640a899c043db8b825bb8a14d33.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"05435a378fba16c4a6ea17b2b44ec95b34f8a640a899c043db8b825bb8a14d33\",\"title\":\"<script>alert(1)</script>\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":971,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":1,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "manifest.structure"
+      }
+    },
+    {
+      "id": "v-title-control-character",
+      "description": "Review M3. A lesson title is plain text: no control character, no '<' directly followed by a letter, '/', '!' or '?'.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/d3/d34bcb0e426616ba947b1e052fa374bd5f7608b80e96cc2af47a190c45016b9d.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer\\u0000deux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":974,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/d3/d34bcb0e426616ba947b1e052fa374bd5f7608b80e96cc2af47a190c45016b9d.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"d34bcb0e426616ba947b1e052fa374bd5f7608b80e96cc2af47a190c45016b9d\",\"title\":\"Comparer\\u0000deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":974,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":1,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "manifest.structure"
+      }
+    },
+    {
+      "id": "v-title-line-feed",
+      "description": "Review M3. A lesson title is plain text: no control character, no '<' directly followed by a letter, '/', '!' or '?'.",
+      "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+      "objects": [
+        {
+          "key": "lessons/sha256/f5/f527c98ad3ca3c1bca4ff76b3a4fed81699b82906379a631e10b8690bbc2a36e.json",
+          "utf8": "{\"blob_version\":\"pack-lesson-1\",\"blocks\":[{\"key\":\"regle\",\"text\":\"M\u00eame d\u00e9nominateur\",\"type\":\"heading\"},{\"key\":\"texte\",\"text\":\"Quand deux fractions ont le m\u00eame d\u00e9nominateur, la plus grande est celle qui a le plus grand num\u00e9rateur.\",\"type\":\"paragraph\"},{\"key\":\"exemple\",\"steps\":[\"3/5 et 2/5\",\"3 > 2\",\"donc 3/5 > 2/5\"],\"title\":\"Exemple\",\"type\":\"example\"},{\"key\":\"rappel\",\"text\":\"On compare seulement les num\u00e9rateurs.\",\"tone\":\"remember\",\"type\":\"callout\"}],\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"locale\":\"fr\",\"questions\":[{\"answer_key\":{\"correct_choice_id\":\"b\"},\"explanation\":{\"text\":\"5 est plus grand que 2.\"},\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"prompt\":{\"text\":\"Laquelle est la plus grande ?\"},\"question_key\":\"comparer\",\"response_spec\":{\"choices\":[{\"id\":\"a\",\"text\":\"2/7\"},{\"id\":\"b\",\"text\":\"5/7\"}]}}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"title\":\"Comparer\\ndeux fractions\"}"
+        },
+        {
+          "key": "packs/synthetic-compare/fr/1/manifest.json",
+          "utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":970,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/f5/f527c98ad3ca3c1bca4ff76b3a4fed81699b82906379a631e10b8690bbc2a36e.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"f527c98ad3ca3c1bca4ff76b3a4fed81699b82906379a631e10b8690bbc2a36e\",\"title\":\"Comparer\\ndeux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":970,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":1,\"required_asset_bytes\":0}}"
+        }
+      ],
+      "expect": {
+        "error": "manifest.structure"
+      }
+    }
+  ]
+}

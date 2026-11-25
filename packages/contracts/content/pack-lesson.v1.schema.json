@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.mon-edupreneur.local/content/pack-lesson.v1.schema.json",
+  "title": "Lesson object inside a pack (pack-lesson-1)",
+  "description": "One lesson revision as stored in a pack, canonical JSON 'edu-canon-json-1'. Carries what GET /v1/lessons/{id} returns today plus content_format. 'blocks' follows lesson-blocks.schema.json when content_format is 1 and lesson-blocks.v2.schema.json when it is 2; the four JSON columns of each question follow the question schema of its kind. Answer keys are included on purpose (offline practice), exactly as today; never use them for graded assessment.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "blob_version",
+    "content_format",
+    "lesson_id",
+    "revision_id",
+    "revision",
+    "locale",
+    "title",
+    "blocks",
+    "questions"
+  ],
+  "properties": {
+    "blob_version": {
+      "const": "pack-lesson-1"
+    },
+    "content_format": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2,
+      "description": "Exactly the smallest format able to carry this lesson's blocks and question kinds (a verifier recomputes it: lesson.content_format)."
+    },
+    "lesson_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "minLength": 36,
+      "maxLength": 36
+    },
+    "revision_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "minLength": 36,
+      "maxLength": 36
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2147483647
+    },
+    "locale": {
+      "enum": [
+        "fr",
+        "ht"
+      ]
+    },
+    "title": {
+      "description": "Plain text, never interpreted as markup: no C0 control character, no DEL, and no '<' directly followed by a letter, '/', '!' or '?'.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "allOf": [
+        {
+          "not": {
+            "pattern": "[\\u0000-\\u001f\\u007f]"
+          }
+        },
+        {
+          "not": {
+            "pattern": "<[A-Za-z/!?]"
+          }
+        },
+        {
+          "not": {
+            "pattern": "[\\u0080-\\u009f\\u200b-\\u200f\\u2028-\\u202e\\u2060\\u2066-\\u2069\\ufeff\\ud800-\\udfff]"
+          }
+        }
+      ]
+    },
+    "blocks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 200,
+      "items": {
+        "type": "object"
+      }
+    },
+    "questions": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "question_key",
+          "position",
+          "kind",
+          "prompt",
+          "response_spec",
+          "answer_key",
+          "explanation"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "minLength": 36,
+            "maxLength": 36
+          },
+          "question_key": {
+            "type": "string",
+            "pattern": "^[a-z0-9_-]{1,80}$",
+            "maxLength": 80,
+            "not": {
+              "pattern": "[\\u0000-\\u001f\\u007f]"
+            }
+          },
+          "position": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "kind": {
+            "enum": [
+              "mcq",
+              "true_false",
+              "numeric",
+              "short_text"
+            ]
+          },
+          "prompt": {
+            "type": "object"
+          },
+          "response_spec": {
+            "type": "object"
+          },
+          "answer_key": {
+            "type": "object"
+          },
+          "explanation": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  },
+  "if": {
+    "required": [
+      "content_format"
+    ],
+    "properties": {
+      "content_format": {
+        "const": 1
+      }
+    }
+  },
+  "then": {
+    "description": "The negotiation rule on the object itself: a format-1 lesson holds only the four format-1 block types and only 'mcq' questions.",
+    "properties": {
+      "blocks": {
+        "items": {
+          "properties": {
+            "type": {
+              "enum": [
+                "heading",
+                "paragraph",
+                "example",
+                "callout"
+              ]
+            }
+          }
+        }
+      },
+      "questions": {
+        "items": {
+          "properties": {
+            "kind": {
+              "const": "mcq"
+            }
+          }
+        }
+      }
+    }
+  }
+}

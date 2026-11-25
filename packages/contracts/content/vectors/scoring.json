@@ -1,0 +1,2120 @@
+{
+  "vector_format": 1,
+  "suite": "scoring",
+  "description": "(question, response) -> expected result under the versioned scoring rules true-false-v1, numeric-v1 and short-text-v1. Every question here is valid. expect.status is 'scored' (score is the integer 0 or 1) or 'invalid_response' (nothing is scored; code says why). For short_text, expect.normalised_response is the response after normalisation. This file is written with ASCII-only JSON escapes so that invisible characters (U+00A0, U+2009, U+202F, U+2212, combining marks) are unambiguous.",
+  "cases": [
+    {
+      "id": "tf-true-correct",
+      "kind": "true_false",
+      "response_spec": {},
+      "answer_key": {
+        "scoring_version": "true-false-v1",
+        "correct": true
+      },
+      "response": {
+        "value": true
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "true-false-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "tf-false-wrong",
+      "kind": "true_false",
+      "response_spec": {},
+      "answer_key": {
+        "scoring_version": "true-false-v1",
+        "correct": true
+      },
+      "response": {
+        "value": false
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "true-false-v1",
+        "score": 0,
+        "is_correct": false
+      }
+    },
+    {
+      "id": "tf-false-correct",
+      "kind": "true_false",
+      "response_spec": {},
+      "answer_key": {
+        "scoring_version": "true-false-v1",
+        "correct": false
+      },
+      "response": {
+        "value": false
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "true-false-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "tf-string-true",
+      "kind": "true_false",
+      "description": "The string 'true' is not a boolean.",
+      "response_spec": {},
+      "answer_key": {
+        "scoring_version": "true-false-v1",
+        "correct": true
+      },
+      "response": {
+        "value": "true"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "true-false-v1",
+        "code": "not_a_boolean"
+      }
+    },
+    {
+      "id": "tf-number-one",
+      "kind": "true_false",
+      "response_spec": {},
+      "answer_key": {
+        "scoring_version": "true-false-v1",
+        "correct": true
+      },
+      "response": {
+        "value": 1
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "true-false-v1",
+        "code": "not_a_boolean"
+      }
+    },
+    {
+      "id": "tf-number-zero-for-false",
+      "kind": "true_false",
+      "response_spec": {},
+      "answer_key": {
+        "scoring_version": "true-false-v1",
+        "correct": false
+      },
+      "response": {
+        "value": 0
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "true-false-v1",
+        "code": "not_a_boolean"
+      }
+    },
+    {
+      "id": "tf-null",
+      "kind": "true_false",
+      "response_spec": {},
+      "answer_key": {
+        "scoring_version": "true-false-v1",
+        "correct": true
+      },
+      "response": {
+        "value": null
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "true-false-v1",
+        "code": "not_a_boolean"
+      }
+    },
+    {
+      "id": "tf-missing-value",
+      "kind": "true_false",
+      "response_spec": {},
+      "answer_key": {
+        "scoring_version": "true-false-v1",
+        "correct": true
+      },
+      "response": {},
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "true-false-v1",
+        "code": "not_a_boolean"
+      }
+    },
+    {
+      "id": "tf-extra-property",
+      "kind": "true_false",
+      "description": "A response is exactly {value}; a client cannot add a score.",
+      "response_spec": {},
+      "answer_key": {
+        "scoring_version": "true-false-v1",
+        "correct": true
+      },
+      "response": {
+        "value": true,
+        "score": 1
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "true-false-v1",
+        "code": "not_a_boolean"
+      }
+    },
+    {
+      "id": "tf-choice-id-shape",
+      "kind": "true_false",
+      "response_spec": {},
+      "answer_key": {
+        "scoring_version": "true-false-v1",
+        "correct": true
+      },
+      "response": {
+        "choice_id": "a"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "true-false-v1",
+        "code": "not_a_boolean"
+      }
+    },
+    {
+      "id": "tf-response-not-object",
+      "kind": "true_false",
+      "response_spec": {},
+      "answer_key": {
+        "scoring_version": "true-false-v1",
+        "correct": true
+      },
+      "response": true,
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "true-false-v1",
+        "code": "not_a_boolean"
+      }
+    },
+    {
+      "id": "num-exact",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "3.5",
+        "tolerance": "0.05"
+      },
+      "response": {
+        "text": "3.5"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-decimal-comma",
+      "kind": "numeric",
+      "description": "French decimal comma.",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "3.5",
+        "tolerance": "0.05"
+      },
+      "response": {
+        "text": "3,5"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-trailing-zeros",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "3.5",
+        "tolerance": "0.05"
+      },
+      "response": {
+        "text": "3,500"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-leading-zeros",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "3.5",
+        "tolerance": "0.05"
+      },
+      "response": {
+        "text": "003.5"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-plus-sign",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "3.5",
+        "tolerance": "0.05"
+      },
+      "response": {
+        "text": "+3.5"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-surrounding-spaces",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "3.5",
+        "tolerance": "0.05"
+      },
+      "response": {
+        "text": "  3,5 "
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-upper-edge-inclusive",
+      "kind": "numeric",
+      "description": "|3.55 - 3.5| = 0.05 <= 0.05: the tolerance is inclusive.",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "3.5",
+        "tolerance": "0.05"
+      },
+      "response": {
+        "text": "3.55"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-lower-edge-inclusive",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "3.5",
+        "tolerance": "0.05"
+      },
+      "response": {
+        "text": "3.45"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-just-above-edge",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "3.5",
+        "tolerance": "0.05"
+      },
+      "response": {
+        "text": "3.550001"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 0,
+        "is_correct": false
+      }
+    },
+    {
+      "id": "num-just-below-edge",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "3.5",
+        "tolerance": "0.05"
+      },
+      "response": {
+        "text": "3.449999"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 0,
+        "is_correct": false
+      }
+    },
+    {
+      "id": "num-wrong",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "3.5",
+        "tolerance": "0.05"
+      },
+      "response": {
+        "text": "4"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 0,
+        "is_correct": false
+      }
+    },
+    {
+      "id": "num-no-binary-float-low",
+      "kind": "numeric",
+      "description": "More than 6 fraction digits is not a number under numeric-v1.",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "0.3",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "0.30000000000000004"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-tenths-add-exactly",
+      "kind": "numeric",
+      "description": "|0.3 - 0.1| = 0.2 exactly. With binary floats 0.3 - 0.1 > 0.2 and this would be wrong.",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "0.1",
+        "tolerance": "0.2"
+      },
+      "response": {
+        "text": "0.3"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-thousands-space",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "1000",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "1 000"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-thousands-nbsp",
+      "kind": "numeric",
+      "description": "U+00A0 is removed.",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "1000",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "1\u00a0000"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-thousands-narrow-nbsp",
+      "kind": "numeric",
+      "description": "U+202F is removed.",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "1000",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "1\u202f000"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-thin-space",
+      "kind": "numeric",
+      "description": "U+2009 is removed.",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "1000",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "1\u2009000"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-thousands-comma-is-decimal",
+      "kind": "numeric",
+      "description": "A comma is always the decimal separator: '1,000' is 1.",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "1000",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "1,000"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 0,
+        "is_correct": false
+      }
+    },
+    {
+      "id": "num-negative-hyphen",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "-2",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "-2"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-negative-minus-sign",
+      "kind": "numeric",
+      "description": "U+2212 MINUS SIGN is accepted as '-'.",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "-2",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "\u22122"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-negative-with-space",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "-2",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "- 2"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-sign-missing",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "-2",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "2"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 0,
+        "is_correct": false
+      }
+    },
+    {
+      "id": "num-negative-zero",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "0",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "-0"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-twelve-digits",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "999999999999",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "999999999999"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-thirteen-digits",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "999999999999",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "9999999999999"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-words",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "3.5",
+        "tolerance": "0.05"
+      },
+      "response": {
+        "text": "trois"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-with-unit",
+      "kind": "numeric",
+      "description": "The unit is displayed by the app, never typed.",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "3.5",
+        "tolerance": "0.05"
+      },
+      "response": {
+        "text": "3,5 cm"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-exponent",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "1000",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "1e3"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-two-separators",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "1000",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "1.000,0"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-leading-separator",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "0.5",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": ".5"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-trailing-separator",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "5",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "5."
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-double-sign",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "2",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "--2"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-only-spaces",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "3.5",
+        "tolerance": "0.05"
+      },
+      "response": {
+        "text": "   "
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-empty",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "3.5",
+        "tolerance": "0.05"
+      },
+      "response": {
+        "text": ""
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-33-characters",
+      "kind": "numeric",
+      "description": "Longer than 32 code points before any cleaning.",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "1",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "1                                "
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-json-number",
+      "kind": "numeric",
+      "description": "The response carries the typed text, not a JSON number.",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "3.5",
+        "tolerance": "0.05"
+      },
+      "response": {
+        "text": 3.5
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-extra-property",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "3.5",
+        "tolerance": "0.05"
+      },
+      "response": {
+        "text": "3.5",
+        "score": 1
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-arabic-indic-digits",
+      "kind": "numeric",
+      "description": "Only ASCII digits 0-9.",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "35",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "\u0663\u0665"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-fraction-not-allowed",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": false
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "0.5",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "1/2"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-fraction-allowed",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": true
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "0.5",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "1/2"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-fraction-unreduced",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": true
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "0.5",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "2/4"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-fraction-with-spaces",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": true
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "0.75",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "3 / 4"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-fraction-negative",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": true
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "-0.25",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "-1/4"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-fraction-third-exact-miss",
+      "kind": "numeric",
+      "description": "1/3 is not 0.333333; with tolerance 0 it is wrong.",
+      "response_spec": {
+        "allow_fraction": true
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "0.333333",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "1/3"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 0,
+        "is_correct": false
+      }
+    },
+    {
+      "id": "num-fraction-third-within-tolerance",
+      "kind": "numeric",
+      "description": "|1/3 - 0.333333| = 1/3000000 <= 1/1000000.",
+      "response_spec": {
+        "allow_fraction": true
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "0.333333",
+        "tolerance": "0.000001"
+      },
+      "response": {
+        "text": "1/3"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "num-fraction-zero-denominator",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": true
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "1",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "1/0"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-fraction-decimal-parts",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": true
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "0.5",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "1,0/2"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-fraction-negative-denominator",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": true
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "-0.5",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "1/-2"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "numeric-v1",
+        "code": "not_a_number"
+      }
+    },
+    {
+      "id": "num-decimal-still-fine-with-fractions",
+      "kind": "numeric",
+      "response_spec": {
+        "allow_fraction": true
+      },
+      "answer_key": {
+        "scoring_version": "numeric-v1",
+        "value": "0.5",
+        "tolerance": "0"
+      },
+      "response": {
+        "text": "0,5"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "numeric-v1",
+        "score": 1,
+        "is_correct": true
+      }
+    },
+    {
+      "id": "st-exact",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "num\u00e9rateur"
+        ]
+      },
+      "response": {
+        "text": "num\u00e9rateur"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "numerateur"
+      }
+    },
+    {
+      "id": "st-case-and-accents-folded",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "num\u00e9rateur"
+        ]
+      },
+      "response": {
+        "text": "NUMERATEUR"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "numerateur"
+      }
+    },
+    {
+      "id": "st-spaces-collapsed",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "le num\u00e9rateur"
+        ]
+      },
+      "response": {
+        "text": "  le   num\u00e9rateur "
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "le numerateur"
+      }
+    },
+    {
+      "id": "st-nbsp-is-a-space",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "le num\u00e9rateur"
+        ]
+      },
+      "response": {
+        "text": "le\u00a0num\u00e9rateur"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "le numerateur"
+      }
+    },
+    {
+      "id": "st-newline-is-a-space",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "le num\u00e9rateur"
+        ]
+      },
+      "response": {
+        "text": "le\nnum\u00e9rateur"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "le numerateur"
+      }
+    },
+    {
+      "id": "st-second-accepted",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "num\u00e9rateur",
+          "le num\u00e9rateur"
+        ]
+      },
+      "response": {
+        "text": "Le Num\u00e9rateur"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "le numerateur"
+      }
+    },
+    {
+      "id": "st-wrong",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "num\u00e9rateur"
+        ]
+      },
+      "response": {
+        "text": "d\u00e9nominateur"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 0,
+        "is_correct": false,
+        "normalised_response": "denominateur"
+      }
+    },
+    {
+      "id": "st-typo-is-wrong",
+      "kind": "short_text",
+      "description": "No fuzzy matching in v1.",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "num\u00e9rateur"
+        ]
+      },
+      "response": {
+        "text": "numerateurs"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 0,
+        "is_correct": false,
+        "normalised_response": "numerateurs"
+      }
+    },
+    {
+      "id": "st-punctuation-is-kept",
+      "kind": "short_text",
+      "description": "Punctuation is not stripped in v1.",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "num\u00e9rateur"
+        ]
+      },
+      "response": {
+        "text": "num\u00e9rateur."
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 0,
+        "is_correct": false,
+        "normalised_response": "numerateur."
+      }
+    },
+    {
+      "id": "st-decomposed-input",
+      "kind": "short_text",
+      "description": "NFD input equals NFC key after step 1.",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": true,
+        "accent_sensitive": true
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "c\u00f4t\u00e9"
+        ]
+      },
+      "response": {
+        "text": "co\u0302te\u0301"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "c\u00f4t\u00e9"
+      }
+    },
+    {
+      "id": "st-strict-accent-missing",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": true,
+        "accent_sensitive": true
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "c\u00f4t\u00e9"
+        ]
+      },
+      "response": {
+        "text": "cote"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 0,
+        "is_correct": false,
+        "normalised_response": "cote"
+      }
+    },
+    {
+      "id": "st-strict-case-differs",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": true,
+        "accent_sensitive": true
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "Ha\u00efti"
+        ]
+      },
+      "response": {
+        "text": "ha\u00efti"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 0,
+        "is_correct": false,
+        "normalised_response": "ha\u00efti"
+      }
+    },
+    {
+      "id": "st-strict-exact",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": true,
+        "accent_sensitive": true
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "Ha\u00efti"
+        ]
+      },
+      "response": {
+        "text": "Ha\u00efti"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "Ha\u00efti"
+      }
+    },
+    {
+      "id": "st-case-sensitive-accent-folded",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": true,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "Ha\u00efti"
+        ]
+      },
+      "response": {
+        "text": "Haiti"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "Haiti"
+      }
+    },
+    {
+      "id": "st-case-sensitive-accent-folded-wrong-case",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": true,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "Ha\u00efti"
+        ]
+      },
+      "response": {
+        "text": "haiti"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 0,
+        "is_correct": false,
+        "normalised_response": "haiti"
+      }
+    },
+    {
+      "id": "st-accent-sensitive-case-folded",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": true
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "Ha\u00efti"
+        ]
+      },
+      "response": {
+        "text": "HA\u00cfTI"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "ha\u00efti"
+      }
+    },
+    {
+      "id": "st-accent-sensitive-case-folded-missing-accent",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": true
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "Ha\u00efti"
+        ]
+      },
+      "response": {
+        "text": "HAITI"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 0,
+        "is_correct": false,
+        "normalised_response": "haiti"
+      }
+    },
+    {
+      "id": "st-typographic-apostrophe",
+      "kind": "short_text",
+      "description": "U+2019 becomes U+0027.",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "l'eau"
+        ]
+      },
+      "response": {
+        "text": "l\u2019eau"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "l'eau"
+      }
+    },
+    {
+      "id": "st-left-quote-apostrophe",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": true,
+        "accent_sensitive": true
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "l'eau"
+        ]
+      },
+      "response": {
+        "text": "l\u2018eau"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "l'eau"
+      }
+    },
+    {
+      "id": "st-modifier-apostrophe-in-key",
+      "kind": "short_text",
+      "description": "Accepted answers go through the same normalisation.",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": true,
+        "accent_sensitive": true
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "l\u02bceau"
+        ]
+      },
+      "response": {
+        "text": "l'eau"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "l'eau"
+      }
+    },
+    {
+      "id": "st-ligature-folded",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "c\u0153ur"
+        ]
+      },
+      "response": {
+        "text": "coeur"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "coeur"
+      }
+    },
+    {
+      "id": "st-ligature-typed",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "coeur"
+        ]
+      },
+      "response": {
+        "text": "C\u0152UR"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "coeur"
+      }
+    },
+    {
+      "id": "st-ligature-kept-when-accent-sensitive",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": true
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "c\u0153ur"
+        ]
+      },
+      "response": {
+        "text": "coeur"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 0,
+        "is_correct": false,
+        "normalised_response": "coeur"
+      }
+    },
+    {
+      "id": "st-creole-open-o",
+      "kind": "short_text",
+      "description": "Haitian Creole grave accents fold like French ones.",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "f\u00f2mil"
+        ]
+      },
+      "response": {
+        "text": "Fomil"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "fomil"
+      }
+    },
+    {
+      "id": "st-creole-strict",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": true
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "f\u00f2mil"
+        ]
+      },
+      "response": {
+        "text": "fomil"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 0,
+        "is_correct": false,
+        "normalised_response": "fomil"
+      }
+    },
+    {
+      "id": "st-cedilla-folded",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "le\u00e7on"
+        ]
+      },
+      "response": {
+        "text": "lecon"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "lecon"
+      }
+    },
+    {
+      "id": "st-digits",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "3/4",
+          "trois quarts"
+        ]
+      },
+      "response": {
+        "text": " 3/4"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "3/4"
+      }
+    },
+    {
+      "id": "st-too-long",
+      "kind": "short_text",
+      "description": "Length is checked on the text as typed, in code points.",
+      "response_spec": {
+        "max_length": 5,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "oui"
+        ]
+      },
+      "response": {
+        "text": "ouiiii"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "short-text-v1",
+        "code": "too_long"
+      }
+    },
+    {
+      "id": "st-at-max-length",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 5,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "oui"
+        ]
+      },
+      "response": {
+        "text": " oui "
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "oui"
+      }
+    },
+    {
+      "id": "st-length-counts-code-points",
+      "kind": "short_text",
+      "description": "Four code points (precomposed), not UTF-8 bytes and not UTF-16 units.",
+      "response_spec": {
+        "max_length": 4,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "c\u00f4t\u00e9"
+        ]
+      },
+      "response": {
+        "text": "c\u00f4t\u00e9"
+      },
+      "expect": {
+        "status": "scored",
+        "scoring_version": "short-text-v1",
+        "score": 1,
+        "is_correct": true,
+        "normalised_response": "cote"
+      }
+    },
+    {
+      "id": "st-only-spaces",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "oui"
+        ]
+      },
+      "response": {
+        "text": "   "
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "short-text-v1",
+        "code": "empty"
+      }
+    },
+    {
+      "id": "st-empty",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "oui"
+        ]
+      },
+      "response": {
+        "text": ""
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "short-text-v1",
+        "code": "not_text"
+      }
+    },
+    {
+      "id": "st-not-a-string",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "12"
+        ]
+      },
+      "response": {
+        "text": 12
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "short-text-v1",
+        "code": "not_text"
+      }
+    },
+    {
+      "id": "st-201-characters",
+      "kind": "short_text",
+      "description": "Over the absolute 200 code point limit of a response.",
+      "response_spec": {
+        "max_length": 80,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "oui"
+        ]
+      },
+      "response": {
+        "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "short-text-v1",
+        "code": "not_text"
+      }
+    },
+    {
+      "id": "st-extra-property",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "oui"
+        ]
+      },
+      "response": {
+        "text": "oui",
+        "is_correct": true
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "short-text-v1",
+        "code": "not_text"
+      }
+    },
+    {
+      "id": "st-missing-text",
+      "kind": "short_text",
+      "response_spec": {
+        "max_length": 40,
+        "case_sensitive": false,
+        "accent_sensitive": false
+      },
+      "answer_key": {
+        "scoring_version": "short-text-v1",
+        "accepted": [
+          "oui"
+        ]
+      },
+      "response": {
+        "value": "oui"
+      },
+      "expect": {
+        "status": "invalid_response",
+        "scoring_version": "short-text-v1",
+        "code": "not_text"
+      }
+    }
+  ]
+}
