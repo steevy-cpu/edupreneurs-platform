@@ -156,6 +156,105 @@ END;
 $$;
 
 -- ----------------------------------------------------------------------------
+-- Decide ONE rewardable event (internal; the caller holds the learner lock)
+-- ----------------------------------------------------------------------------
+-- Returns {"outcome", "gold"}. p_op_id is the accepted operation that earned
+-- it and must still have its receipt (the ledger trigger checks).
+--
+-- FINALITY (security review L1). 'capped_lesson' and 'capped_day' are recorded
+-- per SOURCE KEY in rewards.forfeited_sources: the same question or lesson is
+-- then never paid through a later operation ('forfeited'). Caps therefore bind
+-- a modified client exactly as they bind an honest one.
+-- NOT final: 'awaiting_evidence' (decided when the first scored answer of the
+-- lesson is examined) and 'no_active_rule' (integration review L3: forgotten
+-- and re-examined when rewards.set_active_rule_version switches a rule on).
+CREATE FUNCTION rewards.try_award_event(
+    p_learner_id uuid, p_event text, p_lesson_id uuid, p_question_key text, p_op_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+    v_key text := CASE p_event
+        WHEN 'question_first_correct' THEN 'q:' || p_lesson_id::text || ':' || p_question_key
+        WHEN 'lesson_first_completed' THEN 'l:' || p_lesson_id::text END;
+    v_receipt record;
+    v_day date;
+    v_rule record;
+    v_refusal text;
+    v_inserted uuid;
+BEGIN
+    IF v_key IS NULL THEN
+        RAISE EXCEPTION 'Unknown rewardable event' USING ERRCODE = '22023';
+    END IF;
+    SELECT r.created_at INTO v_receipt FROM app.sync_receipts r
+    WHERE r.learner_id = p_learner_id AND r.op_id = p_op_id AND r.result_code = 'accepted';
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('outcome', 'not_eligible', 'gold', 0);
+    END IF;
+    v_day := rewards.haiti_day(v_receipt.created_at);
+
+    IF EXISTS (SELECT 1 FROM rewards.ledger l
+               WHERE l.learner_id = p_learner_id AND l.source_key = v_key) THEN
+        RETURN jsonb_build_object('outcome', 'duplicate', 'gold', 0);
+    END IF;
+    IF EXISTS (SELECT 1 FROM rewards.forfeited_sources f
+               WHERE f.learner_id = p_learner_id AND f.source_key = v_key) THEN
+        RETURN jsonb_build_object('outcome', 'forfeited', 'gold', 0);
+    END IF;
+
+    SELECT r.code, r.version, r.amount, r.per_lesson_cap, r.per_day_cap, r.requires_scored_answer
+      INTO v_rule
+    FROM rewards.rules r WHERE r.code = p_event AND r.event_kind = p_event AND r.is_active;
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('outcome', 'no_active_rule', 'gold', 0);
+    ELSIF v_rule.requires_scored_answer AND NOT EXISTS (
+        SELECT 1 FROM app.practice_attempts a
+        JOIN app.lesson_revisions lr ON lr.id = a.lesson_revision_id
+        WHERE a.learner_id = p_learner_id AND lr.lesson_id = p_lesson_id
+    ) THEN
+        -- Not a refusal: the completion waits for the first scored answer.
+        INSERT INTO rewards.pending_completions (learner_id, lesson_id, op_id)
+        VALUES (p_learner_id, p_lesson_id, p_op_id)
+        ON CONFLICT (learner_id, lesson_id) DO NOTHING;
+        RETURN jsonb_build_object('outcome', 'awaiting_evidence', 'gold', 0);
+    ELSIF v_rule.per_lesson_cap IS NOT NULL AND v_rule.amount + (
+        SELECT COALESCE(sum(l.amount), 0) FROM rewards.ledger l
+        WHERE l.learner_id = p_learner_id AND l.entry_kind = 'award'
+          AND l.rule_code = v_rule.code AND l.lesson_id = p_lesson_id
+    ) > v_rule.per_lesson_cap THEN
+        v_refusal := 'capped_lesson';
+    ELSIF v_rule.per_day_cap IS NOT NULL AND v_rule.amount + (
+        SELECT COALESCE(sum(l.amount), 0) FROM rewards.ledger l
+        WHERE l.learner_id = p_learner_id AND l.entry_kind = 'award'
+          AND l.rule_code = v_rule.code AND l.accepted_day = v_day
+    ) > v_rule.per_day_cap THEN
+        v_refusal := 'capped_day';
+    END IF;
+
+    IF v_refusal IS NOT NULL THEN
+        INSERT INTO rewards.forfeited_sources (learner_id, source_key, outcome, op_id, accepted_day)
+        VALUES (p_learner_id, v_key, v_refusal, p_op_id, v_day)
+        ON CONFLICT (learner_id, source_key) DO NOTHING;
+        RETURN jsonb_build_object('outcome', v_refusal, 'gold', 0);
+    END IF;
+
+    INSERT INTO rewards.ledger (
+        learner_id, entry_kind, amount, rule_code, rule_version, source_kind,
+        source_op_id, lesson_id, question_key, accepted_at, accepted_day)
+    VALUES (
+        p_learner_id, 'award', v_rule.amount, v_rule.code, v_rule.version, p_event,
+        p_op_id, p_lesson_id, p_question_key, v_receipt.created_at, v_day)
+    ON CONFLICT ON CONSTRAINT ledger_exactly_once DO NOTHING
+    RETURNING id INTO v_inserted;
+    IF v_inserted IS NULL THEN
+        RETURN jsonb_build_object('outcome', 'duplicate', 'gold', 0);
+    END IF;
+    RETURN jsonb_build_object('outcome', 'awarded', 'gold', v_rule.amount);
+END;
+$$;
+
+-- ----------------------------------------------------------------------------
 -- The core: examine ONE accepted operation of ONE learner, exactly once
 -- ----------------------------------------------------------------------------
 -- Internal (EXECUTE granted to nobody). Everything it uses is server-written:
@@ -175,15 +274,14 @@ DECLARE
     v_receipt record;
     v_done record;
     v_day date;
-    v_event text;
     v_lesson_id uuid;
-    v_question_key text;
     v_attempt record;
-    v_rule record;
-    v_outcome text;
+    v_scored_lesson uuid;
+    v_pending record;
+    v_result jsonb;
+    v_outcome text := 'not_eligible';
     v_gold integer := 0;
-    v_inserted uuid;
-    v_new_day boolean := false;
+    v_changed boolean := false;
     v_definition record;
     v_metric integer;
     v_bonus record;
@@ -228,7 +326,7 @@ BEGIN
     VALUES (p_learner_id, v_day, p_op_id)
     ON CONFLICT (learner_id, day) DO NOTHING;
     IF FOUND THEN
-        v_new_day := true;
+        v_changed := true;
         PERFORM rewards.rebuild_streak(p_learner_id);
     END IF;
 
@@ -239,10 +337,13 @@ BEGIN
         JOIN app.question_revisions q ON q.id = a.question_revision_id
         JOIN app.lesson_revisions lr ON lr.id = a.lesson_revision_id
         WHERE a.learner_id = p_learner_id AND a.op_id = p_op_id;
-        IF FOUND AND v_attempt.score = 1 THEN
-            v_event := 'question_first_correct';
-            v_lesson_id := v_attempt.lesson_id;
-            v_question_key := v_attempt.question_key;
+        IF FOUND THEN
+            v_scored_lesson := v_attempt.lesson_id;
+            IF v_attempt.score = 1 THEN
+                v_result := rewards.try_award_event(
+                    p_learner_id, 'question_first_correct', v_attempt.lesson_id,
+                    v_attempt.question_key, p_op_id);
+            END IF;
         END IF;
     ELSIF v_receipt.op_kind = 'lesson_completed' THEN
         v_lesson_id := (v_receipt.result ->> 'lesson_id')::uuid;
@@ -251,59 +352,38 @@ BEGIN
             WHERE lp.learner_id = p_learner_id AND lp.lesson_id = v_lesson_id
               AND lp.completed_at IS NOT NULL
         ) THEN
-            v_event := 'lesson_first_completed';
+            v_result := rewards.try_award_event(
+                p_learner_id, 'lesson_first_completed', v_lesson_id, NULL, p_op_id);
         END IF;
     END IF;
     -- Any other operation kind (future: exams, notes, ...) earns nothing until
     -- a rule and a branch are added for it on purpose.
 
-    IF v_event IS NULL THEN
-        v_outcome := 'not_eligible';
-    ELSE
-        SELECT r.code, r.version, r.amount, r.per_lesson_cap, r.per_day_cap INTO v_rule
-        FROM rewards.rules r WHERE r.code = v_event AND r.is_active;
-        IF NOT FOUND THEN
-            v_outcome := 'no_active_rule';
-        ELSIF EXISTS (
-            SELECT 1 FROM rewards.ledger l
-            WHERE l.learner_id = p_learner_id
-              AND l.source_key = CASE v_event
-                    WHEN 'question_first_correct' THEN 'q:' || v_lesson_id::text || ':' || v_question_key
-                    ELSE 'l:' || v_lesson_id::text END
-        ) THEN
-            v_outcome := 'duplicate';
-        ELSIF v_rule.per_lesson_cap IS NOT NULL AND v_rule.amount + (
-            SELECT COALESCE(sum(l.amount), 0) FROM rewards.ledger l
-            WHERE l.learner_id = p_learner_id AND l.entry_kind = 'award'
-              AND l.rule_code = v_rule.code AND l.lesson_id = v_lesson_id
-        ) > v_rule.per_lesson_cap THEN
-            v_outcome := 'capped_lesson';
-        ELSIF v_rule.per_day_cap IS NOT NULL AND v_rule.amount + (
-            SELECT COALESCE(sum(l.amount), 0) FROM rewards.ledger l
-            WHERE l.learner_id = p_learner_id AND l.entry_kind = 'award'
-              AND l.rule_code = v_rule.code AND l.accepted_day = v_day
-        ) > v_rule.per_day_cap THEN
-            v_outcome := 'capped_day';
-        ELSE
-            INSERT INTO rewards.ledger (
-                learner_id, entry_kind, amount, rule_code, rule_version, source_kind,
-                source_op_id, lesson_id, question_key, accepted_at, accepted_day)
-            VALUES (
-                p_learner_id, 'award', v_rule.amount, v_rule.code, v_rule.version, v_event,
-                p_op_id, v_lesson_id, v_question_key, v_receipt.created_at, v_day)
-            ON CONFLICT ON CONSTRAINT ledger_exactly_once DO NOTHING
-            RETURNING id INTO v_inserted;
-            IF v_inserted IS NULL THEN
-                v_outcome := 'duplicate';
-            ELSE
-                v_outcome := 'awarded';
-                v_gold := v_rule.amount;
+    IF v_result IS NOT NULL THEN
+        v_outcome := v_result ->> 'outcome';
+        v_gold := (v_result ->> 'gold')::integer;
+        v_changed := v_changed OR v_outcome = 'awarded';
+    END IF;
+
+    -- A scored answer (right or wrong) is the evidence a waiting completion of
+    -- the same lesson needs. The completion is decided now, under ITS OWN
+    -- operation and acceptance day; its Gold is credited because of this one.
+    IF v_scored_lesson IS NOT NULL THEN
+        DELETE FROM rewards.pending_completions pc
+        WHERE pc.learner_id = p_learner_id AND pc.lesson_id = v_scored_lesson
+        RETURNING pc.op_id INTO v_pending;
+        IF FOUND THEN
+            v_result := rewards.try_award_event(
+                p_learner_id, 'lesson_first_completed', v_scored_lesson, NULL, v_pending.op_id);
+            IF v_result ->> 'outcome' = 'awarded' THEN
+                v_gold := v_gold + (v_result ->> 'gold')::integer;
+                v_changed := true;
             END IF;
         END IF;
     END IF;
 
     -- Achievements can only newly apply when something changed.
-    IF v_inserted IS NOT NULL OR v_new_day OR v_event = 'lesson_first_completed' THEN
+    IF v_changed THEN
         FOR v_definition IN
             SELECT d.code, d.criterion_kind, d.threshold, d.bonus_rule_code
             FROM rewards.achievement_definitions d
@@ -312,20 +392,19 @@ BEGIN
                 WHERE a.learner_id = p_learner_id AND a.achievement_code = d.code)
             ORDER BY d.sort_order, d.code
         LOOP
-            IF v_definition.criterion_kind = 'lessons_completed' THEN
-                SELECT count(*)::integer INTO v_metric FROM (
-                    SELECT 1 FROM app.lesson_progress lp
-                    WHERE lp.learner_id = p_learner_id AND lp.completed_at IS NOT NULL
-                    LIMIT v_definition.threshold) t;
-            ELSIF v_definition.criterion_kind = 'questions_correct' THEN
+            IF v_definition.criterion_kind = 'streak_days' THEN
+                SELECT COALESCE(max(s.longest_run_days), 0) INTO v_metric
+                FROM rewards.streak_state s WHERE s.learner_id = p_learner_id;
+            ELSE
+                -- Counted on REWARDED events, so an achievement needs the same
+                -- evidence as the Gold it celebrates.
                 SELECT count(*)::integer INTO v_metric FROM (
                     SELECT 1 FROM rewards.ledger l
                     WHERE l.learner_id = p_learner_id
-                      AND l.source_kind = 'question_first_correct'
+                      AND l.source_kind = CASE v_definition.criterion_kind
+                            WHEN 'lessons_completed' THEN 'lesson_first_completed'
+                            ELSE 'question_first_correct' END
                     LIMIT v_definition.threshold) t;
-            ELSE -- streak_days
-                SELECT COALESCE(max(s.longest_run_days), 0) INTO v_metric
-                FROM rewards.streak_state s WHERE s.learner_id = p_learner_id;
             END IF;
             CONTINUE WHEN v_metric < v_definition.threshold;
 
@@ -366,6 +445,35 @@ BEGIN
 
     RETURN jsonb_build_object('status', v_outcome, 'replayed', false,
                               'gold', v_gold, 'achievements', v_achievements);
+END;
+$$;
+
+-- ----------------------------------------------------------------------------
+-- Switching a rule version (internal; an operator or a later staff function)
+-- ----------------------------------------------------------------------------
+-- ALWAYS switch through this function. Both updates happen inside this one
+-- call, so no award is ever examined in a gap with NO live version. Awards running
+-- concurrently see either the old version or the new one, never neither.
+CREATE FUNCTION rewards.set_active_rule_version(p_code text, p_version integer)
+RETURNS void
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM rewards.rules r WHERE r.code = p_code AND r.version = p_version) THEN
+        RAISE EXCEPTION 'Unknown reward rule version' USING ERRCODE = '22023';
+    END IF;
+    -- Serialise switches of the same rule.
+    PERFORM 1 FROM rewards.rules r WHERE r.code = p_code ORDER BY r.version FOR UPDATE;
+    UPDATE rewards.rules r SET is_active = false
+     WHERE r.code = p_code AND r.is_active AND r.version <> p_version;
+    UPDATE rewards.rules r SET is_active = true
+     WHERE r.code = p_code AND r.version = p_version AND NOT r.is_active;
+    -- Operations examined while NO version was live were not paid. Forget those
+    -- decisions so that reconciliation examines them again under this version.
+    PERFORM set_config('rewards.reexamining', 'on', true);
+    DELETE FROM rewards.processed_operations p WHERE p.outcome = 'no_active_rule';
+    PERFORM set_config('rewards.reexamining', 'off', true);
 END;
 $$;
 
@@ -597,6 +705,8 @@ DECLARE
     v_awards bigint;
     v_ledger bigint;
     v_processed bigint;
+    v_forfeited bigint;
+    v_pending bigint;
     v_days bigint;
     v_streak bigint;
     v_balances bigint;
@@ -614,6 +724,10 @@ BEGIN
         SELECT count(*) INTO v_ledger FROM gone;
     WITH gone AS (DELETE FROM rewards.processed_operations WHERE learner_id = p_user_id RETURNING 1)
         SELECT count(*) INTO v_processed FROM gone;
+    WITH gone AS (DELETE FROM rewards.forfeited_sources WHERE learner_id = p_user_id RETURNING 1)
+        SELECT count(*) INTO v_forfeited FROM gone;
+    WITH gone AS (DELETE FROM rewards.pending_completions WHERE learner_id = p_user_id RETURNING 1)
+        SELECT count(*) INTO v_pending FROM gone;
     WITH gone AS (DELETE FROM rewards.activity_days WHERE learner_id = p_user_id RETURNING 1)
         SELECT count(*) INTO v_days FROM gone;
     WITH gone AS (DELETE FROM rewards.streak_state WHERE learner_id = p_user_id RETURNING 1)
@@ -627,7 +741,8 @@ BEGIN
         'schema', 'rewards',
         'deleted', jsonb_build_object(
             'achievement_awards', v_awards, 'ledger', v_ledger,
-            'processed_operations', v_processed, 'activity_days', v_days,
+            'processed_operations', v_processed, 'forfeited_sources', v_forfeited,
+            'pending_completions', v_pending, 'activity_days', v_days,
             'streak_state', v_streak, 'balances', v_balances));
 END;
 $$;
@@ -639,7 +754,8 @@ REVOKE ALL ON ALL FUNCTIONS IN SCHEMA rewards FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION rewards.award_for_operation(uuid) TO edu_api;
 GRANT EXECUTE ON FUNCTION rewards.reconcile_learner(integer) TO edu_api;
 GRANT EXECUTE ON FUNCTION rewards.haiti_day(timestamptz) TO edu_api;
--- NOT granted here: apply_operation, reconcile_learner_internal, try_lock_learner,
+-- NOT granted here: apply_operation, try_award_event, set_active_rule_version,
+-- reconcile_learner_internal, try_lock_learner,
 -- rebuild_balance, rebuild_streak, reverse_entry, erase_learner, lock_learner
 -- and the trigger functions (nobody); reconcile_batch (the worker, in the
 -- next migration, which needs the roles of the staff lane's B1).

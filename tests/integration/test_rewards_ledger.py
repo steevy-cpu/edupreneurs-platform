@@ -260,17 +260,27 @@ async def test_rejected_and_invalid_operations_earn_nothing(
     assert (body["balance"], body["streak"]["current_days"], body["achievements"]) == (0, 0, [])
 
 
-async def test_repeated_completion_earns_once(
+async def test_completion_needs_a_scored_answer_and_then_earns_once(
     on: httpx.AsyncClient, tokens: dict[str, str], admin: asyncpg.Pool
 ) -> None:
-    for revision in (SEED_REV_FR, SEED_REV_HT, SEED_REV_FR, SEED_REV_HT):
-        result = (await push(on, tokens["student_a"], [completed_op(revision)])).json()["results"][
-            0
-        ]
+    """Security review M2 (synthetic default, BLOCKED_BY_OWNER PO-09): a bare
+    "lesson completed" earns nothing until the server has scored at least one
+    answer of the learner in that lesson — then it is paid once, under the
+    completion's own operation."""
+    first = completed_op(SEED_REV_FR)
+    for op in (first, completed_op(SEED_REV_HT), completed_op(SEED_REV_FR)):
+        result = (await push(on, tokens["student_a"], [op])).json()["results"][0]
         assert result["status"] == "accepted"
-    assert keys(await ledger_rows(admin, STUDENT_A)) == sorted(
-        [LESSON_KEY, "a:first_lesson_completed"]
-    )
+    assert await ledger_total(admin, STUDENT_A) == (0, 0), "completions alone earn nothing"
+    assert (await summary(on, tokens["student_a"]))["achievements"] == []
+
+    await push(on, tokens["student_a"], [answer_op(Q1, "a")])  # a WRONG answer is evidence too
+    rows = await ledger_rows(admin, STUDENT_A)
+    assert keys(rows) == sorted([LESSON_KEY, "a:first_lesson_completed"])
+    lesson_row = next(r for r in rows if r["source_key"] == LESSON_KEY)
+    assert str(lesson_row["source_op_id"]) == first["op_id"], "paid under the first completion"
+    for revision in (SEED_REV_FR, SEED_REV_HT):
+        await push(on, tokens["student_a"], [completed_op(revision), answer_op(Q1, "a")])
     assert await assert_balance_matches_ledger(admin, STUDENT_A) == LESSON_GOLD + FIRST_LESSON_BONUS
 
 

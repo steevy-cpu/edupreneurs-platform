@@ -34,8 +34,12 @@ look at*; everything else is read from rows the server wrote.
    `app.practice_attempts` (server score = 1) or `app.lesson_progress` (completed), and inserts
    ledger rows. Gold therefore commits atomically with the learning operation, or not at all.
 4. If the reward step raises, only the savepoint is rolled back: the learning operation still
-   commits, the push response is unchanged, one log line `rewards_award_failed … sqlstate=…
-   action=reconcile_later` is written, and reconciliation awards it later.
+   commits, the push response is unchanged, one log line `rewards_award_failed …` is written, and
+   reconciliation awards it later.
+5. **Time budget (security review M1).** The push holds the learner's sync lock, so the award
+   waits at most ~200 ms for the learner's rewards lock and then answers `deferred` (log line
+   `rewards_award_deferred`). After the first deferral or failure the rest of that batch skips the
+   reward step. A held rewards lock therefore costs a push about 0.2 s once, not 5 s per operation.
 
 The push response has **no** rewards field, with the flag on or off (tested by comparing shapes).
 
@@ -57,8 +61,8 @@ all produce the same key and are refused by the constraint (`ON CONFLICT DO NOTH
 column is generated, no writer — not even the table owner — can supply a look-alike key.
 
 A second table, `rewards.processed_operations` (PK `learner_id, op_id`), records the decision taken
-for every accepted operation (`awarded`, `duplicate`, `capped_lesson`, `capped_day`,
-`not_eligible`, `no_active_rule`). It makes "has this operation been examined?" a primary-key
+for every accepted operation (`awarded`, `duplicate`, `capped_lesson`, `capped_day`, `forfeited`,
+`awaiting_evidence`, `not_eligible`, `no_active_rule`). It makes "has this operation been examined?" a primary-key
 look-up, makes a cap decision final, and lets reconciliation find unexamined operations.
 
 ### Guards that hold for every writer
@@ -126,9 +130,26 @@ Platform-00's recommended default and exist so the mechanism can be tested.
 | `achievement_ten_correct` | 1 | 15 | — | — |
 
 Nothing is earned for wrong answers, repeats, rejected operations, or operation kinds that have no
-rule (exams, notes and "opening things" have no branch at all). Caps are Gold totals per learner,
-enforced in SQL under the learner lock; an operation refused by a cap is recorded and not judged
-again. Changing a value = insert a new version and flip `is_active`; history keeps the version that
+rule (exams, notes and "opening things" have no branch at all).
+
+**Caps are final per source key (security review L1).** Caps are Gold totals per learner, enforced
+in SQL under the learner lock. A question or lesson refused by a cap is recorded in
+`rewards.forfeited_sources` and can never be paid later through a new operation (`forfeited`), so a
+cap binds a modified client exactly as it binds an honest app. Consequence to decide under PO-09:
+an honest learner who passes a cap loses that Gold for good.
+
+**A switched-off rule is not final (integration review L3).** With no live version the operation
+is recorded `no_active_rule` and not forfeited. Always switch versions with
+`rewards.set_active_rule_version(code, version)` (internal, one call = no gap); when it switches a
+rule on it forgets the `no_active_rule` decisions and reconciliation pays those operations.
+
+**A completion needs evidence of learning (security review M2) — `BLOCKED_BY_OWNER` PO-09.**
+Rule parameter `requires_scored_answer` (seeded **true** for `lesson_first_completed`, the safer
+synthetic default): a completion is paid only once the server has scored at least one answer of
+that learner in that lesson, right or wrong. A bare completion is recorded `awaiting_evidence`
+(`rewards.pending_completions`) and paid, under its own operation and acceptance day, when the first
+scored answer is examined. A rule version with the parameter false restores "any completion pays".
+Both settings are tested. Whether one answer is the right bar is the owner's call. Changing a value = insert a new version and flip `is_active`; history keeps the version that
 paid each row.
 
 Achievements (draft French / Haitian Creole titles, **pending native-speaker review**):
@@ -149,6 +170,7 @@ spending path); whether achievements should carry Gold; which achievements exist
 - **Non-punitive:** the table has no lost / broken / frozen column, a gap never costs Gold, and the
   API reports `current_days: 0` plus the kept `longest_days` rather than a loss.
 - Offline work synced late counts on the day the server accepted it.
+- Streak days keep counting while a Gold rule is switched off.
 - Tested with explicit instants either side of Haiti midnight in winter (UTC-5) and summer
   (UTC-4), across the DST start (2026-03-08, 23-hour day) and end (2026-11-01, 25-hour day).
 
@@ -243,7 +265,9 @@ Errors use the standard shape `{"error": {"code", "message", "request_id", "deta
 `source`: `question_first_correct` | `lesson_first_completed` | `achievement` | `reversal` |
 `adjustment`. `op_id` is the accepted sync operation that earned the row (`null` for a reversal or
 an adjustment). The reason code and the staff member behind a correction are not exposed. `next_cursor` is `null` on the last page. A cursor is bound
-to its account and to this endpoint (a sync pull cursor is rejected).
+to its account and to this endpoint (a sync pull cursor is rejected). It encodes only the position
+of one of the caller's own entries (`created_at`, `id`) — no table-wide sequence (security review
+L3).
 
 ### Why the routes are not in `openapi.json` yet
 
@@ -262,22 +286,45 @@ standard error shape.
 Read through your own `SECURITY DEFINER` functions (owner `postgres`, which owns the tables and is
 not subject to their RLS). `edu_api` can only ever see the caller's own rows, so a direct query
 from the API cannot aggregate across learners — by design. Grant nothing on `rewards` to anyone.
+Do not write to any `rewards` table, add no trigger, take no lock; read committed data.
 
 | Object | Use |
 |---|---|
-| `rewards.ledger (learner_id, amount, entry_kind, source_kind, accepted_at, accepted_day, seq)` | The truth. Period totals: `sum(amount) … WHERE accepted_day BETWEEN …` (index `idx_ledger_day (accepted_day, learner_id) INCLUDE (amount)`). Reversals are negative rows on their own day. |
+| `rewards.ledger (learner_id, amount, entry_kind, source_kind, accepted_at, accepted_day)` | The truth. Period totals: `sum(amount) … WHERE accepted_day BETWEEN …` — index `idx_ledger_day (accepted_day, learner_id) INCLUDE (amount)` answers it without touching the table. |
 | `rewards.balances (learner_id, balance, lifetime_earned)` | All-time totals, O(1) per learner. |
 | `rewards.streak_state`, `rewards.activity_days` | Streak data. |
 | `rewards.haiti_day(timestamptz)` | The one definition of a product day. |
 
-Do not write to any `rewards` table, do not add triggers to them, and take no lock on them; read
-committed data. Amounts are placeholders — rank on the ledger, never on a hard-coded amount. This
-lane contains no ranking of any kind.
+### Dating rule (integration review M3)
 
-Decide deliberately what a rank counts: `entry_kind = 'adjustment'` rows are staff credits or
-debits (not learning), and `entry_kind = 'reversal'` rows undo an award. Filtering on
-`source_kind IN ('question_first_correct', 'lesson_first_completed', 'achievement')` plus their
-reversals gives "Gold earned by learning".
+1. **A ledger row belongs to the period of its `accepted_day`.** For an award that is the Haiti
+   date on which the server accepted the learning operation. An operation healed later by
+   reconciliation keeps its **original** accepted day (tested), as does a completion released by
+   later evidence.
+2. **A reversal or staff adjustment is dated the day it is made**, not the day of the award it
+   corrects. It never rewrites an earlier day.
+3. **Therefore a past day's sum can still grow** (late healing of an old operation) **but is never
+   reduced or rewritten by a correction.** A leaderboard must close a period by taking a
+   **snapshot** of the sums; a closed period is that frozen snapshot, not a live query. Rows that
+   arrive afterwards with an old `accepted_day` count in the balance and in all-time totals only.
+4. **A live period's sum for one learner can be negative** (a reversal made today of Gold earned in
+   an earlier period). Clamp with `GREATEST(sum, 0)`; never show a negative score.
+5. **What counts is your decision, stated explicitly:** "Gold earned by learning" =
+   `source_kind IN ('question_first_correct', 'lesson_first_completed', 'achievement')` plus
+   `reversal` rows; `adjustment` rows are staff credits or debits, not learning.
+6. **Excluding staff and test accounts is the leaderboard's job** (`app.staff_roles`); the ledger
+   does not know who is staff.
+7. Amounts and caps are placeholders (PO-09): rank on sums, never on a hard-coded amount. This lane
+   contains no ranking of any kind.
+
+There is no per-day rollup table; the covering index was judged sufficient for tonight.
+
+### Source-key contract for the content and staff lanes (integration review L4)
+
+Exactly-once rests on `question_key` being **stable and equal across locales and revisions** of a
+lesson. Renaming a key in a new revision = a new source key = pays again (bounded by the
+per-lesson cap). Reusing an old key for a different question = pays nothing. Both are tested as
+current behaviour for added keys; content tooling must treat `question_key` as an identity.
 
 ## Worker and staff entry points (after staff B1)
 
@@ -314,9 +361,12 @@ Still granted to nobody: `rewards.rebuild_balance`, `rewards.rebuild_streak`,
 `rewards.reverse_entry` (internal), `rewards.erase_learner` (for the `account` erasure
 orchestrator), and the internal award / reconcile functions.
 
-**Erasure order for the orchestrator:** erase the learner's sync receipts first (otherwise a later
-reconcile faithfully re-derives the rewards from them), then call `rewards.erase_learner`, then
-delete `app.learner_profiles` (rewards foreign keys to it are `RESTRICT`).
+**Erasure contract for the orchestrator (security review L2), all in ONE transaction:** call
+`rewards.erase_learner(id)` first — it keeps the learner's rewards lock until commit, so no award
+or reconcile can run in between — then remove the learner's sync receipts and learning rows, then
+delete `app.learner_profiles` (rewards foreign keys are `RESTRICT`), then commit. Tested with
+summary requests racing the erasure: nothing is recreated. If receipts are left behind after the
+commit, reconciliation re-derives the rewards from them (also tested, as documented behaviour).
 
 ## Decisions taken tonight (reversible)
 
@@ -328,9 +378,9 @@ delete `app.learner_profiles` (rewards foreign keys to it are `RESTRICT`).
    `app.learner_profiles` (it adds system RI triggers there, which the structure test does not
    count; no user trigger, grant, policy or function was added to `app`).
 3. **Rules apply at examination time.** An operation healed later is paid by the rule version live
-   when it is examined, on the day it was accepted.
-4. **Achievement counters:** lessons from `app.lesson_progress`; correct answers from rewarded
-   ledger rows (so answers refused by a cap do not count); streak from `longest_run_days`.
+   when it is examined, on the day it was accepted (see open finding L2 below).
+4. **Achievement counters** count rewarded ledger rows (lessons and correct answers), so an
+   achievement needs the same evidence as the Gold it celebrates; streak from `longest_run_days`.
 5. **Lazy reconcile inside a GET** (idempotent, bounded, failure-tolerant) because there is no
    worker yet.
 6. **The hook also runs for replays** of accepted operations: it is a primary-key look-up when
@@ -339,16 +389,34 @@ delete `app.learner_profiles` (rewards foreign keys to it are `RESTRICT`).
    lines in the loop; `routers/sync.py`: passes the hook only when the flag is on). The brief named
    one or the other; the transaction lives in the service and the flag in the router's settings.
 
+## Review findings — status
+
+Fixed and tested: security H1 (search path), **M1** (hook time budget, skip rest of batch, batch
+reconcile skips busy learners and is one-call-per-transaction), **M2** (evidence parameter, default
+on), **L1** (caps final per source key), **L2** (erasure contract), **L3** (cursor); integration
+**M3** (dating rule documented, covering index), **L3** (`no_active_rule` not final), **L4**
+(documented).
+
+**Open review findings** (not done tonight):
+
+| Id | Finding | State |
+|---|---|---|
+| integration L2 | Select the rule version by the operation's `accepted_at` (`effective_from`) so erase + re-derive reproduces the same balance | Not built. Today the version live at examination time pays. |
+| integration L5 | Per-learner reconcile watermark instead of the anti-join on every summary | Not built. The ledger page query does use an index led by `learner_id` (`idx_ledger_learner_recent`). |
+| integration L6 | `Cache-Control: private, no-store` and an `as_of` instant on both endpoints | Not built. The app may show a "pending" label but **no pending amount** — amounts are not exposed before sync. |
+| integration (other) | Summary must answer 503, not 500, when the rewards schema is unusable; TRUNCATE guard on the ledger | Not built. |
+| missing tests | 50-operation batch with the flag on; reversal effect on day sums; reused `question_key`; paging during inserts; rule switch under concurrent load; day cap across Haiti midnight through the HTTP API (covered in SQL with pinned instants — the API has no clock seam) | Not written. |
+| security N1 | Award once per batch instead of one savepoint per operation (`sync_max_ops` > 64) | Not built. |
+
 ## Known gaps
 
 - Routes are not in the OpenAPI document (see above), so the native app has no generated types.
-- Reconcile finds pending operations with an anti-join over the learner's accepted receipts — fine
-  now, needs a watermark or the worker once learners have very many receipts.
 - No worker job schedules `reconcile_batch`; no HTTP route for the staff reversal / adjustment.
 - Whether staff may credit Gold at all, and the bounds and reason list, need the owner (PO-09).
 - A worker reconcile run writes no audit event (its ledger rows are the record).
 - Back-dating, spending Gold, and any ranking are not built.
-- `rewards.rules` has no editing endpoint; values change by migration or by an operator.
+- `rewards.rules` has no editing endpoint; values change by migration or by an operator calling
+  `rewards.set_active_rule_version`.
 - The erasure hook was exercised alone; the orchestrator that calls it belongs to the identity lane.
 - Nothing was load-tested beyond 20–25 concurrent requests on one laptop.
 

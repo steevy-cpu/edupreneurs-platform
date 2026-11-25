@@ -357,8 +357,8 @@ SELECT ok(pg_temp.balance_ok(:A), 'sum(ledger) = balance under the per-day cap')
 
 UPDATE rewards.rules SET is_active = false WHERE code = 'question_first_correct';
 SELECT is(pg_temp.answer(:B, '18500000-0000-4000-8000-000000000106', :Q1HT, 'a'), 'accepted/not_eligible/0', 'control: wrong answers stay not eligible');
-SELECT is(pg_temp.answer(:A, '18500000-0000-4000-8000-000000000206', :Q4, 'd'), 'accepted/no_active_rule/0',
-    'with no live rule a correct answer earns nothing (switching Gold off is a data change)');
+SELECT is(pg_temp.answer(:A, '18500000-0000-4000-8000-000000000206', :Q4, 'd'), 'accepted/forfeited/0',
+    'a question refused by the day cap is forfeited: a NEW operation for it earns nothing later');
 
 -- ---- erasure hook ------------------------------------------------------------------------
 SELECT throws_ok($$DELETE FROM rewards.ledger WHERE learner_id = 'a0000000-0000-4000-8000-000000000002'$$, '23514', NULL,

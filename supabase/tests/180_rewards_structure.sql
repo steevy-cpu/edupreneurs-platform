@@ -5,7 +5,8 @@ SELECT * FROM no_plan();
 -- ---- tables, keys, RLS -------------------------------------------------------
 SELECT tables_are('rewards', ARRAY[
     'rules','achievement_definitions','ledger','balances','processed_operations',
-    'activity_days','streak_state','achievement_awards'], 'the 8 rewards tables are the intended ones');
+    'activity_days','streak_state','achievement_awards','forfeited_sources','pending_completions'],
+    'the 10 rewards tables are the intended ones');
 SELECT is((SELECT count(*)::int FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
            WHERE n.nspname = 'rewards' AND c.relkind = 'r' AND NOT c.relrowsecurity), 0,
     'row-level security is enabled on every rewards table');
@@ -58,8 +59,8 @@ SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname = 'rewards' AN
 SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname = 'rewards' AND cmd <> 'SELECT'), 0,
     'no policy allows INSERT, UPDATE or DELETE');
 SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname = 'rewards'
-           AND tablename IN ('rules','processed_operations','activity_days')), 0,
-    'rules, processed operations and activity days have no policy at all (deny everything)');
+           AND tablename IN ('rules','processed_operations','activity_days','forfeited_sources','pending_completions')), 0,
+    'rules and the four bookkeeping tables have no policy at all (deny everything)');
 
 -- ---- table privileges --------------------------------------------------------
 SELECT is((SELECT count(*)::int FROM information_schema.role_table_grants
@@ -104,6 +105,7 @@ SELECT is((SELECT count(*)::int FROM pg_proc p JOIN pg_roles r ON true
            WHERE p.pronamespace = 'rewards'::regnamespace
              AND p.proname IN ('apply_operation','reconcile_learner_internal','rebuild_balance','rebuild_streak',
                                'reverse_entry','erase_learner','lock_learner','try_lock_learner','is_correction_reason',
+                               'try_award_event','set_active_rule_version',
                                'validate_ledger_entry','apply_ledger_entry_to_balance',
                                'prevent_history_change','protect_rule_version')
              AND NOT r.rolsuper AND r.rolname NOT LIKE 'pg\_%' AND r.rolname <> 'postgres'
@@ -138,8 +140,8 @@ SELECT is((SELECT array_agg(pg_get_function_identity_arguments(p.oid) ORDER BY p
     ARRAY['p_limit integer','p_op_id uuid'],
     'the functions edu_api can call take NO learner id and NO amount');
 SELECT is((SELECT count(*)::int FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
-           WHERE c.relnamespace = 'rewards'::regnamespace AND NOT t.tgisinternal), 6,
-    '6 rewards triggers are installed');
+           WHERE c.relnamespace = 'rewards'::regnamespace AND NOT t.tgisinternal), 7,
+    '7 rewards triggers are installed');
 
 -- ---- reference data is marked as a placeholder ------------------------------------
 SELECT is((SELECT count(*)::int FROM rewards.rules WHERE decision_status NOT LIKE 'BLOCKED_BY_OWNER:PO-09%'), 0,

@@ -56,6 +56,11 @@ CREATE TABLE rewards.rules (
     per_lesson_cap integer CHECK (per_lesson_cap IS NULL OR per_lesson_cap >= amount),
     -- Most Gold this rule may give ONE learner on ONE Haiti calendar day.
     per_day_cap integer CHECK (per_day_cap IS NULL OR per_day_cap >= amount),
+    -- Lesson completion only: pay the completion only once the server has
+    -- scored at least one answer of that learner in that lesson (evidence that
+    -- the lesson was worked on, not merely "completed" by a scripted client).
+    -- BLOCKED_BY_OWNER (PO-09): the seeded default is the safer one (true).
+    requires_scored_answer boolean NOT NULL DEFAULT false,
     is_active boolean NOT NULL DEFAULT false,
     decision_status text NOT NULL DEFAULT 'BLOCKED_BY_OWNER:PO-09'
         CHECK (char_length(decision_status) BETWEEN 1 AND 200),
@@ -63,7 +68,8 @@ CREATE TABLE rewards.rules (
     PRIMARY KEY (code, version),
     -- The two learning events are looked up by their own name.
     CHECK (event_kind = 'achievement' OR code = event_kind),
-    CHECK (event_kind <> 'achievement' OR (per_lesson_cap IS NULL AND per_day_cap IS NULL))
+    CHECK (event_kind <> 'achievement' OR (per_lesson_cap IS NULL AND per_day_cap IS NULL)),
+    CHECK (NOT requires_scored_answer OR event_kind = 'lesson_first_completed')
 );
 -- At most one live version of a rule.
 CREATE UNIQUE INDEX rules_one_active_version ON rewards.rules (code) WHERE is_active;
@@ -206,12 +212,38 @@ CREATE TABLE rewards.processed_operations (
     learner_id uuid NOT NULL REFERENCES app.learner_profiles(user_id) ON DELETE RESTRICT,
     op_id uuid NOT NULL,
     outcome text NOT NULL CHECK (outcome IN
-        ('awarded', 'duplicate', 'capped_lesson', 'capped_day', 'not_eligible', 'no_active_rule')),
+        ('awarded', 'duplicate', 'capped_lesson', 'capped_day', 'not_eligible', 'no_active_rule',
+         'forfeited', 'awaiting_evidence')),
     -- Gold credited because of this operation (event + achievement bonuses).
     gold integer NOT NULL DEFAULT 0 CHECK (gold >= 0),
     accepted_day date NOT NULL,
     processed_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (learner_id, op_id)
+);
+
+-- A cap refuses a SOURCE KEY, finally: the same
+-- question or lesson can never be paid later through a new operation. Without
+-- this, a cap would only bind honest apps (which never re-send) while a
+-- modified client collected the refused Gold the next day.
+CREATE TABLE rewards.forfeited_sources (
+    learner_id uuid NOT NULL REFERENCES app.learner_profiles(user_id) ON DELETE RESTRICT,
+    source_key text NOT NULL CHECK (source_key ~ '^(q|l):'),
+    outcome text NOT NULL CHECK (outcome IN ('capped_lesson', 'capped_day')),
+    op_id uuid NOT NULL,
+    accepted_day date NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (learner_id, source_key)
+);
+
+-- A first lesson completion that is waiting for evidence of learning (see
+-- rules.requires_scored_answer). Resolved — awarded or dropped — as soon as the
+-- learner's first scored answer in that lesson is examined.
+CREATE TABLE rewards.pending_completions (
+    learner_id uuid NOT NULL REFERENCES app.learner_profiles(user_id) ON DELETE RESTRICT,
+    lesson_id uuid NOT NULL,
+    op_id uuid NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (learner_id, lesson_id)
 );
 
 -- Haiti calendar days on which the server accepted at least one learning
@@ -266,6 +298,7 @@ BEGIN
        OR NEW.event_kind IS DISTINCT FROM OLD.event_kind OR NEW.amount IS DISTINCT FROM OLD.amount
        OR NEW.per_lesson_cap IS DISTINCT FROM OLD.per_lesson_cap
        OR NEW.per_day_cap IS DISTINCT FROM OLD.per_day_cap
+       OR NEW.requires_scored_answer IS DISTINCT FROM OLD.requires_scored_answer
        OR NEW.created_at IS DISTINCT FROM OLD.created_at THEN
         RAISE EXCEPTION 'A reward rule version is immutable; add a new version instead'
             USING ERRCODE = '23514';
@@ -317,7 +350,7 @@ BEGIN
     END IF;
 
     -- The amount is never the writer's choice: it is the rule version's amount.
-    SELECT r.amount, r.event_kind INTO v_rule
+    SELECT r.amount, r.event_kind, r.requires_scored_answer INTO v_rule
     FROM rewards.rules r WHERE r.code = NEW.rule_code AND r.version = NEW.rule_version;
     IF NOT FOUND OR v_rule.event_kind <> NEW.source_kind OR v_rule.amount <> NEW.amount THEN
         RAISE EXCEPTION 'Ledger amount and kind must match the reward rule version'
@@ -356,6 +389,14 @@ BEGIN
               AND lp.completed_at IS NOT NULL
         ) THEN
             RAISE EXCEPTION 'A lesson reward needs a server-recorded completion of that lesson'
+                USING ERRCODE = '23514';
+        END IF;
+        IF v_rule.requires_scored_answer AND NOT EXISTS (
+            SELECT 1 FROM app.practice_attempts a
+            JOIN app.lesson_revisions lr ON lr.id = a.lesson_revision_id
+            WHERE a.learner_id = NEW.learner_id AND lr.lesson_id = NEW.lesson_id
+        ) THEN
+            RAISE EXCEPTION 'This lesson rule needs a server-scored answer in the lesson first'
                 USING ERRCODE = '23514';
         END IF;
     ELSE -- achievement
@@ -410,6 +451,15 @@ BEGIN
        AND NULLIF(current_setting('rewards.erasing_learner', true), '') = OLD.learner_id::text THEN
         RETURN OLD;
     END IF;
+    -- Second exception: when a rule is switched back on,
+    -- rewards.set_active_rule_version forgets the "no_active_rule" decisions so
+    -- that reconciliation examines those operations again. Nothing of value is
+    -- lost: such a row never carried an award.
+    IF TG_OP = 'DELETE' AND TG_TABLE_NAME = 'processed_operations'
+       AND current_setting('rewards.reexamining', true) = 'on'
+       AND to_jsonb(OLD) ->> 'outcome' = 'no_active_rule' AND (to_jsonb(OLD) ->> 'gold')::integer = 0 THEN
+        RETURN OLD;
+    END IF;
     RAISE EXCEPTION 'Reward history is append-only and cannot be updated or deleted'
         USING ERRCODE = '23514';
 END;
@@ -419,6 +469,8 @@ CREATE TRIGGER no_edit_ledger BEFORE UPDATE OR DELETE ON rewards.ledger
 CREATE TRIGGER no_edit_achievement_awards BEFORE UPDATE OR DELETE ON rewards.achievement_awards
     FOR EACH ROW EXECUTE FUNCTION rewards.prevent_history_change();
 CREATE TRIGGER no_edit_processed_operations BEFORE UPDATE OR DELETE ON rewards.processed_operations
+    FOR EACH ROW EXECUTE FUNCTION rewards.prevent_history_change();
+CREATE TRIGGER no_edit_forfeited_sources BEFORE UPDATE OR DELETE ON rewards.forfeited_sources
     FOR EACH ROW EXECUTE FUNCTION rewards.prevent_history_change();
 
 -- ============================================================================
@@ -430,6 +482,8 @@ ALTER TABLE rewards.ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rewards.balances ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rewards.processed_operations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rewards.activity_days ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rewards.forfeited_sources ENABLE ROW LEVEL SECURITY;
+ALTER TABLE rewards.pending_completions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rewards.streak_state ENABLE ROW LEVEL SECURITY;
 ALTER TABLE rewards.achievement_awards ENABLE ROW LEVEL SECURITY;
 
@@ -439,8 +493,9 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA rewards FROM PUBLIC, anon, authenticated;
 GRANT USAGE ON SCHEMA rewards TO edu_api;
 GRANT SELECT ON rewards.ledger, rewards.balances, rewards.streak_state,
     rewards.achievement_awards, rewards.achievement_definitions TO edu_api;
--- Deliberately NO grant on rewards.rules, rewards.processed_operations and
--- rewards.activity_days: the student API has no use for them.
+-- Deliberately NO grant on rewards.rules, rewards.processed_operations,
+-- rewards.activity_days, rewards.forfeited_sources and
+-- rewards.pending_completions: the student API has no use for them.
 
 CREATE POLICY ledger_select_own ON rewards.ledger
     FOR SELECT TO edu_api USING (learner_id = (SELECT app.current_actor_id()));
@@ -461,11 +516,13 @@ REVOKE ALL ON ALL FUNCTIONS IN SCHEMA rewards FROM PUBLIC, anon, authenticated;
 -- Platform-00's recommendation: Gold for the FIRST correct answer to a question
 -- and the FIRST completion of a lesson. Nothing for wrong answers, repeats,
 -- rejected operations, exams, or opening things.
-INSERT INTO rewards.rules (code, version, event_kind, amount, per_lesson_cap, per_day_cap, is_active) VALUES
-    ('question_first_correct', 1, 'question_first_correct', 5, 100, 300, true),
-    ('lesson_first_completed', 1, 'lesson_first_completed', 20, 20, 200, true),
-    ('achievement_first_lesson', 1, 'achievement', 10, NULL, NULL, true),
-    ('achievement_ten_correct', 1, 'achievement', 15, NULL, NULL, true);
+INSERT INTO rewards.rules
+    (code, version, event_kind, amount, per_lesson_cap, per_day_cap, requires_scored_answer, is_active)
+VALUES
+    ('question_first_correct', 1, 'question_first_correct', 5, 100, 300, false, true),
+    ('lesson_first_completed', 1, 'lesson_first_completed', 20, 20, 200, true, true),
+    ('achievement_first_lesson', 1, 'achievement', 10, NULL, NULL, false, true),
+    ('achievement_ten_correct', 1, 'achievement', 15, NULL, NULL, false, true);
 
 INSERT INTO rewards.achievement_definitions (code, criterion_kind, threshold, bonus_rule_code, titles, sort_order) VALUES
     ('first_correct_answer', 'questions_correct', 1, NULL,
