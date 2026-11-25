@@ -17,7 +17,12 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from edu_api.errors import error_responses
 from edu_api.staff.calls import as_jsonb, call_staff, staff_sql
-from edu_api.staff.content import NoControlCharacters, RevisionContent
+from edu_api.staff.content import (
+    LineEndingsToLF,
+    NoControlCharacters,
+    RevisionContent,
+    SingleLine,
+)
 from edu_api.staff.deps import AnyStaff, StaffDb, StaffPrincipal, require_staff
 
 router = APIRouter()
@@ -157,20 +162,20 @@ class RevisionIn(RevisionContent):
 
 class SourceIn(BaseModel):
     model_config = _STRICT
-    source_title: Annotated[
-        str, StringConstraints(min_length=1, max_length=240), NoControlCharacters
-    ]
+    source_title: Annotated[str, StringConstraints(min_length=1, max_length=240), SingleLine]
     source_uri: (
-        Annotated[str, StringConstraints(max_length=2000, pattern=r"^https?://\S+$")] | None
+        Annotated[str, StringConstraints(max_length=2000, pattern=r"^https?://\S+$"), SingleLine]
+        | None
     ) = None
 
 
 class SourceRightsIn(BaseModel):
     model_config = _STRICT
     rights_status: RightsStatus
-    rights_notes: Annotated[str, StringConstraints(max_length=2000), NoControlCharacters] | None = (
-        None
-    )
+    rights_notes: (
+        Annotated[str, LineEndingsToLF, StringConstraints(max_length=2000), NoControlCharacters]
+        | None
+    ) = None
 
 
 class AttachSourceIn(BaseModel):
@@ -181,7 +186,10 @@ class AttachSourceIn(BaseModel):
 class ReviewIn(BaseModel):
     model_config = _STRICT
     verdict: Literal["approved", "rejected", "changes_requested"]
-    notes: Annotated[str, StringConstraints(max_length=4000), NoControlCharacters] | None = None
+    notes: (
+        Annotated[str, LineEndingsToLF, StringConstraints(max_length=4000), NoControlCharacters]
+        | None
+    ) = None
 
 
 class PackIn(BaseModel):
