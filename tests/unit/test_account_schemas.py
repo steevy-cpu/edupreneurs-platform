@@ -9,6 +9,7 @@ from pydantic import ValidationError
 
 from edu_api.account.schemas import (
     DISPLAY_NAME_MAX_CHARS,
+    OnboardingUpdate,
     ProfilePatch,
     normalise_display_name,
 )
@@ -94,3 +95,36 @@ def test_patch_reports_only_the_fields_that_were_sent() -> None:
 def test_patch_is_strict(body: dict[str, object]) -> None:
     with pytest.raises(ValidationError):
         ProfilePatch.model_validate(body)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {},
+        {"state": "ready"},
+        {"onboarding_version": 0},
+        {"onboarding_version": 10001},
+        {"onboarding_version": "1.5"},
+        {"onboarding_version": 1, "state": "done"},
+        {"onboarding_version": 1, "state": "READY"},
+        {"onboarding_version": 1, "tour_version_seen": -1},
+        {"onboarding_version": 1, "tour_dismissed": "maybe"},
+        {"onboarding_version": 1, "consent": True},
+        {"onboarding_version": 1, "consent_given": True},
+        {"onboarding_version": 1, "age": 14},
+        {"onboarding_version": 1, "user_id": "a0000000-0000-4000-8000-000000000002"},
+        {"onboarding_version": 1, "reset": True},
+    ],
+)
+def test_onboarding_update_is_strict(body: dict[str, object]) -> None:
+    with pytest.raises(ValidationError):
+        OnboardingUpdate.model_validate(body)
+
+
+def test_onboarding_update_minimal_and_full() -> None:
+    minimal = OnboardingUpdate.model_validate({"onboarding_version": 1})
+    assert (minimal.state, minimal.tour_version_seen, minimal.tour_dismissed) == (None, None, None)
+    full = OnboardingUpdate.model_validate(
+        {"state": "ready", "onboarding_version": 3, "tour_version_seen": 2, "tour_dismissed": True}
+    )
+    assert full.state == "ready" and full.tour_dismissed is True

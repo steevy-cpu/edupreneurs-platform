@@ -10,7 +10,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from edu_api.account import service
-from edu_api.account.schemas import ProfilePatch
+from edu_api.account.schemas import OnboardingResponse, OnboardingUpdate, ProfilePatch
 from edu_api.config import Settings
 from edu_api.deps import CurrentPrincipal, Db
 from edu_api.errors import error_responses
@@ -34,8 +34,43 @@ def _profile_routes(router: APIRouter) -> None:
         return await service.update_profile(db, principal.user_id, body)
 
 
+def _onboarding_routes(router: APIRouter) -> None:
+    @router.get(
+        "/me/onboarding",
+        response_model=OnboardingResponse,
+        responses=error_responses(401, 503),
+        summary="How far the signed-in learner is through onboarding",
+    )
+    async def get_onboarding(principal: CurrentPrincipal, db: Db) -> OnboardingResponse:
+        """The caller's own onboarding state. Read-only.
+
+        A learner whose work the server has already accepted is reported as
+        `ready` even if no device ever sent an onboarding update.
+        """
+        return await service.get_onboarding(db, principal.user_id)
+
+    @router.put(
+        "/me/onboarding",
+        response_model=OnboardingResponse,
+        responses=error_responses(401, 422, 503),
+        summary="Record onboarding progress (idempotent, forward-only)",
+    )
+    async def put_onboarding(
+        body: OnboardingUpdate, principal: CurrentPrincipal, db: Db
+    ) -> OnboardingResponse:
+        """Safe to retry and to replay late from an offline device.
+
+        The state never moves backwards, versions keep their highest value and
+        `tour_dismissed` stays true once set. A stale request returns 200 with
+        the current (unchanged) state. Onboarding never deletes learning data.
+        """
+        return await service.advance_onboarding(db, principal.user_id, body)
+
+
 def build_router(settings: Settings) -> APIRouter:
     router = APIRouter(prefix="/v1", tags=["account"])
     if settings.profile_edit_enabled:
         _profile_routes(router)
+    if settings.onboarding_enabled:
+        _onboarding_routes(router)
     return router

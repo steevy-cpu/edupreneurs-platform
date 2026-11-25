@@ -61,6 +61,8 @@ class Settings(BaseSettings):
     # all of them off no `account` route is registered and the API is unchanged.
     #: EDU_PROFILE_EDIT_ENABLED — `PATCH /v1/me`.
     profile_edit_enabled: bool = False
+    #: EDU_ONBOARDING_ENABLED — `GET` / `PUT /v1/me/onboarding`.
+    onboarding_enabled: bool = False
     # --- end identity lane ---------------------------------------------------
 
     @field_validator("auth_algorithms")

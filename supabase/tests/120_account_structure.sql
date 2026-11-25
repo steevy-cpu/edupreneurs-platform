@@ -1,5 +1,5 @@
 -- Structure, privileges and exposure of the private `account` schema
--- (identity lane).
+-- (identity lane, slices 1 and 2).
 BEGIN;
 SELECT * FROM no_plan();
 
@@ -19,6 +19,9 @@ SELECT is(current_setting('pgrst.db_schemas', true) IS NULL
     'account is not configured as a Data API schema in this session');
 
 -- ---- tables ---------------------------------------------------------------------
+SELECT has_table('account', 'onboarding_state', 'onboarding_state exists');
+SELECT col_is_pk('account', 'onboarding_state', 'user_id', 'one onboarding row per learner');
+SELECT fk_ok('account', 'onboarding_state', 'user_id', 'auth', 'users', 'id', 'onboarding rows reference auth.users');
 SELECT is((SELECT count(*)::int FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
            WHERE n.nspname = 'account' AND c.relkind = 'r' AND NOT c.relrowsecurity), 0,
     'row-level security is enabled on every account table');
@@ -44,6 +47,7 @@ SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname = 'account' AN
     'every account policy applies to edu_api only');
 SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname = 'account' AND cmd <> 'SELECT'), 0,
     'account policies are read-only: every write goes through a function');
+SELECT policies_are('account', 'onboarding_state', ARRAY['onboarding_select_own'], 'onboarding has exactly the own-row read policy');
 
 -- ---- table privileges -----------------------------------------------------------
 SELECT is((SELECT count(*)::int FROM information_schema.role_table_grants
@@ -74,7 +78,11 @@ SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'account':
            AND pg_get_userbyid(p.proowner) <> 'postgres'), 0,
     'every account function is owned by the migration owner (postgres)');
 SELECT ok(has_function_privilege('edu_api', 'account.update_own_profile(jsonb)', 'EXECUTE'), 'edu_api may execute update_own_profile');
+SELECT ok(has_function_privilege('edu_api', 'account.get_own_onboarding()', 'EXECUTE'), 'edu_api may execute get_own_onboarding');
+SELECT ok(has_function_privilege('edu_api', 'account.advance_onboarding(text, integer, integer, boolean)', 'EXECUTE'), 'edu_api may execute advance_onboarding');
 SELECT is(has_function_privilege('edu_api', 'account.audit_seam(text, text, uuid, text, jsonb)', 'EXECUTE'), false, 'the audit seam is internal');
+SELECT is(has_function_privilege('edu_api', 'account.onboarding_floor(uuid)', 'EXECUTE'), false, 'onboarding_floor (takes a user id) is internal');
+SELECT is(has_function_privilege('edu_api', 'account.onboarding_rank(text)', 'EXECUTE'), false, 'onboarding_rank is internal');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'account'::regnamespace
            AND has_function_privilege('edu_api', p.oid, 'EXECUTE')
            AND EXISTS (SELECT 1 FROM unnest(p.proargnames) AS a(name) WHERE a.name ~ 'user|learner|actor')), 0,

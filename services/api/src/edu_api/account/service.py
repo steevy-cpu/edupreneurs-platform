@@ -15,13 +15,18 @@ from sqlalchemy import bindparam, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncConnection
 
-from edu_api.account.schemas import ProfilePatch
+from edu_api.account.schemas import OnboardingResponse, OnboardingUpdate, ProfilePatch
 from edu_api.db.session import Database
 from edu_api.errors import ApiError
 from edu_api.identity import MeResponse, ensure_learner_profile, load_profile
 
 _UPDATE_PROFILE = text("SELECT account.update_own_profile(:patch) AS outcome").bindparams(
     bindparam("patch", type_=JSONB)
+)
+_GET_ONBOARDING = text("SELECT account.get_own_onboarding() AS outcome")
+_ADVANCE_ONBOARDING = text(
+    "SELECT account.advance_onboarding("
+    ":state, :onboarding_version, :tour_version_seen, :tour_dismissed) AS outcome"
 )
 
 _PROFILE_REJECTIONS: dict[str, tuple[str, str]] = {
@@ -57,3 +62,27 @@ async def update_profile(db: Database, user_id: uuid.UUID, patch: ProfilePatch) 
     if profile is None:  # pragma: no cover - would mean RLS hides the caller's own row
         raise ApiError(500, "internal_error", "Unexpected server error.")
     return profile
+
+
+async def get_onboarding(db: Database, user_id: uuid.UUID) -> OnboardingResponse:
+    async with db.transaction(user_id, read_only=True) as conn:
+        outcome = await _outcome(conn, _GET_ONBOARDING, {})
+    return OnboardingResponse.model_validate(outcome)
+
+
+async def advance_onboarding(
+    db: Database, user_id: uuid.UUID, update: OnboardingUpdate
+) -> OnboardingResponse:
+    async with db.transaction(user_id) as conn:
+        await ensure_learner_profile(conn, user_id)
+        outcome = await _outcome(
+            conn,
+            _ADVANCE_ONBOARDING,
+            {
+                "state": update.state,
+                "onboarding_version": update.onboarding_version,
+                "tour_version_seen": update.tour_version_seen,
+                "tour_dismissed": update.tour_dismissed,
+            },
+        )
+    return OnboardingResponse.model_validate(outcome)

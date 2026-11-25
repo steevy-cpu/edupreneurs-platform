@@ -118,14 +118,100 @@ Proposed operation, for the owners' review:
 - Implementation sketch: `sync_apply_operation` delegates the write to
   `account.update_own_profile` so there stays one validator and one audit call site.
 
+## Slice 2 — onboarding state
+
+One row per learner in `account.onboarding_state` (created on first write):
+`state` ∈ `new` → `profile_selected` → `downloads_informed` → `ready`, `onboarding_version`,
+`tour_version_seen`, `tour_dismissed`, `completed_at`, `created_at`, `updated_at`. RLS: own-row
+`SELECT` for `edu_api`; no write privilege — writes only through `account.advance_onboarding`.
+
+### `GET /v1/me/onboarding`
+
+```json
+200 {"state":"new","onboarding_version":0,"tour_version_seen":0,"tour_dismissed":false,
+     "completed_at":null,"updated_at":null}
+```
+
+Read-only (creates no row). `onboarding_version` is `0` and `updated_at` is `null` until a device
+has reported. Errors: 401 `unauthenticated`, 404 `not_found` (flag off), 503.
+
+### `PUT /v1/me/onboarding`
+
+```json
+PUT {"state":"downloads_informed","onboarding_version":1,"tour_version_seen":1,"tour_dismissed":false}
+200 {"state":"downloads_informed","onboarding_version":1,"tour_version_seen":1,"tour_dismissed":false,
+     "completed_at":null,"updated_at":"2026-11-24T…Z"}
+```
+
+| Field | Type | Rule |
+|---|---|---|
+| `onboarding_version` | integer 1–10000, **required** | version of the flow built into the calling app |
+| `state` | one of the four states, optional / null | the furthest step this device reached |
+| `tour_version_seen` | integer 0–10000, optional / null | highest tour version shown |
+| `tour_dismissed` | boolean, optional / null | `true` = do not show the tour again |
+
+Unknown fields are rejected (422 `validation_error`). Other errors: 401, 404 (flag off), 503.
+The response is the state **after merging** — always 200 for a well-formed request, including a
+stale one.
+
+### Merge semantics (what makes it resumable and safe to replay)
+
+Every field merges monotonically with what is stored, so requests commute: any number of devices
+may send any of their updates, late, repeated and in any order, and the result is the same.
+
+| Field | Merge |
+|---|---|
+| `state` | never moves backwards; forward jumps are allowed (an offline device may report only `ready`) |
+| `onboarding_version` | greatest of stored and reported |
+| `tour_version_seen` | greatest of stored and reported |
+| `tour_dismissed` | logical OR — once true, stays true |
+| `completed_at` | set by the server clock the first time the state is `ready`; never changes after |
+
+A stale or repeated request is accepted (200) and changes nothing — not even `updated_at`.
+Concurrent requests are serialised on the learner's onboarding row.
+
+**Version rule.** A higher `onboarding_version` raises the stored version and nothing else: a
+learner who is `ready` is never sent back through the flow by an app upgrade. A newer flow may only
+add optional, non-blocking steps (announce them with the tour fields: offer a tour when
+`tour_version_seen` is behind and `tour_dismissed` is false).
+
+**Returning-learner rule.** The effective state is never below what the server already knows:
+
+- a learner with accepted work (`app.account_sync_state.current_version > 0`) is `ready`, with or
+  without an onboarding row — people who used the app before this flow existed, or who finished
+  onboarding on another device, are not asked again;
+- a learner who has a grade is at least `profile_selected`.
+
+This is derived from usage facts only. **Onboarding never deletes, resets or modifies learning
+data**; it does not even read answers.
+
+The onboarding state records progress through the introduction, not profile truth: `ready` with
+`grade: null` is possible (for example after an offline replay) and the app must simply show the
+grade picker.
+
+### Consent — not collected, not inferred
+
+PO-04 (what personal data, on whose consent, which ages, who consents for a minor) is
+**BLOCKED_BY_OWNER**. Therefore:
+
+- no consent, age, birth date, guardian or school field exists in the `account` schema or in any
+  request or response (a test fails if a column or response key looks like one, and
+  `{"consent": true}` in a request is rejected as an unknown field);
+- `tour_dismissed` means "do not show the product tour again" and nothing else; `state = ready`
+  means "has seen the introduction", not "has agreed to anything";
+- **safe behaviour for consent *unknown***: every consent-gated feature must treat it as **not
+  granted**. Nothing in this lane may be used as a stand-in for a consent answer.
+
 ## Tests
 
 | File | What it proves |
 |---|---|
 | `supabase/tests/120_account_structure.sql` | schema private; RLS everywhere; read-only policies for `edu_api` only; no grant to PUBLIC / anon / authenticated / authenticator / service_role; functions pinned, owned by `postgres`, none callable by `edu_api` takes a user parameter; `edu_api` unchanged |
 | `supabase/tests/121_account_profile.sql` | own row only; validation; rejection is atomic; B untouched; audit call arguments (field names only) |
+| `supabase/tests/122_account_onboarding.sql` | forward-only; version rule; tour merges; isolation; no direct writes; returning-learner rule; learning data untouched |
 | `tests/unit/test_account_schemas.py` | display-name normalisation; strict request models |
 | `tests/integration/test_account_profile.py` | the route through the real API with real local Auth tokens; flags off = `main`; isolation; Data API cannot reach `account` |
+| `tests/integration/test_account_onboarding.py` | resumability, parallel replays, account switch, returning learner, no consent-like field |
 
 ## BLOCKED_BY_OWNER
 
@@ -139,4 +225,5 @@ Proposed operation, for the owners' review:
 
 - Profile edits are not audited until the B1 seam is wired (see above).
 - No offline profile operation (design above); profile changes do not appear in `/v1/sync/pull`.
+- Onboarding state changes are not audited (not required by the brief; they carry no personal data).
 - Haitian Creole wording: this lane ships no user-facing strings.

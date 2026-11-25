@@ -7,6 +7,7 @@ verified access token only.
 from __future__ import annotations
 
 import unicodedata
+from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
@@ -19,6 +20,8 @@ _DISPLAY_NAME_MAX_RAW_CHARS = 400
 #: Cc = control characters (includes tab, CR, LF, NEL), Zl / Zp = line and
 #: paragraph separators, Cs = lone surrogates (not encodable as UTF-8).
 _FORBIDDEN_CATEGORIES = frozenset({"Cc", "Zl", "Zp", "Cs"})
+
+OnboardingState = Literal["new", "profile_selected", "downloads_informed", "ready"]
 
 
 def normalise_display_name(value: str) -> str:
@@ -79,3 +82,33 @@ class ProfilePatch(_Strict):
     def changes(self) -> dict[str, Any]:
         """Only the fields the client actually sent."""
         return {name: getattr(self, name) for name in sorted(self.model_fields_set)}
+
+
+class OnboardingUpdate(_Strict):
+    """Progress to record. Everything merges monotonically on the server."""
+
+    state: OnboardingState | None = Field(
+        default=None,
+        description="The furthest step this device has reached. A value behind the stored "
+        "state is accepted and ignored. Omit to report only tour fields.",
+    )
+    onboarding_version: int = Field(
+        ge=1, le=10000, description="Version of the onboarding flow built into this app."
+    )
+    tour_version_seen: int | None = Field(
+        default=None, ge=0, le=10000, description="Highest product-tour version shown."
+    )
+    tour_dismissed: bool | None = Field(
+        default=None, description="`true` once the learner asked not to see the tour again."
+    )
+
+
+class OnboardingResponse(BaseModel):
+    """Not a consent record: nothing here means the learner agreed to anything."""
+
+    state: OnboardingState
+    onboarding_version: int = Field(description="0 until any device has reported.")
+    tour_version_seen: int
+    tour_dismissed: bool
+    completed_at: datetime | None
+    updated_at: datetime | None

@@ -39,21 +39,46 @@ async def test_with_the_flags_off_no_account_route_exists(
     )
     assert patched.status_code == 405
     assert patched.json()["error"]["code"] == "method_not_allowed"
+    for method in ("GET", "PUT"):
+        response = await client.request(
+            method,
+            "/v1/me/onboarding",
+            json={"onboarding_version": 1} if method == "PUT" else None,
+            headers=bearer(tokens["student_a"]),
+        )
+        assert response.status_code == 404, method
+        assert response.json()["error"]["code"] == "not_found"
     assert await admin.fetchrow(PROFILE_ROW, STUDENT_A) == before
+
+
+async def test_each_flag_enables_only_its_own_routes(local_env: dict[str, str]) -> None:
+    from edu_api.main import create_app
+    from tests.conftest import build_settings
+
+    only_profile = create_app(build_settings(local_env, profile_edit_enabled=True))
+    only_onboarding = create_app(build_settings(local_env, onboarding_enabled=True))
+    try:
+        assert "patch" in only_profile.openapi()["paths"]["/v1/me"]
+        assert "/v1/me/onboarding" not in only_profile.openapi()["paths"]
+        assert "patch" not in only_onboarding.openapi()["paths"]["/v1/me"]
+        assert set(only_onboarding.openapi()["paths"]["/v1/me/onboarding"]) == {"get", "put"}
+    finally:
+        await only_profile.state.db.dispose()
+        await only_onboarding.state.db.dispose()
 
 
 async def test_enabled_routes_follow_the_api_conventions(account_app: FastAPI) -> None:
     spec = account_app.openapi()
     error_ref = {"$ref": "#/components/schemas/ErrorResponse"}
     checked = 0
-    for path in ("/v1/me",):
+    for path in ("/v1/me", "/v1/me/onboarding"):
         for operation in spec["paths"][path].values():
             assert operation["security"] == [{"HTTPBearer": []}], path
             for status, response in operation["responses"].items():
                 if status != "200":
                     assert response["content"]["application/json"]["schema"] == error_ref
                     checked += 1
-    assert checked >= 3
+    assert checked >= 7
     assert "HTTPValidationError" not in spec["components"]["schemas"], "one error shape only"
     patch_schema = spec["components"]["schemas"]["ProfilePatch"]
     assert patch_schema["additionalProperties"] is False
@@ -353,11 +378,16 @@ async def test_api_role_still_cannot_update_profiles_directly(
     from sqlalchemy import text
     from sqlalchemy.exc import DBAPIError
 
-    x = learners["x"]
+    x, y = learners["x"], learners["y"]
     db = account_app.state.db
     for statement in (
         "UPDATE app.learner_profiles SET display_name = 'direct'",
+        "UPDATE account.onboarding_state SET state = 'ready'",
+        "INSERT INTO account.onboarding_state (user_id, onboarding_version) "
+        f"VALUES ('{x.user_id}', 1)",
+        "DELETE FROM account.onboarding_state",
         "SELECT account.audit_seam('x.y', 'z', NULL, 'allowed')",
+        f"SELECT account.onboarding_floor('{y.user_id}')",
     ):
         with pytest.raises(DBAPIError) as caught:
             async with db.transaction(x.user_id) as conn:
@@ -380,8 +410,17 @@ async def test_account_schema_is_not_reachable_through_the_supabase_data_api(
     }
     async with httpx.AsyncClient(timeout=10) as http:
         for label, headers in credentials.items():
+            for profile in ({"Accept-Profile": "account"}, {}):
+                response = await http.get(
+                    f"{rest}/onboarding_state",
+                    params={"select": "*"},
+                    headers={**headers, **profile},
+                )
+                assert response.status_code >= 400, (label, profile, response.text[:200])
             for function, arguments in (
                 ("update_own_profile", {"p_patch": {"display_name": "via data api"}}),
+                ("advance_onboarding", {"p_state": "ready", "p_onboarding_version": 1}),
+                ("get_own_onboarding", {}),
             ):
                 for profile in ({"Content-Profile": "account"}, {}):
                     rpc = await http.post(
@@ -389,4 +428,4 @@ async def test_account_schema_is_not_reachable_through_the_supabase_data_api(
                     )
                     assert rpc.status_code >= 400, (label, function, rpc.text[:200])
         exposed = (await http.get(f"{rest}/", headers=credentials["SECRET service key"])).text
-    assert "update_own_profile" not in exposed
+    assert "onboarding_state" not in exposed and "update_own_profile" not in exposed
