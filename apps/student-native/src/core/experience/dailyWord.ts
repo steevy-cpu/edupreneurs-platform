@@ -9,8 +9,12 @@
  * - After that instant — or if this phone's clock has gone backwards since the
  *   download — the same word is shown as "last downloaded word · <its date>".
  *   Yesterday's word is never presented as today's.
- * - The network is used sparingly: not at all while today's word is in the
- *   cache, and at most once every `RETRY_AFTER_MS` otherwise.
+ * - The network is used sparingly. While today's word is in the cache: one
+ *   small conditional request (ETag, answered 304 with no body) at most every
+ *   `REVALIDATE_AFTER_MS`, because the server may withdraw a word during the
+ *   day. Otherwise: at most one attempt every `RETRY_AFTER_MS`.
+ * - A word the server withdrew (404 while the cached one is still "today's")
+ *   is removed from the cache: withdrawn content is not kept on screen.
  *
  * Known limit (documented in the lane notes): if the phone's clock is set
  * BEHIND the real time, "now < validUntil" stays true for longer than it
@@ -19,11 +23,14 @@
 import { ApiError, isAborted } from '../api/errors';
 import type { Locale } from '../api/types';
 import type { AccountStore } from '../db/accountStore';
+import type { StringKey } from '../i18n/strings';
 import { ExperienceRemote, parseRemoteDailyWord, RemoteDailyWord } from './remote';
 import type { DailyWordOutcome, DailyWordRow, StoredDailyWord } from './store';
 
 /** Minimum wait between two download attempts that did not bring today's word. */
 export const RETRY_AFTER_MS = 10 * 60 * 1000;
+/** How long today's cached word is shown before the server is asked (cheaply) whether it still stands. */
+export const REVALIDATE_AFTER_MS = 6 * 60 * 60 * 1000;
 
 export type DailyWordFreshness = 'today' | 'last_downloaded';
 
@@ -85,15 +92,16 @@ export async function refreshDailyWord(
   const active = () => env.isActive?.() ?? true;
   try {
     const row = await store.getDailyWord(locale);
-    if (row?.word && freshnessOf(row.word, now) === 'today') return 'cached_today';
+    const isToday = Boolean(row?.word && freshnessOf(row.word, now) === 'today');
     if (row?.lastAttemptAt) {
       const since = now.getTime() - Date.parse(row.lastAttemptAt);
-      if (since >= 0 && since < RETRY_AFTER_MS) return 'throttled';
+      if (since >= 0 && since < (isToday ? REVALIDATE_AFTER_MS : RETRY_AFTER_MS)) return isToday ? 'cached_today' : 'throttled';
     }
     // A conditional request only makes sense while the cached word could still be today's
-    // (the clock-went-backwards case). Past its deadline we ask plainly, so that an answer
-    // always carries a new `valid_until`.
-    const conditional = row?.word && now.getTime() < Date.parse(row.word.validUntil) ? row.word.etag : null;
+    // (revalidation during the day, or the clock went backwards). Past its deadline we ask
+    // plainly, so that an answer always carries a new `valid_until`.
+    const stillCurrent = Boolean(row?.word && now.getTime() < Date.parse(row.word.validUntil));
+    const conditional = stillCurrent ? (row?.word?.etag ?? null) : null;
     let outcome: DailyWordOutcome;
     try {
       const result = await remote.getDailyWord(locale, conditional ?? null);
@@ -115,6 +123,11 @@ export async function refreshDailyWord(
       if (isAborted(error) || !active()) return 'aborted';
       if (error instanceof ApiError && error.kind === 'client') {
         outcome = error.code === 'daily_word_not_available' ? 'none_today' : 'unavailable';
+        if (outcome === 'none_today' && stillCurrent) {
+          // The server says there is no word today, yet this phone holds one for today: it was withdrawn.
+          await store.clearDailyWord(locale, env.now().toISOString());
+          return 'none_today';
+        }
       } else {
         outcome = 'unreachable';
       }
@@ -124,6 +137,24 @@ export async function refreshDailyWord(
   } catch {
     return 'unreachable'; // storage trouble: the card simply keeps what it had
   }
+}
+
+const PART_OF_SPEECH: Record<string, StringKey> = {
+  noun: 'wordPosNoun',
+  verb: 'wordPosVerb',
+  adjective: 'wordPosAdjective',
+  adverb: 'wordPosAdverb',
+  pronoun: 'wordPosPronoun',
+  preposition: 'wordPosPreposition',
+  conjunction: 'wordPosConjunction',
+  interjection: 'wordPosInterjection',
+  determiner: 'wordPosDeterminer',
+  expression: 'wordPosExpression',
+};
+
+/** The label to show for the server's part-of-speech code, or null for a code this app version does not know. */
+export function partOfSpeechKey(code: string | null): StringKey | null {
+  return code !== null && Object.prototype.hasOwnProperty.call(PART_OF_SPEECH, code) ? PART_OF_SPEECH[code] : null;
 }
 
 const MONTHS: Record<Locale, string[]> = {

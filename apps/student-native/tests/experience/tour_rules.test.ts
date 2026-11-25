@@ -86,6 +86,10 @@ test('the flags reach the server with the onboarding sync and only ever grow', a
   expect(await onboardingSyncDue(account)).toBe(true);
   expect(await syncOnboarding(account, remote, { now })).toBe('synced');
   expect(remote.onboarding).toMatchObject({ tour_version_seen: TOUR_VERSION, tour_dismissed: true, state: 'new' }); // the onboarding state is not invented
+  // Exactly the fields the strict endpoint accepts: no `state` when only the tour is reported, a flow version of at least 1.
+  expect(remote.calls.filter((call) => call.startsWith('PUT'))).toEqual([
+    `PUT /v1/me/onboarding {"onboarding_version":1,"tour_version_seen":${TOUR_VERSION},"tour_dismissed":true}`,
+  ]);
   expect(await onboardingSyncDue(account)).toBe(false);
 
   // Another phone already saw a NEWER tour: this phone adopts it and sends nothing back.

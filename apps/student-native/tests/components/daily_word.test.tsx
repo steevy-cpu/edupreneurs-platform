@@ -19,6 +19,7 @@ let phone: RestartablePhone;
 let remote: FakeRemote;
 const SAVED_AT = '2026-11-24T10:00:00.000Z';
 const MORNING = '2026-11-24T15:00:00.000Z'; //  10:00 in Haiti on the 24th
+const AFTERNOON = '2026-11-24T18:00:00.000Z'; //       13:00 in Haiti on the 24th
 const BEFORE_MIDNIGHT = '2026-11-25T04:59:59.000Z'; // 23:59:59 in Haiti on the 24th
 const AFTER_MIDNIGHT = '2026-11-25T05:00:00.000Z'; //  00:00:00 in Haiti on the 25th
 
@@ -131,7 +132,7 @@ describe('today’s word', () => {
     await phone.render(<Home />);
     remote.calls.length = 0;
     remote.mode = 'offline';
-    app.services.env.now = () => new Date(BEFORE_MIDNIGHT);
+    app.services.env.now = () => new Date(AFTERNOON);
     const screen = await phone.render(<Home />);
     expect(screen.has('Mot du jour')).toBe(true);
     expect(screen.has('persévérance')).toBe(true);
@@ -202,6 +203,28 @@ describe('never yesterday’s word as today’s', () => {
     expect(screen.texts()).toContain('Dernier mot téléchargé · 24 novembre 2026');
     expect(screen.has('Pas de nouveau mot pour aujourd’hui.')).toBe(true);
     expect(screen.text()).not.toMatch(/Mot du jour/);
+  });
+});
+
+describe('withdrawn during the day', () => {
+  test('the card disappears instead of keeping withdrawn content on screen', async () => {
+    const app = await signInAt(MORNING);
+    await phone.render(<Home />);
+    delete remote.dailyWords.fr;
+    app.services.env.now = () => new Date(BEFORE_MIDNIGHT); // many hours later, still the 24th in Haiti
+    const screen = await phone.render(<Home />);
+    await screen.settle();
+    expect(screen.text()).not.toMatch(/Mot du jour|Dernier mot|persévérance/);
+  });
+
+  test('a part of speech this app version does not know is left out rather than shown as a code', async () => {
+    const word = sampleWord('2026-11-24', 'fr');
+    word.word.part_of_speech = 'gerund';
+    remote.dailyWords.fr = word;
+    await signInAt(MORNING);
+    const texts = (await phone.render(<Home />)).texts();
+    expect(texts).toContain('Prononciation : pèr-sé-vé-rans');
+    expect(texts.join('\n')).not.toContain('gerund');
   });
 });
 

@@ -9,7 +9,15 @@ import path from 'node:path';
 
 import { ApiError } from '../../src/core/api/errors';
 import { AccountStore } from '../../src/core/db/accountStore';
-import { dailyWordView, formatHaitiDate, freshnessOf, refreshDailyWord, RETRY_AFTER_MS } from '../../src/core/experience/dailyWord';
+import {
+  dailyWordView,
+  formatHaitiDate,
+  freshnessOf,
+  partOfSpeechKey,
+  refreshDailyWord,
+  RETRY_AFTER_MS,
+  REVALIDATE_AFTER_MS,
+} from '../../src/core/experience/dailyWord';
 import { ExperienceApi, parseRemoteDailyWord } from '../../src/core/experience/remote';
 import { FakeRemote, sampleWord } from '../support/experienceHarness';
 import { nodeDatabases } from '../support/nodeSqlite';
@@ -67,10 +75,56 @@ describe('read-through cache', () => {
 
     remote.calls.length = 0;
     remote.mode = 'offline';
-    clock += 6 * 60 * 60 * 1000; // later the same Haitian day
+    clock += REVALIDATE_AFTER_MS - 1; // later the same Haitian day
     expect(await refreshDailyWord(account, remote, 'fr', env)).toBe('cached_today');
     expect(remote.calls).toEqual([]);
     expect((await view())?.freshness).toBe('today');
+  });
+
+  test('during the day the server is asked, cheaply and rarely, whether the word still stands (ETag → 304)', async () => {
+    await refreshDailyWord(account, remote, 'fr', env);
+    remote.calls.length = 0;
+    clock += REVALIDATE_AFTER_MS;
+    expect(await refreshDailyWord(account, remote, 'fr', env)).toBe('not_modified');
+    expect(remote.calls).toEqual([`GET /v1/daily-word?locale=fr If-None-Match="2026-11-24:fr:rev-2026-11-24-fr"`]);
+    expect((await view())?.freshness).toBe('today');
+    // and not again right away
+    clock += 60_000;
+    expect(await refreshDailyWord(account, remote, 'fr', env)).toBe('cached_today');
+    expect(remote.calls).toHaveLength(1);
+  });
+
+  test('revalidation with no network changes nothing: the word is still today’s until its deadline', async () => {
+    await refreshDailyWord(account, remote, 'fr', env);
+    remote.mode = 'offline';
+    clock += REVALIDATE_AFTER_MS;
+    expect(await refreshDailyWord(account, remote, 'fr', env)).toBe('unreachable');
+    expect(await view()).toMatchObject({ freshness: 'today', word: { term: 'persévérance' } });
+  });
+
+  test('a word the server withdrew during the day is removed from the phone, not kept on screen', async () => {
+    await refreshDailyWord(account, remote, 'fr', env);
+    delete remote.dailyWords.fr; // staff withdrew it: the endpoint now answers 404 daily_word_not_available
+    clock += REVALIDATE_AFTER_MS;
+    expect(await refreshDailyWord(account, remote, 'fr', env)).toBe('none_today');
+    expect(await view()).toBeNull();
+    expect((await account.experience.getDailyWord('fr'))?.lastOutcome).toBe('none_today');
+  });
+
+  test('a word the server replaced during the day replaces the cached one', async () => {
+    await refreshDailyWord(account, remote, 'fr', env);
+    remote.dailyWords.fr = { ...sampleWord('2026-11-25', 'fr'), haiti_date: '2026-11-24', valid_until: '2026-11-25T05:00:00Z' };
+    clock += REVALIDATE_AFTER_MS;
+    expect(await refreshDailyWord(account, remote, 'fr', env)).toBe('updated');
+    expect(await view()).toMatchObject({ freshness: 'today', haitiDate: '2026-11-24', word: { term: 'hypothèse' } });
+  });
+
+  test('the feature being switched off on the server does not erase the cached word', async () => {
+    await refreshDailyWord(account, remote, 'fr', env);
+    remote.dailyWordDisabledCode = 'not_found';
+    clock += REVALIDATE_AFTER_MS;
+    expect(await refreshDailyWord(account, remote, 'fr', env)).toBe('unavailable');
+    expect((await view())?.word.term).toBe('persévérance');
   });
 
   test('past midnight with no network: the same word is "last downloaded", never "today"', async () => {
@@ -179,10 +233,13 @@ describe('response validation (assumed contract, briefs/vocab.md)', () => {
     const body = good();
     delete body.word.gloss;
     delete body.word.pronunciation;
-    body.audio = { mime: 'audio/mpeg', bytes: 20480, duration_ms: 1800, object_key: 'ignored' };
+    // the vocab lane's field names
+    body.audio = { asset_id: 'a1', mime_type: 'audio/mpeg', byte_size: 20480, duration_ms: 1800, sha256: 'ignored' };
     const parsed = parseRemoteDailyWord(body, 'fr');
     expect(parsed.word).toMatchObject({ gloss: null, pronunciation: null });
     expect(parsed.audio).toEqual({ mime: 'audio/mpeg', bytes: 20480, duration_ms: 1800 });
+    // what the phone stores is what it reads back
+    expect(parseRemoteDailyWord(JSON.parse(JSON.stringify(parsed)), 'fr')).toEqual(parsed);
   });
 
   test.each([
@@ -240,6 +297,14 @@ describe('the HTTP adapter', () => {
     const { client } = api(() => new Response(JSON.stringify({ error: { code: 'daily_word_not_available', message: 'x' } }), { status: 404 }));
     await expect(client.getDailyWord('fr', null)).rejects.toMatchObject({ kind: 'client', code: 'daily_word_not_available', status: 404 });
   });
+});
+
+test('part-of-speech codes get the app’s own label; an unknown code is hidden, never shown raw', () => {
+  expect(partOfSpeechKey('noun')).toBe('wordPosNoun');
+  expect(partOfSpeechKey('expression')).toBe('wordPosExpression');
+  expect(partOfSpeechKey('gerund')).toBeNull();
+  expect(partOfSpeechKey('constructor')).toBeNull();
+  expect(partOfSpeechKey(null)).toBeNull();
 });
 
 test('dates are written out in French and in Creole without relying on the phone’s locale data', () => {

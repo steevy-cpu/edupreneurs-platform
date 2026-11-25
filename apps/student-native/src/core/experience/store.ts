@@ -262,6 +262,15 @@ export class ExperienceStore {
     );
   }
 
+  /** The server withdrew the word that was cached as today's: stop showing it. The attempt is remembered. */
+  async clearDailyWord(locale: Locale, at: string): Promise<void> {
+    await this.db.run(
+      `UPDATE daily_word_cache SET haiti_date = NULL, valid_until = NULL, etag = NULL, body_json = NULL, fetched_at = NULL,
+         last_attempt_at = ?, last_outcome = 'none_today' WHERE locale = ?`,
+      [at, locale],
+    );
+  }
+
   /** Remember an attempt that brought no new word. The cached word, if any, is left exactly as it was. */
   async noteDailyWordAttempt(locale: Locale, at: string, outcome: DailyWordOutcome, confirmed = false): Promise<void> {
     await this.db.run(

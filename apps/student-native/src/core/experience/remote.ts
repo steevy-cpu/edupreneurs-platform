@@ -16,12 +16,26 @@ import type { Locale } from '../api/types';
 import type { ServerOnboardingState } from './store';
 
 // ---------------------------------------------------------------- assumed shapes
-/** `GET` and `PUT /v1/me/onboarding` (briefs/identity.md, slice 2). */
+/** Response of `GET` and `PUT /v1/me/onboarding` (briefs/identity.md, slice 2). Extra fields are ignored. */
 export interface RemoteOnboarding {
   state: ServerOnboardingState;
   onboarding_version: number;
   tour_version_seen: number;
   tour_dismissed: boolean;
+}
+
+/**
+ * Body of `PUT /v1/me/onboarding`. The identity lane validates it strictly
+ * (unknown fields are refused, `onboarding_version` must be at least 1), so
+ * exactly these fields are sent and nothing else. `state` is left out when only
+ * the tour flags are being reported.
+ */
+export interface RemoteOnboardingUpdate {
+  state?: ServerOnboardingState;
+  /** Version of the onboarding flow built into this app (>= 1). */
+  onboarding_version: number;
+  tour_version_seen?: number;
+  tour_dismissed?: boolean;
 }
 
 /** `PATCH /v1/me` body (briefs/identity.md, slice 1). Only the fields this app edits. */
@@ -49,6 +63,7 @@ export interface RemoteDailyWord {
     revision_id: string | null;
     term: string;
     pronunciation: string | null;
+    /** A language-neutral code from the server (`noun`, `verb`, …); the app shows its own label for the codes it knows. */
     part_of_speech: string | null;
     definition: string;
     example: string | null;
@@ -69,13 +84,17 @@ export interface RemoteRewardsSummary {
   streak: { current: number; longest: number } | null;
   /** How many achievements the server has awarded. */
   achievements: number;
+  /** False while the server still has accepted work to examine: the balance may be about to change. */
+  up_to_date: boolean;
+  /** `provisional` while the reward amounts are placeholders awaiting the product owner's decision. */
+  rules_status: 'provisional' | null;
 }
 
 export type DailyWordFetch = { kind: 'word'; word: RemoteDailyWord; etag: string | null } | { kind: 'not_modified' };
 
 export interface ExperienceRemote {
   getOnboarding(): Promise<RemoteOnboarding>;
-  putOnboarding(body: RemoteOnboarding): Promise<RemoteOnboarding>;
+  putOnboarding(body: RemoteOnboardingUpdate): Promise<RemoteOnboarding>;
   patchProfile(body: ProfilePatch): Promise<void>;
   /**
    * Today's word. `etag` (from an earlier answer) makes the request conditional.
@@ -115,6 +134,10 @@ export function parseRemoteOnboarding(body: unknown): RemoteOnboarding {
   };
 }
 
+function safeInteger(value: unknown): number | null {
+  return typeof value === 'number' && Number.isSafeInteger(value) ? value : null;
+}
+
 function text(value: unknown, max: number): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
@@ -142,8 +165,9 @@ export function parseRemoteDailyWord(body: unknown, requested: Locale): RemoteDa
   if (served !== requested && !(isFallback && served === 'fr')) return invalid();
   const audio = isObject(body.audio)
     ? {
-        mime: text(body.audio.mime, 100),
-        bytes: typeof body.audio.bytes === 'number' ? body.audio.bytes : null,
+        // `mime_type` / `byte_size` are the vocab lane's names; the shorter ones are how this app stores them.
+        mime: text(body.audio.mime_type ?? body.audio.mime, 100),
+        bytes: safeInteger(body.audio.byte_size ?? body.audio.bytes),
         duration_ms: typeof body.audio.duration_ms === 'number' ? body.audio.duration_ms : null,
       }
     : null;
@@ -167,10 +191,6 @@ export function parseRemoteDailyWord(body: unknown, requested: Locale): RemoteDa
   };
 }
 
-function safeInteger(value: unknown): number | null {
-  return typeof value === 'number' && Number.isSafeInteger(value) ? value : null;
-}
-
 /**
  * Accepts `streak: {current, longest}` (assumed) and the flat spellings
  * `current_streak` / `longest_streak`, in case the backend settles on those.
@@ -191,7 +211,13 @@ export function parseRemoteRewardsSummary(body: unknown): RemoteRewardsSummary {
     : counted !== null && counted >= 0
       ? counted
       : 0;
-  return { balance, streak, achievements };
+  return {
+    balance,
+    streak,
+    achievements,
+    up_to_date: body.up_to_date !== false,
+    rules_status: body.rules_status === 'provisional' ? 'provisional' : null,
+  };
 }
 
 // ------------------------------------------------------------------------ client
@@ -231,7 +257,7 @@ export class ExperienceApi implements ExperienceRemote {
     return parseRemoteOnboarding(this.ok(await this.send('GET', '/v1/me/onboarding')).body);
   }
 
-  async putOnboarding(body: RemoteOnboarding): Promise<RemoteOnboarding> {
+  async putOnboarding(body: RemoteOnboardingUpdate): Promise<RemoteOnboarding> {
     return parseRemoteOnboarding(this.ok(await this.send('PUT', '/v1/me/onboarding', { json: body })).body);
   }
 

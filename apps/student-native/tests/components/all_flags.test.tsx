@@ -12,7 +12,7 @@ import LessonReader from '../../src/app/lesson/[id]';
 import Onboarding from '../../src/app/onboarding';
 import Profile from '../../src/app/profile';
 import Quiz from '../../src/app/quiz/[id]';
-import { FakeRemote, RestartablePhone, sampleWord } from '../support/experienceHarness';
+import { FakeRemote, RestartablePhone, sampleRewards, sampleWord } from '../support/experienceHarness';
 import { navigation } from '../support/expoRouterMock';
 import { resetFlags } from '../support/flagsMock';
 import { catalog, LESSON_ID, lessonSnapshot } from '../support/screenHarness';
@@ -30,7 +30,7 @@ beforeEach(async () => {
   phone = (await new RestartablePhone().start()) as RestartablePhone;
   remote = new FakeRemote();
   remote.dailyWords.fr = sampleWord('2026-11-24', 'fr');
-  remote.rewards = { balance: 120, streak: { current: 3, longest: 7 }, achievements: 0 };
+  remote.rewards = sampleRewards(120);
   mockHolder.phone = phone;
   mockHolder.remote = remote;
   navigation.calls.length = 0;

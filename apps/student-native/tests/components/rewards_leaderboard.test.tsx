@@ -12,7 +12,7 @@ import Profile from '../../src/app/profile';
 import { translator } from '../../src/core/i18n/strings';
 import { LEADERBOARD_FIXTURE } from '../../src/design/preview/leaderboardFixture';
 import { LeaderboardReview } from '../../src/ui/experience/LeaderboardReview';
-import { FakeRemote, RestartablePhone } from '../support/experienceHarness';
+import { FakeRemote, RestartablePhone, sampleRewards } from '../support/experienceHarness';
 import { navigation } from '../support/expoRouterMock';
 import { resetFlags } from '../support/flagsMock';
 import { testDevice } from '../support/reactNativeMock';
@@ -30,7 +30,7 @@ const SAVED_AT = '2026-11-24T10:00:00.000Z';
 beforeEach(async () => {
   phone = (await new RestartablePhone().start()) as RestartablePhone;
   remote = new FakeRemote();
-  remote.rewards = { balance: 120, streak: { current: 3, longest: 7 }, achievements: 2 };
+  remote.rewards = sampleRewards(120);
   mockHolder.phone = phone;
   mockHolder.remote = remote;
   navigation.calls.length = 0;
@@ -125,7 +125,7 @@ describe('Gold on Profil', () => {
     await app.session.account.applyPushResults(sent, sent.map((op) => ({ op_id: op.opId, status: 'accepted', result: { is_correct: true } })) as never);
     await app.session.account.markSynced('2099-01-01T00:00:00.000Z');
     await app.refreshSummary();
-    remote.rewards = { balance: 140, streak: { current: 3, longest: 7 }, achievements: 2 };
+    remote.rewards = sampleRewards(140);
 
     const screen = await phone.render(<Profile />);
     await screen.settle();
@@ -145,8 +145,22 @@ describe('Gold on Profil', () => {
     expect(screen.texts()).toEqual(expect.arrayContaining(['120', 'Gold confirmé']));
   });
 
+  test('the server’s own caveats are passed on: provisional amounts, and a balance still being counted', async () => {
+    remote.rewards = sampleRewards(120, { rules_status: 'provisional', up_to_date: false });
+    await phone.signIn('student.a');
+    let screen = await phone.render(<Profile />);
+    expect(screen.texts()).toEqual(expect.arrayContaining(['Valeurs provisoires', 'Le serveur compte encore tes dernières actions.']));
+    await phone.signIn('student.a', 'ht');
+    screen = await phone.render(<Profile />);
+    expect(screen.texts()).toEqual(expect.arrayContaining(['Valè pwovizwa', 'Sèvè a ap konte dènye aksyon ou yo toujou.']));
+    // …and are absent when the server does not raise them
+    remote.rewards = sampleRewards(120);
+    await phone.signIn('student.b');
+    expect((await phone.render(<Profile />)).text()).not.toMatch(/provisoires|compte encore/);
+  });
+
   test('a streak of zero is not announced (no "you lost your streak")', async () => {
-    remote.rewards = { balance: 30, streak: { current: 0, longest: 5 }, achievements: 0 };
+    remote.rewards = sampleRewards(30, { streak: { current: 0, longest: 5 }, achievements: 0 });
     await phone.signIn('student.a');
     const screen = await phone.render(<Profile />);
     expect(screen.texts()).toContain('Meilleure série : 5 jour(s)');

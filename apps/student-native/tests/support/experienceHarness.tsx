@@ -10,6 +10,7 @@ import type {
   ProfilePatch,
   RemoteDailyWord,
   RemoteOnboarding,
+  RemoteOnboardingUpdate,
   RemoteRewardsSummary,
 } from '../../src/core/experience/remote';
 import { ApiError } from '../../src/core/api/errors';
@@ -69,14 +70,23 @@ export class FakeRemote implements ExperienceRemote {
     return { ...this.onboarding };
   }
 
-  /** Behaves like the contract: the state only moves forward, the tour flags only grow. */
-  async putOnboarding(body: RemoteOnboarding): Promise<RemoteOnboarding> {
+  /**
+   * Behaves like the identity lane's endpoint: strict body (unknown fields and an
+   * `onboarding_version` below 1 are refused with 422), the state only moves
+   * forward, the tour flags only grow.
+   */
+  async putOnboarding(body: RemoteOnboardingUpdate): Promise<RemoteOnboarding> {
     this.reach(`PUT /v1/me/onboarding ${JSON.stringify(body)}`);
+    const allowed = ['state', 'onboarding_version', 'tour_version_seen', 'tour_dismissed'];
+    const unknown = Object.keys(body).filter((key) => !allowed.includes(key));
+    if (unknown.length > 0 || !Number.isInteger(body.onboarding_version) || body.onboarding_version < 1) {
+      throw new ApiError('client', 'validation_error', 422);
+    }
     const order = ['new', 'profile_selected', 'downloads_informed', 'ready'];
-    if (order.indexOf(body.state) > order.indexOf(this.onboarding.state)) this.onboarding.state = body.state;
+    if (body.state && order.indexOf(body.state) > order.indexOf(this.onboarding.state)) this.onboarding.state = body.state;
     this.onboarding.onboarding_version = Math.max(this.onboarding.onboarding_version, body.onboarding_version);
-    this.onboarding.tour_version_seen = Math.max(this.onboarding.tour_version_seen, body.tour_version_seen);
-    this.onboarding.tour_dismissed = this.onboarding.tour_dismissed || body.tour_dismissed;
+    this.onboarding.tour_version_seen = Math.max(this.onboarding.tour_version_seen, body.tour_version_seen ?? 0);
+    this.onboarding.tour_dismissed = this.onboarding.tour_dismissed || body.tour_dismissed === true;
     return { ...this.onboarding };
   }
 
@@ -115,6 +125,11 @@ export class FakeRemote implements ExperienceRemote {
   }
 }
 
+/** A synthetic server summary. The numbers mean nothing; they only have to be recognisable in assertions. */
+export function sampleRewards(balance: number, over: Partial<RemoteRewardsSummary> = {}): RemoteRewardsSummary {
+  return { balance, streak: { current: 3, longest: 7 }, achievements: 2, up_to_date: true, rules_status: null, ...over };
+}
+
 /**
  * Synthetic words for tests. `valid_until` is the next midnight in Haiti as a UTC
  * instant: in November Haiti is on standard time (UTC-5), so the day 2026-11-24
@@ -144,7 +159,7 @@ export function sampleWord(day: '2026-11-23' | '2026-11-24' | '2026-11-25', loca
       revision_id: `rev-${day}-${locale}`,
       term,
       pronunciation,
-      part_of_speech: locale === 'fr' ? 'nom' : 'non',
+      part_of_speech: 'noun', // a language-neutral code, as the server sends it
       definition,
       example,
       gloss,

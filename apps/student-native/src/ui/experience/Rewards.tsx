@@ -58,6 +58,11 @@ export function RewardsCard({ t, locale, ...source }: Source & { t: Translate; l
               {String(confirmed.balance)}
             </AppText>
             <AppText variant="label">{t('rewardsConfirmed')}</AppText>
+            {confirmed.rules_status === 'provisional' ? (
+              <View style={styles.pills}>
+                <Pill tone="neutral" label={t('rewardsProvisional')} />
+              </View>
+            ) : null}
             <AppText variant="caption" color="textSecondary">
               {t('rewardsConfirmedAt', { when: new Date(confirmed.fetchedAt).toLocaleString(locale === 'ht' ? 'fr-HT' : 'fr-FR') })}
             </AppText>
@@ -66,6 +71,11 @@ export function RewardsCard({ t, locale, ...source }: Source & { t: Translate; l
               <AppText color="textSecondary">{t('rewardsStreakBest', { days: confirmed.streak.longest })}</AppText>
             ) : null}
             {confirmed.achievements > 0 ? <AppText>{t('rewardsAchievements', { count: confirmed.achievements })}</AppText> : null}
+            {confirmed.up_to_date ? null : (
+              <AppText variant="caption" color="textSecondary">
+                {t('rewardsCatchingUp')}
+              </AppText>
+            )}
           </>
         ) : (
           <AppText color="textSecondary">{t('rewardsNone')}</AppText>
@@ -100,4 +110,5 @@ export function RewardsRow({ t, ...source }: Source & { t: Translate }) {
 const styles = StyleSheet.create({
   section: { gap: space.sm },
   pending: { gap: space.xs },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
 });

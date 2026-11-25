@@ -244,6 +244,19 @@ const fr = {
   lbGold: '{gold} Gold',
   lbYou: 'Toi',
   lbOpenPreview: 'Voir l’aperçu avec des données fictives',
+  // Overnight 2026-11-24: labels for the server's part-of-speech codes, and two honesty notes on Gold
+  wordPosNoun: 'nom',
+  wordPosVerb: 'verbe',
+  wordPosAdjective: 'adjectif',
+  wordPosAdverb: 'adverbe',
+  wordPosPronoun: 'pronom',
+  wordPosPreposition: 'préposition',
+  wordPosConjunction: 'conjonction',
+  wordPosInterjection: 'interjection',
+  wordPosDeterminer: 'déterminant',
+  wordPosExpression: 'expression',
+  rewardsProvisional: 'Valeurs provisoires',
+  rewardsCatchingUp: 'Le serveur compte encore tes dernières actions.',
 } as const;
 
 export type StringKey = keyof typeof fr;
@@ -479,6 +492,19 @@ const ht: Record<StringKey, string> = {
   lbGold: '{gold} Gold',
   lbYou: 'Ou menm',
   lbOpenPreview: 'Gade apèsi a ak done ki pa reyèl',
+  // Overnight 2026-11-24: labels for the server's part-of-speech codes, and two honesty notes on Gold (DRAFT wording: needs review by a Creole-speaking educator)
+  wordPosNoun: 'non',
+  wordPosVerb: 'vèb',
+  wordPosAdjective: 'adjektif',
+  wordPosAdverb: 'advèb',
+  wordPosPronoun: 'pwonon',
+  wordPosPreposition: 'prepozisyon',
+  wordPosConjunction: 'konjonksyon',
+  wordPosInterjection: 'entèjeksyon',
+  wordPosDeterminer: 'detèminan',
+  wordPosExpression: 'ekspresyon',
+  rewardsProvisional: 'Valè pwovizwa',
+  rewardsCatchingUp: 'Sèvè a ap konte dènye aksyon ou yo toujou.',
 };
 
 export const STRINGS: Record<Locale, Record<StringKey, string>> = { fr, ht };

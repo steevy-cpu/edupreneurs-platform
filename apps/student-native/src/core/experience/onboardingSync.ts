@@ -49,8 +49,9 @@ export async function syncOnboarding(
     const stateAhead = serverRank(localState) > serverRank(server.state);
     if (stateAhead || tour.needsPush) {
       const acknowledged = await remote.putOnboarding({
-        state: stateAhead ? localState : server.state,
-        onboarding_version: Math.max(server.onboarding_version, record?.flowVersion ?? 0, stateAhead ? ONBOARDING_FLOW_VERSION : 0),
+        // Only what moves the server forward; the server ignores anything behind what it has.
+        ...(stateAhead ? { state: localState } : {}),
+        onboarding_version: ONBOARDING_FLOW_VERSION,
         tour_version_seen: tour.versionSeen,
         tour_dismissed: tour.dismissed,
       });

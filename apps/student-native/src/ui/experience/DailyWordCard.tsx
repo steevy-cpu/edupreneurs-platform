@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import type { Locale } from '../../core/api/types';
 import type { AccountStore } from '../../core/db/accountStore';
-import { dailyWordView, DailyWordView, formatHaitiDate, refreshDailyWord } from '../../core/experience/dailyWord';
+import { dailyWordView, DailyWordView, formatHaitiDate, partOfSpeechKey, refreshDailyWord } from '../../core/experience/dailyWord';
 import type { ExperienceRemote } from '../../core/experience/remote';
 import type { Translate } from '../../core/i18n/strings';
 import { AppText, Card, Pill, space } from '../../design';
@@ -47,6 +47,7 @@ export function DailyWordCard({
       await show(); // the cached word first: no waiting on the network
       if (!remote) return;
       const outcome = await refreshDailyWord(account, remote, locale, { now, isActive });
+      // Re-read after anything that may have changed the cache (a new word, a confirmation, a withdrawal).
       if (outcome !== 'cached_today' && outcome !== 'throttled' && outcome !== 'aborted') await show();
     })().catch(() => undefined);
     return () => {
@@ -59,7 +60,8 @@ export function DailyWordCard({
   const { word } = view;
   const today = view.freshness === 'today';
   const date = formatHaitiDate(view.haitiDate, locale);
-  const details = [word.part_of_speech, word.pronunciation ? t('wordPronunciation', { text: word.pronunciation }) : null].filter(
+  const partOfSpeech = partOfSpeechKey(word.part_of_speech);
+  const details = [partOfSpeech ? t(partOfSpeech) : null, word.pronunciation ? t('wordPronunciation', { text: word.pronunciation }) : null].filter(
     (part): part is string => Boolean(part),
   );
 

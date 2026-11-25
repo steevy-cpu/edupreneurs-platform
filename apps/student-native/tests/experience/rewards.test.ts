@@ -11,7 +11,7 @@ import { ApiError } from '../../src/core/api/errors';
 import { AccountStore } from '../../src/core/db/accountStore';
 import { ExperienceApi, parseRemoteRewardsSummary } from '../../src/core/experience/remote';
 import { refreshRewards, REWARDS_RETRY_AFTER_MS, rewardsView } from '../../src/core/experience/rewards';
-import { FakeRemote } from '../support/experienceHarness';
+import { FakeRemote, sampleRewards } from '../support/experienceHarness';
 import { nodeDatabases } from '../support/nodeSqlite';
 
 const A = 'a0000000-0000-4000-8000-00000000000a';
@@ -27,7 +27,7 @@ beforeEach(async () => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'edu-gold-'));
   account = await AccountStore.open(await nodeDatabases(dir)(`account-${A}`), A);
   remote = new FakeRemote();
-  remote.rewards = { balance: 120, streak: { current: 3, longest: 7 }, achievements: 2 };
+  remote.rewards = sampleRewards(120);
   clock = Date.parse('2026-11-24T15:00:00.000Z');
 });
 afterEach(async () => {
@@ -57,7 +57,7 @@ describe('confirmed versus pending', () => {
     await refreshRewards(account, remote, env);
     const confirmedAt = (await view()).confirmed!.fetchedAt;
     remote.mode = 'offline';
-    remote.rewards = { balance: 999, streak: null, achievements: 0 };
+    remote.rewards = sampleRewards(999, { streak: null, achievements: 0 });
     clock += REWARDS_RETRY_AFTER_MS;
     expect(await refreshRewards(account, remote, env)).toBe('unreachable');
     expect((await view()).confirmed).toMatchObject({ balance: 120, fetchedAt: confirmedAt });
@@ -79,7 +79,7 @@ describe('when the summary is downloaded', () => {
     expect(remote.calls).toEqual([]);
 
     // A sync run confirmed work: the ledger may have changed, so one download is due at once.
-    remote.rewards = { balance: 140, streak: { current: 4, longest: 7 }, achievements: 2 };
+    remote.rewards = sampleRewards(140, { streak: { current: 4, longest: 7 } });
     await account.markSynced(new Date(clock).toISOString());
     clock += 1000;
     expect(await refreshRewards(account, remote, env)).toBe('updated');
@@ -115,12 +115,28 @@ describe('response validation (assumed contract, briefs/rewards.md)', () => {
         recent: [{ amount: 10, rule_code: 'first_correct_answer' }],
         pending: 500, // a server would not send this; if anything did, it is not read
       }),
-    ).toEqual({ balance: 120, streak: { current: 3, longest: 7 }, achievements: 2 });
+    ).toEqual({ balance: 120, streak: { current: 3, longest: 7 }, achievements: 2, up_to_date: true, rules_status: null });
+  });
+
+  test('accepts the summary as the rewards lane currently sends it', () => {
+    const parsed = parseRemoteRewardsSummary({
+      balance: 35,
+      lifetime_earned: 40,
+      streak: { current_days: 2, longest_days: 6, last_active_day: '2026-11-24', active_today: true },
+      achievements: [{ code: 'first_lesson_completed', titles: { fr: 'x', ht: 'y' }, earned_at: '2026-11-20T10:00:00Z', gold: 5 }],
+      recent: [{ id: 'e1', kind: 'award', amount: 5, source: 'question_first_correct' }],
+      today: '2026-11-24',
+      up_to_date: false,
+      rules_status: 'provisional',
+    });
+    expect(parsed).toEqual({ balance: 35, streak: { current: 2, longest: 6 }, achievements: 1, up_to_date: false, rules_status: 'provisional' });
+    // what the phone stores is what it reads back
+    expect(parseRemoteRewardsSummary(JSON.parse(JSON.stringify(parsed)))).toEqual(parsed);
   });
 
   test('accepts the flat streak spelling, and a missing streak', () => {
-    expect(parseRemoteRewardsSummary({ balance: 0, current_streak: 2, longest_streak: 5 })).toEqual({ balance: 0, streak: { current: 2, longest: 5 }, achievements: 0 });
-    expect(parseRemoteRewardsSummary({ balance: 5 })).toEqual({ balance: 5, streak: null, achievements: 0 });
+    expect(parseRemoteRewardsSummary({ balance: 0, current_streak: 2, longest_streak: 5 })).toMatchObject({ balance: 0, streak: { current: 2, longest: 5 }, achievements: 0 });
+    expect(parseRemoteRewardsSummary({ balance: 5 })).toMatchObject({ balance: 5, streak: null, achievements: 0 });
     // "longest" can never be shown smaller than "current"
     expect(parseRemoteRewardsSummary({ balance: 5, streak: { current: 4, longest: 1 } }).streak).toEqual({ current: 4, longest: 4 });
   });
@@ -147,7 +163,7 @@ describe('response validation (assumed contract, briefs/rewards.md)', () => {
         return new Response(JSON.stringify({ balance: 120, streak: { current: 3, longest: 7 }, achievements: [] }), { status: 200 });
       },
     });
-    expect(await client.getRewardsSummary()).toEqual({ balance: 120, streak: { current: 3, longest: 7 }, achievements: 0 });
+    expect(await client.getRewardsSummary()).toMatchObject({ balance: 120, streak: { current: 3, longest: 7 }, achievements: 0 });
     expect(seen).toEqual([{ url: 'http://127.0.0.1:9/v1/rewards/summary', method: 'GET', body: null }]);
   });
 });
