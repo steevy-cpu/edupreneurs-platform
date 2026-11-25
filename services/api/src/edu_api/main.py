@@ -26,6 +26,7 @@ from edu_api.routers import (
     catalog,
     entitlements,
     health,
+    leaderboard,
     me,
     notifications,
     rewards,
@@ -145,6 +146,7 @@ def create_app(
         app.state.notify_db = notify_database
     app.include_router(notifications.router)
     app.include_router(rewards.router)
+    app.include_router(leaderboard.router)
     app.include_router(staff.router)
     app.include_router(daily_word_router)  # 404 unless EDU_DAILY_WORD_ENABLED (ruling R-01)
     app.include_router(staff_vocab_router)
