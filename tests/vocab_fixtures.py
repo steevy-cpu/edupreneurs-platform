@@ -68,9 +68,24 @@ async def clean_vocab(admin: asyncpg.Pool) -> AsyncIterator[None]:
     local disposable database by its owner; nothing else can remove a day that
     has opened."""
     await wait_out_haiti_midnight(admin)
-    await admin.execute(f"TRUNCATE {VOCAB_TABLES}")
+    await truncate_vocab(admin)
     yield
-    await admin.execute(f"TRUNCATE {VOCAB_TABLES}")
+    await truncate_vocab(admin)
+
+
+_GUARDED = ("vocab.daily_assignments", "vocab.word_revisions", "vocab.reviews")
+
+
+async def truncate_vocab(admin: asyncpg.Pool, tables: str = VOCAB_TABLES) -> None:
+    """TRUNCATE is refused by a trigger (review finding F2). This fixture, as the
+    owner of the local disposable database, switches that trigger off for one
+    transaction, explicitly."""
+    async with admin.acquire() as conn, conn.transaction():
+        for table in _GUARDED:
+            await conn.execute(f"ALTER TABLE {table} DISABLE TRIGGER no_truncate")
+        await conn.execute(f"TRUNCATE {tables}")
+        for table in _GUARDED:
+            await conn.execute(f"ALTER TABLE {table} ENABLE TRIGGER no_truncate")
 
 
 async def wait_out_haiti_midnight(admin: asyncpg.Pool, margin_s: float = 20.0) -> None:

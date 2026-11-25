@@ -59,13 +59,18 @@ SELECT is((SELECT array_agg(c.relname || ':' || t.tgname ORDER BY c.relname, t.t
     ARRAY['audio_assets:protect_audio_asset',
           'daily_assignments:check_daily_assignment_day',
           'daily_assignments:guard_daily_assignment',
+          'daily_assignments:no_truncate',
           'reviews:no_edit_reviews',
+          'reviews:no_truncate',
           'reviews:validate_review',
           'sources:guard_source',
           'word_revisions:guard_word_revision_insert',
+          'word_revisions:no_truncate',
           'word_revisions:protect_word_revision',
           'words:guard_word'],
-    'the 9 integrity triggers are installed');
+    'the 12 integrity triggers are installed');
+SELECT throws_ok('TRUNCATE vocab.daily_assignments', 'P0001', 'This table cannot be truncated', 'the schedule cannot be truncated');
+SELECT throws_ok('TRUNCATE vocab.reviews, vocab.word_revisions, vocab.daily_assignments, vocab.audio_assets', 'P0001', 'This table cannot be truncated', 'reviews and revisions cannot be truncated');
 SELECT is((SELECT count(*)::int FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
            WHERE c.relnamespace = 'vocab'::regnamespace AND NOT t.tgisinternal AND t.tgenabled <> 'O'), 0,
     'no vocab trigger is disabled');
@@ -120,7 +125,7 @@ SELECT is((SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p
              AND NOT has_function_privilege('edu_staff', p.oid, 'EXECUTE')
              AND NOT has_function_privilege('edu_worker', p.oid, 'EXECUTE')
              AND p.prorettype <> 'trigger'::regtype),
-    ARRAY['_assign_word','_assignable_revision','_audit','_lock_schedule','_own_revision_for_update','_require_staff',
+    ARRAY['_assign_word','_assignable_revision','_audit','_clock','_day_key','_lock_schedule','_own_revision_for_update','_require_staff',
           'daily_word_at','erase_learner','haiti_date','haiti_day_start','is_day_locked','schedule_freeze'],
     'internal helpers, the clock seam and the erasure hook are executable by the owner only');
 SELECT is(has_schema_privilege('edu_staff', 'vocab', 'USAGE') AND has_schema_privilege('edu_worker', 'vocab', 'USAGE')
@@ -179,7 +184,14 @@ $fn$;
 \set A '''a0000000-0000-4000-8000-000000000001'''
 -- Empty schedule so the last two answers are exact. Inside the test
 -- transaction and rolled back at the end: nothing is really deleted.
+-- (TRUNCATE is refused by a trigger; switched off for this fixture only, inside the rolled-back transaction.)
+ALTER TABLE vocab.daily_assignments DISABLE TRIGGER no_truncate;
+ALTER TABLE vocab.word_revisions DISABLE TRIGGER no_truncate;
+ALTER TABLE vocab.reviews DISABLE TRIGGER no_truncate;
 TRUNCATE vocab.daily_assignments, vocab.audio_assets, vocab.reviews, vocab.word_revisions, vocab.words, vocab.sources;
+ALTER TABLE vocab.daily_assignments ENABLE TRIGGER no_truncate;
+ALTER TABLE vocab.word_revisions ENABLE TRIGGER no_truncate;
+ALTER TABLE vocab.reviews ENABLE TRIGGER no_truncate;
 SELECT is(pg_temp.as_api(:A::uuid, 'SELECT count(*) FROM vocab.words'), 'ERROR:42501', 'edu_api cannot read words');
 SELECT is(pg_temp.as_api(:A::uuid, 'SELECT count(*) FROM vocab.word_revisions'), 'ERROR:42501', 'edu_api cannot read word revisions');
 SELECT is(pg_temp.as_api(:A::uuid, 'SELECT count(*) FROM vocab.daily_assignments'), 'ERROR:42501', 'edu_api cannot read the schedule (so no future date leaks)');

@@ -14,7 +14,14 @@ DO $$ BEGIN
         * CASE WHEN vocab.haiti_day_start(vocab.haiti_date(clock_timestamp()) + 1) - clock_timestamp() < interval '5 seconds' THEN 1 ELSE 0 END);
 END $$;
 
+-- (TRUNCATE is refused by a trigger; switched off for this fixture only, inside the rolled-back transaction.)
+ALTER TABLE vocab.daily_assignments DISABLE TRIGGER no_truncate;
+ALTER TABLE vocab.word_revisions DISABLE TRIGGER no_truncate;
+ALTER TABLE vocab.reviews DISABLE TRIGGER no_truncate;
 TRUNCATE vocab.daily_assignments, vocab.audio_assets, vocab.reviews, vocab.word_revisions, vocab.words, vocab.sources;
+ALTER TABLE vocab.daily_assignments ENABLE TRIGGER no_truncate;
+ALTER TABLE vocab.word_revisions ENABLE TRIGGER no_truncate;
+ALTER TABLE vocab.reviews ENABLE TRIGGER no_truncate;
 -- The "one word per day, French included" rule is checked at COMMIT in real
 -- use. Check it after every statement here so each assertion sees it.
 SET CONSTRAINTS ALL IMMEDIATE;
