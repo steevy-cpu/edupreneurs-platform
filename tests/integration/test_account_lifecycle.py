@@ -519,7 +519,9 @@ async def test_only_the_worker_and_a_staff_administrator_can_erase(
             await staff.execute("SELECT account.erase_learner($1)", target.user_id)
         # an administrator cannot erase staff accounts (including their own)
         for staff_account in (EDITOR, administrator.user_id):
-            with pytest.raises(asyncpg.PostgresError, match="staff records|No learner with this id"):
+            with pytest.raises(
+                asyncpg.PostgresError, match=r"staff records|No learner with this id"
+            ):
                 await as_actor(administrator.user_id, staff_account)
         assert tuple(await admin.fetchrow(LEARNER_ROWS, target.user_id))[:6] == (1, 2, 3, 3, 1, 1)
 
