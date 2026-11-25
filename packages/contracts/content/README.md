@@ -35,11 +35,25 @@ Conventions that an implementation must share:
 
 - String lengths are counted in **Unicode code points** (not UTF-8 bytes, not
   UTF-16 units — in JavaScript use `[...text].length`).
-- Patterns are ECMA-262 regular expressions; `$` matches only at the very end.
+- Patterns are ECMA-262 regular expressions evaluated in Unicode mode; `$`
+  matches only at the very end, so a value followed by a line feed (`"intro\n"`)
+  is refused (vectors `x-key-trailing-line-feed`, `mcq-*-trailing-line-feed`).
 - Integers are written without fraction or exponent (`18432`, never `18432.0`).
+  An integral float (`10.0`, `1e2`) is **not** an integer and canonical JSON has
+  no trailing line feed: a client that cannot see the difference after parsing
+  (JavaScript) must compare the canonical re-serialisation with the bytes it
+  received (vectors `canonical-json.json`).
 - "Plain text" fields (alt texts, captions, list items, table cells, audio
-  titles, units, accepted answers) reject C0 control characters, U+007F, and a
-  `<` directly followed by a letter, `/`, `!` or `?`. `x < 3` and `3<5` are fine.
+  titles, units, accepted answers, and the lesson title in a pack) reject C0
+  control characters, U+007F, a `<` directly followed by a letter, `/`, `!` or
+  `?` (`x < 3` and `3<5` are fine), and every invisible or direction-changing
+  character: C1 controls U+0080–U+009F, U+200B–U+200F, U+2028–U+202E, U+2060,
+  U+2066–U+2069, U+FEFF and lone surrogates (vectors `plain-text.json`).
+  The four format-1 block types and `mcq` questions keep their format-1 rules
+  unchanged, also inside a format-2 lesson (owner decision).
+- **Rendering rule.** Every string of a lesson or a question is plain text and
+  is never interpreted as markup by any client; a math `source` is never passed
+  to an HTML engine or a web view.
 
 ## Format 2 blocks
 
@@ -215,9 +229,11 @@ and every case has a unique `id`. All content is synthetic.
 | `scoring.json` | `kind`, `response_spec`, `answer_key`, `response` | `{status: "scored", scoring_version, score, is_correct}` or `{status: "invalid_response", scoring_version, code}`; for short text also `normalised_response` |
 | `negotiation.json` | `type` = `parse_header` / `negotiate` / `required_format` | `expect_formats` or `expect` |
 | `pack-manifest.json` | a pack described as input, with its assets in base64 | the exact manifest bytes, hashes and sizes |
+| `canonical-json.json` | `utf8`: the text of the bytes | `{canonical: true/false}` |
+| `plain-text.json` | `text`, to be put in place of `"@TEXT@"` in each document of `targets` | `{valid: true}` or `{valid: false, layer: "schema"}`, for every target |
 | `pack-verify.json` | a complete stored pack: every object by key with its exact bytes (`utf8`), and `manifest_key`; verify without a trusted hash | `{intact: true}` or `{error: code}` (first problem) |
 
-`scoring.json` is written with ASCII-only JSON escapes so that invisible
+`scoring.json`, `plain-text.json`, `canonical-json.json` and `pack-verify.json` are written with ASCII-only JSON escapes so that invisible
 characters (no-break spaces, the minus sign, combining accents) are unambiguous.
 An implementation passes when, for every case, it produces exactly the expected
 result.

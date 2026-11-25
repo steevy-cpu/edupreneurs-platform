@@ -207,7 +207,45 @@ def png_size(data: bytes) -> tuple[int, int] | None:
 
 
 # --- build ---------------------------------------------------------------------------
+def _is_int(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _check_types(pack: PackInput) -> None:
+    """Wrong Python types in the input are a refusal, never a traceback (review L3)."""
+    if not (
+        isinstance(pack.release_id, str)
+        and isinstance(pack.pack_key, str)
+        and isinstance(pack.locale, str)
+        and _is_int(pack.revision)
+        and _is_int(pack.content_format)
+        and isinstance(pack.lessons, tuple | list)
+    ):
+        raise PackBuildError("pack.identity", "a pack field has the wrong type")
+    for lesson in pack.lessons:
+        if not (
+            isinstance(lesson, PackLesson)
+            and _is_int(lesson.position)
+            and _is_int(lesson.revision)
+            and isinstance(lesson.lesson_id, str)
+            and isinstance(lesson.revision_id, str)
+            and isinstance(lesson.title, str)
+            and isinstance(lesson.questions, tuple | list)
+        ):
+            raise PackBuildError("lesson.identity", "a lesson field has the wrong type")
+        for question in lesson.questions:
+            if not (
+                isinstance(question, PackQuestion)
+                and isinstance(question.id, str)
+                and isinstance(question.question_key, str)
+                and _is_int(question.position)
+                and isinstance(question.kind, str)
+            ):
+                raise PackBuildError("lesson.questions", "a question field has the wrong type")
+
+
 def _check_identity(pack: PackInput) -> None:
+    _check_types(pack)
     if not _UUID.fullmatch(pack.release_id) or not _PACK_KEY.fullmatch(pack.pack_key):
         raise PackBuildError("pack.identity", "release_id or pack_key is malformed")
     if pack.locale not in _LOCALES or pack.revision < 1:
@@ -374,7 +412,12 @@ def build_pack(
                 assets[sha256] = reference
                 objects[asset_object_key(sha256)] = asset_files[sha256]
 
-        blob = lesson_blob(pack, lesson, needed)
+        try:
+            blob = lesson_blob(pack, lesson, needed)
+        except TypeError as error:  # a float, a lone surrogate, an odd key in a question
+            raise PackBuildError(
+                "lesson.canonical", f"lesson at position {lesson.position}: {error}"
+            ) from None
         if len(blob) > MAX_LESSON_BYTES:
             raise PackBuildError("lesson.bytes", f"lesson at position {lesson.position} is too big")
         blob_hash = sha256_hex(blob)
@@ -748,7 +791,19 @@ def _verify_lesson_object(
 
 
 def pack_input_from_json(document: Mapping[str, Any]) -> PackInput:
-    """Build a :class:`PackInput` from the JSON shape used by vectors/pack-manifest.json."""
+    """Build a :class:`PackInput` from the JSON shape used by vectors/pack-manifest.json.
+
+    A description of the wrong shape is a :class:`PackBuildError` (``pack.input``).
+    """
+    try:
+        return _pack_input_from_json(document)
+    except (KeyError, TypeError, AttributeError) as error:
+        raise PackBuildError(
+            "pack.input", f"malformed pack description ({type(error).__name__})"
+        ) from None
+
+
+def _pack_input_from_json(document: Mapping[str, Any]) -> PackInput:
     pack = document["pack"]
     lessons = tuple(
         PackLesson(

@@ -18,6 +18,7 @@ from typing import Any
 import pytest
 
 from edu_api.content.blocks import table_width_budget, validate_blocks
+from edu_api.content.canonical import canonical_json, is_canonical_json
 from edu_api.content.formats import (
     CLIENT_FORMATS_HEADER,
     DEFAULT_CLIENT_FORMATS,
@@ -36,6 +37,7 @@ from tests.content_fixtures import (
     VECTORS,
     cases,
     load_schema,
+    load_vectors,
     math_document,
     schema_accepts,
     schema_validator,
@@ -59,11 +61,13 @@ def outcome(issues: list[Issue]) -> dict[str, Any]:
 
 def test_the_vector_files_are_the_expected_set() -> None:
     assert sorted(path.name for path in VECTORS.glob("*.json")) == [
+        "canonical-json.json",
         "lesson-blocks.json",
         "math-notation.json",
         "negotiation.json",
         "pack-manifest.json",
         "pack-verify.json",
+        "plain-text.json",
         "questions.json",
         "scoring.json",
     ]
@@ -360,3 +364,87 @@ def test_plain_validators_and_json_schemas_agree_on_mutated_documents() -> None:
             case["kind"],
             document,
         )
+
+
+# ------------------------------------------------------------------ review M4: plain text
+def _substituted(node: Any, text: str) -> Any:
+    if node == "@TEXT@":
+        return text
+    if isinstance(node, dict):
+        return {name: _substituted(value, text) for name, value in node.items()}
+    if isinstance(node, list):
+        return [_substituted(item, text) for item in node]
+    return node
+
+
+@pytest.mark.parametrize("case", by_id("plain-text.json"))
+def test_plain_text_vectors(case: dict[str, Any]) -> None:
+    targets = load_vectors("plain-text.json")["targets"]
+    assert len(targets) == 10
+    for target in targets:
+        document = _substituted(target["document"], case["text"])
+        if "kind" in target:
+            issues = validate_question(target["kind"], document)
+        else:
+            issues = validate_blocks(document, 2)
+        assert outcome(issues) == case["expect"], target["id"]
+        assert schema_accepts(target["schema"], document) == case["expect"]["valid"], target["id"]
+
+
+def test_plain_text_rule_boundaries_and_scope() -> None:
+    """Every forbidden code point is refused, its neighbours are not; v1 blocks are untouched."""
+    forbidden = [*range(0x80, 0xA0), *range(0x200B, 0x2010), *range(0x2028, 0x202F)]
+    forbidden += [0x2060, *range(0x2066, 0x206A), 0xFEFF, 0xD800, 0xDBFF, 0xDC00, 0xDFFF]
+    neighbours = [0x7E, 0xA0, 0x200A, 0x2010, 0x2027, 0x202F, 0x205F, 0x2061, 0x2065, 0x206A]
+    neighbours += [0xFEFE, 0xD7FF, 0xE000, 0x1F600]
+    target = load_vectors("plain-text.json")["targets"][0]
+    for code in forbidden + neighbours:
+        document = _substituted(target["document"], f"a{chr(code)}b")
+        valid = code in neighbours
+        assert (validate_blocks(document, 2) == []) == valid, hex(code)
+        assert schema_accepts(target["schema"], document) == valid, hex(code)
+    # Owner decision: the four format-1 block types are not tightened, in either format.
+    for content_format in SUPPORTED_FORMATS:
+        old = [{"key": "p", "type": "paragraph", "text": "a\u202eb\u200b"}]
+        assert validate_blocks(old, content_format) == []
+        assert schema_accepts(BLOCK_SCHEMAS[content_format], old)
+
+
+# ------------------------------------------------------------------ review L1: canonical JSON
+@pytest.mark.parametrize("case", by_id("canonical-json.json"))
+def test_canonical_json_vectors(case: dict[str, Any]) -> None:
+    data = case["utf8"].encode("utf-8", "surrogatepass")
+    assert is_canonical_json(data) is case["expect"]["canonical"]
+
+
+def test_integral_floats_are_not_integers_in_the_validators() -> None:
+    """Review L1. JSON Schema calls 10.0 an integer; the contracts do not (README). The
+    plain validators refuse it, and so does the canonical form every pack object must have."""
+    image = _substituted(load_vectors("plain-text.json")["targets"][0]["document"], "x")
+    for name in ("bytes", "width", "height"):
+        for value in (10.0, 1e2):
+            document = [{**image[0], "asset": {**image[0]["asset"], name: value}}]
+            assert outcome(validate_blocks(document, 2)) == {"valid": False, "layer": "schema"}
+            with pytest.raises(TypeError):
+                canonical_json(document)
+
+
+# ------------------------------------------------------------------ review L3: no raw exceptions
+def test_required_format_and_canonical_json_raise_only_their_documented_errors() -> None:
+    for odd in (["math"], {"a": 1}, 7, None, 1.5, True):
+        with pytest.raises(ValueError, match="unknown block type"):
+            required_format([{"type": odd}])
+        if odd != "mcq":
+            with pytest.raises(ValueError, match="unknown question kind"):
+                required_format([], [odd])  # type: ignore[list-item]
+    with pytest.raises(ValueError, match="unknown block type"):
+        required_format(["paragraph"])  # type: ignore[list-item]
+    for text in ("a\ud800", "\udfff", "a\ud800b"):
+        with pytest.raises(TypeError, match="lone surrogate"):
+            canonical_json({"t": text})
+        assert not is_canonical_json(('{"t":"' + text + '"}').encode("utf-8", "surrogatepass"))
+    deep: Any = []
+    for _ in range(100_000):
+        deep = [deep]
+    with pytest.raises(TypeError):
+        canonical_json(deep)

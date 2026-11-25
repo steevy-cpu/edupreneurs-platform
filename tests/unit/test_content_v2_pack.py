@@ -654,3 +654,69 @@ def test_golden_totals_are_what_the_verifier_recomputes(tmp_path: Path, golden: 
             assert refused.value.code == "manifest.totals", name
     path.write_bytes(golden.manifest_bytes)
     assert verify_pack(storage, golden.manifest_key, golden.manifest_sha256) == golden.manifest
+
+
+# ------------------------------------------------------------------ review L3 / M4: builder input
+def _mutated_input(change: Any) -> dict[str, Any]:
+    case = json.loads(json.dumps(case_by_id("v1-pack-one-lesson")))
+    change(case["input"])
+    return case
+
+
+@pytest.mark.parametrize(
+    ("label", "change", "code"),
+    [
+        ("block type is a list", lambda i: i["lessons"][0]["blocks"][0].update(type=["math"]), "lesson.blocks"),
+        ("block is not an object", lambda i: i["lessons"][0]["blocks"].append("x"), "lesson.blocks"),
+        ("lone surrogate in a title", lambda i: i["lessons"][0].update(title="a\ud800"), "lesson.title"),
+        ("bidi override in a title", lambda i: i["lessons"][0].update(title="a\u202eb"), "lesson.title"),
+        ("zero-width space in a title", lambda i: i["lessons"][0].update(title="a\u200bb"), "lesson.title"),
+        ("lone surrogate in a paragraph", lambda i: i["lessons"][0]["blocks"][1].update(text="a\ud800"), "lesson.canonical"),
+        ("lone surrogate in a prompt", lambda i: i["lessons"][0]["questions"][0].update(prompt={"text": "\udc00"}), "lesson.canonical"),
+        ("pack revision is text", lambda i: i["pack"].update(revision="1/../../x"), "pack.identity"),
+        ("pack revision is a float", lambda i: i["pack"].update(revision=1.0), "pack.identity"),
+        ("pack revision is a boolean", lambda i: i["pack"].update(revision=True), "pack.identity"),
+        ("pack key is a number", lambda i: i["pack"].update(pack_key=7), "pack.identity"),
+        ("content format is a float", lambda i: i.update(content_format=1.0), "pack.identity"),
+        ("lesson position is a float", lambda i: i["lessons"][0].update(position=1.5), "lesson.identity"),
+        ("lesson revision is text", lambda i: i["lessons"][0].update(revision="3"), "lesson.identity"),
+        ("lesson title is a list", lambda i: i["lessons"][0].update(title=["x"]), "lesson.identity"),
+        ("lesson id is null", lambda i: i["lessons"][0].update(lesson_id=None), "lesson.identity"),
+        ("question position is a float", lambda i: i["lessons"][0]["questions"][0].update(position=1.0), "lesson.questions"),
+        ("question kind is a list", lambda i: i["lessons"][0]["questions"][0].update(kind=["mcq"]), "lesson.questions"),
+        ("question id is a number", lambda i: i["lessons"][0]["questions"][0].update(id=5), "lesson.questions"),
+        ("question has an unknown field", lambda i: i["lessons"][0]["questions"][0].update(extra=1), "pack.input"),
+        ("a lesson is missing its blocks", lambda i: i["lessons"][0].pop("blocks"), "pack.input"),
+        ("lessons is not a list", lambda i: i.update(lessons=7), "pack.input"),
+        ("pack is missing", lambda i: i.pop("pack"), "pack.input"),
+        ("a lesson is a string", lambda i: i.update(lessons=["x"]), "pack.input"),
+    ],
+)  # fmt: skip
+def test_malformed_builder_input_is_a_pack_build_error(label: str, change: Any, code: str) -> None:
+    """Review L3: the lane's own error type, never a raw TypeError / UnicodeEncodeError."""
+    with pytest.raises(PackBuildError) as refused:
+        build(_mutated_input(change))
+    assert refused.value.code == code, label
+
+
+def test_hostile_stored_bytes_are_a_pack_integrity_error(tmp_path: Path, golden: BuiltPack) -> None:
+    """Review L3 on the verifier: whatever is in storage, only PackIntegrityError comes out."""
+    storage = stored(tmp_path, golden)
+    path = storage.root / golden.manifest_key
+    for data in (
+        b'{"t":"\\ud800"}',
+        b"[" * 100_000,
+        b"\xff\xfe",
+        b"null",
+        b"[]",
+        b'{"lessons":7}',
+        canonical_json({**golden.manifest, "lessons": [7]}),
+        canonical_json({**golden.manifest, "content_format": True}),
+    ):
+        path.write_bytes(data)
+        with pytest.raises(PackIntegrityError):
+            verify_pack(storage, golden.manifest_key)
+    entry = golden.manifest["lessons"][0]
+    for data in (b'{"t":"\\ud800"}', b"[" * 100_000, b"null", b'{"blocks":[]}'):
+        with pytest.raises(PackIntegrityError):
+            _verify_lesson_object(data, "k", entry, "fr", {})

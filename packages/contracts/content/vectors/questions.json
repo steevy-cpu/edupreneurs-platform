@@ -960,6 +960,70 @@
           "short_text.accepted_fits"
         ]
       }
+    },
+    {
+      "id": "mcq-correct-choice-id-trailing-line-feed",
+      "kind": "mcq",
+      "description": "Review L1. '$' matches only at the very end: an id followed by a line feed is refused.",
+      "document": {
+        "prompt": {
+          "text": "Laquelle est la plus grande ?"
+        },
+        "response_spec": {
+          "choices": [
+            {
+              "id": "a",
+              "text": "2/7"
+            },
+            {
+              "id": "b",
+              "text": "5/7"
+            }
+          ]
+        },
+        "answer_key": {
+          "correct_choice_id": "b\n"
+        },
+        "explanation": {
+          "text": "5 est plus grand que 2."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "mcq-choice-id-trailing-line-feed",
+      "kind": "mcq",
+      "description": "Review L1, same rule on a choice id.",
+      "document": {
+        "prompt": {
+          "text": "Laquelle est la plus grande ?"
+        },
+        "response_spec": {
+          "choices": [
+            {
+              "id": "a\n",
+              "text": "2/7"
+            },
+            {
+              "id": "b",
+              "text": "5/7"
+            }
+          ]
+        },
+        "answer_key": {
+          "correct_choice_id": "b"
+        },
+        "explanation": {
+          "text": "5 est plus grand que 2."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
     }
   ]
 }

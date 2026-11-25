@@ -16,6 +16,10 @@
       "description": "No HTML/XML-looking tag opener: '<' directly followed by a letter, '/', '!' or '?'. 'x < 3' and '3<5' stay valid.",
       "not": { "pattern": "<[A-Za-z/!?]" }
     },
+    "noInvisible": {
+      "description": "No invisible or direction-changing character: C1 controls (U+0080-U+009F), zero-width characters and direction marks (U+200B-U+200F, U+2060, U+FEFF), line and paragraph separators (U+2028, U+2029), bidirectional embeddings, overrides and isolates (U+202A-U+202E, U+2066-U+2069), and lone surrogates (U+D800-U+DFFF). The pattern must be evaluated in Unicode mode (ECMA-262 'u' flag), where the surrogate range only matches a surrogate that is not part of a pair.",
+      "not": { "pattern": "[\\u0080-\\u009f\\u200b-\\u200f\\u2028-\\u202e\\u2060\\u2066-\\u2069\\ufeff\\ud800-\\udfff]" }
+    },
     "key": {
       "description": "Stable identifier of the block inside this revision (used for reading position). Same pattern as format 1.",
       "type": "string",
@@ -36,7 +40,7 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 300,
-      "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }]
+      "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }, { "$ref": "#/$defs/noInvisible" }]
     },
     "imageAsset": {
       "description": "Reference to an image inside the pack, by content hash. Byte budget: 200 000 bytes per image; intrinsic size at most 1600 x 1600 pixels. SVG is deliberately not allowed (it can carry scripts).",
@@ -136,7 +140,7 @@
           "minLength": 1,
           "maxLength": 400,
           "pattern": "^[A-Za-z0-9 +*/=<>()\\[\\]|,.;:!'^_{}\\\\%\\u00c0-\\u017f-]+$",
-          "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }]
+          "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }, { "$ref": "#/$defs/noInvisible" }]
         },
         "alt": { "$ref": "#/$defs/altText" },
         "asset": { "$ref": "#/$defs/imageAsset" }
@@ -155,7 +159,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 200,
-          "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }]
+          "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }, { "$ref": "#/$defs/noInvisible" }]
         }
       }
     },
@@ -176,7 +180,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 500,
-            "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }]
+            "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }, { "$ref": "#/$defs/noInvisible" }]
           }
         }
       }
@@ -193,7 +197,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 200,
-          "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }]
+          "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }, { "$ref": "#/$defs/noInvisible" }]
         },
         "columns": {
           "description": "Header cell of each column, left to right.",
@@ -204,7 +208,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 24,
-            "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }]
+            "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }, { "$ref": "#/$defs/noInvisible" }]
           }
         },
         "row_headers": {
@@ -222,7 +226,7 @@
             "items": {
               "type": "string",
               "maxLength": 80,
-              "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }]
+              "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }, { "$ref": "#/$defs/noInvisible" }]
             }
           }
         }
@@ -242,7 +246,7 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 200,
-          "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }]
+          "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }, { "$ref": "#/$defs/noInvisible" }]
         },
         "transcript": {
           "type": "object",

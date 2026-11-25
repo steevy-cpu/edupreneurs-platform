@@ -141,7 +141,7 @@ transaction (ids, hashes, enum codes and numbers only — never alt text).
 |---|---|---|
 | `content.register_asset(sha256, bytes, mime, width, height, duration_ms, alt_text, source_id)` | editor, admin | records metadata; idempotent for identical metadata, `23505` otherwise |
 | `content.attach_asset(revision_id, sha256)` / `content.detach_asset(...)` | editor, admin | drafts only; `23503` if the revision does not cite the asset's source |
-| `content.record_release_manifest(release_id, manifest, manifest_sha256, manifest_bytes)` | publisher, admin | checks the manifest against the database (pack identity, ordered lessons, referenced assets attached, asset sizes/types, totals, **declared format ≥ required format**), then moves the release `building → ready` with the real hash and inserts the `pack_manifests` row |
+| `content.record_release_manifest(release_id, manifest_bytes)` (since migration `20261124030200`: the manifest's bytes; hash and size are computed by the database, lesson bodies outside the contract are refused — see §8) | publisher, admin | checks the manifest against the database (pack identity, ordered lessons, referenced assets attached, asset sizes/types, totals, **declared format ≥ required format**), then moves the release `building → ready` with the real hash and inserts the `pack_manifests` row |
 
 The two functions `content.staff_gate` and `content.audit` are the only places
 that mention `staff.*` / `ops.*`. **No HTTP route was added** (R-01 not needed;
@@ -198,10 +198,68 @@ These are tiny synthetic lessons; they say nothing yet about real lesson sizes.
   marker of a real one.
 - New question kinds are not scored by the server; `true_false` is not an accepted
   `question_revisions.kind`.
-- The database does not validate lesson bodies; the builder does. Asset checks are
+- The database does not run the full validators on lesson bodies (texts, limits,
+  math grammar, table budgets); the builder does. Since migration `20261124030200`
+  it does refuse, when a manifest is recorded, any body with an unknown block type,
+  an unknown property or a mis-shaped asset reference (§8). Asset checks are
   hash, size, file signature, and PNG dimensions — JPEG/WebP dimensions and audio
   duration are trusted from metadata.
 - `app.pack_releases.compressed_bytes` receives the total *uncompressed* pack bytes.
 - No inline mathematics inside paragraphs, list items or table cells.
 - No resumable download, device-side activation, or object-store adapter.
 - Haitian Creole strings in vectors are draft wording pending native review.
+
+## 8. Open review findings
+
+Independent review of `d1f5bf7` (verdict: approve with fixes), findings H1–H2,
+M1–M4, L1–L8. State after the follow-up commits on this branch.
+
+### Fixed
+
+| Finding | What changed | Proof |
+|---|---|---|
+| **H1** format rule in the verifier | A lesson object must declare exactly the smallest format that carries its blocks and its question kinds (`lesson.content_format`); a format-1 manifest lists only format-1 lessons and a format-1 lesson only `mcq` questions — in `validate_manifest`, `pack-manifest.v1.schema.json` and `pack-lesson.v1.schema.json` (`if`/`then`). | `vectors/pack-verify.json` (verifier-side, self-consistent packs), `test_a_lesson_object_never_carries_more_than_its_declared_format` |
+| **H2** `content.record_release_manifest` | Migration `20261124030200` (the merged one is untouched). **Signature changed** to `(uuid, bytea)`: the argument is the manifest's bytes; SHA-256 and length are computed in the function from the bytes it parses; the old `(uuid, jsonb, bytea, bigint)` is dropped. Unknown manifest properties are refused. New `content.blocks_accountable`: a release cannot become `ready` when a lesson body has a block type outside the nine known ones, a property its type does not define, or an asset reference that is not an object with a 64-hex `sha256`. Grants unchanged (`edu_staff`: four functions), `search_path` pinned, owner `postgres`. | pgTAP `142` (incl. the reviewer's reproduction), `140` |
+| **M1** math markup | `source` gets the no-markup rule in validator and schema, bare and inside `\text{}`; `check_math_source` refuses it too when called directly. | `vectors/math-notation.json` `schema-markup-*` |
+| **M2** math depth | A root index is one nesting level; `check_math_source` is total (non-strings, any length, no `RecursionError`). | `vectors/math-notation.json` `*root-index*` |
+| **M3** verifier self-consistency | `verify_pack` recomputes `totals` (`manifest.totals`), requires unique `lesson_id`, `revision_id`, question ids and positions (`manifest.duplicate`); lesson `title` is plain text in builder (`lesson.title`), verifier and both pack schemas. | `vectors/pack-verify.json` |
+| **M4** (new format-2 fields only) | The plain-text rule also refuses C1 controls, zero-width characters and direction marks, U+2028/2029, bidi embeddings/overrides/isolates, U+FEFF and lone surrogates — validators and schemas (`$defs.noInvisible`). README states the rendering rule. | `vectors/plain-text.json` |
+| **L1** | Vectors for the two conventions a schema cannot express (integral floats are not integers; no trailing line feed) and for `$` = very end; the test harness now evaluates `$` as ECMA-262 does. | `vectors/canonical-json.json`, `x-key-trailing-line-feed`, `mcq-*-trailing-line-feed` |
+| **L3** | Malformed builder input and hostile stored bytes raise `PackBuildError` / `PackIntegrityError` only; `canonical_json` raises `TypeError` only; `required_format` raises `ValueError` only. | `test_malformed_builder_input_is_a_pack_build_error` and neighbours |
+| **L5** | Counts and sizes outside the contract in a recorded manifest raise `22023`. | pgTAP `142` |
+
+The golden manifest hashes did **not** change: no fix alters canonical output.
+
+### Still open
+
+| Finding | State |
+|---|---|
+| **H2**, remaining part | The database still does not run the Python validators (text rules, limits, math grammar, table budgets), cannot re-hash lesson objects, and does not check that the manifest bytes are canonical beyond "one JSON object, no BOM, no trailing byte". The staff API must run `validate_blocks` / `validate_question` at revision submit and approval, and call the function only from a server-side build step that ran `build_pack` + `verify_pack`. |
+| **M4**, remaining part | The four format-1 block types and `mcq` texts are unchanged (owner decision; they accept control characters and markup-shaped text, also inside a format-2 lesson — clients must apply the rendering rule). `content.is_locale_text_map` (asset alt text in the database) still only refuses C0 controls and tag openers. |
+| **L2** | Validation still runs before NFC normalisation; fail-closed at read-back, but objects may already be written. |
+| **L4** | `pack_key` may start with `_` or `-`, which the storage adapter refuses. |
+| **L6** | `app.question_revisions.kind` allows `matching` and not `true_false` (needs an `app` migration; not this lane). |
+| **L7** | Short-text scoring: full vs simple case mapping not specified; no ß / İ / final-sigma vectors. |
+| **L8** | `scripts/build_pack.py build` does not look at the release status. |
+| Notes | Weak file-signature sniffing, trusted JPEG/WebP/audio metadata, no separation of duties inside `admin`: unchanged, by design. |
+
+### Before any format-2 content ships (the reviewer's six preconditions)
+
+1. **Activation gate.** Making a release current must require a
+   `content.pack_manifests` row and must refuse `content_format > 1` for the `/v1`
+   delivery path (function or reviewed `app` trigger;
+   `content.release_required_format` is ready for it). *Not done.*
+2. **Format-aware delivery endpoint** that reads `Edu-Content-Formats`, uses
+   `negotiate`, with tests proving a client without the header never receives a
+   format-2 body. *Not done.*
+3. **Contract validation at a choke point the database can rely on** (revision
+   submit/approval and manifest recording), and the recorded hash computed from
+   the manifest bytes. *Partly done:* hash from bytes and the structural body
+   gate (H2); validators at submit/approval are not wired.
+4. **Verifier and schemas enforce the format rule for questions; math markup
+   and nesting.** *Done* (H1, M1, M2).
+5. **The `app` migration for question kinds** and server scoring wired to the
+   versioned rules (L6). *Not done.*
+6. **A written rendering rule** (all strings are plain text; a math source never
+   reaches an HTML engine) and the owner's decision PO-08. *Rule written*
+   (contracts README); *PO-08 open.*

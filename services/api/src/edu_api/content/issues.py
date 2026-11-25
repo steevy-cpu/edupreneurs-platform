@@ -21,11 +21,19 @@ Layer = Literal["schema", "semantic"]
 
 _CONTROL = re.compile(r"[\u0000-\u001f\u007f]")
 _MARKUP = re.compile(r"<[A-Za-z/!?]")
+#: Characters a reader cannot see or that change the direction of the text
+#: (review M4): C1 controls, zero-width characters and direction marks, line and
+#: paragraph separators, bidi embeddings / overrides / isolates, lone surrogates.
+#: Same class as ``$defs.noInvisible`` in the format-2 schemas.
+_INVISIBLE = re.compile(
+    "[\u0080-\u009f\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff\ud800-\udfff]"
+)
 
 
 def is_plain_text(value: str) -> bool:
-    """The plain-text rule of every new text field: no control character, no tag opener."""
-    return not _CONTROL.search(value) and not _MARKUP.search(value)
+    """The plain-text rule of every new text field: no control character, no tag
+    opener, no invisible or direction-changing character."""
+    return not (_CONTROL.search(value) or _MARKUP.search(value) or _INVISIBLE.search(value))
 
 
 @dataclass(frozen=True)
@@ -77,7 +85,8 @@ class Collector:
         plain: bool = False,
         no_control: bool = False,
     ) -> bool:
-        """``plain`` = single-line human text: no control characters, no tag opener."""
+        """``plain`` = single-line human text: no control characters, no tag opener,
+        no invisible or direction-changing character (new format-2 fields only)."""
         if not isinstance(value, str):
             self.schema(path, "must be a string")
             return False
@@ -89,6 +98,9 @@ class Collector:
             return False
         if plain and _MARKUP.search(value):
             self.schema(path, "markup is not allowed")
+            return False
+        if plain and _INVISIBLE.search(value):
+            self.schema(path, "invisible or direction-changing characters are not allowed")
             return False
         if pattern is not None and not pattern.fullmatch(value):
             self.schema(path, "does not match the required pattern")
