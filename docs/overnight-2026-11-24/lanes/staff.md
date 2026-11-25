@@ -283,6 +283,48 @@ Rules enforced in SQL (the API gate is in front, not instead):
 once: `INSERT INTO app.staff_roles (user_id, role) VALUES ('<auth user id>', 'admin');`. Locally the
 tests do this through `make_staff("admin")`. The seed contains no admin.
 
+## B2.3 — Worker and job leasing
+
+Migration `20261124010500_ops_job_queue.sql` (schema `ops`; the existing `app.background_jobs` table
+is reached only through these definer functions), package `services/worker/src/edu_worker`.
+
+```
+ops.enqueue_job(p_kind text, p_payload jsonb DEFAULT '{}', p_idempotency_key text DEFAULT NULL,
+                p_run_after timestamptz DEFAULT NULL, p_max_attempts integer DEFAULT 5) RETURNS uuid
+                                                                  EXECUTE: edu_worker, edu_staff
+ops.claim_jobs(p_worker_id text, p_kinds text[], p_limit integer, p_lease_seconds integer)
+    RETURNS TABLE (job_id, kind, payload, attempt, max_attempts, lease_until)   EXECUTE: edu_worker
+ops.heartbeat_job(p_job_id uuid, p_worker_id text, p_lease_seconds integer) RETURNS boolean
+ops.complete_job(p_job_id uuid, p_worker_id text) RETURNS boolean
+ops.fail_job(p_job_id uuid, p_worker_id text, p_error_class text) RETURNS text  -- 'queued' | 'dead' | NULL
+```
+
+- **At-least-once with a lease.** `claim_jobs` uses `FOR UPDATE SKIP LOCKED` and counts the attempt.
+  A dead worker's lease runs out and the next claim takes the job again. `heartbeat` / `complete` /
+  `fail` act only for the worker id that holds the lease (unique per process); anyone else gets
+  `false` / `NULL`. Handlers must be idempotent.
+- **Backoff and dead letter.** A failed attempt is re-queued after 5 s, 10 s, 20 s … (cap 15 min).
+  After `max_attempts` — by failure or by a lease running out on the last attempt — the job is
+  `dead` and one audit event `job.dead` is written. Only an error **class name** is stored; a
+  malformed name becomes `UnnamedError`.
+- **Idempotent enqueue.** The same `p_idempotency_key` always returns the first job, in any state.
+- **Payloads** are JSON objects ≤ 8192 bytes and must hold ids and codes only. Other lanes' definer
+  functions call `ops.enqueue_job` as owner; `edu_api` has no access to jobs at all.
+- **Runner** (`edu_worker.Worker`): handler registry, bounded concurrency, lease renewal while a
+  handler runs (a lost lease cancels the handler and reports nothing), graceful `stop()` with a
+  grace period. `uv run python -m edu_worker --kinds noop --exit-when-idle` runs one process; it
+  refuses to start unless `ops.session_kind()` says `worker`. The only production handler is `noop`.
+  **No schedule or service is installed; nothing runs unless someone starts it.**
+
+Tests: `supabase/tests/105_job_queue.sql`; `tests/integration/test_worker_queue.py` — 300 jobs and
+8 concurrent claimers (no job leased twice), a real worker process killed with SIGKILL mid-job whose
+job is then run exactly once more (attempt 2) while its old identity is fenced off, dead-lettering
+after `max_attempts`, idempotent enqueue under concurrency, `edu_api` refused on every function.
+
+Known gaps: no handler timeout (a handler that hangs keeps renewing its lease); no way to cancel or
+re-queue a dead job through an API; no metrics; no retention for completed jobs; the worker has no
+deployment unit (process manager, container) yet.
+
 ## Local environment
 
 `make db-reset` (or `uv run python scripts/local_stack.py env` followed by `… provision`) now also
