@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     pull_default_limit: int = Field(default=100, ge=1)
     pull_max_limit: int = Field(default=200, ge=1)
 
+    # --- Entitlements (schema `billing`; overnight lane "entitlements") --------
+    #: Mounts ``GET /v1/entitlements`` (read-only status of the caller's own
+    #: grants). Off by default: with it off the API is exactly what it was.
+    #: It never gates content — no paywall exists (BLOCKED_BY_OWNER PO-01).
+    entitlements_enabled: bool = False
+
     @field_validator("auth_algorithms")
     @classmethod
     def _only_asymmetric(cls, value: tuple[str, ...]) -> tuple[str, ...]:

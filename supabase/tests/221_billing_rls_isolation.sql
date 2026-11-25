@@ -132,12 +132,14 @@ RESET ROLE;
 -- "Lessons work when everything else is down")
 -- ============================================================================
 -- (1) billing unreachable to the API role: learning reads and writes are normal.
+-- (Counts are restricted to the seed lesson: other local test runs publish more
+-- lessons, which are immutable and therefore stay in the database.)
 REVOKE USAGE ON SCHEMA billing FROM edu_api;
 SELECT is(pg_temp.as_api(:A::uuid, 'SELECT count(*) FROM billing.entitlements'), 'ERROR:42501', 'billing is now unreachable to the student API');
 SELECT is(pg_temp.as_api(:A::uuid, 'SELECT billing.is_entitled()'), 'ERROR:42501', '... including its read function');
 SELECT is(pg_temp.as_api(:A::uuid, 'SELECT count(*) FROM app.courses'), '1', 'billing unreachable: the catalogue is still readable');
-SELECT is(pg_temp.as_api(:A::uuid, 'SELECT count(*) FROM app.lesson_revisions'), '2', 'billing unreachable: both published lesson revisions are still readable');
-SELECT is(pg_temp.as_api(:A::uuid, 'SELECT count(*) FROM app.question_revisions'), '10', 'billing unreachable: questions are still readable');
+SELECT is(pg_temp.as_api(:A::uuid, $$SELECT count(*) FROM app.lesson_revisions WHERE lesson_id = 'b0000000-0000-4000-8000-000000000005'$$), '2', 'billing unreachable: both published revisions of the seed lesson are still readable');
+SELECT is(pg_temp.as_api(:A::uuid, $$SELECT count(*) FROM app.question_revisions WHERE lesson_revision_id IN ('c0000000-0000-4000-8000-000000000001', 'c0000000-0000-4000-8000-000000000002')$$), '10', 'billing unreachable: the seed questions are still readable');
 SELECT is(pg_temp.as_api(:A::uuid, 'SELECT count(*) FROM app.learner_profiles'), '1', 'billing unreachable: own profile is still readable');
 SELECT is(pg_temp.as_api(:A::uuid, $$SELECT app.sync_apply_operation('55555555-5555-4555-8555-000000000001','practice_answer','{"question_revision_id":"d0000000-0000-4000-8000-000000000101","response":{"choice_id":"b"}}', sha256('c1'), 'mep-canon-1') ->> 'status'$$), 'accepted', 'billing unreachable: an answer still syncs');
 SELECT is(pg_temp.as_api(:A::uuid, $$SELECT app.sync_apply_operation('55555555-5555-4555-8555-000000000002','lesson_completed','{"lesson_revision_id":"c0000000-0000-4000-8000-000000000001"}', sha256('c2'), 'mep-canon-1') ->> 'status'$$), 'accepted', 'billing unreachable: a completion still syncs');
@@ -146,14 +148,14 @@ GRANT USAGE ON SCHEMA billing TO edu_api;
 
 -- (2) A learner with NO grant, and one whose grant was revoked, read the same
 --     free content as an entitled learner: there is no paywall.
-SELECT is(pg_temp.as_api(:EDITOR::uuid, 'SELECT count(*) FROM app.lesson_revisions'), '2', 'no grant: lessons are readable (no paywall)');
-SELECT is(pg_temp.as_api(:A::uuid, 'SELECT count(*) FROM app.lesson_revisions'), '2', 'active grant: the same lessons, no more and no fewer');
+SELECT is(pg_temp.as_api(:EDITOR::uuid, $$SELECT count(*) FROM app.lesson_revisions WHERE lesson_id = 'b0000000-0000-4000-8000-000000000005'$$), '2', 'no grant: lessons are readable (no paywall)');
+SELECT is(pg_temp.as_api(:A::uuid, $$SELECT count(*) FROM app.lesson_revisions WHERE lesson_id = 'b0000000-0000-4000-8000-000000000005'$$), '2', 'active grant: the same lessons, no more and no fewer');
 
 -- (3) The strongest form: remove the whole schema. Nothing in `app` refers to
 --     it, so the drop succeeds and learning carries on. (Rolled back below.)
 SET LOCAL client_min_messages = warning;
 SELECT lives_ok('DROP SCHEMA billing CASCADE', 'the billing schema can be dropped: no object in app depends on it');
-SELECT is(pg_temp.as_api(:A::uuid, 'SELECT count(*) FROM app.lesson_revisions'), '2', 'billing gone: lessons are still readable');
+SELECT is(pg_temp.as_api(:A::uuid, $$SELECT count(*) FROM app.lesson_revisions WHERE lesson_id = 'b0000000-0000-4000-8000-000000000005'$$), '2', 'billing gone: lessons are still readable');
 SELECT is(pg_temp.as_api(:B::uuid, $$SELECT app.sync_apply_operation('55555555-5555-4555-8555-000000000003','practice_answer','{"question_revision_id":"d0000000-0000-4000-8000-000000000201","response":{"choice_id":"a"}}', sha256('c3'), 'mep-canon-1') ->> 'status'$$), 'accepted', 'billing gone: an answer still syncs');
 SELECT is((SELECT count(*)::int FROM pg_tables WHERE schemaname = 'app'), 22, 'billing gone: schema app is intact (22 tables)');
 

@@ -9,6 +9,9 @@ SELECT * FROM no_plan();
 TRUNCATE billing.refunds, billing.entitlement_revocations, billing.entitlements,
          billing.provider_events, billing.orders, billing.plan_prices, billing.plans,
          billing.providers;
+-- The audit trail is append-only and may hold rows from earlier local test runs;
+-- empty it INSIDE this transaction (rolled back at the end) so counts are exact.
+TRUNCATE app.audit_events;
 
 \set A '''a0000000-0000-4000-8000-000000000001'''
 \set B '''a0000000-0000-4000-8000-000000000002'''
