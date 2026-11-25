@@ -123,8 +123,8 @@ SELECT is(pg_temp.code('edu_staff', :EDITOR::uuid, $$SELECT content.attach_asset
 SELECT is(pg_temp.as_role('edu_staff', :EDITOR::uuid, $$SELECT content.attach_asset('c0000000-0000-4000-8000-000000000001', sha256('img-142'))$$),
     'ERROR:P0001:Assets of reviewed/approved/packed lesson revisions are frozen', 'the published seed revision accepts no asset, even from an editor');
 SELECT is(pg_temp.code('edu_staff', :REVIEWER::uuid, $$SELECT content.detach_asset('c0000000-0000-4000-8000-000000001421', sha256('img-142'))$$), 'ERROR:42501', 'reviewer: may not detach');
-SELECT is(pg_temp.as_role('edu_staff', :ADMIN::uuid, $$SELECT content.detach_asset('c0000000-0000-4000-8000-000000001421', sha256('img-142')) ->> 'detached'$$), 'true', 'admin: detaches from the draft');
-SELECT is(pg_temp.as_role('edu_staff', :ADMIN::uuid, $$SELECT content.detach_asset('c0000000-0000-4000-8000-000000001421', sha256('img-142')) ->> 'detached'$$), 'false', 'detaching again is a no-op');
+SELECT is(pg_temp.as_role('edu_staff', :EDITOR::uuid, $$SELECT content.detach_asset('c0000000-0000-4000-8000-000000001421', sha256('img-142')) ->> 'detached'$$), 'true', 'the author detaches from the draft (was: admin; since 20261125000300 only the author may)');
+SELECT is(pg_temp.as_role('edu_staff', :EDITOR::uuid, $$SELECT content.detach_asset('c0000000-0000-4000-8000-000000001421', sha256('img-142')) ->> 'detached'$$), 'false', 'detaching again is a no-op');
 SELECT is(pg_temp.audits('content.asset.detach'), 1, 'only the real detachment is audited');
 
 -- ============================ record_release_manifest ============================
