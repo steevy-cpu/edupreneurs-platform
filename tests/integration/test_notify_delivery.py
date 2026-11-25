@@ -1,8 +1,7 @@
 """The delivery pass end to end against the real database functions, with the dummy
 adapter. NOTHING IS SENT: the adapter appends to an in-memory list.
 
-The worker code runs through ``owner_engine`` — the marked seam that stands in
-for the future ``edu_worker`` role (see tests/notify_fixtures.py).
+The worker code logs in as the real ``edu_worker_login`` role (``worker_engine``).
 """
 
 from __future__ import annotations
@@ -51,7 +50,7 @@ async def test_dummy_delivery_respects_opt_in_and_carries_no_content(
     notify_client: httpx.AsyncClient,
     tokens: dict[str, str],
     enqueue: Enqueue,
-    owner_engine: AsyncEngine,
+    worker_engine: AsyncEngine,
     outside_quiet_hours: None,
     admin: asyncpg.Pool,
 ) -> None:
@@ -67,7 +66,7 @@ async def test_dummy_delivery_respects_opt_in_and_carries_no_content(
     await enqueue(STUDENT_B, "entitlement_expiring", channels=("push", "in_app"))  # not opted in
 
     adapter = DummyLocalAdapter()
-    summary = await deliver_due(SqlOutboxPort(owner_engine), adapter)
+    summary = await deliver_due(SqlOutboxPort(worker_engine), adapter)
     assert (summary.claimed, summary.delivered, summary.retried, summary.failed) == (1, 1, 0, 0)
 
     (record,) = adapter.records
@@ -86,7 +85,7 @@ async def test_dummy_delivery_respects_opt_in_and_carries_no_content(
     }
     assert await admin.fetchval("SELECT count(*) FROM notify.outbox WHERE state <> 'settled'") == 0
     # Nothing is left to do: a second pass claims nothing and "sends" nothing.
-    assert (await deliver_due(SqlOutboxPort(owner_engine), adapter)).claimed == 0
+    assert (await deliver_due(SqlOutboxPort(worker_engine), adapter)).claimed == 0
     assert len(adapter.records) == 1
     # B still finds the event in the in-app list although the push was suppressed.
     listed = await notify_client.get("/v1/notifications", headers=bearer(tokens["student_b"]))
@@ -97,7 +96,7 @@ async def test_opting_out_again_stops_delivery_of_already_queued_events(
     notify_client: httpx.AsyncClient,
     tokens: dict[str, str],
     enqueue: Enqueue,
-    owner_engine: AsyncEngine,
+    worker_engine: AsyncEngine,
     outside_quiet_hours: None,
     admin: asyncpg.Pool,
 ) -> None:
@@ -105,7 +104,7 @@ async def test_opting_out_again_stops_delivery_of_already_queued_events(
     await enqueue(STUDENT_A, "sync_reminder", channels=("push",))
     await _opt_in(notify_client, tokens["student_a"], push=False)  # changed mind before delivery
     adapter = DummyLocalAdapter()
-    assert (await deliver_due(SqlOutboxPort(owner_engine), adapter)).claimed == 0
+    assert (await deliver_due(SqlOutboxPort(worker_engine), adapter)).claimed == 0
     assert len(adapter.records) == 0
     assert await _states(admin) == {"sync_reminder": "suppressed/0/push_not_enabled"}
 
@@ -114,7 +113,7 @@ async def test_quiet_hours_defer_delivery_on_the_real_clock(
     notify_client: httpx.AsyncClient,
     tokens: dict[str, str],
     enqueue: Enqueue,
-    owner_engine: AsyncEngine,
+    worker_engine: AsyncEngine,
     admin: asyncpg.Pool,
 ) -> None:
     """Make "now" quiet (a platform window around the present Haiti time) and check
@@ -127,7 +126,7 @@ async def test_quiet_hours_defer_delivery_on_the_real_clock(
     )
     await enqueue(STUDENT_A, "sync_reminder", channels=("push",))
     adapter = DummyLocalAdapter()
-    assert (await deliver_due(SqlOutboxPort(owner_engine), adapter)).claimed == 0
+    assert (await deliver_due(SqlOutboxPort(worker_engine), adapter)).claimed == 0
     assert len(adapter.records) == 0
     row = await admin.fetchrow(
         "SELECT state, attempt_count, next_attempt_at - now() AS wait FROM notify.deliveries"
@@ -140,14 +139,14 @@ async def test_retries_then_terminal_failure_with_the_real_functions(
     notify_client: httpx.AsyncClient,
     tokens: dict[str, str],
     enqueue: Enqueue,
-    owner_engine: AsyncEngine,
+    worker_engine: AsyncEngine,
     outside_quiet_hours: None,
     admin: asyncpg.Pool,
 ) -> None:
     await _opt_in(notify_client, tokens["student_a"])
     await admin.execute("UPDATE notify.policy SET max_attempts = 3")
     await enqueue(STUDENT_A, "sync_reminder", channels=("push",))
-    port = SqlOutboxPort(owner_engine)
+    port = SqlOutboxPort(worker_engine)
     adapter = DummyLocalAdapter(script=[DeliveryResult("retry", "provider_unavailable")] * 5)
 
     waits = []
@@ -181,7 +180,7 @@ async def test_concurrent_workers_never_deliver_the_same_event_twice(
     notify_client: httpx.AsyncClient,
     tokens: dict[str, str],
     enqueue: Enqueue,
-    owner_engine: AsyncEngine,
+    worker_engine: AsyncEngine,
     outside_quiet_hours: None,
     admin: asyncpg.Pool,
 ) -> None:
@@ -190,7 +189,7 @@ async def test_concurrent_workers_never_deliver_the_same_event_twice(
     for index in range(12):
         await enqueue(STUDENT_A if index % 2 else STUDENT_B, "sync_reminder", channels=("push",))
     adapters = [DummyLocalAdapter() for _ in range(4)]
-    port = SqlOutboxPort(owner_engine)
+    port = SqlOutboxPort(worker_engine)
     summaries = await asyncio.gather(
         *(deliver_due(port, adapter, limit=5) for adapter in adapters),
         *(deliver_due(port, adapter, limit=5) for adapter in adapters),
@@ -210,7 +209,7 @@ async def test_the_same_event_enqueued_twice_is_delivered_once(
     notify_client: httpx.AsyncClient,
     tokens: dict[str, str],
     enqueue: Enqueue,
-    owner_engine: AsyncEngine,
+    worker_engine: AsyncEngine,
     outside_quiet_hours: None,
     admin: asyncpg.Pool,
 ) -> None:
@@ -224,7 +223,7 @@ async def test_the_same_event_enqueued_twice_is_delivered_once(
     )
     assert len(set(ids)) == 1, "eight concurrent producers, one event"
     adapter = DummyLocalAdapter()
-    assert (await deliver_due(SqlOutboxPort(owner_engine), adapter)).delivered == 1
+    assert (await deliver_due(SqlOutboxPort(worker_engine), adapter)).delivered == 1
     assert len(adapter.records) == 1
     listed = await notify_client.get("/v1/notifications", headers=bearer(tokens["student_a"]))
     assert len(listed.json()["items"]) == 1

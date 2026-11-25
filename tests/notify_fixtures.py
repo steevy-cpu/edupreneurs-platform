@@ -2,7 +2,8 @@
 
 Nothing is mocked: real local Auth tokens, the real local PostgreSQL, the API's
 own least-privileged login. ``admin`` (the local owner) is used only to arrange
-state and to stand in for server-side producers and the future worker role.
+state and to stand in for server-side producers. The delivery worker uses its own
+real login (``worker_engine``).
 """
 
 from __future__ import annotations
@@ -94,16 +95,18 @@ def enqueue(admin: asyncpg.Pool, clean_notify_state: None) -> Enqueue:
 
 
 @pytest.fixture
-async def owner_engine(local_env: dict[str, str]) -> AsyncIterator[AsyncEngine]:
-    """SEAM(notify-worker-role): the delivery worker's database connection.
-
-    ``notify.claim_due`` / ``notify.record_attempt`` are executable by nobody
-    until the staff lane's ``edu_worker`` role is merged, so tests run the worker
-    code as the local database owner. When the role exists, replace this URL by
-    ``EDU_WORKER_DATABASE_URL``; nothing else changes.
-    """
-    url = local_env["LOCAL_ADMIN_DATABASE_URL"].replace("postgresql://", "postgresql+asyncpg://", 1)
-    engine = create_async_engine(url, pool_size=2, max_overflow=0)
+async def worker_engine(local_env: dict[str, str]) -> AsyncIterator[AsyncEngine]:
+    """The delivery worker's REAL database connection: it logs in as
+    ``edu_worker_login`` (member of ``edu_worker`` only), exactly as a worker
+    process will. Nothing in the delivery tests runs as the database owner."""
+    url = local_env.get("EDU_WORKER_DATABASE_URL")
+    if not url:
+        pytest.fail(
+            ".env has no EDU_WORKER_DATABASE_URL. Run `make db-reset` (it provisions "
+            "edu_worker_login).",
+            pytrace=False,
+        )
+    engine = create_async_engine(url, pool_size=4, max_overflow=0)
     yield engine
     await engine.dispose()
 

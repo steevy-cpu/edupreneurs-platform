@@ -150,6 +150,32 @@ SELECT is((SELECT count(*)::int FROM notify.outbox WHERE recipient_id = :B) || '
           (SELECT count(*)::int FROM notify.preferences WHERE learner_id = :B) || '/' ||
           (SELECT count(*)::int FROM notify.deliveries), '2/1/1', 'B is untouched');
 SELECT is(notify.erase_learner(:A) ->> 'outbox', '0', 'erasing again is a no-op');
+
+-- ---- audit: codes and numbers only ---------------------------------------------------
+SELECT is((SELECT count(*)::int FROM app.audit_events
+           WHERE action = 'notify_preferences.update' AND created_at = now()), 3,
+    'each successful preference change wrote one audit event (refused ones wrote none)');
+SELECT is((SELECT string_agg(DISTINCT actor_kind || '/' || target_kind || '/' || outcome || '/' || (actor_id = target_id)::text, ',')
+           FROM app.audit_events WHERE action = 'notify_preferences.update' AND created_at = now()),
+    'system/learner/allowed/true',
+    '... about the learner themselves (kind is "system" here because this test logs in as the owner; through the API login it is "user": tests/integration/test_notify_worker_role.py)');
+SELECT is((SELECT details FROM app.audit_events
+           WHERE action = 'notify_preferences.update' AND created_at = now() AND actor_id = :A
+           ORDER BY (details ->> 'push_enabled') DESC LIMIT 1),
+    '{"push_enabled": true, "muted_count": 1, "own_quiet_hours": true}'::jsonb,
+    '... with flags and counts only: not the hours, not the categories');
+SELECT is((SELECT count(*)::int FROM app.audit_events
+           WHERE action = 'notify_learner.erase' AND target_id = :A AND created_at = now()), 2,
+    'each erasure wrote one audit event');
+SELECT is((SELECT details FROM app.audit_events
+           WHERE action = 'notify_learner.erase' AND created_at = now()
+           ORDER BY (details ->> 'outbox')::int DESC LIMIT 1),
+    '{"outbox": 6, "deliveries": 1, "delivery_attempts": 0, "preferences": 1}'::jsonb,
+    '... with the counts');
+SELECT is((SELECT count(*)::int FROM app.audit_events
+           WHERE action LIKE 'notify%' AND created_at = now()
+             AND EXISTS (SELECT 1 FROM jsonb_each(details) e WHERE jsonb_typeof(e.value) NOT IN ('number','boolean'))), 0,
+    'no notify audit event carries a string value');
 SELECT throws_ok('SELECT notify.erase_learner(NULL)', '22004', NULL, 'erase_learner needs a user id');
 -- With the notify rows gone, nothing in notify blocks the account orchestrator
 -- from removing the profile (other schemas still may).

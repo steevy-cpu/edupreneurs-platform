@@ -29,6 +29,8 @@
 --   * "Push" is off until the learner turns it on (consent unknown = not
 --     granted, PO-04), and is never attempted inside quiet hours, which are
 --     evaluated in the product time zone America/Port-au-Prince.
+--   * Preference changes and erasure write an audit event through
+--     ops.audit_write (staff lane, migration 20261124010000, which runs first).
 --   * Nothing is created in schema app. Foreign keys point at
 --     app.learner_profiles so a notification can only exist for a real learner;
 --     notify.erase_learner() removes a learner's rows before account erasure.
@@ -40,8 +42,8 @@
 --
 -- WORKER SEAM: notify.claim_due() and notify.record_attempt() are for a
 -- delivery worker. The worker role (edu_worker) is delivered by another
--- migration block and does not exist here, so EXECUTE is granted to nobody.
--- The single GRANT line to add later is marked "SEAM(notify-worker-role)" below.
+-- migration block, so this file grants them to nobody; the grants are in
+-- 20261124080200_notify_worker_grants.sql.
 
 CREATE SCHEMA notify;
 REVOKE ALL ON SCHEMA notify FROM PUBLIC;
@@ -381,9 +383,14 @@ BEGIN
     END IF;
     SELECT * INTO STRICT v_policy FROM notify.policy;
 
-    FOR v_row IN
+    -- One candidate at a time, locking ONLY the row being decided (SKIP LOCKED
+    -- lets concurrent workers pass each other without waiting and without hiding
+    -- rows they will not take). Every branch below moves the row out of the
+    -- "due" set, so the loop always makes progress; it is bounded anyway.
+    FOR v_scanned IN 1..(p_limit * 10) LOOP
         SELECT d.outbox_id, d.state, d.attempt_count,
                o.recipient_id, o.kind, o.refs, o.expires_at, k.category, k.is_active
+        INTO v_row
         FROM notify.deliveries d
         JOIN notify.outbox o ON o.id = d.outbox_id
         JOIN notify.kinds k ON k.kind = o.kind
@@ -391,9 +398,10 @@ BEGIN
           AND d.state IN ('pending', 'leased')
           AND d.next_attempt_at <= p_now
         ORDER BY d.next_attempt_at, d.outbox_id
-        LIMIT p_limit * 10
-        FOR UPDATE OF d SKIP LOCKED
-    LOOP
+        LIMIT 1
+        FOR UPDATE OF d SKIP LOCKED;
+        EXIT WHEN NOT FOUND;
+
         v_attempts := v_row.attempt_count;
 
         -- A lease that ran out: the worker that held it never reported back.
@@ -598,6 +606,14 @@ BEGIN
             quiet_start = EXCLUDED.quiet_start,
             quiet_end = EXCLUDED.quiet_end,
             updated_at = now();
+
+    -- Audit (same transaction). Codes, booleans and numbers only: never the
+    -- times chosen, never anything a learner typed (ruling R-03, item 3).
+    PERFORM ops.audit_write(
+        'notify_preferences.update', 'learner', v_actor, 'allowed',
+        jsonb_build_object('push_enabled', p_push_enabled,
+                           'muted_count', cardinality(v_muted),
+                           'own_quiet_hours', p_quiet_start IS NOT NULL));
 END;
 $$;
 
@@ -628,6 +644,11 @@ BEGIN
     GET DIAGNOSTICS v_outbox = ROW_COUNT;
     DELETE FROM notify.preferences p WHERE p.learner_id = p_user_id;
     GET DIAGNOSTICS v_preferences = ROW_COUNT;
+    -- Audit (same transaction): counts only.
+    PERFORM ops.audit_write(
+        'notify_learner.erase', 'learner', p_user_id, 'allowed',
+        jsonb_build_object('outbox', v_outbox, 'deliveries', v_deliveries,
+                           'delivery_attempts', v_attempts, 'preferences', v_preferences));
     RETURN jsonb_build_object('schema', 'notify', 'outbox', v_outbox, 'deliveries', v_deliveries,
                               'delivery_attempts', v_attempts, 'preferences', v_preferences);
 END;
@@ -674,10 +695,9 @@ CREATE POLICY outbox_select_own_in_app ON notify.outbox
 -- notify.record_attempt, notify.erase_learner, the internal _ functions,
 -- notify.deliveries, notify.delivery_attempts.
 --
--- SEAM(notify-worker-role): once the staff lane's roles exist, a LATER migration
--- in this block adds exactly:
---   GRANT USAGE ON SCHEMA notify TO edu_worker;
---   GRANT EXECUTE ON FUNCTION notify.claim_due(text, integer, integer) TO edu_worker;
---   GRANT EXECUTE ON FUNCTION notify.record_attempt(uuid, text, uuid, text, text) TO edu_worker;
--- Producers (vocab, billing, ...) call notify.enqueue from their own definer
+-- SEAM(notify-worker-role): the worker's grants (claim_due, record_attempt, enqueue
+-- to edu_worker) are in 20261124080200_notify_worker_grants.sql, which runs after
+-- the staff lane's role migration. This file creates no role and grants nothing
+-- to a role it did not find on `main`.
+-- Producers in other schemas call notify.enqueue from their own definer
 -- functions, which run as the owner and therefore need no grant.

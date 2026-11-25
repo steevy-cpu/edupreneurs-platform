@@ -97,13 +97,12 @@ SELECT is((SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p
            WHERE p.pronamespace = 'notify'::regnamespace AND has_function_privilege('edu_api', p.oid, 'EXECUTE')),
     ARRAY['set_preferences'],
     'edu_api may execute exactly set_preferences: no client request can create a notification');
--- SEAM(notify-worker-role): when the worker role is granted claim_due and
--- record_attempt, this expectation becomes the two extra (function, grantee) pairs.
-SELECT is((SELECT array_agg(p.proname || '>' || pg_get_userbyid(a.grantee) ORDER BY 1)
+-- Every EXECUTE grant to a non-owner in the schema (20261124080200 added the worker's).
+SELECT is((SELECT array_agg(p.proname || '>' || pg_get_userbyid(a.grantee) ORDER BY (p.proname || '>' || pg_get_userbyid(a.grantee)) COLLATE "C")
            FROM pg_proc p, aclexplode(p.proacl) a
            WHERE p.pronamespace = 'notify'::regnamespace AND a.grantee <> p.proowner),
-    ARRAY['set_preferences>edu_api'],
-    'the only EXECUTE grant to a non-owner in notify is set_preferences to edu_api');
+    ARRAY['claim_due>edu_worker','enqueue>edu_worker','record_attempt>edu_worker','set_preferences>edu_api'],
+    'the only EXECUTE grants in notify: set_preferences to edu_api; claim_due, record_attempt, enqueue to edu_worker');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'notify'::regnamespace
            AND (SELECT array_agg(c) FROM unnest(p.proconfig) c WHERE c LIKE 'search_path=%')
                IS DISTINCT FROM ARRAY['search_path=pg_catalog, pg_temp']), 0,
