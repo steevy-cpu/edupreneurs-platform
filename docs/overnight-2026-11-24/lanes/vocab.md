@@ -1,6 +1,6 @@
 # Lane VOCAB — Word of the Day (F13)
 
-Branch `overnight/word-of-the-day` · schema `vocab` · migrations `2026112404*` · pgTAP `160–164` ·
+Branch `overnight/word-of-the-day` · schema `vocab` · migrations `2026112404*` · pgTAP `160–165` ·
 flag `EDU_DAILY_WORD_ENABLED` (default **off**).
 
 Status after turn 2: data model, immutable Haiti-date schedule (with a 10-minute freeze and a
@@ -139,7 +139,10 @@ Store, per account and per `requested_locale`, the last `200` body verbatim plus
 | `audio_assets` | Metadata of an optional recording: object key, `byte_size ≤ 102400`, sha256, mime, `duration_ms ≤ 15000`, its own rights record. No storage, no TTS, no autoplay column |
 | `daily_assignments` | `(haiti_date, locale) → word_revision_id` + `assigned_via` (`auto`/`staff`), `assigned_by`, `assigned_at`. **The schedule of record** |
 
-Rules enforced by triggers (they hold for every writer, including the owner role):
+Rules enforced by triggers. They hold for every writer that goes through the API, the staff and
+worker logins, and for plain SQL by the owner role. They do **not** hold against an owner who
+disables a trigger or drops a table (the owner can always do that); see section 9 for what a raw
+database session can and cannot do around midnight:
 
 - A revision can only be inserted as a draft. Authorship is immutable. Submitted content is frozen.
   Approved **and rejected** revisions are immutable; a correction is a new revision.
@@ -156,7 +159,13 @@ Rules enforced by triggers (they hold for every writer, including the owner role
   rescheduled; only an approved, rights-cleared revision of an active word is assignable. At
   COMMIT every date has one word across its locales and a French row, and an update/delete is
   refused if its date has opened meanwhile — so a reschedule started before midnight cannot land
-  after it.
+  after it. Because a session can make that check run early (`SET CONSTRAINTS ALL IMMEDIATE`), an
+  accepted update/delete also holds a transaction-level advisory lock on its date
+  (`vocab._day_key(date)`) until the transaction ends, and the learner read serves nothing for a
+  date whose lock is held (section 9, F1).
+- `TRUNCATE` is refused by a statement trigger on `daily_assignments`, `word_revisions` and
+  `reviews` (test fixtures switch that trigger off explicitly, as owner, inside their own
+  transaction).
 
 `vocab.ensure_assignments(p_from date, p_days int)` (1–62 days): takes a transaction-level advisory
 lock, then for each unassigned date ≥ today picks the active word **whose nearest use — before or
@@ -172,7 +181,11 @@ rights. It never back-fills, never touches a locked day that has a word, never i
 
 Learner read: `vocab.daily_word(p_locale)` is the **only** object in the schema the student API
 role can use (EXECUTE on that function, USAGE on the schema, no table privilege). It has no time
-parameter. The only clock seam is `vocab.daily_word_at(p_locale, p_now)`, executable by nobody.
+parameter. The read clock seam is `vocab.daily_word_at(p_locale, p_now)`, executable by nobody. The two
+schedule guards read `vocab._clock()` (executable by nobody): the real clock, except that a session
+whose database **login** is the owner (`session_user = 'postgres'`) may pin it with the setting
+`vocab.test_clock` — tests only; the API, staff and worker logins always get the real clock
+(tested with the worker login).
 
 ## 4. Recorded choices
 
@@ -259,8 +272,8 @@ One in-app event per Haiti date, written to the future `notify` outbox by the wo
 - New routes are absent from the committed OpenAPI file and the app's generated types until the
   director flips `INCLUDE_IN_SCHEMA` (ruling R-01).
 - With the flag off, a non-GET request to `/v1/daily-word` answers 405, not 404.
-- Midnight: closed by the 10-minute freeze plus the COMMIT-time check. What remains is the few
-  microseconds between that check and the commit becoming visible.
+- Midnight: closed by the 10-minute freeze, the COMMIT-time check and the per-day lock (section 9).
+  What remains is an availability risk, not a changed word: see section 9, "Residual risk".
 - The staff routes are not behind `EDU_DAILY_WORD_ENABLED`: staff can prepare words before the
   learner feature is switched on.
 - Staff accounts are referenced by `created_by` / `approved_by` / `reviewer_id` / `assigned_by` with
@@ -292,7 +305,8 @@ One in-app event per Haiti date, written to the future `notify` outbox by the wo
 Also: `tests/unit/test_vocab_etag.py` (entity tag, `If-None-Match`, flag default, R-01 contract
 test); `test_vocab_staff.py` (role matrix, author ≠ reviewer over HTTP, full HTTP journey ending in
 the learner's `GET /v1/daily-word`, audit content, error mapping); schedule freeze boundary in `164`;
-minimum gap in `162`; worker login in `test_vocab_schedule.py`.
+minimum gap in `162`; worker login in `test_vocab_schedule.py`; guards through the triggers with the
+owner-only clock in `165_vocab_guard_clock.sql` (section 9).
 
 ```sh
 export UV_CACHE_DIR=/Volumes/EdupreneursDev/caches/uv npm_config_cache=/Volumes/EdupreneursDev/caches/npm
@@ -300,3 +314,37 @@ make lint && make typecheck && uv run python scripts/export_openapi.py --check
 make db-reset && make test-db && uv run pytest -q && make test-db
 uv run python scripts/seed_vocab_demo.py      # optional: DEMO words on the local stack
 ```
+
+## 9. Open review findings (independent review of a3c48a3)
+
+Fixed in `20261124040400_vocab_review_fixes.sql` (commit 0d607ec):
+
+| Finding | Status | What was done |
+|---|---|---|
+| F1 (medium) — a raw staff-login session runs `SET CONSTRAINTS ALL IMMEDIATE` after a schedule change, holds the transaction over Haiti midnight and commits | **Fixed (integrity)** | The guard refuses a change of an opened/frozen day first (no lock taken), then takes `pg_advisory_xact_lock(vocab._day_key(date))`, then decides again on a fresh clock. `vocab.daily_word_at` takes the shared side with `pg_try_advisory_xact_lock_shared` and returns no row if it cannot (`404 daily_word_not_available`, `no-store`; a try-lock instead of a wait with `lock_timeout`, so a learner request never queues). A reader of an opened day therefore cannot receive one word and, after that commit, another. |
+| F2 (low) — owner `TRUNCATE` removes opened days | **Fixed** | `BEFORE TRUNCATE` statement triggers refuse on the three tables. An owner can still disable a trigger: that is an explicit act, not an accident. |
+| F3 (tests) | **Fixed** | `165_vocab_guard_clock.sql`: freeze boundary through the trigger (10 min 1 s / 10 min / 1 s / midnight), commit after midnight refused with 'The day opened before…', lock held after `SET CONSTRAINTS`. `test_vocab_schedule.py`: the same with a real `COMMIT` in a second session (`test_plain_commit_after_midnight_is_refused`), the F1 sequence (`test_change_held_open_across_midnight_…`: nothing served while open, the day before unaffected), a refused attempt on today does not hide today's word, TRUNCATE refused, the clock seam ignored for the worker login. `test_rights_withdrawn_hides_word_or_recording`: rights restored → the same word and entity tag return. |
+
+**Residual risk (open, owner decision).** F1 is closed for integrity only. A raw database session
+(not reachable over HTTP) that keeps an accepted change of day D open past D's midnight, or that
+takes the same advisory key by hand (advisory locks are callable by every database login,
+including the API's), makes day D answer "no word today" until that session ends; no learner ever
+sees a *different* word. Nothing bounds the lifetime of such a session: no login role has
+`transaction_timeout` / `idle_in_transaction_session_timeout` (role provisioning is outside this
+lane). Recommended: `ALTER ROLE edu_staff_login / edu_worker_login / edu_api_login SET
+idle_in_transaction_session_timeout = '30s'` and a `transaction_timeout` of a few minutes.
+Also: the guarantee assumes the learner read runs READ COMMITTED (the API's default); and the
+headers of migrations `…040100`/`…040200` still say "by anyone" / "a person in a SQL console" —
+they are merged elsewhere and were not edited; this section is the accurate statement.
+
+Notes from the review, as owner decisions:
+
+- **N1 — rights withdrawn on an opened day.** Blocking the source of today's word makes today
+  answer 404 (or fall back to French / lose its recording if only the Creole revision / only the
+  recording is affected); clearing it again brings the *same* word back; a different word is never
+  served. The rights gate wins over "the day never changes". Decide whether that is wanted.
+- **N2 — a day that opened with no word can receive one later that day.** Learners who got 404 in
+  the morning get a word later; nothing already seen is replaced. Decide whether an empty day
+  should rather stay empty.
+- **N3 — instant between the commit-time check and commit visibility.** Removed by the F1 lock: a
+  pending change of a day keeps that day unreadable until the transaction has ended.

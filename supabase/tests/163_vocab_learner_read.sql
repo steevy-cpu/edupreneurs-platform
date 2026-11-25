@@ -11,7 +11,14 @@ DO $$ BEGIN
         * CASE WHEN vocab.haiti_day_start(vocab.haiti_date(clock_timestamp()) + 1) - clock_timestamp() < interval '5 seconds' THEN 1 ELSE 0 END);
 END $$;
 
+-- (TRUNCATE is refused by a trigger; switched off for this fixture only, inside the rolled-back transaction.)
+ALTER TABLE vocab.daily_assignments DISABLE TRIGGER no_truncate;
+ALTER TABLE vocab.word_revisions DISABLE TRIGGER no_truncate;
+ALTER TABLE vocab.reviews DISABLE TRIGGER no_truncate;
 TRUNCATE vocab.daily_assignments, vocab.audio_assets, vocab.reviews, vocab.word_revisions, vocab.words, vocab.sources;
+ALTER TABLE vocab.daily_assignments ENABLE TRIGGER no_truncate;
+ALTER TABLE vocab.word_revisions ENABLE TRIGGER no_truncate;
+ALTER TABLE vocab.reviews ENABLE TRIGGER no_truncate;
 TRUNCATE app.practice_attempts, app.sync_receipts, app.account_change_feed,
          app.lesson_progress, app.account_sync_state;
 SET CONSTRAINTS ALL IMMEDIATE;

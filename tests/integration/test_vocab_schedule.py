@@ -55,7 +55,7 @@ async def test_concurrent_daily_publication_yields_one_schedule(
     reference = await schedule_rows(admin)
     assert len(reference) == serial_created
     assert {day for day, _, _ in reference} == {start + timedelta(days=n) for n in range(DAYS)}
-    await admin.execute("TRUNCATE vocab.daily_assignments")
+    await vocab_fixtures.truncate_vocab(admin, "vocab.daily_assignments")
 
     # Same starting point, eight connections released at the same instant.
     barrier = asyncio.Event()
@@ -177,12 +177,18 @@ async def test_worker_login_can_run_the_fill_and_nothing_else(
     worker = await asyncpg.connect(worker_url(local_env), timeout=10)
     try:
         assert await worker.fetchval("SELECT session_user::text") == "edu_worker_login"
+        # The guards' test clock (review F3) is the owner login's only: pinned a
+        # year ahead here, it would make the fill below fail ("A past day ...").
+        await worker.execute(
+            "SELECT set_config('vocab.test_clock', (now() + interval '1 year')::text, false)"
+        )
         created = await worker.fetch("SELECT * FROM vocab.ensure_assignments($1, 3)", today)
         assert len(created) == 6
         for statement in (
             "SELECT count(*) FROM vocab.daily_assignments",
             "SELECT * FROM vocab.daily_word('fr')",
             "SELECT * FROM vocab.daily_word_at('fr', now())",
+            "SELECT vocab._clock()",
             "SELECT vocab.create_word('from-the-worker')",
             "SELECT vocab.schedule_word(current_date + 5, gen_random_uuid())",
             "SELECT * FROM vocab.staff_ensure_assignments(current_date, 3)",
@@ -317,3 +323,101 @@ async def test_vocab_schema_is_not_reachable_through_the_supabase_data_api(
         await admin.fetchval("SELECT count(*) FROM vocab.words WHERE slug = 'from-the-data-api'")
         == 0
     )
+
+
+# ------------------------------------- review findings F1 / F3 (two sessions, real COMMIT)
+_CHANGE = (
+    "UPDATE vocab.daily_assignments SET word_id = $2, word_revision_id = $3 "
+    "WHERE haiti_date = $1 AND locale = 'fr'"
+)
+_PIN = "SELECT set_config('vocab.test_clock', $1::timestamptz::text, false)"
+_READ = "SELECT term FROM vocab.daily_word_at('fr', $1)"
+
+
+async def test_plain_commit_after_midnight_is_refused(
+    admin: asyncpg.Pool, local_env: dict[str, str]
+) -> None:
+    """A change accepted at 23:30 whose transaction COMMITs after the day opened
+    is refused by the commit-time check; the day keeps its word. The owner-only
+    clock seam moves the guards' clock of the writing session."""
+    old = await approved_word(admin, term="ANCIEN", locales=("fr",))
+    new = await approved_word(admin, term="NOUVEAU", locales=("fr",))
+    day = await haiti_today(admin) + timedelta(days=4)
+    await assign(admin, old["word_id"], day)
+    opens = await admin.fetchval("SELECT vocab.haiti_day_start($1)", day)
+
+    writer = await asyncpg.connect(local_env["LOCAL_ADMIN_DATABASE_URL"], timeout=10)
+    try:
+        await writer.execute(_PIN, opens - timedelta(minutes=30))
+        transaction = writer.transaction()
+        await transaction.start()
+        await writer.execute(_CHANGE, day, new["word_id"], new["revisions"]["fr"])
+        await writer.execute(_PIN, opens + timedelta(seconds=1))
+        with pytest.raises(asyncpg.RaiseError, match="The day opened before this schedule change"):
+            await transaction.commit()
+    finally:
+        await writer.close()
+    assert await admin.fetchval(_READ, opens + timedelta(seconds=1)) == "ANCIEN-fr"
+
+
+async def test_change_held_open_across_midnight_is_never_seen_as_a_changed_word(
+    admin: asyncpg.Pool, local_env: dict[str, str]
+) -> None:
+    """Review F1. A session changes a FUTURE day at 23:30, fires the commit-time
+    check early (SET CONSTRAINTS ALL IMMEDIATE), keeps its transaction open until
+    the day has opened and commits. The commit goes through, but no reader of the
+    opened day can have received the old word first: while that transaction is
+    open the day serves nothing (the day's advisory lock)."""
+    old = await approved_word(admin, term="ANCIEN", locales=("fr",))
+    new = await approved_word(admin, term="NOUVEAU", locales=("fr",))
+    day = await haiti_today(admin) + timedelta(days=4)
+    await assign(admin, old["word_id"], day)
+    eve = await approved_word(admin, term="VEILLE", locales=("fr",))
+    await assign(admin, eve["word_id"], day - timedelta(days=1))
+    opens = await admin.fetchval("SELECT vocab.haiti_day_start($1)", day)
+    opened = opens + timedelta(seconds=1)
+
+    writer = await asyncpg.connect(local_env["LOCAL_ADMIN_DATABASE_URL"], timeout=10)
+    try:
+        await writer.execute(_PIN, opens - timedelta(minutes=30))
+        transaction = writer.transaction()
+        await transaction.start()
+        await writer.execute(_CHANGE, day, new["word_id"], new["revisions"]["fr"])
+        await writer.execute("SET CONSTRAINTS ALL IMMEDIATE")
+        # ... the day opens while the transaction is still open ...
+        await writer.execute(_PIN, opened)
+        assert await admin.fetchval(_READ, opened) is None, "nothing is served meanwhile"
+        # Only that day is held: the day before is served as usual.
+        assert await admin.fetchval(_READ, opened - timedelta(days=1)) == "VEILLE-fr"
+        await transaction.commit()
+    finally:
+        await writer.close()
+    assert await admin.fetchval(_READ, opened) == "NOUVEAU-fr"
+
+
+async def test_refused_attempt_on_an_opened_day_does_not_hide_its_word(
+    admin: asyncpg.Pool, local_env: dict[str, str]
+) -> None:
+    """The day's lock is taken only by an ACCEPTED change: a session that tries to
+    change today (refused) and stays open does not make today answer "no word"."""
+    word = await approved_word(admin, term="STABLE", locales=("fr",))
+    today = await assign(admin, word["word_id"])
+    now = await admin.fetchval("SELECT clock_timestamp()")
+    writer = await asyncpg.connect(local_env["LOCAL_ADMIN_DATABASE_URL"], timeout=10)
+    try:
+        transaction = writer.transaction()
+        await transaction.start()
+        await writer.execute("SAVEPOINT attempt")
+        with pytest.raises(asyncpg.RaiseError, match="already opened"):
+            await writer.execute("DELETE FROM vocab.daily_assignments WHERE haiti_date = $1", today)
+        await writer.execute("ROLLBACK TO SAVEPOINT attempt")
+        assert await admin.fetchval(_READ, now) == "STABLE-fr"
+        await transaction.rollback()
+    finally:
+        await writer.close()
+
+
+async def test_truncate_is_refused_even_for_the_owner(admin: asyncpg.Pool) -> None:
+    for table in ("daily_assignments", "word_revisions", "reviews"):
+        with pytest.raises(asyncpg.RaiseError, match="cannot be truncated"):
+            await admin.execute(f"TRUNCATE vocab.{table} CASCADE")

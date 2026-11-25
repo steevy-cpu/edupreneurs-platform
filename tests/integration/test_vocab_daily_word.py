@@ -417,6 +417,13 @@ async def test_rights_withdrawn_hides_word_or_recording(
     assert_error_shape(gone, 404, "daily_word_not_available")
     assert "DROITS" not in gone.text
 
+    # Rights restored: the SAME word (and tag) returns today; nothing else was substituted.
+    await set_rights(admin, word["source_id"], "cleared")
+    back = await vocab_client.get(URL, params={"locale": "fr"}, headers=auth)
+    assert back.status_code == 200
+    assert back.content == without_audio.content
+    assert back.headers["etag"] == without_audio.headers["etag"]
+
 
 # ------------------------------------------------------------------ size budget
 async def test_response_size_budget(
