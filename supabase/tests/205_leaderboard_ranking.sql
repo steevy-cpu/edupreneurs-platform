@@ -175,6 +175,10 @@ SELECT is(pg_temp.me(:S, 'all', 'cohort') || '|' || pg_temp.me(:S, 'all', 'gold'
 SELECT is(pg_temp.me(:F, 'all', 'cohort') || '|' || pg_temp.me(:F, 'all', 'gold'), 'null|5', 'an opted-out learner sees own Gold only');
 SELECT is(pg_temp.me(:ADMIN, 'all', 'cohort'), 'null', 'an admin has no standing');
 
+-- The review fixes (210_) test the minimum cohort size K; from here on this file
+-- exercises ranking on cohorts of 1 to 6, so K is lowered to 1 (rolled back at the end).
+UPDATE leaderboard.config SET min_cohort_size = 1;
+
 -- ---- cross-cohort isolation -----------------------------------------------------------
 SELECT is((leaderboard.refresh_snapshot(:K2, 'all') ->> 'members')::int, 1, 'the other cohort has its own snapshot');
 SELECT is(pg_temp.standing(:G, 'all'), '1/1/5', 'G is ranked only inside its own cohort (size 1)');
@@ -240,7 +244,7 @@ SELECT lives_ok(format('SELECT leaderboard.refresh_snapshot(%L, %L)', :K1, 'all'
 SELECT is(pg_temp.standing(:F, 'all') || '|' || pg_temp.standing(:E, 'all'), '5/6/5|1/6/20', 'F is ranked 5th of 6');
 SELECT is(leaderboard.withdraw(:K1, :E), true, 'E (the leader) opts out');
 SELECT is(pg_temp.me(:E, 'all', 'cohort') || '|' || pg_temp.me(:E, 'all', 'gold'), 'null|20', 'E: no cohort at once, own Gold still shown');
-SELECT is(pg_temp.standing(:A, 'all') || '|' || pg_temp.standing(:F, 'all'), '1/5/10|4/5/5', 'the others move up at once, without a refresh');
+SELECT is(pg_temp.standing(:A, 'all') || '|' || pg_temp.standing(:F, 'all'), '2/6/10|5/6/5', 'the others keep rank and size of the snapshot until the next refresh (no live re-rank)');
 SELECT is((SELECT count(*)::int FROM leaderboard.snapshots WHERE learner_id = :E), 0, 'E''s snapshot rows are gone from every period');
 SELECT is((SELECT (opted_out_at IS NOT NULL)::text FROM leaderboard.memberships WHERE learner_id = :E), 'true', 'the consent row records the opt-out instant');
 SELECT is(leaderboard.withdraw(:K1, :E), false, 'opting out twice changes nothing');
@@ -248,7 +252,7 @@ SELECT is(leaderboard.withdraw(:K1, :E), false, 'opting out twice changes nothin
 -- ---- a staff grant is immediate ----------------------------------------------------------------
 INSERT INTO app.staff_roles (user_id, role) VALUES (:F, 'reviewer');
 SELECT is(pg_temp.me(:F, 'all', 'cohort'), 'null', 'a member who becomes staff loses the standing at once');
-SELECT is(pg_temp.standing(:A, 'all'), '1/4/10', 'and no longer counts for the others');
+SELECT is(pg_temp.standing(:A, 'all'), '2/6/10', 'and the others'' standing stays as of the snapshot until the next refresh');
 
 -- ---- erasure is immediate -------------------------------------------------------------------------
 SELECT is(leaderboard.erase_learner(:C)::text, '{"schema": "leaderboard", "deleted": {"snapshots": 3, "memberships": 1}}',
@@ -256,7 +260,7 @@ SELECT is(leaderboard.erase_learner(:C)::text, '{"schema": "leaderboard", "delet
 SELECT is((SELECT count(*)::int FROM leaderboard.snapshots WHERE learner_id = :C) + (SELECT count(*)::int FROM leaderboard.memberships WHERE learner_id = :C), 0,
     'nothing of C is left in the schema');
 SELECT is(pg_temp.me(:C, 'all', 'cohort'), 'null', 'C has no standing');
-SELECT is(pg_temp.standing(:A, 'all') || '|' || pg_temp.standing(:D, 'all'), '1/3/10|3/3/0', 'the cohort shrinks at once, without a refresh');
+SELECT is(pg_temp.standing(:A, 'all') || '|' || pg_temp.standing(:D, 'all'), '2/6/10|6/6/0', 'the others'' rank and size stay as of the snapshot (erasure is not observable before a refresh)');
 SELECT is(leaderboard.erase_learner(:C)::text, '{"schema": "leaderboard", "deleted": {"snapshots": 0, "memberships": 0}}', 'erasing again is a no-op');
 SELECT throws_ok('SELECT leaderboard.erase_learner(NULL)', '22023', NULL, 'a NULL learner id is refused');
 SELECT lives_ok(format('SELECT rewards.erase_learner(%L)', :C), 'the rewards hook can run after ours (no leaderboard row blocks it)');

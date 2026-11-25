@@ -22,13 +22,17 @@ from tests.leaderboard_fixtures import (  # noqa: F401  (fixtures are used by na
     lb_off,
     leaderboard_app,
     leaderboard_off_app,
+    low_floor,
     make_cohort,
     me,
     push,
     refresh,
 )
 
-pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("clean_leaderboard")]
+# Ranking tests run with the minimum cohort size lowered to 1 (``low_floor``): the two synthetic
+# students cannot form a cohort of the production floor. The floor itself is tested in
+# test_leaderboard_review_fixes.py and in pgTAP 210.
+pytestmark = [pytest.mark.integration, pytest.mark.usefixtures("clean_leaderboard", "low_floor")]
 
 Q1, Q1_OK = SEED_QUESTIONS_FR[0]
 Q2, Q2_OK = SEED_QUESTIONS_FR[1]
@@ -143,11 +147,14 @@ async def test_an_unknown_period_is_a_422_in_the_standard_shape(
 
 # ------------------------------------------------------------------ own standing
 async def test_a_learner_with_no_activity_and_no_cohort(
-    lb: httpx.AsyncClient, tokens: dict[str, str], admin: asyncpg.Pool
+    lb: httpx.AsyncClient, tokens: dict[str, str]
 ) -> None:
-    today: dt.date = await admin.fetchval("SELECT rewards.haiti_day(now())")
-    monday = today - dt.timedelta(days=today.weekday())
-    assert await me(lb, tokens["student_a"]) == {
+    # The period is read back from the response, never recomputed from the clock here: a run
+    # that straddles Sunday->Monday midnight in Haiti must not flake.
+    week = await me(lb, tokens["student_a"])
+    monday = dt.date.fromisoformat(week["period"])
+    assert monday.isoweekday() == 1
+    assert week == {
         "period": monday.isoformat(),
         "kind": "week",
         "starts_on": monday.isoformat(),
@@ -168,6 +175,13 @@ async def test_a_learner_with_no_activity_and_no_cohort(
     last_week = (monday - dt.timedelta(days=7)).isoformat()
     past = await me(lb, tokens["student_a"], last_week)
     assert (past["period"], past["closed"], past["gold"]) == (last_week, True, 0)
+    # A closed week named explicitly is closed whatever the clock says.
+    explicit = await me(lb, tokens["student_a"], "2026-03-02")
+    assert (explicit["period"], explicit["ends_on"], explicit["closed"]) == (
+        "2026-03-02",
+        "2026-03-08",
+        True,
+    )
 
 
 async def test_end_to_end_push_then_refresh_then_my_standing(
@@ -286,8 +300,10 @@ async def test_opt_out_and_erasure_take_effect_on_the_next_read(
     assert await admin.fetchval("SELECT leaderboard.withdraw($1, $2)", cohort, STUDENT_A) is True
     gone = await me(lb, a)
     assert (gone["gold"], gone["cohort"]) == (10, None)
+    # LB-1: the others' rank and size stay as of the snapshot until the next refresh, so A's
+    # decision is not observable by B.
     left = (await me(lb, b))["cohort"]
-    assert (left["rank"], left["size"]) == (1, 1)
+    assert (left["rank"], left["size"]) == (2, 2)
 
     # B is erased from the leaderboard: no refresh in between.
     erased = await admin.fetchval("SELECT leaderboard.erase_learner($1)::text", STUDENT_B)
@@ -313,8 +329,8 @@ async def test_a_staff_account_is_never_ranked(
         )
         hidden = await me(lb, b)
         assert (hidden["gold"], hidden["cohort"]) == (10, None)
-        alone = (await me(lb, a))["cohort"]
-        assert (alone["rank"], alone["size"]) == (1, 1), "immediately, before any refresh"
+        still = (await me(lb, a))["cohort"]
+        assert (still["rank"], still["size"]) == (2, 2), "the snapshot answers until a refresh"
         await refresh(admin, cohort, "week")
         assert (
             await admin.fetchval(

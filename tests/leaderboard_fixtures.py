@@ -26,9 +26,29 @@ ME = "/v1/leaderboard/me"
 
 @pytest.fixture(scope="session")
 async def leaderboard_app(local_env: dict[str, str]) -> AsyncIterator[FastAPI]:
-    """Rewards ON (so pushes earn Gold) and the private-standing flag ON."""
+    """Rewards ON (so pushes earn Gold), the private-standing flag ON and the cohort flag ON."""
     application = create_app(
-        build_settings(local_env, rewards_enabled=True, leaderboard_enabled=True)
+        build_settings(
+            local_env,
+            rewards_enabled=True,
+            leaderboard_enabled=True,
+            leaderboard_cohorts_enabled=True,
+        )
+    )
+    yield application
+    await application.state.db.dispose()
+
+
+@pytest.fixture(scope="session")
+async def leaderboard_only_app(local_env: dict[str, str]) -> AsyncIterator[FastAPI]:
+    """Rewards ON, leaderboard ON, cohorts OFF (own Gold only, no cohort block)."""
+    application = create_app(
+        build_settings(
+            local_env,
+            rewards_enabled=True,
+            leaderboard_enabled=True,
+            leaderboard_cohorts_enabled=False,
+        )
     )
     yield application
     await application.state.db.dispose()
@@ -52,6 +72,13 @@ async def lb(leaderboard_app: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
 
 
 @pytest.fixture
+async def lb_only(leaderboard_only_app: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
+    transport = httpx.ASGITransport(app=leaderboard_only_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://api.test") as http:
+        yield http
+
+
+@pytest.fixture
 async def lb_off(leaderboard_off_app: FastAPI) -> AsyncIterator[httpx.AsyncClient]:
     transport = httpx.ASGITransport(app=leaderboard_off_app)
     async with httpx.AsyncClient(transport=transport, base_url="http://api.test") as http:
@@ -62,7 +89,8 @@ async def _wipe(admin: asyncpg.Pool) -> None:
     await admin.execute(
         "DELETE FROM leaderboard.snapshots; DELETE FROM leaderboard.snapshot_runs; "
         "DELETE FROM leaderboard.memberships; DELETE FROM leaderboard.cohorts; "
-        "DELETE FROM leaderboard.periods"
+        "DELETE FROM leaderboard.periods; "
+        "UPDATE leaderboard.config SET min_cohort_size = 5"
     )
     for learner in (STUDENT_A, STUDENT_B):
         await admin.fetchval("SELECT rewards.erase_learner($1)", learner)
@@ -74,6 +102,17 @@ async def clean_leaderboard(admin: asyncpg.Pool) -> AsyncIterator[None]:
     await _wipe(admin)
     yield
     await _wipe(admin)
+
+
+@pytest.fixture
+async def low_floor(admin: asyncpg.Pool, clean_leaderboard: None) -> None:
+    """Minimum cohort size 1 for tests that exercise ranking on the two synthetic students.
+    (The cleanup of ``clean_leaderboard`` restores the default of 5.)"""
+    await set_min_cohort(admin, 1)
+
+
+async def set_min_cohort(admin: asyncpg.Pool, size: int) -> None:
+    await admin.execute("UPDATE leaderboard.config SET min_cohort_size = $1", size)
 
 
 async def make_cohort(admin: asyncpg.Pool, kind: str = "class") -> uuid.UUID:
