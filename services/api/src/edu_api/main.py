@@ -20,6 +20,8 @@ from edu_api.db.session import Database, build_engine
 from edu_api.errors import install_error_handlers
 from edu_api.middleware import BodyLimitMiddleware, RequestIdMiddleware
 from edu_api.routers import catalog, health, me, staff, sync
+from edu_api.routers.daily_word import router as daily_word_router
+from edu_api.routers.staff_vocab import router as staff_vocab_router
 from edu_api.staff.db import build_staff_database
 
 
@@ -91,4 +93,6 @@ def create_app(
     app.include_router(catalog.router)
     app.include_router(sync.router)
     app.include_router(staff.router)
+    app.include_router(daily_word_router)  # 404 unless EDU_DAILY_WORD_ENABLED (ruling R-01)
+    app.include_router(staff_vocab_router)
     return app

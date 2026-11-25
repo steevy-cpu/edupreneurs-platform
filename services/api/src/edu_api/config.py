@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     pull_default_limit: int = Field(default=100, ge=1)
     pull_max_limit: int = Field(default=200, ge=1)
 
+    # --- Word of the Day (lane VOCAB, overnight 2026-11-24) ----------------------
+    #: ``EDU_DAILY_WORD_ENABLED``. Off by default: ``GET /v1/daily-word`` then
+    #: answers the standard 404 ``not_found`` to everyone, as on ``main``.
+    daily_word_enabled: bool = False
+
     # --- Staff boundary (overnight 2026-11-24, staff lane) -------------------
     #: Optional. Must log in as ``edu_staff_login`` (member of ``edu_staff`` only).
     #: When unset the staff side is off: every ``/v1/staff`` route answers 503.
