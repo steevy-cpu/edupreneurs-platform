@@ -76,7 +76,10 @@ BEGIN
         FROM pg_constraint k
         JOIN pg_class c ON c.oid = k.conrelid
         JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE k.contype = 'f' AND n.nspname IN ('app', 'account', 'ops', 'staff', 'zz_lane')
+        WHERE k.contype = 'f' AND n.nspname !~ '^pg_' AND n.nspname NOT IN (
+              'information_schema', 'auth', 'storage', 'realtime', '_realtime', 'vault', 'extensions',
+              'graphql', 'graphql_public', 'pgbouncer', 'net', 'cron', 'supabase_functions',
+              'supabase_migrations', 'pgsodium', 'pgsodium_masks', '_analytics', '_supavisor', 'pgmq', 'pgtle')
     LOOP
         v_n := v_n + 1;
         EXECUTE format('SELECT EXISTS (SELECT 1 FROM %s c WHERE %s AND NOT EXISTS (SELECT 1 FROM %s p WHERE %s))',
@@ -88,8 +91,8 @@ BEGIN
 END;
 $fn$;
 
--- Does the id appear ANYWHERE in the application schemas — in any uuid, text or
--- JSON column? (Deeper than the orchestrator's own postcondition, which checks
+-- Does the id appear ANYWHERE in ANY application schema present in this database
+-- (every lane's, not a fixed list) — in any uuid, text or JSON column? (Deeper than the orchestrator's own postcondition, which checks
 -- uuid columns.) Returns the list of schema.table.column places.
 CREATE FUNCTION pg_temp.anywhere(p_id uuid) RETURNS text
 LANGUAGE plpgsql AS $fn$
@@ -100,7 +103,10 @@ BEGIN
         FROM pg_attribute a
         JOIN pg_class c ON c.oid = a.attrelid
         JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE n.nspname IN ('app', 'account', 'ops', 'staff', 'zz_lane', 'public') AND c.relkind = 'r'
+        WHERE n.nspname !~ '^pg_' AND n.nspname NOT IN (
+              'information_schema', 'auth', 'storage', 'realtime', '_realtime', 'vault', 'extensions',
+              'graphql', 'graphql_public', 'pgbouncer', 'net', 'cron', 'supabase_functions',
+              'supabase_migrations', 'pgsodium', 'pgsodium_masks', '_analytics', '_supavisor', 'pgmq', 'pgtle') AND c.relkind = 'r'
           AND a.attnum > 0 AND NOT a.attisdropped
           AND a.atttypid IN ('uuid'::regtype, 'text'::regtype, 'jsonb'::regtype, 'json'::regtype, 'uuid[]'::regtype)
     LOOP
@@ -310,7 +316,35 @@ SELECT is((SELECT count(*)::int FROM app.sync_receipts WHERE learner_id = :A::uu
 SELECT is((SELECT count(*)::int FROM app.learner_profiles WHERE user_id = :A::uuid), 1, 'profile intact');
 DROP TRIGGER zz_boom ON app.sync_receipts;
 
-CREATE TEMP TABLE audit_before AS SELECT count(*)::int AS n FROM app.audit_events;
+-- Two more stand-in modules, so that nothing below depends on WHICH other
+-- lanes' hooks exist in this database: one hook writes its own audit event
+-- naming the learner, one does nothing, and one registered schema has no hook.
+CREATE SCHEMA zz_lane_b;
+CREATE FUNCTION zz_lane_b.erase_learner(p_user_id uuid) RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $fn$
+BEGIN
+    PERFORM ops.audit_write('zz_lane_b.learner_rows_erased', 'learner', p_user_id, 'allowed', '{}'::jsonb);
+    RETURN jsonb_build_object('rows', 0);
+END;
+$fn$;
+CREATE SCHEMA zz_lane_c;
+CREATE FUNCTION zz_lane_c.erase_learner(p_user_id uuid) RETURNS jsonb
+LANGUAGE sql SET search_path = pg_catalog, pg_temp AS $fn$ SELECT '{}'::jsonb $fn$;
+REVOKE ALL ON FUNCTION zz_lane_b.erase_learner(uuid), zz_lane_c.erase_learner(uuid) FROM PUBLIC;
+INSERT INTO account.erasure_hooks (schema_name, position, note) VALUES
+    ('zz_lane_b', 6, 'test module'), ('zz_lane_c', 7, 'test module'), ('zz_lane_none', 8, 'registered, no hook');
+
+-- What "before" looks like, whatever other modules are installed.
+CREATE TEMP TABLE audit_ids_before AS SELECT id FROM app.audit_events;
+CREATE TEMP TABLE audit_before AS
+    SELECT (SELECT count(*)::int FROM app.audit_events) AS n,
+           (SELECT count(*)::int FROM app.audit_events
+            WHERE actor_id = :A::uuid OR target_id = :A::uuid
+               OR position('a0000000-0000-4000-8000-000000000001' IN details::text) > 0) AS naming_a,
+           (SELECT count(*)::int FROM account.erasure_hooks h
+            WHERE to_regprocedure(format('%I.erase_learner(uuid)', h.schema_name)) IS NOT NULL) AS hooks_present;
+SELECT is((SELECT naming_a FROM audit_before), 8, 'before: 8 audit events name the learner (5 own actions, 3 fixtures)');
+SELECT cmp_ok((SELECT hooks_present FROM audit_before), '>=', 3, 'at least the three stand-in hooks are registered and present');
 SELECT is(pg_temp.fk_orphans(), '', 'before: no foreign key in the application schemas has an orphan');
 
 -- ---- THE ERASURE ----------------------------------------------------------------------
@@ -320,18 +354,31 @@ SELECT doesnt_match((SELECT raw FROM report), '^ERROR', 'erase_learner succeeds 
 SELECT is(current_setting('session_replication_role'), 'origin', 'after it returns, still inside the caller''s transaction, triggers are ON');
 SELECT throws_ok($$DELETE FROM app.practice_attempts$$, 'P0001', 'Append-only records cannot be updated or deleted', 'and a DELETE on attempts in this same transaction is refused');
 SELECT is(pg_temp.fk_orphans(), '', 'after: no foreign key in the application schemas has an orphan');
-SELECT is((SELECT (raw::jsonb) -> 'counts' FROM report),
+SELECT is((SELECT (raw::jsonb) -> 'counts' FROM report) - 'app.audit_events_deidentified',
     '{"account.onboarding_state":1,"account.export_requests":1,"account.deletion_requests_cancelled":1,
       "account.deletion_requests_processed":1,"app.account_change_feed":3,"app.sync_receipts":4,
-      "app.practice_attempts":2,"app.audit_events_deidentified":8,"app.lesson_progress":1,
+      "app.practice_attempts":2,"app.lesson_progress":1,
       "app.account_sync_state":1,"app.learner_profiles":1}'::jsonb,
     'the report counts every row that was removed');
+-- Audit events added by this call = the erasure record + whatever the hooks wrote.
+CREATE TEMP TABLE audit_added AS
+    SELECT e.* FROM app.audit_events e WHERE e.id NOT IN (SELECT id FROM audit_ids_before);
+SELECT cmp_ok((SELECT ((raw::jsonb) #>> '{counts,app.audit_events_deidentified}')::int FROM report), '>=',
+    (SELECT naming_a + 1 FROM audit_before),
+    'every audit event that named the learner before the call was de-identified, plus the one a hook wrote about them');
+SELECT cmp_ok((SELECT ((raw::jsonb) #>> '{counts,app.audit_events_deidentified}')::int FROM report), '<=',
+    (SELECT naming_a FROM audit_before) + (SELECT count(*)::int FROM audit_added WHERE action <> 'account.learner_erased'),
+    'and nothing beyond those and the events the hooks wrote in this transaction');
+SELECT is((SELECT count(*)::int FROM audit_added WHERE action = 'zz_lane_b.learner_rows_erased' AND target_id IS NULL), 1,
+    'the audit event a hook wrote ABOUT the learner is kept without the id');
+SELECT is((SELECT count(*)::int FROM jsonb_each((SELECT (raw::jsonb) -> 'hooks' FROM report)) h WHERE h.value <> '"absent"'::jsonb),
+    (SELECT hooks_present FROM audit_before), 'every registered hook that exists was called');
 SELECT is((SELECT (raw::jsonb) #> '{hooks,zz_lane}' FROM report), '{"notes":1,"attempt_bonus":2}'::jsonb, 'the registered hook was called and its result is in the report');
-SELECT is((SELECT (raw::jsonb) #>> '{hooks,rewards}' FROM report), 'absent', 'registered schemas without a hook are reported as absent');
+SELECT is((SELECT (raw::jsonb) #>> '{hooks,zz_lane_none}' FROM report), 'absent', 'registered schemas without a hook are reported as absent');
 SELECT is((SELECT position('a0000000-0000-4000-8000-000000000001' IN raw) FROM report), 0, 'the report does not contain the erased id');
 
 -- No row in any application schema references the id — in any uuid, text or JSON column.
-SELECT is(pg_temp.anywhere(:A::uuid), '', 'the erased id appears NOWHERE in app, account, ops, staff, public or the test module');
+SELECT is(pg_temp.anywhere(:A::uuid), '', 'the erased id appears NOWHERE in any application schema of this database');
 SELECT is(account.find_learner_references(:A::uuid), ARRAY[]::text[], 'the orchestrator''s own scanner agrees');
 SELECT is((SELECT count(*)::int FROM app.learner_profiles WHERE user_id = :A::uuid), 0, 'profile gone');
 SELECT is((SELECT count(*)::int FROM app.practice_attempts WHERE learner_id = :A::uuid), 0, 'attempts gone');
@@ -344,9 +391,11 @@ SELECT is((SELECT count(*)::int FROM account.export_requests WHERE user_id = :A:
 SELECT is((SELECT count(*)::int FROM account.deletion_requests WHERE user_id = :A::uuid), 0, 'no deletion request names the learner any more');
 SELECT is((SELECT count(*)::int FROM account.deletion_requests WHERE status = 'processed' AND user_id IS NULL AND processed_at IS NOT NULL), 1,
     'one de-identified "processed" request remains as the record that it was carried out');
-SELECT is((SELECT count(*)::int FROM app.audit_events), (SELECT n + 1 FROM audit_before), 'no audit event was deleted (one was added: the erasure record)');
+SELECT is((SELECT count(*)::int FROM audit_ids_before b WHERE NOT EXISTS (SELECT 1 FROM app.audit_events e WHERE e.id = b.id)), 0, 'no audit event was deleted');
+SELECT is((SELECT count(*)::int FROM app.audit_events), (SELECT n FROM audit_before) + (SELECT count(*)::int FROM audit_added), 'the log only grew: by the erasure record and what the hooks wrote');
+SELECT is((SELECT count(*)::int FROM audit_added WHERE action = 'account.learner_erased'), 1, 'exactly one erasure record was added');
 SELECT is((SELECT count(*)::int FROM app.audit_events WHERE action = 'account.profile_updated' AND actor_id IS NULL AND target_id IS NULL AND details = '{"fields":["display_name"]}'::jsonb), 2, 'the learner''s own audit events are kept without the id');
-SELECT is((SELECT count(*)::int FROM app.audit_events WHERE details = '{"redacted":true}'::jsonb), 1, 'the audit detail that contained the id was redacted');
+SELECT is((SELECT count(*)::int FROM app.audit_events WHERE action = 'support.lookup' AND details = '{"redacted":true}'::jsonb), 1, 'the audit detail that contained the id was redacted');
 SELECT is((SELECT count(*)::int FROM app.audit_events WHERE action = 'support.note_added' AND target_id IS NULL AND actor_id = :EDITOR::uuid), 1,
     'a staff action about the learner keeps its staff actor and loses only the learner id');
 
@@ -404,7 +453,7 @@ SELECT is((SELECT count(*)::int FROM seam_calls WHERE action = 'account.learner_
 SELECT is((SELECT target_id FROM seam_calls WHERE action = 'account.learner_erased'), NULL, 'the erasure audit call has no target id');
 SELECT is((SELECT position('a0000000-0000-4000-8000-000000000001' IN details::text) FROM seam_calls WHERE action = 'account.learner_erased'), 0, 'and its details do not contain the id');
 SELECT is((SELECT details ->> 'practice_attempts' FROM seam_calls WHERE action = 'account.learner_erased'), '2', 'it records how much was erased');
-SELECT is((SELECT details ->> 'hooks_called' FROM seam_calls WHERE action = 'account.learner_erased'), '1', 'and how many module hooks ran');
+SELECT is((SELECT (details ->> 'hooks_called')::int FROM seam_calls WHERE action = 'account.learner_erased'), (SELECT hooks_present FROM audit_before), 'and how many module hooks ran');
 SELECT is((SELECT actor FROM seam_calls WHERE action = 'account.learner_erased'), NULL, 'a worker erasure has no actor');
 
 -- ---- idempotent / unknown ids ----------------------------------------------------------
