@@ -30,6 +30,29 @@ LANGUAGE sql VOLATILE
 SET search_path = pg_catalog, pg_temp
 AS $$ SELECT pg_advisory_xact_lock(54050, hashtext(p_learner_id::text)) $$;
 
+-- Bounded variant for callers that must not wait behind another holder: the
+-- push path (which is holding the learner's SYNC lock) and the worker batch.
+-- Tries for about p_wait_ms, then gives up and returns false. It never raises
+-- and never depends on the connection's lock_timeout.
+CREATE FUNCTION rewards.try_lock_learner(p_learner_id uuid, p_wait_ms integer)
+RETURNS boolean
+LANGUAGE plpgsql VOLATILE
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+    v_deadline timestamptz := clock_timestamp() + make_interval(secs => GREATEST(COALESCE(p_wait_ms, 0), 0) / 1000.0);
+BEGIN
+    LOOP
+        IF pg_try_advisory_xact_lock(54050, hashtext(p_learner_id::text)) THEN
+            RETURN true;
+        END IF;
+        EXIT WHEN clock_timestamp() >= v_deadline;
+        PERFORM pg_sleep(0.01);
+    END LOOP;
+    RETURN false;
+END;
+$$;
+
 -- ----------------------------------------------------------------------------
 -- Rebuilds (derived caches)
 -- ----------------------------------------------------------------------------
@@ -138,7 +161,10 @@ $$;
 -- Internal (EXECUTE granted to nobody). Everything it uses is server-written:
 -- the receipt, the scored attempt, the progress row. Nothing comes from the
 -- device and nothing from the caller except WHICH operation to look at.
-CREATE FUNCTION rewards.apply_operation(p_learner_id uuid, p_op_id uuid)
+-- p_wait_ms NULL = wait for the learner lock (reconcile); a number = wait at
+-- most that long and answer 'deferred' (nothing examined, nothing written).
+CREATE FUNCTION rewards.apply_operation(p_learner_id uuid, p_op_id uuid,
+                                        p_wait_ms integer DEFAULT NULL)
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
@@ -178,7 +204,12 @@ BEGIN
         RETURN v_none;
     END IF;
 
-    PERFORM rewards.lock_learner(p_learner_id);
+    IF p_wait_ms IS NULL THEN
+        PERFORM rewards.lock_learner(p_learner_id);
+    ELSIF NOT rewards.try_lock_learner(p_learner_id, p_wait_ms) THEN
+        RETURN jsonb_build_object('status', 'deferred', 'replayed', false, 'gold', 0,
+                                  'achievements', '[]'::jsonb);
+    END IF;
 
     -- Already examined (a replay, a concurrent retry, or reconcile got here
     -- first): repeat the recorded decision, change nothing.
@@ -343,6 +374,12 @@ $$;
 -- ----------------------------------------------------------------------------
 -- The learner is ALWAYS app.current_actor_id(); there is no learner parameter
 -- and no amount parameter.
+--
+-- The caller is inside the push transaction and HOLDS THE LEARNER'S SYNC LOCK,
+-- so this must never queue behind another holder of the rewards lock
+-- (reconcile, the worker, an erasure — or a hostile session squatting on the
+-- advisory key). It waits at most 200 ms and then answers 'deferred': the
+-- learning operation commits unrewarded and reconciliation examines it later.
 CREATE FUNCTION rewards.award_for_operation(p_op_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
@@ -354,7 +391,7 @@ BEGIN
     IF v_actor IS NULL THEN
         RAISE EXCEPTION 'No verified actor in this transaction' USING ERRCODE = '42501';
     END IF;
-    RETURN rewards.apply_operation(v_actor, p_op_id);
+    RETURN rewards.apply_operation(v_actor, p_op_id, 200);
 END;
 $$;
 
@@ -364,7 +401,8 @@ $$;
 -- This is what makes the ledger self-healing: if the push hook was switched
 -- off, failed, or timed out, the learning operation still committed and is
 -- found here later, oldest first. Bounded per call.
-CREATE FUNCTION rewards.reconcile_learner_internal(p_learner_id uuid, p_limit integer)
+CREATE FUNCTION rewards.reconcile_learner_internal(p_learner_id uuid, p_limit integer,
+                                                   p_wait_ms integer DEFAULT NULL)
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
@@ -393,7 +431,12 @@ BEGIN
                                   'balance_corrected', false);
     END IF;
 
-    PERFORM rewards.lock_learner(p_learner_id);
+    IF p_wait_ms IS NULL THEN
+        PERFORM rewards.lock_learner(p_learner_id);
+    ELSIF NOT rewards.try_lock_learner(p_learner_id, p_wait_ms) THEN
+        RETURN jsonb_build_object('examined', 0, 'gold', 0, 'more', true,
+                                  'balance_corrected', false, 'skipped', true);
+    END IF;
 
     FOR v_op IN
         SELECT r.op_id
@@ -442,20 +485,26 @@ END;
 $$;
 
 -- For the worker (EXECUTE granted to edu_worker in the next migration):
--- reconcile up to p_max_learners learners that have unexamined operations.
--- Learners are taken in id order so that two concurrent batches lock in the
--- same order.
-CREATE FUNCTION rewards.reconcile_batch(p_max_learners integer DEFAULT 50,
+-- reconcile learners that have unexamined operations.
+--
+-- A function cannot commit, so every learner lock taken here is held until the
+-- CALLER commits. The contract for the worker is therefore: ONE CALL PER
+-- TRANSACTION, small batches (default 1 learner, at most 20), commit, repeat
+-- while "learners" > 0. A learner whose lock is busy is SKIPPED, never waited
+-- for, and the push path waits at most 200 ms for a lock, so a slow batch can
+-- delay a learner's Gold but not their sync. Learners are taken in id order.
+CREATE FUNCTION rewards.reconcile_batch(p_max_learners integer DEFAULT 1,
                                         p_max_ops_per_learner integer DEFAULT 200)
 RETURNS jsonb
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
-    v_max integer := LEAST(GREATEST(COALESCE(p_max_learners, 50), 1), 500);
+    v_max integer := LEAST(GREATEST(COALESCE(p_max_learners, 1), 1), 20);
     v_learner record;
     v_result jsonb;
     v_learners integer := 0;
+    v_skipped integer := 0;
     v_examined integer := 0;
     v_gold integer := 0;
 BEGIN
@@ -471,12 +520,17 @@ BEGIN
         ) pending
         ORDER BY pending.learner_id
     LOOP
-        v_result := rewards.reconcile_learner_internal(v_learner.learner_id, p_max_ops_per_learner);
+        v_result := rewards.reconcile_learner_internal(v_learner.learner_id, p_max_ops_per_learner, 0);
+        IF COALESCE((v_result ->> 'skipped')::boolean, false) THEN
+            v_skipped := v_skipped + 1;
+            CONTINUE;
+        END IF;
         v_learners := v_learners + 1;
         v_examined := v_examined + (v_result ->> 'examined')::integer;
         v_gold := v_gold + (v_result ->> 'gold')::integer;
     END LOOP;
-    RETURN jsonb_build_object('learners', v_learners, 'examined', v_examined, 'gold', v_gold);
+    RETURN jsonb_build_object('learners', v_learners, 'examined', v_examined, 'gold', v_gold,
+                              'skipped', v_skipped);
 END;
 $$;
 
@@ -577,7 +631,7 @@ REVOKE ALL ON ALL FUNCTIONS IN SCHEMA rewards FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION rewards.award_for_operation(uuid) TO edu_api;
 GRANT EXECUTE ON FUNCTION rewards.reconcile_learner(integer) TO edu_api;
 GRANT EXECUTE ON FUNCTION rewards.haiti_day(timestamptz) TO edu_api;
--- NOT granted here: apply_operation, reconcile_learner_internal,
+-- NOT granted here: apply_operation, reconcile_learner_internal, try_lock_learner,
 -- rebuild_balance, rebuild_streak, reverse_entry, erase_learner, lock_learner
 -- and the trigger functions (nobody); reconcile_batch (the worker, in the
 -- next migration, which needs the roles of the staff lane's B1).

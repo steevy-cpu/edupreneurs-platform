@@ -6,7 +6,7 @@ from fastapi import APIRouter, Query
 
 from edu_api.deps import AppSettings, CurrentPrincipal, Db
 from edu_api.errors import ApiError, error_responses
-from edu_api.rewards.hook import award_after_accept
+from edu_api.rewards.hook import batch_award_hook
 from edu_api.sync import service
 from edu_api.sync.cursor import MAX_CURSOR_LENGTH
 from edu_api.sync.schemas import PullResponse, PushRequest, PushResponse
@@ -35,7 +35,7 @@ async def push(
         principal.user_id,
         body,
         max_ops=settings.sync_max_ops,
-        on_accepted=award_after_accept if settings.rewards_enabled else None,
+        on_accepted=batch_award_hook() if settings.rewards_enabled else None,
     )
 
 

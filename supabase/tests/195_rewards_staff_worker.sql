@@ -58,11 +58,11 @@ SELECT is((SELECT count(*)::int FROM rewards.ledger), 0, 'nothing awarded yet');
 
 -- ---- the worker --------------------------------------------------------------------
 SELECT is(pg_temp.as_role('edu_worker', NULL, $$SELECT rewards.reconcile_batch(1, 200)::text$$),
-    '{"gold": 35, "examined": 2, "learners": 1}', 'the worker reconciles a bounded number of learners (first by id: A)');
-SELECT is(pg_temp.as_role('edu_worker', NULL, $$SELECT rewards.reconcile_batch(50, 200)::text$$),
-    '{"gold": 5, "examined": 1, "learners": 1}', 'the next run takes the rest (B)');
-SELECT is(pg_temp.as_role('edu_worker', NULL, $$SELECT rewards.reconcile_batch(50, 200)::text$$),
-    '{"gold": 0, "examined": 0, "learners": 0}', 'with nothing pending the worker does nothing');
+    '{"gold": 35, "skipped": 0, "examined": 2, "learners": 1}', 'the worker reconciles a bounded number of learners (first by id: A)');
+SELECT is(pg_temp.as_role('edu_worker', NULL, $$SELECT rewards.reconcile_batch(20, 200)::text$$),
+    '{"gold": 5, "skipped": 0, "examined": 1, "learners": 1}', 'the next run takes the rest (B)');
+SELECT is(pg_temp.as_role('edu_worker', NULL, $$SELECT rewards.reconcile_batch(20, 200)::text$$),
+    '{"gold": 0, "skipped": 0, "examined": 0, "learners": 0}', 'with nothing pending the worker does nothing');
 SELECT is(pg_temp.ledger_state(:A), '3 rows / 35 gold', 'A was healed by the worker');
 SELECT is(pg_temp.ledger_state(:B), '1 rows / 5 gold', 'B was healed by the worker');
 SELECT ok(pg_temp.balance_ok(:A) AND pg_temp.balance_ok(:B), 'sum(ledger) = balance after the worker run');

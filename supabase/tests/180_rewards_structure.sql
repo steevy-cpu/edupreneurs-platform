@@ -103,7 +103,7 @@ SELECT is((SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p
 SELECT is((SELECT count(*)::int FROM pg_proc p JOIN pg_roles r ON true
            WHERE p.pronamespace = 'rewards'::regnamespace
              AND p.proname IN ('apply_operation','reconcile_learner_internal','rebuild_balance','rebuild_streak',
-                               'reverse_entry','erase_learner','lock_learner','is_correction_reason',
+                               'reverse_entry','erase_learner','lock_learner','try_lock_learner','is_correction_reason',
                                'validate_ledger_entry','apply_ledger_entry_to_balance',
                                'prevent_history_change','protect_rule_version')
              AND NOT r.rolsuper AND r.rolname NOT LIKE 'pg\_%' AND r.rolname <> 'postgres'

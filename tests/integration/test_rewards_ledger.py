@@ -550,13 +550,82 @@ async def test_reward_failure_does_not_fail_the_learning_operation(
     # ... the reward is not, and the failure was logged once per operation without payload data.
     assert await ledger_total(admin, STUDENT_A) == (0, 0)
     lines = [r.getMessage() for r in caplog.records if "rewards_award_failed" in r.getMessage()]
-    assert len(lines) == 2
+    assert len(lines) == 1, "after the first failure the rest of the batch skips the reward step"
     assert all("sqlstate=42501" in line and str(STUDENT_A) in line for line in lines)
 
     # Healing: a retry of the same batch (hook working again) awards it ...
     retry = (await push(on, tokens["student_a"], batch)).json()
     assert [(r["status"], r["replayed"]) for r in retry["results"]] == [("accepted", True)] * 2
     assert await assert_balance_matches_ledger(admin, STUDENT_A) == 35
+
+
+async def test_a_busy_rewards_lock_cannot_stall_a_push(
+    on: httpx.AsyncClient,
+    tokens: dict[str, str],
+    admin: asyncpg.Pool,
+    local_env: dict[str, str],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Security review M1. Another session sits on the learner's rewards lock
+    (a slow worker batch, an erasure, or a hostile session squatting on the
+    advisory key). The push holds the learner's SYNC lock, so it must not queue
+    behind that: it waits ~200 ms once, then the whole batch commits unrewarded."""
+    import time
+
+    lesson = await publish_new_lesson(admin, questions=(("mcq", "b"),) * 10)
+    batch = [answer_op(q, "b") for q in lesson["question_ids"]]
+    second_device = [answer_op(Q1, Q1_CORRECT), completed_op(SEED_REV_FR)]
+
+    squatter = await asyncpg.connect(
+        local_env["EDU_DATABASE_URL"].replace("postgresql+asyncpg://", "postgresql://", 1)
+    )
+    transaction = squatter.transaction()
+    await transaction.start()
+    try:
+        # Exactly what a session with only the API login can do (advisory locks are PUBLIC).
+        await squatter.execute(
+            "SELECT pg_advisory_xact_lock(54050, hashtext($1::text))", str(STUDENT_A)
+        )
+        await push(on, tokens["student_b"], [answer_op(Q1, "a")])  # warm the pool
+        with caplog.at_level(logging.WARNING, logger="edu_api.rewards"):
+            started = time.monotonic()
+            first, second = await asyncio.gather(
+                push(on, tokens["student_a"], batch), push(on, tokens["student_a"], second_device)
+            )
+            elapsed = time.monotonic() - started
+        assert first.status_code == 200 and second.status_code == 200, (first.text, second.text)
+        assert [r["status"] for r in first.json()["results"]] == ["accepted"] * 10
+        assert [r["status"] for r in second.json()["results"]] == ["accepted"] * 2
+        # Two pushes, one bounded wait each (~0.2 s), not 12 x 5 s.
+        assert elapsed < 1.5, f"pushes took {elapsed:.2f}s behind a held rewards lock"
+        deferred = [
+            r.getMessage() for r in caplog.records if "rewards_award_deferred" in r.getMessage()
+        ]
+        assert len(deferred) == 2, "one line per batch, not one per operation"
+        assert await ledger_total(admin, STUDENT_A) == (0, 0)
+        assert await unexamined(admin, STUDENT_A) == 12
+        # The other learner is not affected at all.
+        other = await push(on, tokens["student_b"], [answer_op(Q1, Q1_CORRECT)])
+        assert other.status_code == 200
+        assert await ledger_total(admin, STUDENT_B) == (1, QUESTION_GOLD)
+        # The worker batch skips the busy learner instead of waiting behind the lock.
+        report = await admin.fetchval("SELECT rewards.reconcile_batch(20, 200)")
+        assert '"skipped": 1' in report and '"examined": 0' in report
+    finally:
+        await transaction.rollback()
+        await squatter.close()
+
+    # Lock released: reconciliation awards every operation exactly once.
+    while (await summary(on, tokens["student_a"]))["up_to_date"] is False:
+        pass
+    expected = (
+        10 * QUESTION_GOLD + QUESTION_GOLD + LESSON_GOLD + FIRST_LESSON_BONUS + TEN_CORRECT_BONUS
+    )
+    assert await assert_balance_matches_ledger(admin, STUDENT_A) == expected
+    assert await unexamined(admin, STUDENT_A) == 0
+    await push(on, tokens["student_a"], batch + second_device)  # replays change nothing
+    await summary(on, tokens["student_a"])
+    assert await assert_balance_matches_ledger(admin, STUDENT_A) == expected
 
 
 async def test_a_failed_award_is_also_healed_by_reconcile_without_a_retry(
