@@ -5,6 +5,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import type { AttentionItem } from '../core/db/accountStore';
 import { FLAGS } from '../core/experience/flags';
 import { startTour, TOUR_STEPS } from '../core/experience/tour';
+import { wasUnreachable } from '../core/sync/engine';
 import { LessonStanding, PREF_GRADE, PREF_SUBJECT, savedLessonStandings, syncDisplayOf, totalsOf } from '../core/learning/overview';
 import { AppText, Button, Card, Chip, ListRow, LoadingState, Notice, Pill, SectionHeader, space, SyncStatusCard, useLayout } from '../design';
 import { RewardsCard } from '../ui/experience/Rewards';
@@ -81,7 +82,7 @@ export default function Profile() {
   const display = syncDisplayOf(summary, busy ? null : (lastReport?.outcome ?? null));
   const notes: string[] = [];
   if (needsReauth) notes.push(t('syncAuthRequired'));
-  else if (!busy && lastReport?.outcome === 'offline') notes.push(t('syncOffline'));
+  else if (!busy && wasUnreachable(lastReport)) notes.push(t('syncOffline'));
   const details: string[] = [];
   if (!busy && lastReport?.outcome === 'error') details.push(t('syncError', { code: lastReport.errorCode ?? '?' }));
   for (const item of view?.attention ?? []) details.push(t('attentionExplain', { code: item.problemCode }));
