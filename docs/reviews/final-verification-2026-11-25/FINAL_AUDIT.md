@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-25 · **Lead:** Claude Opus 5.5 · **Scope:** draft PRs #4–#13 (overnight lanes), #11
 (integration), the relationship of #8 to Mobile-02 (#3), plus the corrections this verification made
-(#14–#19, and a minimal hardening branch for `main` — see §9).
+(#14–#20).
 **Nothing was merged, deployed, or run against real data or the owner's shared database.**
 
 ## 0. How independent this is — read first
@@ -35,7 +35,7 @@ reproductions are kept off GitHub in `/Volumes/EdupreneursDev/logs/final-verific
 - **Two HIGH security issues remain open, and neither is a defect of the overnight code alone.**
   - **H1 — temporary-schema type shadowing.** It lets a session with arbitrary SQL on an API login
     run code as the database owner. **It is still open on `main`.** It is closed on the corrected
-    branches by one database privilege revoke, and a minimal PR for `main` is being prepared (§9).
+    branches by one database privilege revoke, and minimal draft PR #20 brings that revoke to `main`.
   - **NF-1 — the local Supabase `supautils` extension wrapper.** It lets every service login create,
     drop or move privileged extensions in any schema, including the private `app` schema.
     Reproduced by the lead. No migration can fix it; it needs hosted-project verification and the
@@ -64,10 +64,10 @@ reproductions are kept off GitHub in `/Volumes/EdupreneursDev/logs/final-verific
 
 | # | Sev | Finding | Where | Status |
 |---|---|---|---|---|
-| S1 | HIGH | **H1:** temp-schema type shadowing in SECURITY DEFINER functions; with arbitrary SQL on `edu_api_login`, `edu_staff_login` or `edu_worker_login`, code runs as `postgres` | baseline `app` functions on `main`; new functions | **Open on `main`** (reproduced). **Closed** on #4 / candidate by `REVOKE TEMPORARY … FROM PUBLIC`, verified for all three logins. That revoke is the *only* barrier: with TEMP re-granted, even functions pinned to `pg_catalog, pg_temp` were exploitable through `app.current_actor_id()`. Minimal `main` fix: §9 |
+| S1 | HIGH | **H1:** temp-schema type shadowing in SECURITY DEFINER functions; with arbitrary SQL on `edu_api_login`, `edu_staff_login` or `edu_worker_login`, code runs as `postgres` | baseline `app` functions on `main`; new functions | **Open on `main`** (reproduced). **Closed** on #4 / candidate by `REVOKE TEMPORARY … FROM PUBLIC`, verified for all three logins. That revoke is the *only* barrier: with TEMP re-granted, even functions pinned to `pg_catalog, pg_temp` were exploitable through `app.current_actor_id()`. Minimal `main` fix: #20 |
 | S2 | HIGH | **NF-1:** `supautils` runs privileged-extension DDL (create, drop, move — including `dblink`, `http`, `pg_net`, `pg_cron`, `postgres_fdw`) for every service login, in any schema incl. `app` and `pg_catalog`; enables outbound HTTP and job scheduling from the database | local Supabase platform (also `main`) | **Open, not fixable by migration** (an owner-owned event trigger does not fire). Reproduced by the lead in a rolled-back transaction. Hosted behaviour NOT_VERIFIED. Action: verify on the hosted project, raise with Supabase, add a readiness check that refuses to start if unexpected extensions exist |
 | S3 | HIGH (conditional) | **M-3 / H-1-via-API:** after `account.erase_learner`, a still-valid token can call `/v1/me`, file requests and sync; the API re-creates the profile on every authenticated request, and the learner id reappears in 8 tables | `identity.py` (profile on first contact), lifecycle design | **BLOCKED on owner** (Auth deletion order, PO-04). Database-level H-1 fix PASSES. Lifecycle flag is off |
-| S4 | MEDIUM | Mobile test harness hard-codes the shared container: truncates learning tables, pauses the shared gateway, pattern-kills APIs (caused incident I-01) | `apps/student-native/tests/support/*`, `scripts/e2e-run.sh` on `main`, `mobile-02`, #8 | **Fixed** in #15 (derivation from `config.toml`, refusal of the shared stack, per-checkout ports and PID files; refusal proven live; CI override for the disposable runner). **Open on `main` and `mobile-02`**: §9 |
+| S4 | MEDIUM | Mobile test harness hard-codes the shared container: truncates learning tables, pauses the shared gateway, pattern-kills APIs (caused incident I-01) | `apps/student-native/tests/support/*`, `scripts/e2e-run.sh` on `main`, `mobile-02`, #8 | **Fixed** in #15 (derivation from `config.toml`, refusal of the shared stack, per-checkout ports and PID files; refusal proven live; CI override for the disposable runner). **Open on `mobile-02`**; fixed for `main` in #20 |
 | S5 | MEDIUM | **LB-1:** leaderboard rank and size revealed another child's exact Gold and opt-in/out in small cohorts | #13 | **Fixed** in #19, re-verified (PASS at K=5). Residuals LB-R1/LB-R2 below |
 | S6 | MEDIUM | **QA5-C1:** content body gate accepts media links and non-string values nested inside blocks; the nested asset escapes the rights check | #7, `20261124030200` | **Open.** Reachable only through raw SQL on the staff login; no v2 content or activation path exists |
 | S7 | MEDIUM | **M-B2-1:** an admin could rewrite another editor's draft and approve it (unreviewed content under an editor's name) | #4 | **Fixed** (33aa2e2), re-verified PASS |
@@ -165,7 +165,8 @@ Other checks on the candidate:
 - **Definer functions:** 0 SECURITY DEFINER functions in project schemas without a pinned `search_path`.
 - **TEMP** is held only by `postgres`, `supabase_admin` and `dashboard_user`.
 
-GitHub CI (the repository's workflow): pass on #3–#16. #17–#19 were pending when this was written.
+GitHub CI (the repository's workflow): pass on every open PR, #3–#19. #15's pass also shows that the
+harness's disposable-runner override works in CI.
 
 ## 6. Native testing results
 
@@ -229,7 +230,7 @@ Corrections from this verification (drafts, each implemented by a separate agent
 | [#17](https://github.com/steevy-cpu/edupreneurs-platform/pull/17) | `review/fix-staff-text-rules` | #4 | control characters, Windows line endings |
 | [#18](https://github.com/steevy-cpu/edupreneurs-platform/pull/18) | `review/fix-content-attach-author` | #7 | asset attach/detach author-only |
 | [#19](https://github.com/steevy-cpu/edupreneurs-platform/pull/19) | `review/fix-leaderboard-review-findings` | #13 | privacy floor, snapshot-only rank, locks, speed |
-| (§10) | `review/main-security-and-test-isolation` | `main` | TEMP revoke + harness isolation only |
+| [#20](https://github.com/steevy-cpu/edupreneurs-platform/pull/20) | `review/main-security-and-test-isolation` | `main` | TEMP revoke + harness isolation only (pgTAP 215, pytest 148, Jest 61) |
 | this report | `review/final-verification-2026-11-25` | #11's tree | integration of #11 plus #14, #16, #17, #18, #19, the reports and the emulator evidence |
 
 ## 10. Merge-readiness verdict per PR
@@ -239,7 +240,7 @@ not mean the feature may be enabled.
 
 | PR | Verdict |
 |---|---|
-| **main hardening** (§9) | **Recommended first**, once reviewed and its CI passes: closes S1 and S4 on `main` without any feature code |
+| **#20** `main` hardening | **Recommended first**, once its CI passes: closes S1 and S4 on `main` without any feature code |
 | #3 Mobile-02 | Not re-reviewed here beyond the harness. **Needs the harness fix** (from #15) before merge |
 | #4 staff (+#17) | **Closest to ready** as the platform foundation. Merge only together with #17. Staff side must stay unconfigured until MFA and takedown exist. NF-1 noted |
 | #5 identity | **Not ready:** blocked on S3 and PO-04. Profile/onboarding endpoints are sound, but the lifecycle flag must stay off |
