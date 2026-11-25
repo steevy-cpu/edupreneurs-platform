@@ -1,7 +1,62 @@
 # Lane LEADERBOARD — step 1: private standing (F14)
 
-Branch `overnight/leaderboard`, stacked on the Gold ledger (`ce5a64e`). Migration
-`20261124060100_leaderboard_schema.sql`. Flag `EDU_LEADERBOARD_ENABLED`, default **off**.
+Branch `overnight/leaderboard`, stacked on the Gold ledger (`ce5a64e`). Migrations
+`20261124060100_leaderboard_schema.sql` and `20261125000200_leaderboard_review_fixes.sql` (the
+independent-review fixes, see the next section). Flags `EDU_LEADERBOARD_ENABLED` and
+`EDU_LEADERBOARD_COHORTS_ENABLED`, both default **off**.
+
+## Review fixes (final verification 2026-11-25) — rules changed
+
+These supersede the rules below wherever they differ. Everything is in the new migration
+(`CREATE OR REPLACE` plus one table); the original migration is unchanged; grants are unchanged
+(`edu_api` executes only `my_standing`).
+
+- **LB-1 minimum cohort size K (privacy).** `leaderboard.config` (one row, owner only, RLS without
+  policy, no grant) holds `min_cohort_size`, default **5**, `CHECK (1..10000)`. Below K the learner
+  gets **no rank and no size** (`cohort.rank` / `cohort.size` are `null`; the pseudonym, the own
+  `gold` and the own `snapshot_gold` are still returned). K is applied at the refresh (a cohort
+  below K writes no snapshot row and `member_count = 0`) **and again at every read** (raising K
+  fails closed at once). A missing config row means 5.
+- **LB-1 snapshot only.** Rank and size come **only** from the latest snapshot: the caller's own
+  stored rank and the run's `member_count`. Nothing is recomputed from other members at read time,
+  so another member's opt-in, opt-out, staff grant or erasure is invisible until the next refresh.
+  The caller's own membership and rankability are still checked live: a withdrawn, erased, staff or
+  deleted learner loses their own cohort block (and their snapshot rows are deleted) immediately.
+  This replaces old rule 7 (others' rank and size no longer move without a refresh).
+- **LB-2 locking.** `refresh_snapshot` takes the cohort row `FOR SHARE`; `withdraw` and
+  `erase_learner` take it `FOR UPDATE` (erase: every cohort of the learner, in id order); `enroll`
+  already did. A withdrawal committed while a refresh runs waits for the refresh and then deletes
+  what it wrote; it is never resurrected, frozen weeks included. An erasure during a refresh waits
+  instead of failing with 23503.
+- **LB-3 performance.** `my_standing` does constant work (one membership, one run and one snapshot
+  row by key, one ledger sum for the caller); `refresh_snapshot` is one set-based statement. No
+  extra index on `snapshots (cohort_id, period_key, gold)`: the read no longer needs it.
+- **LB-4.** The API returns `cohort: null` unless `EDU_LEADERBOARD_COHORTS_ENABLED` is also on
+  (checked in the service layer; the database function is unchanged in signature).
+- **LB-5.** Week-boundary tests use explicit instants (Sunday 23:59:59 / Monday 00:00:00 in Haiti
+  time, DST start 2026-03-08 and DST end 2026-11-01, UTC straddle pairs); the API tests read the
+  period back from the response instead of computing "today".
+- **LB-6.** Score = allow-list `source_kind IN ('question_first_correct', 'lesson_first_completed',
+  'achievement', 'reversal')` (replaces `<> 'adjustment'`; rule 1 below). Today the ledger CHECK
+  allows no other kind, so the test pins the function text rather than a behaviour difference.
+- **LB-7.** For a closed period whose snapshot is frozen, `gold` is the caller's frozen snapshot
+  Gold, not the live sum (a closed period without a snapshot row for the caller, and open periods,
+  stay live).
+
+**Measured (this machine, local Postgres, synthetic cohort of 5 000, 4 ledger rows each, one
+transaction rolled back; `tests/integration/test_leaderboard_review_fixes.py`):** `my_standing`
+median 0.3 ms, worst 1.3 ms (bound asserted: 30 ms); `refresh_snapshot` 740 ms (bound: 5 s). The
+pre-fix read on the same data: 77-105 ms (the review measured about 3 s on its own data set).
+
+**Open items:** LB-8 (no audit event and no record of who consented for a minor on opt-in/out) stays
+open, BLOCKED_BY_OWNER; the cohort page, membership routes and per-learner request budget of step
+2 are not built; `visible_rows` is no longer used by `my_standing` (kept, owner only);
+`member_count` is the count of ranked rows at the last refresh.
+
+**Owner decisions needed (BLOCKED_BY_OWNER):** the value of **K** (5 is a conservative placeholder;
+`UPDATE leaderboard.config SET min_cohort_size = n`); who may consent for a minor and how it is
+recorded (LB-8); whether real children are ever shown a rank or a cohort (both flags stay off);
+the pseudonym policy; every Gold amount (PO-09).
 
 **Status: step 1 only.** The schema, the snapshot refresh, the erasure hook and one read route
 (`GET /v1/leaderboard/me`) exist and are tested. No cohort list, no membership route and no staff
@@ -56,7 +111,7 @@ Nothing is granted to `PUBLIC`, `anon`, `authenticated`, `authenticator`, `servi
 ## Rules chosen
 
 1. **Score** = "Gold earned by learning": `sum(amount)` over `rewards.ledger` rows of the learner
-   with `source_kind <> 'adjustment'` (awards and their reversals). Staff adjustments do not count.
+   with an allow-list of source kinds (awards and their reversals; see LB-6 above). Staff adjustments do not count.
    Nothing else is read: no client number, no profile column, not `rewards.balances`.
 2. **Period membership** is by `accepted_day`. A reversal is dated the day it is made, so it lowers
    the period in which it is made, never an earlier one.
@@ -135,7 +190,10 @@ another learner's Gold, pseudonym or identifier.
   no foreign data or identity in the answer, opt-out and erasure, staff never ranked, cohort
   isolation, `edu_api` cannot reach tables or other functions.
 
-Whole branch at the gate: pgTAP 1133 in 17 files, pytest 489.
+Whole branch at the gate: pgTAP 1133 in 17 files, pytest 489 (before the review fixes). After
+them: pgTAP 1183 in 18 files (new `210_leaderboard_review_fixes.sql`, 50 tests), pytest 489 plus
+the new `test_leaderboard_review_fixes.py` (8, with two parametrised cases; two-session locking
+tests and the 5 000-member timing test).
 
 ## Not done
 
@@ -151,13 +209,12 @@ Whole branch at the gate: pgTAP 1133 in 17 files, pytest 489.
 
 ## Known gaps
 
-- No minimum cohort size: in a cohort of two, an own rank reveals whether the other member has
-  more or less Gold. A floor (for example no rank below 5 members) is a policy decision.
+- The minimum cohort size is enforced (LB-1) but its value is an owner decision; a small K still
+  lets a rank reveal how many members have more Gold.
 - "System / test-marker accounts" from the brief are not excluded separately: no such marker
   exists on this base. Staff accounts are excluded.
-- For a closed week `gold` is still the live ledger sum and can grow by late reconciliation,
-  while the frozen snapshot does not; a closing snapshot taken long after the week ended includes
-  such late rows.
+- A closing snapshot taken long after the week ended includes late reconciliation rows (the
+  frozen figure is what `/me` then returns, LB-7).
 - `member_count` in `snapshot_runs` is the count at computation time and is not decremented by a
   later opt-out or erasure; reads do not use it.
 - A learner who opted out keeps the membership row (the consent history and the reserved

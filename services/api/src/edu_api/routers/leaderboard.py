@@ -54,6 +54,7 @@ router = APIRouter(
 async def get_my_standing(
     principal: LeaderboardPrincipal,
     db: Db,
+    settings: AppSettings,
     period: Annotated[
         str,
         Query(
@@ -63,6 +64,9 @@ async def get_my_standing(
         ),
     ] = "week",
 ) -> MyStanding:
-    """Never returns another learner's data. `cohort` is null unless the caller
-    opted in; rank and size come from the latest snapshot (`computed_at`)."""
-    return await service.my_standing(db, principal.user_id, period)
+    """Never returns another learner's data. `cohort` is null unless the cohort flag is on and
+    the caller opted in; rank and size come from the latest snapshot (`computed_at`) and are
+    null for a cohort smaller than the database's minimum size."""
+    return await service.my_standing(
+        db, principal.user_id, period, include_cohort=settings.leaderboard_cohorts_enabled
+    )
