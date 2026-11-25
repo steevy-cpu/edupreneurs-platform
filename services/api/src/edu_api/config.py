@@ -69,6 +69,15 @@ class Settings(BaseSettings):
     rewards_reconcile_limit: int = Field(default=200, ge=1, le=500)
     # --- end rewards lane ---
 
+    # --- Leaderboard lane (overnight 2026-11-24): private rank, opt-in cohorts ---
+    #: OFF by default. Off = /v1/leaderboard/* answers 404. The learners are
+    #: minors: nothing here is a public or global ranking.
+    leaderboard_enabled: bool = False
+    #: OFF by default, and separate: the pseudonymous cohort view and the
+    #: opt-in / opt-out routes. Requires leaderboard_enabled as well.
+    leaderboard_cohorts_enabled: bool = False
+    # --- end leaderboard lane ---
+
     # --- Staff boundary (overnight 2026-11-24, staff lane) -------------------
     #: Optional. Must log in as ``edu_staff_login`` (member of ``edu_staff`` only).
     #: When unset the staff side is off: every ``/v1/staff`` route answers 503.
