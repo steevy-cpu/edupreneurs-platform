@@ -1,0 +1,965 @@
+{
+  "vector_format": 1,
+  "suite": "questions",
+  "description": "The four JSON columns of a question (prompt, response_spec, answer_key, explanation) per kind. Schema per kind: mcq -> question-mcq.schema.json, true_false -> question-true-false.schema.json, numeric -> question-numeric.schema.json, short_text -> question-short-text.schema.json.",
+  "cases": [
+    {
+      "id": "mcq-ok",
+      "kind": "mcq",
+      "description": "Format-1 kind, unchanged.",
+      "document": {
+        "prompt": {
+          "text": "Résous : x + 5 = 12"
+        },
+        "response_spec": {
+          "choices": [
+            {
+              "id": "a",
+              "text": "x = 5"
+            },
+            {
+              "id": "b",
+              "text": "x = 7"
+            }
+          ]
+        },
+        "answer_key": {
+          "correct_choice_id": "b"
+        },
+        "explanation": {
+          "text": "x = 12 − 5 = 7."
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "mcq-one-choice",
+      "kind": "mcq",
+      "document": {
+        "prompt": {
+          "text": "Résous : x + 5 = 12"
+        },
+        "response_spec": {
+          "choices": [
+            {
+              "id": "a",
+              "text": "x"
+            }
+          ]
+        },
+        "answer_key": {
+          "correct_choice_id": "b"
+        },
+        "explanation": {
+          "text": "x = 12 − 5 = 7."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "tf-ok",
+      "kind": "true_false",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {},
+        "answer_key": {
+          "scoring_version": "true-false-v1",
+          "correct": true
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "tf-ok-false",
+      "kind": "true_false",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {},
+        "answer_key": {
+          "scoring_version": "true-false-v1",
+          "correct": false
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "tf-correct-as-string",
+      "kind": "true_false",
+      "description": "A boolean, not a string.",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {},
+        "answer_key": {
+          "scoring_version": "true-false-v1",
+          "correct": "true"
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "tf-correct-as-number",
+      "kind": "true_false",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {},
+        "answer_key": {
+          "scoring_version": "true-false-v1",
+          "correct": 1
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "tf-missing-scoring-version",
+      "kind": "true_false",
+      "description": "The scoring rule is named in every answer key.",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {},
+        "answer_key": {
+          "correct": true
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "tf-wrong-scoring-version",
+      "kind": "true_false",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {},
+        "answer_key": {
+          "scoring_version": "true-false-v2",
+          "correct": true
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "tf-response-spec-not-empty",
+      "kind": "true_false",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "choices": []
+        },
+        "answer_key": {
+          "scoring_version": "true-false-v1",
+          "correct": true
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "tf-missing-explanation",
+      "kind": "true_false",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {},
+        "answer_key": {
+          "scoring_version": "true-false-v1",
+          "correct": true
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "tf-extra-column",
+      "kind": "true_false",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {},
+        "answer_key": {
+          "scoring_version": "true-false-v1",
+          "correct": true
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        },
+        "hint": {
+          "text": "x"
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "tf-empty-prompt",
+      "kind": "true_false",
+      "document": {
+        "prompt": {
+          "text": ""
+        },
+        "response_spec": {},
+        "answer_key": {
+          "scoring_version": "true-false-v1",
+          "correct": true
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "num-ok",
+      "kind": "numeric",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "allow_fraction": false,
+          "unit": "cm"
+        },
+        "answer_key": {
+          "scoring_version": "numeric-v1",
+          "value": "3.5",
+          "tolerance": "0.05"
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "num-ok-exact-negative",
+      "kind": "numeric",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "allow_fraction": true
+        },
+        "answer_key": {
+          "scoring_version": "numeric-v1",
+          "value": "-12",
+          "tolerance": "0"
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "num-ok-six-decimals",
+      "kind": "numeric",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "allow_fraction": false
+        },
+        "answer_key": {
+          "scoring_version": "numeric-v1",
+          "value": "0.333333",
+          "tolerance": "0.000001"
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "num-value-as-number",
+      "kind": "numeric",
+      "description": "Decimals are strings, so no binary floating point is ever involved.",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "allow_fraction": false,
+          "unit": "cm"
+        },
+        "answer_key": {
+          "scoring_version": "numeric-v1",
+          "value": 3.5,
+          "tolerance": "0.05"
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "num-value-decimal-comma",
+      "kind": "numeric",
+      "description": "Answer keys use the canonical point.",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "allow_fraction": false,
+          "unit": "cm"
+        },
+        "answer_key": {
+          "scoring_version": "numeric-v1",
+          "value": "3,5",
+          "tolerance": "0.05"
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "num-value-leading-zero",
+      "kind": "numeric",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "allow_fraction": false,
+          "unit": "cm"
+        },
+        "answer_key": {
+          "scoring_version": "numeric-v1",
+          "value": "03.5",
+          "tolerance": "0.05"
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "num-value-seven-decimals",
+      "kind": "numeric",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "allow_fraction": false,
+          "unit": "cm"
+        },
+        "answer_key": {
+          "scoring_version": "numeric-v1",
+          "value": "0.1234567",
+          "tolerance": "0.05"
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "num-value-exponent",
+      "kind": "numeric",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "allow_fraction": false,
+          "unit": "cm"
+        },
+        "answer_key": {
+          "scoring_version": "numeric-v1",
+          "value": "1e3",
+          "tolerance": "0.05"
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "num-value-plus-sign",
+      "kind": "numeric",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "allow_fraction": false,
+          "unit": "cm"
+        },
+        "answer_key": {
+          "scoring_version": "numeric-v1",
+          "value": "+3.5",
+          "tolerance": "0.05"
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "num-negative-tolerance",
+      "kind": "numeric",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "allow_fraction": false,
+          "unit": "cm"
+        },
+        "answer_key": {
+          "scoring_version": "numeric-v1",
+          "value": "3.5",
+          "tolerance": "-0.1"
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "num-missing-tolerance",
+      "kind": "numeric",
+      "description": "Tolerance is explicit; '0' means exact.",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "allow_fraction": false,
+          "unit": "cm"
+        },
+        "answer_key": {
+          "scoring_version": "numeric-v1",
+          "value": "3.5"
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "num-missing-allow-fraction",
+      "kind": "numeric",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "unit": "cm"
+        },
+        "answer_key": {
+          "scoring_version": "numeric-v1",
+          "value": "3.5",
+          "tolerance": "0.05"
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "num-unit-too-long",
+      "kind": "numeric",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "allow_fraction": false,
+          "unit": "aaaaaaaaaaaaaaaaa"
+        },
+        "answer_key": {
+          "scoring_version": "numeric-v1",
+          "value": "3.5",
+          "tolerance": "0.05"
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "num-unit-markup",
+      "kind": "numeric",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "allow_fraction": false,
+          "unit": "<b>cm</b>"
+        },
+        "answer_key": {
+          "scoring_version": "numeric-v1",
+          "value": "3.5",
+          "tolerance": "0.05"
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "st-ok",
+      "kind": "short_text",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "max_length": 40,
+          "case_sensitive": false,
+          "accent_sensitive": false
+        },
+        "answer_key": {
+          "scoring_version": "short-text-v1",
+          "accepted": [
+            "numérateur",
+            "le numérateur"
+          ]
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "st-ok-strict",
+      "kind": "short_text",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "max_length": 5,
+          "case_sensitive": true,
+          "accent_sensitive": true
+        },
+        "answer_key": {
+          "scoring_version": "short-text-v1",
+          "accepted": [
+            "Haïti"
+          ]
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "st-no-accepted",
+      "kind": "short_text",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "max_length": 40,
+          "case_sensitive": false,
+          "accent_sensitive": false
+        },
+        "answer_key": {
+          "scoring_version": "short-text-v1",
+          "accepted": []
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "st-eleven-accepted",
+      "kind": "short_text",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "max_length": 40,
+          "case_sensitive": false,
+          "accent_sensitive": false
+        },
+        "answer_key": {
+          "scoring_version": "short-text-v1",
+          "accepted": [
+            "r0",
+            "r1",
+            "r2",
+            "r3",
+            "r4",
+            "r5",
+            "r6",
+            "r7",
+            "r8",
+            "r9",
+            "r10"
+          ]
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "st-duplicate-accepted",
+      "kind": "short_text",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "max_length": 40,
+          "case_sensitive": false,
+          "accent_sensitive": false
+        },
+        "answer_key": {
+          "scoring_version": "short-text-v1",
+          "accepted": [
+            "oui",
+            "oui"
+          ]
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "st-accepted-81",
+      "kind": "short_text",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "max_length": 80,
+          "case_sensitive": false,
+          "accent_sensitive": false
+        },
+        "answer_key": {
+          "scoring_version": "short-text-v1",
+          "accepted": [
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          ]
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "st-max-length-81",
+      "kind": "short_text",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "max_length": 81,
+          "case_sensitive": false,
+          "accent_sensitive": false
+        },
+        "answer_key": {
+          "scoring_version": "short-text-v1",
+          "accepted": [
+            "numérateur",
+            "le numérateur"
+          ]
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "st-max-length-0",
+      "kind": "short_text",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "max_length": 0,
+          "case_sensitive": false,
+          "accent_sensitive": false
+        },
+        "answer_key": {
+          "scoring_version": "short-text-v1",
+          "accepted": [
+            "numérateur",
+            "le numérateur"
+          ]
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "st-flags-missing",
+      "kind": "short_text",
+      "description": "Both sensitivity flags are explicit; there are no defaults to disagree about.",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "max_length": 40
+        },
+        "answer_key": {
+          "scoring_version": "short-text-v1",
+          "accepted": [
+            "numérateur",
+            "le numérateur"
+          ]
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "st-accepted-markup",
+      "kind": "short_text",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "max_length": 40,
+          "case_sensitive": false,
+          "accent_sensitive": false
+        },
+        "answer_key": {
+          "scoring_version": "short-text-v1",
+          "accepted": [
+            "<i>oui</i>"
+          ]
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "st-accepted-longer-than-max-length",
+      "kind": "short_text",
+      "description": "An accepted answer the learner could never type.",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "max_length": 5,
+          "case_sensitive": false,
+          "accent_sensitive": false
+        },
+        "answer_key": {
+          "scoring_version": "short-text-v1",
+          "accepted": [
+            "oui",
+            "numérateur"
+          ]
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rules": [
+          "short_text.accepted_fits"
+        ]
+      }
+    },
+    {
+      "id": "st-accepted-only-spaces",
+      "kind": "short_text",
+      "description": "Empty after normalisation.",
+      "document": {
+        "prompt": {
+          "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+        },
+        "response_spec": {
+          "max_length": 40,
+          "case_sensitive": false,
+          "accent_sensitive": false
+        },
+        "answer_key": {
+          "scoring_version": "short-text-v1",
+          "accepted": [
+            "   "
+          ]
+        },
+        "explanation": {
+          "text": "3/4 = 0,75 et 1/2 = 0,5."
+        }
+      },
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rules": [
+          "short_text.accepted_fits"
+        ]
+      }
+    }
+  ]
+}

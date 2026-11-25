@@ -1,0 +1,295 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.mon-edupreneur.local/content/pack-manifest.v1.schema.json",
+  "title": "Pack manifest (pack-manifest-1)",
+  "description": "What a phone downloads first for one (pack_key, locale): the list of lesson objects and assets of one release, with their true SHA-256 and sizes. Stored as canonical JSON 'edu-canon-json-1' (keys sorted, no whitespace, integers only, NFC, UTF-8); the SHA-256 of those bytes identifies the release (app.pack_releases.manifest_sha256). No timestamp and nothing random: identical input gives identical bytes. Array order is part of the document: lessons by position, questions by position, assets and per-lesson asset lists by sha256. Object keys: packs/<pack_key>/<locale>/<revision>/manifest.json, lessons/sha256/<first 2 hex>/<sha256>.json, assets/sha256/<first 2 hex>/<sha256>.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_version",
+    "content_format",
+    "pack",
+    "lessons",
+    "assets",
+    "totals"
+  ],
+  "properties": {
+    "manifest_version": {
+      "const": "pack-manifest-1"
+    },
+    "content_format": {
+      "description": "No lesson in this pack needs a higher format. A format-1 pack never contains a format-2 block or question.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2
+    },
+    "pack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "release_id",
+        "pack_key",
+        "locale",
+        "revision"
+      ],
+      "properties": {
+        "release_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "minLength": 36,
+          "maxLength": 36
+        },
+        "pack_key": {
+          "type": "string",
+          "pattern": "^[a-z0-9_-]{3,100}$",
+          "minLength": 3,
+          "maxLength": 100,
+          "not": {
+            "pattern": "[\\u0000-\\u001f\\u007f]"
+          }
+        },
+        "locale": {
+          "enum": [
+            "fr",
+            "ht"
+          ]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        }
+      }
+    },
+    "lessons": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 500,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "position",
+          "lesson_id",
+          "revision_id",
+          "revision",
+          "title",
+          "content_format",
+          "object_key",
+          "sha256",
+          "bytes",
+          "questions",
+          "assets"
+        ],
+        "properties": {
+          "position": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "lesson_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "minLength": 36,
+            "maxLength": 36
+          },
+          "revision_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "minLength": 36,
+            "maxLength": 36
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "content_format": {
+            "description": "Smallest format able to carry this lesson.",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2
+          },
+          "object_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "not": {
+              "pattern": "[\\u0000-\\u001f\\u007f]"
+            }
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "minLength": 64,
+            "maxLength": 64
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 262144
+          },
+          "questions": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "question_key",
+                "position",
+                "kind"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                  "minLength": 36,
+                  "maxLength": 36
+                },
+                "question_key": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9_-]{1,80}$",
+                  "maxLength": 80,
+                  "not": {
+                    "pattern": "[\\u0000-\\u001f\\u007f]"
+                  }
+                },
+                "position": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "kind": {
+                  "enum": [
+                    "mcq",
+                    "true_false",
+                    "numeric",
+                    "short_text"
+                  ]
+                }
+              }
+            }
+          },
+          "assets": {
+            "description": "sha256 of every asset this lesson references, sorted.",
+            "type": "array",
+            "maxItems": 200,
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "minLength": 64,
+              "maxLength": 64
+            }
+          }
+        }
+      }
+    },
+    "assets": {
+      "type": "array",
+      "maxItems": 2000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "sha256",
+          "object_key",
+          "bytes",
+          "mime",
+          "kind",
+          "required"
+        ],
+        "properties": {
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "minLength": 64,
+            "maxLength": 64
+          },
+          "object_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300,
+            "not": {
+              "pattern": "[\\u0000-\\u001f\\u007f]"
+            }
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2000000
+          },
+          "mime": {
+            "enum": [
+              "image/webp",
+              "image/png",
+              "image/jpeg",
+              "audio/mp4",
+              "audio/mpeg"
+            ]
+          },
+          "kind": {
+            "enum": [
+              "image",
+              "audio"
+            ]
+          },
+          "required": {
+            "description": "true for images (a lesson is incomplete without them), false for audio (optional download).",
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lessons",
+        "questions",
+        "assets",
+        "lesson_bytes",
+        "required_asset_bytes",
+        "optional_asset_bytes"
+      ],
+      "properties": {
+        "lessons": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740992
+        },
+        "questions": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740992
+        },
+        "assets": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740992
+        },
+        "lesson_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740992
+        },
+        "required_asset_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740992
+        },
+        "optional_asset_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740992
+        }
+      }
+    }
+  }
+}

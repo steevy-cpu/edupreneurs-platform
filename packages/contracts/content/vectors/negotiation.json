@@ -1,0 +1,401 @@
+{
+  "vector_format": 1,
+  "suite": "negotiation",
+  "description": "The content-format negotiation rule. type 'parse_header': value of the request header Edu-Content-Formats (null = header absent) -> set of formats the client is taken to understand. type 'negotiate': (client formats, formats available for a pack) -> format served, or null when the content is absent for that client. type 'required_format': block types and question kinds of a lesson revision -> smallest format able to carry it. The server knows formats 1 and 2.",
+  "cases": [
+    {
+      "id": "header-absent",
+      "type": "parse_header",
+      "description": "Every build shipped before format 2 sends no header.",
+      "header": null,
+      "expect_formats": [
+        1
+      ]
+    },
+    {
+      "id": "header-one",
+      "type": "parse_header",
+      "header": "1",
+      "expect_formats": [
+        1
+      ]
+    },
+    {
+      "id": "header-one-two",
+      "type": "parse_header",
+      "header": "1,2",
+      "expect_formats": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "header-two-one-spaces",
+      "type": "parse_header",
+      "description": "Order and blanks around commas do not matter.",
+      "header": "2, 1",
+      "expect_formats": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "header-two-only",
+      "type": "parse_header",
+      "description": "The set is exactly what was declared.",
+      "header": "2",
+      "expect_formats": [
+        2
+      ]
+    },
+    {
+      "id": "header-duplicates",
+      "type": "parse_header",
+      "header": "1,1,2",
+      "expect_formats": [
+        1,
+        2
+      ]
+    },
+    {
+      "id": "header-future",
+      "type": "parse_header",
+      "description": "Unknown higher formats are kept here and ignored by negotiate().",
+      "header": "1,2,3",
+      "expect_formats": [
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "id": "header-empty",
+      "type": "parse_header",
+      "description": "Malformed -> oldest format.",
+      "header": "",
+      "expect_formats": [
+        1
+      ]
+    },
+    {
+      "id": "header-blank",
+      "type": "parse_header",
+      "header": "   ",
+      "expect_formats": [
+        1
+      ]
+    },
+    {
+      "id": "header-word",
+      "type": "parse_header",
+      "header": "v2",
+      "expect_formats": [
+        1
+      ]
+    },
+    {
+      "id": "header-trailing-comma",
+      "type": "parse_header",
+      "header": "1,2,",
+      "expect_formats": [
+        1
+      ]
+    },
+    {
+      "id": "header-zero",
+      "type": "parse_header",
+      "header": "0,1",
+      "expect_formats": [
+        1
+      ]
+    },
+    {
+      "id": "header-negative",
+      "type": "parse_header",
+      "header": "-1",
+      "expect_formats": [
+        1
+      ]
+    },
+    {
+      "id": "header-decimal",
+      "type": "parse_header",
+      "header": "2.0",
+      "expect_formats": [
+        1
+      ]
+    },
+    {
+      "id": "header-semicolon",
+      "type": "parse_header",
+      "header": "1;2",
+      "expect_formats": [
+        1
+      ]
+    },
+    {
+      "id": "header-leading-zero",
+      "type": "parse_header",
+      "header": "02",
+      "expect_formats": [
+        1
+      ]
+    },
+    {
+      "id": "header-four-digits",
+      "type": "parse_header",
+      "header": "1000",
+      "expect_formats": [
+        1
+      ]
+    },
+    {
+      "id": "header-nine-entries",
+      "type": "parse_header",
+      "description": "More than 8 entries is malformed.",
+      "header": "1,2,3,4,5,6,7,8,9",
+      "expect_formats": [
+        1
+      ]
+    },
+    {
+      "id": "header-wildcard",
+      "type": "parse_header",
+      "header": "*",
+      "expect_formats": [
+        1
+      ]
+    },
+    {
+      "id": "negotiate-old-app-v1-content",
+      "type": "negotiate",
+      "client_formats": [
+        1
+      ],
+      "available_formats": [
+        1
+      ],
+      "expect": 1
+    },
+    {
+      "id": "negotiate-old-app-both-available",
+      "type": "negotiate",
+      "description": "An app that only knows format 1 gets the format-1 release.",
+      "client_formats": [
+        1
+      ],
+      "available_formats": [
+        1,
+        2
+      ],
+      "expect": 1
+    },
+    {
+      "id": "negotiate-old-app-only-v2-content",
+      "type": "negotiate",
+      "description": "No format-2 body is ever sent to a format-1 app: the content is absent for it.",
+      "client_formats": [
+        1
+      ],
+      "available_formats": [
+        2
+      ],
+      "expect": null
+    },
+    {
+      "id": "negotiate-new-app-both-available",
+      "type": "negotiate",
+      "description": "Highest shared format.",
+      "client_formats": [
+        1,
+        2
+      ],
+      "available_formats": [
+        1,
+        2
+      ],
+      "expect": 2
+    },
+    {
+      "id": "negotiate-new-app-v1-content",
+      "type": "negotiate",
+      "description": "A new app keeps reading format-1 content.",
+      "client_formats": [
+        1,
+        2
+      ],
+      "available_formats": [
+        1
+      ],
+      "expect": 1
+    },
+    {
+      "id": "negotiate-new-app-v2-content",
+      "type": "negotiate",
+      "client_formats": [
+        1,
+        2
+      ],
+      "available_formats": [
+        2
+      ],
+      "expect": 2
+    },
+    {
+      "id": "negotiate-future-app",
+      "type": "negotiate",
+      "description": "Formats the server does not know are ignored.",
+      "client_formats": [
+        1,
+        2,
+        3
+      ],
+      "available_formats": [
+        1,
+        2
+      ],
+      "expect": 2
+    },
+    {
+      "id": "negotiate-future-content-ignored",
+      "type": "negotiate",
+      "description": "The server never offers a format it cannot validate.",
+      "client_formats": [
+        1,
+        2,
+        3
+      ],
+      "available_formats": [
+        3
+      ],
+      "expect": null
+    },
+    {
+      "id": "negotiate-nothing-available",
+      "type": "negotiate",
+      "client_formats": [
+        1,
+        2
+      ],
+      "available_formats": [],
+      "expect": null
+    },
+    {
+      "id": "negotiate-v2-only-app-v1-content",
+      "type": "negotiate",
+      "client_formats": [
+        2
+      ],
+      "available_formats": [
+        1
+      ],
+      "expect": null
+    },
+    {
+      "id": "required-v1-blocks-mcq",
+      "type": "required_format",
+      "block_types": [
+        "heading",
+        "paragraph",
+        "example",
+        "callout"
+      ],
+      "question_kinds": [
+        "mcq"
+      ],
+      "expect": 1
+    },
+    {
+      "id": "required-v1-blocks-no-questions",
+      "type": "required_format",
+      "block_types": [
+        "paragraph"
+      ],
+      "question_kinds": [],
+      "expect": 1
+    },
+    {
+      "id": "required-math-block",
+      "type": "required_format",
+      "block_types": [
+        "paragraph",
+        "math"
+      ],
+      "question_kinds": [
+        "mcq"
+      ],
+      "expect": 2
+    },
+    {
+      "id": "required-image-block",
+      "type": "required_format",
+      "block_types": [
+        "image"
+      ],
+      "question_kinds": [],
+      "expect": 2
+    },
+    {
+      "id": "required-list-block",
+      "type": "required_format",
+      "block_types": [
+        "list"
+      ],
+      "question_kinds": [],
+      "expect": 2
+    },
+    {
+      "id": "required-table-block",
+      "type": "required_format",
+      "block_types": [
+        "table"
+      ],
+      "question_kinds": [],
+      "expect": 2
+    },
+    {
+      "id": "required-audio-block",
+      "type": "required_format",
+      "block_types": [
+        "paragraph",
+        "audio"
+      ],
+      "question_kinds": [],
+      "expect": 2
+    },
+    {
+      "id": "required-v1-blocks-true-false",
+      "type": "required_format",
+      "block_types": [
+        "paragraph"
+      ],
+      "question_kinds": [
+        "mcq",
+        "true_false"
+      ],
+      "expect": 2
+    },
+    {
+      "id": "required-v1-blocks-numeric",
+      "type": "required_format",
+      "block_types": [
+        "paragraph"
+      ],
+      "question_kinds": [
+        "numeric"
+      ],
+      "expect": 2
+    },
+    {
+      "id": "required-v1-blocks-short-text",
+      "type": "required_format",
+      "block_types": [
+        "paragraph"
+      ],
+      "question_kinds": [
+        "short_text"
+      ],
+      "expect": 2
+    }
+  ]
+}
