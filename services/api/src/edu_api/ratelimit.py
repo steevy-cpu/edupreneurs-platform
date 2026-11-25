@@ -8,6 +8,9 @@ budget, a restart forgets every bucket, and nothing here stops traffic before it
 reaches the process. A hosted, multi-instance deployment still needs a limiter
 at the gateway or in a shared store (Platform-02). This module is not that.
 
+Memory is bounded, and running out of room never switches the limiter off:
+see ``RateLimiter``.
+
 KEYS
 ----
 * A request whose access token VERIFIES is counted per learner (``u:<user id>``),
@@ -26,6 +29,7 @@ client waits and resends the same batch with the same ``op_id``s (see
 
 from __future__ import annotations
 
+import hashlib
 import ipaddress
 import json
 import math
@@ -39,6 +43,7 @@ from edu_api.auth.verifier import (
     MAX_TOKEN_LENGTH,
     AuthUnavailable,
     InvalidToken,
+    Principal,
     TokenVerifier,
 )
 from edu_api.config import Settings
@@ -78,13 +83,24 @@ def classify(method: str, path: str) -> str | None:
 
 
 class RateLimiter:
-    """Token buckets with least-recently-used eviction (bounded memory).
+    """Token buckets with bounded memory that never fails open.
 
     ``take`` is synchronous and never awaits, so on one event loop it is atomic.
-    When more than ``max_keys`` buckets exist the least recently used one is
-    dropped; its owner simply starts again with a full bucket. Under a flood of
-    distinct keys the limiter therefore degrades towards "no limit" rather than
-    towards "no memory" — one more reason a gateway limiter is still required.
+
+    Buckets are kept in two separate stores — verified learners (``u:…``) and
+    everything else — each holding at most half of ``max_keys``. Only a verified
+    token creates a learner bucket, so a flood of invented addresses or invalid
+    tokens can fill the anonymous store but can never push a learner's bucket out.
+
+    When a store is full and a NEW key arrives:
+
+    * the least recently used bucket is dropped only if it has refilled
+      completely — forgetting it changes nothing, its owner would start with a
+      full bucket anyway;
+    * otherwise the new key gets NO bucket of its own and is charged to one
+      shared ``overflow`` bucket with the anonymous budget. Under a flood of
+      distinct keys the limiter therefore becomes STRICTER for unknown keys, not
+      absent, and existing (possibly limited) buckets are never reset.
     """
 
     def __init__(
@@ -97,28 +113,106 @@ class RateLimiter:
         self.budgets = budgets
         self.max_keys = max_keys
         self.clock = clock
-        self._buckets: OrderedDict[tuple[str, str], tuple[float, float]] = OrderedDict()
+        self._capacity = max(1, max_keys // 2)
+        self._stores: dict[bool, OrderedDict[tuple[str, str], tuple[float, float]]] = {
+            True: OrderedDict(),
+            False: OrderedDict(),
+        }
+        self._overflow: dict[bool, tuple[float, float]] = {}
+        #: How many requests were charged to a shared overflow bucket (for operators).
+        self.overflowed = 0
 
     def __len__(self) -> int:
-        return len(self._buckets)
+        return len(self._stores[True]) + len(self._stores[False])
+
+    def known_keys(self) -> list[str]:
+        return [key for store in self._stores.values() for _, key in store]
+
+    @staticmethod
+    def _spend(budget: Budget, state: tuple[float, float], now: float) -> tuple[float, float]:
+        tokens, updated = state
+        tokens = min(float(budget.burst), tokens + max(0.0, now - updated) * budget.per_second)
+        if tokens >= 1.0:
+            return tokens - 1.0, 0.0
+        return tokens, (1.0 - tokens) / budget.per_second
+
+    def _make_room(
+        self, store: OrderedDict[tuple[str, str], tuple[float, float]], now: float
+    ) -> bool:
+        """Drop the least recently used bucket if that loses no information."""
+        (oldest_class, _), (tokens, updated) = next(iter(store.items()))
+        budget = self.budgets[oldest_class]
+        if tokens + max(0.0, now - updated) * budget.per_second >= budget.burst:
+            store.popitem(last=False)
+            return True
+        return False
 
     def take(self, route_class: str, key: str) -> float:
         """Spend one token. Returns 0.0 when allowed, else the seconds to wait."""
-        budget = self.budgets[route_class]
         now = self.clock()
+        verified = key.startswith("u:")
+        store = self._stores[verified]
         bucket_key = (route_class, key)
-        tokens, updated = self._buckets.get(bucket_key, (float(budget.burst), now))
-        tokens = min(float(budget.burst), tokens + max(0.0, now - updated) * budget.per_second)
-        if tokens >= 1.0:
-            tokens -= 1.0
-            wait = 0.0
-        else:
-            wait = (1.0 - tokens) / budget.per_second
-        self._buckets[bucket_key] = (tokens, now)
-        self._buckets.move_to_end(bucket_key)
-        while len(self._buckets) > self.max_keys:
-            self._buckets.popitem(last=False)
+        state = store.get(bucket_key)
+        if state is None and len(store) >= self._capacity and not self._make_room(store, now):
+            # No room and nothing safe to forget: charge the shared overflow bucket.
+            budget = self.budgets["anonymous"]
+            tokens, wait = self._spend(
+                budget, self._overflow.get(verified, (float(budget.burst), now)), now
+            )
+            self._overflow[verified] = (tokens, now)
+            self.overflowed += 1
+            return wait
+        budget = self.budgets[route_class]
+        tokens, wait = self._spend(budget, state or (float(budget.burst), now), now)
+        store[bucket_key] = (tokens, now)
+        store.move_to_end(bucket_key)
         return wait
+
+
+class MemoVerifier:
+    """Wraps the token verifier so that one request verifies its token ONCE.
+
+    The limiter (and the access log) must know the VERIFIED principal before the
+    route runs; the route's own dependency then verifies the same token again.
+    This wrapper is installed as ``app.state.token_verifier`` only when one of
+    those features is on. It remembers successful verifications for a couple of
+    seconds, keyed by the SHA-256 of the token (the token itself is not kept),
+    in a small bounded table. Failures are never remembered. The window is far
+    inside the verifier's own 30-second clock leeway, so a token is not accepted
+    meaningfully longer than without the wrapper.
+    """
+
+    def __init__(
+        self,
+        inner: TokenVerifier,
+        *,
+        ttl_s: float = 2.0,
+        max_entries: int = 2048,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self._inner = inner
+        self._ttl = ttl_s
+        self._max = max_entries
+        self._clock = clock
+        self._seen: OrderedDict[bytes, tuple[float, Principal]] = OrderedDict()
+
+    @property
+    def _keys(self) -> object:  # tests and shutdown reach the key provider through here
+        return self._inner._keys
+
+    async def verify(self, token: str) -> Principal:
+        digest = hashlib.sha256(token.encode("utf-8", "surrogatepass")).digest()
+        now = self._clock()
+        hit = self._seen.get(digest)
+        if hit is not None and now - hit[0] <= self._ttl:
+            return hit[1]
+        principal = await self._inner.verify(token)
+        self._seen[digest] = (now, principal)
+        self._seen.move_to_end(digest)
+        while len(self._seen) > self._max:
+            self._seen.popitem(last=False)
+        return principal
 
 
 def build_rate_limiter(settings: Settings) -> RateLimiter:
@@ -144,13 +238,14 @@ def _header(scope: Scope, name: bytes) -> str | None:
     return None
 
 
-async def resolve_verified_user_id(scope: Scope, verifier: TokenVerifier) -> uuid.UUID | None:
+async def resolve_verified_user_id(
+    scope: Scope, verifier: TokenVerifier | MemoVerifier
+) -> uuid.UUID | None:
     """The caller's user id if — and only if — the access token verifies.
 
-    Cached in ``scope["state"]`` for the rest of the request. Verification here
-    repeats the signature check the route dependency does later (roughly a
-    tenth of a millisecond with a cached key); that is the price of keying by a
-    VERIFIED principal without touching the shared dependency module.
+    Cached in ``scope["state"]`` for the rest of the request. The route dependency
+    verifies the same token again; ``MemoVerifier`` makes that second check a
+    table lookup.
     """
     state = scope.setdefault("state", {})
     cached = state.get(VERIFIED_USER_STATE_KEY, _UNSET)
@@ -210,7 +305,7 @@ class RateLimitMiddleware:
         app: ASGIApp,
         *,
         limiter: RateLimiter,
-        verifier: TokenVerifier,
+        verifier: TokenVerifier | MemoVerifier,
         trusted_proxy_hops: int = 0,
     ) -> None:
         self.app = app

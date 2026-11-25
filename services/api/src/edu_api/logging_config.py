@@ -54,7 +54,11 @@ from typing import IO, Any
 
 from edu_api.auth.verifier import TokenVerifier
 from edu_api.middleware import ASGIApp, Message, Receive, Scope, Send
-from edu_api.ratelimit import VERIFIED_USER_STATE_KEY, resolve_verified_user_id
+from edu_api.ratelimit import (
+    VERIFIED_USER_STATE_KEY,
+    MemoVerifier,
+    resolve_verified_user_id,
+)
 
 ACCESS_LOGGER = "edu_api.access"
 _MAX_MESSAGE_LENGTH = 2000
@@ -201,7 +205,7 @@ class AccessLogMiddleware:
         self,
         app: ASGIApp,
         *,
-        verifier: TokenVerifier,
+        verifier: TokenVerifier | MemoVerifier,
         actor_key: bytes | None = None,
         clock: Callable[[], float] = time.perf_counter,
     ) -> None:

@@ -55,9 +55,9 @@ Rules enforced **in the database**:
 | Function | EXECUTE today | Intended caller |
 |---|---|---|
 | `notify.set_preferences(boolean, text[], time, time) → void` | `edu_api` | Student API; actor from `app.current_actor_id()` |
-| `notify.enqueue(p_recipient uuid, p_kind text, p_refs jsonb, p_dedupe_key text, p_channels text[] = '{in_app}', p_deliver_after timestamptz = now, p_expires_at timestamptz = null) → uuid` | **nobody** | Other schemas' definer functions (run as owner; need no grant) |
-| `notify.claim_due(p_channel text, p_limit int = 20, p_lease_seconds int = 60) → setof notify.claimed` | **nobody** — awaiting `edu_worker` | Delivery worker |
-| `notify.record_attempt(p_outbox_id uuid, p_channel text, p_lease_token uuid, p_outcome text, p_error_code text = null) → text` | **nobody** — awaiting `edu_worker` | Delivery worker |
+| `notify.enqueue(p_recipient uuid, p_kind text, p_refs jsonb, p_dedupe_key text, p_channels text[] = '{in_app}', p_deliver_after timestamptz = now, p_expires_at timestamptz = null) → uuid` | `edu_worker` | Background jobs through the worker login; other schemas' definer functions (run as owner; need no grant). Never `edu_api`, never `edu_staff` |
+| `notify.claim_due(p_channel text, p_limit int = 20, p_lease_seconds int = 60) → setof notify.claimed` | `edu_worker` | Delivery worker |
+| `notify.record_attempt(p_outbox_id uuid, p_channel text, p_lease_token uuid, p_outcome text, p_error_code text = null) → text` | `edu_worker` | Delivery worker |
 | `notify.erase_learner(p_user_id uuid) → jsonb` | **nobody** | `account` erasure orchestrator (as owner) |
 | `notify._claim_due_at`, `notify._record_attempt_at`, `notify._settle` | nobody, **never to be granted** | Internal; the `_at` twins take an explicit clock for tests |
 | `notify.quiet_until`, `notify.window_end`, `notify.refs_are_ids` | nobody | Internal helpers |
@@ -67,14 +67,21 @@ Rules enforced **in the database**:
 `240_notify_structure.sql` asserts it and that every function is owned by
 `postgres`. No application code path creates a temporary object.
 
-**Seam, in one place.** The staff lane's roles do not exist in this branch. When
-they are merged, a second migration in this block (`20261124080200_…`) adds
-exactly the three statements quoted under `SEAM(notify-worker-role)` at the end
-of the migration, the expectation marked with the same tag in
-`240_notify_structure.sql` gains two pairs, and `owner_engine` in
-`tests/notify_fixtures.py` switches to `EDU_WORKER_DATABASE_URL`. No Python in
-`edu_api/notify/` changes. `ops.audit_write` is not called anywhere yet (it does
-not exist here): erasure and preference changes are not audited — see gaps.
+**Worker role (closed seam).** After merging staff B1 (`7c3d2fb`), migration
+`20261124080200_notify_worker_grants.sql` grants `edu_worker` USAGE on the schema
+and EXECUTE on `claim_due`, `record_attempt` and `enqueue` — no table privilege.
+The delivery tests log in as the real `edu_worker_login`
+(`tests/integration/test_notify_worker_role.py`, `243_notify_worker_role.sql`):
+the worker claims and reports, two worker sessions never lease the same
+delivery, the worker cannot pick the clock, read a table or opt a learner in,
+and `edu_api_login` / `edu_staff_login` cannot enqueue, claim or report.
+`claim_due` locks one candidate row at a time (`FOR UPDATE … SKIP LOCKED`), so
+concurrent workers do not hide rows from each other.
+
+**Audit.** `set_preferences` writes `notify_preferences.update` and
+`erase_learner` writes `notify_learner.erase` through `ops.audit_write`, in the
+same transaction, with flags and counts only (`push_enabled`, `muted_count`,
+`own_quiet_hours`; row counts) — never the hours or categories chosen.
 
 ## API contract (only when `EDU_NOTIFICATIONS_ENABLED=true`)
 
@@ -145,12 +152,14 @@ No title, no body: the app renders the words from `kind` + `refs`.
 
 | File | Assertions / tests | Covers |
 |---|---|---|
-| `supabase/tests/240_notify_structure.sql` | 42 | tables, RLS on all, no text columns, grants, EXECUTE lists, search_path, Data API roles |
-| `supabase/tests/241_notify_outbox.sql` | 89 | client cannot enqueue/claim/report/erase; dedupe; bounded inputs; no-free-text constraints; preferences; isolation; erasure |
-| `supabase/tests/242_notify_delivery.sql` | 105 | quiet hours across Haiti midnight and both DST changes; opt-in/opt-out; lease; backoff; cap; terminal failure; expiry |
+| `supabase/tests/240_notify_structure.sql` | 43 | tables, RLS on all, no text columns, grants, EXECUTE lists, search_path, Data API roles |
+| `supabase/tests/241_notify_outbox.sql` | 95 | client cannot enqueue/claim/report/erase; dedupe; bounded inputs; no-free-text constraints; preferences; isolation; erasure |
+| `supabase/tests/242_notify_delivery.sql` | 105 | quiet hours across Haiti midnight and both DST changes; opt-in/opt-out; lease; backoff; cap; terminal failure; expiry. All instants are explicit and in 2019–2020 (historical time-zone rules cannot change with a tzdata update); events are enqueued with an explicit `deliver_after`, so the file does not depend on the hour, day or year it runs in |
+| `supabase/tests/243_notify_worker_role.sql` | 44 | worker grants; `edu_api` / `edu_staff` refusals; opt-in and quiet hours inside `claim_due` |
 | `tests/unit/test_notify_payload_and_cursor.py` | 20 | content-free payload, dummy sink, no network import, worker pass, cursor, strict body |
-| `tests/integration/test_notify_api.py` | 13 | flag off = 404; contract; auth; preferences; list; pagination; arbitrary SQL as the API role |
+| `tests/integration/test_notify_api.py` | 14 | flag off = 404; contract with the constant on; auth; preferences; list; pagination; arbitrary SQL as the API role |
 | `tests/integration/test_notify_delivery.py` | 7 | dummy delivery through real functions; opt-out; quiet hours on the real clock; retries to terminal; 8 concurrent passes; erasure |
+| `tests/integration/test_notify_worker_role.py` | 21 | real `edu_worker_login`: claim, report, enqueue; refusals; two workers; quiet hours; audit attribution |
 | `tests/integration/test_notify_isolation.py` | 5 | learning works with `notify` unreachable and with every notify table locked; `/ready`; Data API |
 
 ## Decisions taken without the owner (all reversible, all behind the flag)
@@ -183,7 +192,7 @@ No title, no body: the app renders the words from `kind` + `refs`.
 ## Known gaps
 
 - No worker process, no schedule, no real channel, no device tokens.
-- No audit event on preference change or erasure (`ops.audit_write` not present).
+- Delivery attempts are logged in `notify.delivery_attempts`, not in the audit trail.
 - No "read/unread" state and no way to dismiss an in-app item.
 - No retention job: outbox rows and attempt logs grow until `erase_learner`.
 - `deliver_after` further than 90 days ahead is refused by `enqueue`.
@@ -225,6 +234,12 @@ The numbers are engineering placeholders, not measured against real usage.
   learner. An unverified token is never a key: a forged token naming another
   learner cannot spend that learner's budget, and invented subjects do not mint
   new buckets — such requests share the address's `anonymous` bucket.
+- **`X-Forwarded-For` cannot choose the key.** With
+  `RATE_LIMIT_TRUSTED_PROXY_HOPS=0` (default) the header is ignored and the
+  socket peer is counted; with N it is the entry written by the N-th trusted
+  proxy from the right, never a client-supplied one further left
+  (`test_trusted_proxy_setting_decides_which_address_is_counted`,
+  `test_forwarded_header_is_ignored_unless_proxies_are_declared`).
 - **`/health` and `/ready` are never limited.**
 - **429** in the standard error shape, code `rate_limited`, with `Retry-After`
   (whole seconds, ≥ 1) and `X-Request-ID`. The request is rejected **before its
@@ -254,13 +269,22 @@ The mobile client does not handle `429` yet (native lane to pick up).
   still needs a limiter at the gateway or in a shared store (Platform-02).**
 - **Nothing is stopped before it reaches the process**: connection floods, slow
   bodies and TLS cost are a gateway's job.
-- **Fails open under key floods.** Above `RATE_LIMIT_MAX_KEYS` the least recently
-  used bucket is dropped and its owner starts with a full bucket (bounded memory
-  was preferred to unbounded memory; tested).
-- **Token verification happens twice** per request when the limiter is on (once
-  here, once in the route dependency; about a tenth of a millisecond with a
-  cached key). Removing that needs a small change in the shared `deps.py`, which
-  this lane does not own.
+- **Bounded memory without failing open.** Buckets live in two stores of
+  `RATE_LIMIT_MAX_KEYS / 2` each: verified learners, and everything else. Only a
+  verified token creates a learner bucket, so a flood of invented addresses or
+  invalid tokens cannot evict or reset a learner. When a store is full, the least
+  recently used bucket is dropped only if it has completely refilled (forgetting
+  it changes nothing); otherwise the new key gets no bucket and is charged to one
+  shared overflow bucket with the anonymous budget — stricter, never absent.
+  Residual: during such a flood, callers from *new* addresses share that one
+  bucket (legitimate anonymous traffic is squeezed; signed-in learners are not),
+  and a flood sustains at most what its distinct addresses are each entitled to.
+- **One token verification per request.** When the limiter (or the log actor) is
+  on, `app.state.token_verifier` is wrapped by `MemoVerifier`: a successful
+  verification is remembered for 2 seconds, keyed by the SHA-256 of the token, in
+  a 2048-entry table; failures are never remembered. `deps.py` is untouched.
+  Cost: a token is accepted up to 2 s past the moment the verifier would refuse
+  it (inside its 30 s leeway). Not installed with default settings.
 - **Address-keyed limiting is coarse** behind carrier NAT or a school network.
   It only applies to requests without a valid token; signed-in learners behind
   one address are counted separately (tested). Behind a reverse proxy the socket
@@ -354,8 +378,8 @@ and limits are in [`operations-drill.md`](operations-drill.md).
 
 | File | Tests | Covers |
 |---|---|---|
-| `tests/unit/test_ratelimit_buckets.py` | 19 | burst, refill, cap, no penalty growth, isolation, eviction, route classes, address handling |
-| `tests/integration/test_ratelimit_api.py` | 8 | default off; 429 shape; per-learner keys behind one address; forged tokens; probes; sync retry contract; rejected before body; proxy hops |
+| `tests/unit/test_ratelimit_buckets.py` | 23 | burst, refill, cap, no penalty growth, isolation, eviction, route classes, address handling |
+| `tests/integration/test_ratelimit_api.py` | 10 | default off; 429 shape; per-learner keys behind one address; forged tokens; probes; sync retry contract; rejected before body; proxy hops |
 | `tests/integration/test_logging_privacy.py` | 7 | default unchanged; fields and templates; planted values; exceptions; redaction; actor hash; with limiter + notifications on |
 | `tests/integration/test_notify_isolation.py` | +1 (6 in the file) | readiness rules |
 

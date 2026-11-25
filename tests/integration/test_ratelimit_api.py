@@ -70,6 +70,7 @@ async def test_default_settings_have_no_limiter_at_all(
     """Behaviour with default settings is exactly today's: nothing is installed."""
     assert app.state.settings.rate_limit_enabled is False
     assert not hasattr(app.state, "rate_limiter")
+    assert type(app.state.token_verifier).__name__ == "TokenVerifier", "no wrapper by default"
     assert "RateLimitMiddleware" not in [m.cls.__name__ for m in app.user_middleware]
     assert [m.cls.__name__ for m in app.user_middleware] == [
         "RequestIdMiddleware",
@@ -137,9 +138,66 @@ async def test_unverified_tokens_are_counted_by_address_never_by_their_claims(
     # The real Student A, from the same address, is untouched.
     for _ in range(3):
         assert (await http.get("/v1/me", headers=bearer(tokens["student_a"]))).status_code == 200
-    keys = [key for _, key in application.state.rate_limiter._buckets]
+    keys = application.state.rate_limiter.known_keys()
     assert sorted(set(keys)) == sorted({"a:203.0.113.5", f"u:{STUDENT_A}"})
     assert not any(token in key for token in forged for key in keys), "tokens are never keys"
+
+
+async def test_a_flood_of_addresses_does_not_switch_the_limiter_off(
+    local_env: dict[str, str], tokens: dict[str, str]
+) -> None:
+    """Review item: with the bucket table full, unknown callers must be limited MORE
+    (one shared bucket), never not at all — and signed-in learners are unaffected."""
+    application = create_app(
+        build_settings(
+            local_env,
+            rate_limit_enabled=True,
+            rate_limit_anonymous_burst=2,
+            rate_limit_anonymous_per_minute=1,
+            rate_limit_max_keys=20,  # 10 anonymous buckets
+            rate_limit_trusted_proxy_hops=1,  # lets the test play many client addresses
+        )
+    )
+    transport = httpx.ASGITransport(app=application, client=("10.0.0.1", 4000))
+    try:
+        async with httpx.AsyncClient(transport=transport, base_url="http://api.test") as http:
+            statuses = [
+                (
+                    await http.get(
+                        "/v1/me",
+                        headers={"X-Forwarded-For": f"198.51.{index // 250}.{index % 250}"},
+                    )
+                ).status_code
+                for index in range(300)
+            ]
+            assert statuses.count(401) == 10 + 2, "10 own buckets, then a shared burst of 2"
+            assert statuses[12:] == [429] * 288, "every further new address is refused"
+            assert len(application.state.rate_limiter) <= 20
+            learner = await http.get("/v1/me", headers=bearer(tokens["student_a"]))
+            assert learner.status_code == 200, "a verified learner is counted separately"
+    finally:
+        await application.state.db.dispose()
+
+
+async def test_the_token_is_verified_once_per_request_when_the_limiter_is_on(
+    limited: tuple[httpx.AsyncClient, FakeClock, FastAPI], tokens: dict[str, str]
+) -> None:
+    http, _, application = limited
+    memo = application.state.token_verifier
+    calls = 0
+    real_verify = memo._inner.verify
+
+    async def counting(token: str) -> Any:
+        nonlocal calls
+        calls += 1
+        return await real_verify(token)
+
+    memo._inner.verify = counting
+    memo._seen.clear()
+    assert (await http.get("/v1/me", headers=bearer(tokens["student_b"]))).status_code == 200
+    assert calls == 1, "middleware and route dependency shared one verification"
+    assert (await http.get("/v1/me", headers=bearer("bad.token.value"))).status_code == 401
+    assert calls == 3, "a rejected token is never remembered"
 
 
 async def test_probes_are_never_limited(

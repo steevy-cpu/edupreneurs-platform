@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import uuid
+
 import pytest
 
-from edu_api.ratelimit import Budget, RateLimiter, classify, client_address
+from edu_api.auth.verifier import InvalidToken, Principal
+from edu_api.ratelimit import Budget, MemoVerifier, RateLimiter, classify, client_address
 
 
 class FakeClock:
@@ -74,29 +77,104 @@ def test_principals_and_route_classes_are_isolated() -> None:
     assert buckets.take("anonymous", "a:192.0.2.1") == 0.0
 
 
-def test_memory_is_bounded_by_evicting_the_least_recently_used() -> None:
+def test_a_flood_of_distinct_keys_never_switches_the_limiter_off() -> None:
+    """Bounded memory must not mean "fails open": once the store is full, unknown
+    keys share ONE overflow bucket with the anonymous budget."""
     clock = FakeClock()
-    buckets = limiter(clock, max_keys=50)
-    buckets.take("anonymous", "a:victim")
-    buckets.take("anonymous", "a:victim")
-    assert buckets.take("anonymous", "a:victim") > 0.0, "victim is limited"
-    for index in range(10_000):  # a flood of distinct keys
+    buckets = limiter(clock, max_keys=100)  # 50 anonymous + 50 verified
+    allowed = 0
+    for index in range(10_000):  # every request from a new address / invalid token
+        allowed += buckets.take("anonymous", f"a:flood-{index}") == 0.0
+        assert len(buckets) <= 100
+    # 50 keys got their own bucket (one request each); everyone after that shared
+    # the overflow bucket: burst 2, then refused.
+    assert allowed == 50 + 2
+    assert buckets.overflowed == 10_000 - 50
+    assert buckets.take("anonymous", "a:yet-another") == pytest.approx(1.0)
+    clock.advance(0.5)  # nothing has refilled completely yet: still the shared bucket
+    assert buckets.take("anonymous", "a:and-another") == pytest.approx(0.5)
+    # Sustained, a flood gets what its distinct addresses are each entitled to and
+    # no more: a bucket is only handed to a new key once an old one has fully refilled.
+
+
+def test_a_flood_cannot_reset_a_limited_key() -> None:
+    clock = FakeClock()
+    buckets = limiter(clock, max_keys=100)
+    for _ in range(2):
+        buckets.take("anonymous", "a:victim-or-attacker")
+    assert buckets.take("anonymous", "a:victim-or-attacker") > 0.0
+    for index in range(5_000):
         buckets.take("anonymous", f"a:flood-{index}")
-        assert len(buckets) <= 50
-    assert len(buckets) == 50
-    # Stated limit: an evicted key starts again with a full bucket (fails open).
-    assert buckets.take("anonymous", "a:victim") == 0.0
+    assert buckets.take("anonymous", "a:victim-or-attacker") > 0.0, "still limited"
 
 
-def test_a_recently_used_key_survives_eviction() -> None:
+def test_an_anonymous_flood_cannot_touch_verified_learners() -> None:
+    """Only a verified token creates a learner bucket, so invented addresses and
+    invalid tokens can neither evict a learner nor push learners into overflow."""
     clock = FakeClock()
-    buckets = limiter(clock, max_keys=10)
+    buckets = limiter(clock, max_keys=100)
     for _ in range(3):
-        buckets.take("read", "u:busy")
-    for index in range(9):
-        buckets.take("read", f"u:other-{index}")
-        buckets.take("read", "u:busy")  # keeps being used while others arrive
-    assert buckets.take("read", "u:busy") > 0.0, "still limited: it was never evicted"
+        buckets.take("read", "u:limited-learner")
+    assert buckets.take("read", "u:limited-learner") > 0.0
+    for index in range(5_000):
+        buckets.take("anonymous", f"a:flood-{index}")
+    assert buckets.take("read", "u:limited-learner") > 0.0, "not reset by the flood"
+    assert buckets.take("read", "u:new-learner") == 0.0, "a new learner still gets a full bucket"
+    assert [buckets.take("read", "u:new-learner") == 0.0 for _ in range(3)] == [True, True, False]
+
+
+def test_idle_buckets_are_forgotten_so_memory_is_reused() -> None:
+    clock = FakeClock()
+    buckets = limiter(clock, max_keys=20)  # 10 per store
+    for index in range(10):
+        buckets.take("anonymous", f"a:morning-{index}")
+    clock.advance(3600.0)  # all of them have refilled: forgetting them loses nothing
+    for index in range(10):
+        assert buckets.take("anonymous", f"a:evening-{index}") == 0.0
+    assert buckets.overflowed == 0 and len(buckets) == 10
+    assert not [key for key in buckets.known_keys() if "morning" in key]
+
+
+def test_verified_store_overflows_to_a_limited_bucket_too() -> None:
+    clock = FakeClock()
+    buckets = limiter(clock, max_keys=4)  # 2 learner buckets
+    buckets.take("read", "u:a")
+    buckets.take("read", "u:b")
+    results = [buckets.take("read", f"u:extra-{index}") == 0.0 for index in range(4)]
+    assert results == [True, True, False, False], "anonymous budget (burst 2), shared"
+    assert buckets.take("read", "u:a") == 0.0, "existing learners keep their own bucket"
+
+
+class CountingVerifier:
+    def __init__(self) -> None:
+        self.calls = 0
+        self._keys = object()
+
+    async def verify(self, token: str) -> Principal:
+        self.calls += 1
+        if token.startswith("bad"):
+            raise InvalidToken("bad_signature")
+        return Principal(user_id=uuid.UUID(int=len(token)))
+
+
+async def test_memo_verifier_checks_a_token_once_and_never_remembers_a_failure() -> None:
+    clock = FakeClock()
+    inner = CountingVerifier()
+    memo = MemoVerifier(inner, ttl_s=2.0, max_entries=3, clock=clock)  # type: ignore[arg-type]
+    first = await memo.verify("token-one")
+    assert await memo.verify("token-one") == first and inner.calls == 1
+    clock.advance(2.5)
+    await memo.verify("token-one")
+    assert inner.calls == 2, "after the short window the token is verified again"
+    for _ in range(3):
+        with pytest.raises(InvalidToken):
+            await memo.verify("bad-token")
+    assert inner.calls == 5, "every use of a bad token is a real verification"
+    for index in range(10):
+        await memo.verify(f"token-{index:04d}")
+    assert len(memo._seen) == 3, "bounded"
+    assert all(len(digest) == 32 for digest in memo._seen), "digests, not tokens, are kept"
+    assert memo._keys is inner._keys
 
 
 @pytest.mark.parametrize(

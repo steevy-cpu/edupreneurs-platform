@@ -20,7 +20,7 @@ from edu_api.db.session import Database, build_engine
 from edu_api.errors import install_error_handlers
 from edu_api.logging_config import AccessLogMiddleware, install_json_logging
 from edu_api.middleware import BodyLimitMiddleware, RequestIdMiddleware
-from edu_api.ratelimit import RateLimitMiddleware, build_rate_limiter
+from edu_api.ratelimit import MemoVerifier, RateLimitMiddleware, build_rate_limiter
 from edu_api.routers import catalog, health, me, notifications, staff, sync
 from edu_api.staff.db import build_staff_database
 
@@ -96,6 +96,12 @@ def create_app(
     )
     # Lane notify, Part B (both opt-in, both absent by default). Added here so that
     # they run AFTER the request id exists and BEFORE a body is read.
+    if settings.rate_limit_enabled or (
+        json_logging is not None and settings.log_actor_hash_key is not None
+    ):
+        # These features verify the token before the route does; make the route's
+        # own verification of the same token a lookup instead of a second check.
+        app.state.token_verifier = MemoVerifier(app.state.token_verifier)
     if settings.rate_limit_enabled:
         app.state.rate_limiter = build_rate_limiter(settings)
         app.add_middleware(
