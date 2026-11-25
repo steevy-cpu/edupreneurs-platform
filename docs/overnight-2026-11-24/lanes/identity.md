@@ -359,7 +359,7 @@ true on the local image used tonight. **It is unverified on a hosted project.** 
 refuses, `erase_learner` fails with `42501` before deleting anything, and the alternative is
 option C above (a reviewed change to the append-only trigger function), which needs owner approval.
 
-**Executors (B1).** `EXECUTE` on `account.erase_learner(uuid)`: `edu_worker` only.
+**Executors (B1; changed by review fix M-2, see the review section below).** Originally `EXECUTE` on `account.erase_learner(uuid)` went to `edu_worker`; it is now owner-only and the worker uses `account.worker_process_deletion(request id)`.
 `account.staff_erase_learner(uuid)` (`EXECUTE`: `edu_staff` only) starts with
 `staff.require_role('admin')` and then calls the same orchestrator. Tested with the real roles and
 over real connections of `edu_worker_login` / `edu_staff_login`: a learner (through `edu_api`), an
@@ -422,6 +422,44 @@ Designed, **not** built or not proven:
 - **Device copies.** Erasure on the server does not wipe a phone's local database; the app must
   clear local data when the account is gone (native lane).
 - **Backups / logs** are outside the database and outside this lane.
+
+## Independent review of 4699a8a — fixed and open
+
+Fixed in `20261124020500_account_review_fixes.sql` (tests: `125_account_review_fixes.sql`, updated
+`124`, two-connection tests in `tests/integration/test_account_lifecycle.py`). Where this section
+differs from the text above, this section is current.
+
+| Finding | Fix |
+|---|---|
+| H-1 onboarding / export racing an erasure left the id behind | both functions lock the caller's profile (`FOR KEY SHARE`); a racing call waits and is refused (`42501`). Proven with two connections |
+| M-1 the erasure record could store the erased id | refused when the session actor is the erased learner; the "id is nowhere" check now runs **after** the audit write |
+| M-2 the worker could erase any id | `erase_learner(uuid)` is owner-only again. `edu_worker` may execute only `account.worker_process_deletion(p_request_id uuid)`: needs an **open** deletion request, takes the user from it; unknown / cancelled / processed id → error `P0002`, nothing erased, no audit event. Staff path refuses an id with no learner profile (`P0002`) |
+| L-1 temporary function blocked erasure | hook discovery ignores `pg_*` schemas |
+| L-2 hook contract | a registered schema whose `erase_learner` has another signature blocks; the replication role is checked after every hook |
+| L-3 (part) | the postcondition also covers unlogged tables and `uuid[]` columns |
+| L-4 lock order | sync row, then profile (same as `app.sync_apply_operation`), then the sync row again |
+
+**Open review findings**
+
+- **M-3 — Auth ordering / re-creation after erasure (needs PO-04).** The Auth account cannot be
+  deleted before the erasure (foreign keys refuse), so the order is always: ban the Auth user and
+  revoke sessions → erase → delete the Auth user. Nothing here does the ban, and until the access
+  token expires (≤ 1 hour) a request through the API re-creates an empty profile and can file new
+  requests, which puts the id back in the database. Options: make the executor do the ban, or keep
+  a non-identifying, time-limited tombstone that refuses profile creation.
+- **M-2, remainder.** No cooling-off period before a request may be processed (PO-04); the staff
+  path takes no reason code.
+- **L-3, remainder.** The postcondition does not look inside `text` / `jsonb` columns. Hook
+  contract: a module must not store learner ids as text or JSON, or must erase them in its hook.
+  Test 124 does sweep text / JSON columns of every application schema present.
+- **L-4, remainder.** The erasure is not retried on a deadlock (`40P01`); a sync push that queues
+  behind an erasure fails with a raw foreign-key error (HTTP 500) instead of a clean refusal —
+  that mapping is in the verified sync path.
+- **L-5.** The display name accepts invisible and direction-changing characters (Unicode `Cf`),
+  including a name made only of zero-width characters. Private to its owner today; must be fixed
+  before the name is shown to anyone else.
+- **L-2, remainder.** A registered schema that ships no hook is indistinguishable from a lane that
+  forgot one; only the postcondition catches it.
 
 ## Tests
 

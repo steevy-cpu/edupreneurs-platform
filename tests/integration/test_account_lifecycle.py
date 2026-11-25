@@ -367,11 +367,23 @@ async def test_a_synthetic_learner_is_fully_erased_and_another_is_untouched(
             "SELECT account.find_learner_references(gen_random_uuid())",
             "SELECT account.staff_erase_learner(gen_random_uuid())",
             "SELECT account.export_own_data()",
+            # Review M-2: the worker cannot name a user, only an open request.
+            f"SELECT account.erase_learner('{z.user_id}')",
         ):
             with pytest.raises(asyncpg.InsufficientPrivilegeError):
                 await worker.execute(forbidden)
+        with pytest.raises(asyncpg.PostgresError, match="No open deletion request"):
+            await worker.execute("SELECT account.worker_process_deletion($1)", uuid.uuid4())
+        with pytest.raises(asyncpg.PostgresError, match="No open deletion request"):
+            await worker.execute("SELECT account.worker_process_deletion($1)", z.user_id)
+        request_id = await admin.fetchval(
+            "SELECT id FROM account.deletion_requests WHERE user_id = $1 AND status = 'requested'",
+            z.user_id,
+        )
         async with worker.transaction():
-            report = await worker.fetchval("SELECT account.erase_learner($1)::text", z.user_id)
+            report = await worker.fetchval(
+                "SELECT account.worker_process_deletion($1)::text", request_id
+            )
             # Still inside the worker's own transaction: protections are back.
             assert await worker.fetchval("SHOW session_replication_role") == "origin"
         assert await worker.fetchval("SHOW session_replication_role") == "origin"
@@ -507,7 +519,7 @@ async def test_only_the_worker_and_a_staff_administrator_can_erase(
             await staff.execute("SELECT account.erase_learner($1)", target.user_id)
         # an administrator cannot erase staff accounts (including their own)
         for staff_account in (EDITOR, administrator.user_id):
-            with pytest.raises(asyncpg.PostgresError, match="staff records"):
+            with pytest.raises(asyncpg.PostgresError, match="staff records|No learner with this id"):
                 await as_actor(administrator.user_id, staff_account)
         assert tuple(await admin.fetchrow(LEARNER_ROWS, target.user_id))[:6] == (1, 2, 3, 3, 1, 1)
 
@@ -620,3 +632,53 @@ async def test_a_push_arriving_during_the_erasure_waits_and_never_mixes_with_old
     }
     assert not remaining & old_attempts, "none of the erased attempts came back"
     assert await snapshot(admin, y.user_id) == y_before
+
+
+async def test_onboarding_and_export_racing_an_erasure_wait_and_are_refused(
+    account_app: FastAPI,
+    account_client: httpx.AsyncClient,
+    learners: dict[str, SyntheticLearner],
+    admin: asyncpg.Pool,
+) -> None:
+    """Review finding H-1. With the erasure of X in flight on one connection,
+    X's onboarding update and export (run as the API role on other
+    connections) must queue behind it and then be refused — not commit rows
+    for an erased learner after the erasure has reported success."""
+    from sqlalchemy import text
+    from sqlalchemy.exc import DBAPIError
+
+    x = learners["x"]
+    await study(account_client, x)
+    db = account_app.state.db
+
+    async def as_learner(statement: str) -> str:
+        try:
+            async with db.transaction(x.user_id) as conn:
+                await conn.execute(text(statement))
+        except DBAPIError as exc:
+            return str(getattr(exc.orig, "sqlstate", None))
+        return "committed"
+
+    async with admin.acquire() as one:
+        erasure = one.transaction()
+        await erasure.start()
+        await one.fetchval("SELECT account.erase_learner($1)", x.user_id)
+        calls = [
+            asyncio.ensure_future(as_learner("SELECT account.advance_onboarding('ready', 1)")),
+            asyncio.ensure_future(as_learner("SELECT account.export_own_data()")),
+        ]
+        await asyncio.sleep(0.7)
+        assert not any(call.done() for call in calls), "both must wait for the erasure"
+        await erasure.commit()
+        outcomes = await asyncio.wait_for(asyncio.gather(*calls), timeout=10)
+
+    assert outcomes == ["42501", "42501"]
+    assert tuple(await admin.fetchrow(LEARNER_ROWS, x.user_id)) == (0,) * 9
+    assert await admin.fetchval("SELECT account.find_learner_references($1)", x.user_id) == []
+    assert (
+        await admin.fetchval(
+            "SELECT count(*) FROM app.audit_events WHERE actor_id = $1 OR target_id = $1",
+            x.user_id,
+        )
+        == 0
+    )
