@@ -39,6 +39,7 @@ function Root() {
       <Stack.Screen name="profile" />
       <Stack.Screen name="lesson/[id]" />
       <Stack.Screen name="quiz/[id]" />
+      <Stack.Screen name="tour" />
     </Stack>
   );
 }

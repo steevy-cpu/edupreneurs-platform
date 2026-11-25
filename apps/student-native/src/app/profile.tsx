@@ -3,8 +3,10 @@ import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import type { AttentionItem } from '../core/db/accountStore';
+import { FLAGS } from '../core/experience/flags';
+import { startTour, TOUR_STEPS } from '../core/experience/tour';
 import { LessonStanding, PREF_GRADE, PREF_SUBJECT, savedLessonStandings, syncDisplayOf, totalsOf } from '../core/learning/overview';
-import { AppText, Button, Card, Chip, LoadingState, Notice, Pill, SectionHeader, space, SyncStatusCard, useLayout } from '../design';
+import { AppText, Button, Card, Chip, ListRow, LoadingState, Notice, Pill, SectionHeader, space, SyncStatusCard, useLayout } from '../design';
 import { TabScreen, useSignOut } from '../ui/shell';
 import { useSignedIn } from '../ui/useSession';
 
@@ -159,6 +161,20 @@ export default function Profile() {
           <Chip label="Kreyòl" selected={app.locale === 'ht'} onPress={() => void setLocale('ht')} />
         </ScrollView>
       </View>
+
+      {FLAGS.tour ? (
+        <ListRow
+          icon="hint"
+          tone="accent"
+          title={t('tourReplay')}
+          subtitle={t('tourReplayHint', { count: TOUR_STEPS.length })}
+          onPress={() => {
+            void startTour(app.session.account, app.services.env.now(), { replay: true })
+              .catch(() => undefined)
+              .then(() => router.push('/tour'));
+          }}
+        />
+      ) : null}
 
       <View style={{ gap: space.sm }}>
         <SectionHeader title={t('profileAccount')} />

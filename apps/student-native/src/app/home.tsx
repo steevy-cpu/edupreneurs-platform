@@ -6,6 +6,8 @@ import type { CatalogResponse } from '../core/api/types';
 import { FLAGS } from '../core/experience/flags';
 import { onboardingGate } from '../core/experience/onboarding';
 import { onboardingSyncDue, syncOnboarding } from '../core/experience/onboardingSync';
+import { EMPTY_TOUR, TourRecord } from '../core/experience/store';
+import { dismissTour, startTour, tourOffer } from '../core/experience/tour';
 import {
   findLessonContext,
   LessonStanding,
@@ -15,6 +17,7 @@ import {
   totalsOf,
 } from '../core/learning/overview';
 import { AppText, Button, HeroCard, Icon, ListRow, LoadingState, MessageState, Notice, ProgressBar, SectionHeader, space } from '../design';
+import { TourInvite } from '../ui/experience/TourInvite';
 import { perfHomeReady, perfTap } from '../ui/perf';
 import { useRemote } from '../ui/remote';
 import { TabScreen } from '../ui/shell';
@@ -24,6 +27,8 @@ interface HomeView {
   standings: LessonStanding[];
   lastLessonId: string | null;
   catalog: CatalogResponse | null;
+  /** Product tour state; the untouched default when the `tour` flag is off (nothing is then offered). */
+  tour: TourRecord;
 }
 
 /** Accueil: one clear primary action — continue learning. Every value comes from SQLite. */
@@ -54,8 +59,9 @@ export default function Home() {
         const standings = await savedLessonStandings(content, session.account, locale);
         const lastLessonId = await session.account.getPreference(PREF_LAST_LESSON);
         const cached = await content.getCatalog(locale);
+        const tour = FLAGS.tour ? await session.account.experience.getTour() : EMPTY_TOUR;
         if (live && session.isActive()) {
-          setView({ standings, lastLessonId, catalog: cached?.catalog ?? null });
+          setView({ standings, lastLessonId, catalog: cached?.catalog ?? null, tour });
           setFailed(false);
           setOnboardingDue(false);
         }
@@ -111,6 +117,24 @@ export default function Home() {
     );
   }
 
+  // Optional tour (flag off by default): an inline card under the learning content, never a pop-up.
+  const tourInvite = FLAGS.tour ? (
+    <TourInvite
+      offer={tourOffer(view.tour)}
+      t={t}
+      onStart={() => {
+        void startTour(app.session.account, app.services.env.now())
+          .catch(() => undefined)
+          .then(() => router.push('/tour'));
+      }}
+      onDecline={() => {
+        void dismissTour(app.session.account, app.services.env.now())
+          .then((tour) => app.session.isActive() && setView((current) => (current ? { ...current, tour } : current)))
+          .catch(() => undefined);
+      }}
+    />
+  ) : null;
+
   const next = pickContinueLesson(view.standings, view.lastLessonId);
   const context = next ? findLessonContext(view.catalog, next.lessonId) : null;
   const totals = totalsOf(view.standings);
@@ -137,6 +161,7 @@ export default function Home() {
           onAction={() => router.replace('/learn')}
         />
         {pendingRow}
+        {tourInvite}
       </TabScreen>
     );
   }
@@ -208,6 +233,8 @@ export default function Home() {
           />
         ))}
       </View>
+
+      {tourInvite}
     </TabScreen>
   );
 }
