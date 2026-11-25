@@ -18,6 +18,24 @@ import type { RewardsRow } from './store';
 /** Minimum wait between two downloads of the summary when nothing new was synchronised. */
 export const REWARDS_RETRY_AFTER_MS = 10 * 60 * 1000;
 
+/** A copy older than this no longer describes "now": its streak is shown as of its date, or not at all. */
+export const STREAK_CURRENT_FOR_MS = 24 * 60 * 60 * 1000;
+
+export type StreakDisplay = { kind: 'current'; days: number } | { kind: 'as_of'; days: number; date: string } | { kind: 'none' };
+
+/**
+ * How the streak may be worded. "En cours" is a claim about the present, so it is only made
+ * while the copy is less than a day old (by elapsed time on this phone). An older copy is
+ * stated as of the server's date, and left out when that date is unknown. Zero is never announced.
+ */
+export function streakDisplay(confirmed: NonNullable<RewardsView['confirmed']>, now: Date): StreakDisplay {
+  const days = confirmed.streak?.current ?? 0;
+  if (days <= 0) return { kind: 'none' };
+  const age = now.getTime() - Date.parse(confirmed.fetchedAt);
+  if (Number.isFinite(age) && age >= 0 && age < STREAK_CURRENT_FOR_MS) return { kind: 'current', days };
+  return confirmed.today ? { kind: 'as_of', days, date: confirmed.today } : { kind: 'none' };
+}
+
 export interface RewardsView {
   /** Null until the server has sent a summary to this phone. */
   confirmed: (RemoteRewardsSummary & { fetchedAt: string }) | null;

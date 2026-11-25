@@ -82,6 +82,8 @@ export interface RemoteRewardsSummary {
   balance: number;
   /** Days with accepted learning, by the server's Haiti calendar. Null when the server sent no streak. */
   streak: { current: number; longest: number } | null;
+  /** The server's Haiti calendar date when it wrote this summary (`YYYY-MM-DD`), or null. The streak is true AS OF this day. */
+  today: string | null;
   /** How many achievements the server has awarded. */
   achievements: number;
   /** False while the server still has accepted work to examine: the balance may be about to change. */
@@ -232,6 +234,7 @@ export function parseRemoteRewardsSummary(body: unknown): RemoteRewardsSummary {
     balance,
     streak,
     achievements,
+    today: typeof body.today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.today) ? body.today : null,
     up_to_date: body.up_to_date !== false,
     rules_status: body.rules_status === 'provisional' ? 'provisional' : null,
   };

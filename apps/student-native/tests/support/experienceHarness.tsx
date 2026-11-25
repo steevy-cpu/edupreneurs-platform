@@ -141,7 +141,7 @@ export class FakeRemote implements ExperienceRemote {
 
 /** A synthetic server summary. The numbers mean nothing; they only have to be recognisable in assertions. */
 export function sampleRewards(balance: number, over: Partial<RemoteRewardsSummary> = {}): RemoteRewardsSummary {
-  return { balance, streak: { current: 3, longest: 7 }, achievements: 2, up_to_date: true, rules_status: null, ...over };
+  return { balance, streak: { current: 3, longest: 7 }, achievements: 2, today: '2026-11-24', up_to_date: true, rules_status: null, ...over };
 }
 
 /**

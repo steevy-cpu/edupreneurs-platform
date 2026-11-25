@@ -257,6 +257,8 @@ const fr = {
   wordPosExpression: 'expression',
   rewardsProvisional: 'Valeurs provisoires',
   rewardsCatchingUp: 'Le serveur compte encore tes dernières actions.',
+  // Overnight 2026-11-24, review M5: a streak from an old copy is stated as of its date
+  rewardsStreakAsOf: 'Série au {date} : {days} jour(s)',
 } as const;
 
 export type StringKey = keyof typeof fr;
@@ -505,6 +507,8 @@ const ht: Record<StringKey, string> = {
   wordPosExpression: 'ekspresyon',
   rewardsProvisional: 'Valè pwovizwa',
   rewardsCatchingUp: 'Sèvè a ap konte dènye aksyon ou yo toujou.',
+  // Overnight 2026-11-24, review M5: a streak from an old copy is stated as of its date (DRAFT wording: needs review by a Creole-speaking educator)
+  rewardsStreakAsOf: 'Seri jiska {date}: {days} jou',
 };
 
 export const STRINGS: Record<Locale, Record<StringKey, string>> = { fr, ht };

@@ -5,7 +5,8 @@ import { StyleSheet, View } from 'react-native';
 import type { Locale } from '../../core/api/types';
 import type { AccountStore } from '../../core/db/accountStore';
 import type { ExperienceRemote } from '../../core/experience/remote';
-import { refreshRewards, rewardsView, RewardsView } from '../../core/experience/rewards';
+import { formatHaitiDate } from '../../core/experience/dailyWord';
+import { refreshRewards, rewardsView, RewardsView, StreakDisplay, streakDisplay } from '../../core/experience/rewards';
 import type { Translate } from '../../core/i18n/strings';
 import { AppText, Card, ListRow, Pill, SectionHeader, space } from '../../design';
 
@@ -48,6 +49,8 @@ function useRewards({ account, remote, pendingActions, syncedAt, now, isActive }
  */
 export function RewardsCard({ t, locale, ...source }: Source & { t: Translate; locale: Locale }) {
   const { confirmed, pendingActions } = useRewards(source);
+  // Worded at every render from the age of the copy: an old copy never claims a streak "in progress".
+  const streak: StreakDisplay = confirmed ? streakDisplay(confirmed, source.now()) : { kind: 'none' };
   return (
     <View style={styles.section}>
       <SectionHeader title={t('rewardsTitle')} />
@@ -66,7 +69,10 @@ export function RewardsCard({ t, locale, ...source }: Source & { t: Translate; l
             <AppText variant="caption" color="textSecondary">
               {t('rewardsConfirmedAt', { when: new Date(confirmed.fetchedAt).toLocaleString(locale === 'ht' ? 'fr-HT' : 'fr-FR') })}
             </AppText>
-            {confirmed.streak && confirmed.streak.current > 0 ? <AppText>{t('rewardsStreak', { days: confirmed.streak.current })}</AppText> : null}
+            {streak.kind === 'current' ? <AppText>{t('rewardsStreak', { days: streak.days })}</AppText> : null}
+            {streak.kind === 'as_of' ? (
+              <AppText>{t('rewardsStreakAsOf', { days: streak.days, date: formatHaitiDate(streak.date, locale) })}</AppText>
+            ) : null}
             {confirmed.streak && confirmed.streak.longest > confirmed.streak.current ? (
               <AppText color="textSecondary">{t('rewardsStreakBest', { days: confirmed.streak.longest })}</AppText>
             ) : null}

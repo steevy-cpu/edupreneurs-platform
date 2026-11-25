@@ -159,6 +159,23 @@ describe('Gold on Profil', () => {
     expect((await phone.render(<Profile />)).text()).not.toMatch(/provisoires|compte encore/);
   });
 
+  test('review M5: offline for eleven days — the streak is stated as of its date, not as "en cours"', async () => {
+    remote.rewards = sampleRewards(120, { streak: { current: 5, longest: 7 }, today: '2026-11-01' });
+    const app = await phone.signIn('student.a');
+    app.services.env.now = () => new Date('2026-11-01T15:00:00.000Z');
+    let screen = await phone.render(<Profile />);
+    expect(screen.texts()).toContain('Série en cours : 5 jour(s)');
+    await phone.kill();
+    remote.mode = 'offline';
+    const later = await phone.signIn('student.a');
+    later.services.env.now = () => new Date('2026-11-12T15:00:00.000Z');
+    screen = await phone.render(<Profile />);
+    await screen.settle();
+    expect(screen.texts()).toContain('Série au 1er novembre 2026 : 5 jour(s)');
+    expect(screen.text()).not.toContain('Série en cours');
+    expect(screen.texts()).toContain('120'); // the balance is still the last confirmed one, with its date
+  });
+
   test('a streak of zero is not announced (no "you lost your streak")', async () => {
     remote.rewards = sampleRewards(30, { streak: { current: 0, longest: 5 }, achievements: 0 });
     await phone.signIn('student.a');

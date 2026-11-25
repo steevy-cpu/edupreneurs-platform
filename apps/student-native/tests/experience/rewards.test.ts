@@ -10,7 +10,7 @@ import path from 'node:path';
 import { ApiError } from '../../src/core/api/errors';
 import { AccountStore } from '../../src/core/db/accountStore';
 import { ExperienceApi, parseRemoteRewardsSummary } from '../../src/core/experience/remote';
-import { refreshRewards, REWARDS_RETRY_AFTER_MS, rewardsView } from '../../src/core/experience/rewards';
+import { refreshRewards, REWARDS_RETRY_AFTER_MS, rewardsView, streakDisplay } from '../../src/core/experience/rewards';
 import { FakeRemote, sampleRewards } from '../support/experienceHarness';
 import { nodeDatabases } from '../support/nodeSqlite';
 
@@ -70,6 +70,19 @@ describe('confirmed versus pending', () => {
   });
 });
 
+describe('review M5: a streak is only "in progress" while the copy is recent', () => {
+  const copy = (fetchedAt: string, over = {}) => ({ ...sampleRewards(120, over), fetchedAt });
+  test('less than a day old: current; older: as of the server’s date; older with no date: omitted; zero: never', () => {
+    const at = new Date('2026-11-12T15:00:00.000Z');
+    expect(streakDisplay(copy('2026-11-12T10:00:00.000Z'), at)).toEqual({ kind: 'current', days: 3 });
+    expect(streakDisplay(copy('2026-11-01T10:00:00.000Z', { today: '2026-11-01' }), at)).toEqual({ kind: 'as_of', days: 3, date: '2026-11-01' });
+    expect(streakDisplay(copy('2026-11-01T10:00:00.000Z', { today: null }), at)).toEqual({ kind: 'none' });
+    expect(streakDisplay(copy('2026-11-12T10:00:00.000Z', { streak: { current: 0, longest: 9 } }), at)).toEqual({ kind: 'none' });
+    // a phone clock that went backwards is not evidence that the copy is recent
+    expect(streakDisplay(copy('2026-11-20T10:00:00.000Z', { today: '2026-11-20' }), at)).toEqual({ kind: 'as_of', days: 3, date: '2026-11-20' });
+  });
+});
+
 describe('when the summary is downloaded', () => {
   test('not again within ten minutes — unless work was synchronised in between', async () => {
     await refreshRewards(account, remote, env);
@@ -115,7 +128,7 @@ describe('response validation (assumed contract, briefs/rewards.md)', () => {
         recent: [{ amount: 10, rule_code: 'first_correct_answer' }],
         pending: 500, // a server would not send this; if anything did, it is not read
       }),
-    ).toEqual({ balance: 120, streak: { current: 3, longest: 7 }, achievements: 2, up_to_date: true, rules_status: null });
+    ).toEqual({ balance: 120, streak: { current: 3, longest: 7 }, achievements: 2, today: null, up_to_date: true, rules_status: null });
   });
 
   test('accepts the summary as the rewards lane currently sends it', () => {
@@ -129,7 +142,7 @@ describe('response validation (assumed contract, briefs/rewards.md)', () => {
       up_to_date: false,
       rules_status: 'provisional',
     });
-    expect(parsed).toEqual({ balance: 35, streak: { current: 2, longest: 6 }, achievements: 1, up_to_date: false, rules_status: 'provisional' });
+    expect(parsed).toEqual({ balance: 35, streak: { current: 2, longest: 6 }, achievements: 1, today: '2026-11-24', up_to_date: false, rules_status: 'provisional' });
     // what the phone stores is what it reads back
     expect(parseRemoteRewardsSummary(JSON.parse(JSON.stringify(parsed)))).toEqual(parsed);
   });
