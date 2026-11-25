@@ -67,6 +67,12 @@ class Settings(BaseSettings):
     #: proven on synthetic users only; keep off until PO-04 is decided.
     account_lifecycle_enabled: bool = False
     # --- end identity lane ---------------------------------------------------
+    # --- Entitlements (schema `billing`; overnight lane "entitlements") --------
+    #: Switches on ``GET /v1/entitlements`` (read-only status of the caller's own
+    #: grants) and the staff routes under ``/v1/staff/billing``. Off by default:
+    #: those routes then answer 404 like any unknown path.
+    #: It never gates content — no paywall exists (BLOCKED_BY_OWNER PO-01).
+    entitlements_enabled: bool = False
 
     # --- Staff boundary (overnight 2026-11-24, staff lane) -------------------
     #: Optional. Must log in as ``edu_staff_login`` (member of ``edu_staff`` only).
