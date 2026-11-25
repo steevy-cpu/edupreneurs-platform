@@ -15,9 +15,13 @@ class CohortStanding(BaseModel):
     cohort_id: uuid.UUID
     pseudonym: str = Field(description="Assigned by the server from an allow-list.")
     rank: int | None = Field(
-        description="Competition rank (1, 1, 3) in the latest snapshot; null until one exists."
+        description="Competition rank (1, 1, 3) in the latest snapshot; null until one exists "
+        "and for a cohort below the minimum size."
     )
-    size: int | None = Field(description="Members ranked in that snapshot; null until one exists.")
+    size: int | None = Field(
+        description="Members ranked in that snapshot; null until one exists and for a cohort "
+        "below the minimum size."
+    )
     snapshot_gold: int | None = Field(description="The caller's Gold as counted by that snapshot.")
     computed_at: dt.datetime | None = Field(description="When the snapshot was computed.")
     frozen: bool = Field(description="True for the closing snapshot of a period that has ended.")

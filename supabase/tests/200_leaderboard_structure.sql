@@ -4,8 +4,8 @@ SELECT * FROM no_plan();
 
 -- ---- tables, keys, RLS -------------------------------------------------------
 SELECT tables_are('leaderboard', ARRAY[
-    'pseudonym_pool','periods','cohorts','memberships','snapshot_runs','snapshots'],
-    'the 6 leaderboard tables are the intended ones');
+    'pseudonym_pool','periods','cohorts','memberships','snapshot_runs','snapshots','config'],
+    'the 7 leaderboard tables are the intended ones');
 SELECT is((SELECT count(*)::int FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
            WHERE n.nspname = 'leaderboard' AND c.relkind = 'r' AND NOT c.relrowsecurity), 0,
     'row-level security is enabled on every leaderboard table');
