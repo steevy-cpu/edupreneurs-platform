@@ -67,6 +67,10 @@ class Settings(BaseSettings):
     rewards_recent_limit: int = Field(default=5, ge=1, le=20)
     #: Most unexamined operations healed by one summary request.
     rewards_reconcile_limit: int = Field(default=200, ge=1, le=500)
+    #: The reward step runs inside the learner's push transaction while the sync
+    #: row lock is held, so it gets its own SHORT limits (restored afterwards).
+    rewards_hook_lock_timeout_ms: int = Field(default=250, ge=50, le=2000)
+    rewards_hook_statement_timeout_ms: int = Field(default=500, ge=100, le=2000)
     # --- end rewards lane ---
 
     # --- Staff boundary (overnight 2026-11-24, staff lane) -------------------
