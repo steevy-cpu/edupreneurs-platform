@@ -1,0 +1,199 @@
+{
+  "vector_format": 1,
+  "suite": "canonical-json",
+  "description": "Byte-level cases for canonical JSON 'edu-canon-json-1' (manifests and lesson objects). 'utf8' is the text of the bytes to check (encode it as UTF-8; this file itself uses ASCII-only JSON escapes, so decode the JSON string first). expect.canonical says whether these bytes are exactly the canonical form of the document they encode. Reference: is_canonical_json = parse, re-serialise canonically, compare bytes; anything that does not parse, or that has no canonical form, is false. The first cases marked 'Review L1' fix two rules a schema cannot express: an integral float (10.0, 1e2) is not an integer, and there is no trailing line feed.",
+  "cases": [
+    {
+      "id": "ok-object",
+      "description": "sorted keys, no whitespace, integers",
+      "utf8": "{\"a\":1,\"b\":[true,false,null],\"c\":\"x\"}",
+      "expect": {
+        "canonical": true
+      }
+    },
+    {
+      "id": "ok-accent-nfc",
+      "description": "NFC text, written literally (UTF-8)",
+      "utf8": "{\"t\":\"\u00e9t\u00e9\"}",
+      "expect": {
+        "canonical": true
+      }
+    },
+    {
+      "id": "ok-control-escapes",
+      "description": "shortest escapes; lower-case hex for the other characters below U+0020",
+      "utf8": "{\"t\":\"a\\n\\t\\u0001\\\"\\\\\"}",
+      "expect": {
+        "canonical": true
+      }
+    },
+    {
+      "id": "ok-negative-integer",
+      "utf8": "{\"a\":-7}",
+      "expect": {
+        "canonical": true
+      }
+    },
+    {
+      "id": "x-integral-float",
+      "description": "Review L1. An integral float is NOT an integer: numbers are written without fraction or exponent. A JavaScript client cannot see the difference after JSON.parse, so it must compare the re-serialised bytes with the received bytes.",
+      "utf8": "{\"a\":10.0}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-exponent",
+      "description": "Review L1, same rule.",
+      "utf8": "{\"a\":1e2}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-fraction",
+      "description": "no floating-point numbers at all",
+      "utf8": "{\"a\":1.5}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-negative-zero",
+      "utf8": "{\"a\":-0}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-leading-zero",
+      "description": "not JSON",
+      "utf8": "{\"a\":01}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-trailing-line-feed",
+      "description": "Review L1. No trailing line feed: the canonical bytes end with the last character of the document.",
+      "utf8": "{\"a\":1}\n",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-trailing-space",
+      "utf8": "{\"a\":1} ",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-leading-byte-order-mark",
+      "description": "no byte-order mark",
+      "utf8": "\ufeff{\"a\":1}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-whitespace-after-colon",
+      "utf8": "{\"a\": 1}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-whitespace-after-comma",
+      "utf8": "{\"a\":1, \"b\":2}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-keys-not-sorted",
+      "utf8": "{\"b\":1,\"a\":2}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-duplicate-key",
+      "utf8": "{\"a\":1,\"a\":1}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-nfd-text",
+      "description": "text must be NFC",
+      "utf8": "{\"t\":\"e\u0301\"}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-escaped-solidus",
+      "description": "'/' is written literally",
+      "utf8": "{\"t\":\"a\\/b\"}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-escaped-printable",
+      "description": "a printable character is written literally",
+      "utf8": "{\"t\":\"\\u0041\"}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-upper-case-hex-escape",
+      "description": "hex digits of an escape are lower-case",
+      "utf8": "{\"t\":\"\\u001F\"}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-long-form-escape",
+      "description": "the short escape \\n is mandatory",
+      "utf8": "{\"t\":\"\\u000a\"}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-escaped-non-ascii",
+      "description": "non-ASCII characters are written literally",
+      "utf8": "{\"t\":\"\\u00e9\"}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-lone-surrogate-escape",
+      "description": "a lone surrogate has no canonical form",
+      "utf8": "{\"t\":\"\\ud800\"}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-non-ascii-key",
+      "description": "object keys are ASCII",
+      "utf8": "{\"cl\u00e9\":1}",
+      "expect": {
+        "canonical": false
+      }
+    },
+    {
+      "id": "x-empty",
+      "utf8": "",
+      "expect": {
+        "canonical": false
+      }
+    }
+  ]
+}

@@ -4026,6 +4026,27 @@
           ]
         }
       }
+    },
+    {
+      "id": "x-key-trailing-line-feed",
+      "description": "Review L1. '$' in the contracts' patterns matches only at the very end (ECMA-262): a key followed by a line feed is refused. A regular-expression engine whose '$' also matches before a final line feed (Python, PCRE without D) must use an end-of-text anchor.",
+      "document": [
+        {
+          "key": "intro\n",
+          "type": "paragraph",
+          "text": "Une fraction."
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
     }
   ]
 }

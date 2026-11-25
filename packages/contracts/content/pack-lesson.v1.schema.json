@@ -23,7 +23,8 @@
     "content_format": {
       "type": "integer",
       "minimum": 1,
-      "maximum": 2
+      "maximum": 2,
+      "description": "Exactly the smallest format able to carry this lesson's blocks and question kinds (a verifier recomputes it: lesson.content_format)."
     },
     "lesson_id": {
       "type": "string",
@@ -49,9 +50,27 @@
       ]
     },
     "title": {
+      "description": "Plain text, never interpreted as markup: no C0 control character, no DEL, and no '<' directly followed by a letter, '/', '!' or '?'.",
       "type": "string",
       "minLength": 1,
-      "maxLength": 200
+      "maxLength": 200,
+      "allOf": [
+        {
+          "not": {
+            "pattern": "[\\u0000-\\u001f\\u007f]"
+          }
+        },
+        {
+          "not": {
+            "pattern": "<[A-Za-z/!?]"
+          }
+        },
+        {
+          "not": {
+            "pattern": "[\\u0080-\\u009f\\u200b-\\u200f\\u2028-\\u202e\\u2060\\u2066-\\u2069\\ufeff\\ud800-\\udfff]"
+          }
+        }
+      ]
     },
     "blocks": {
       "type": "array",
@@ -116,6 +135,44 @@
           },
           "explanation": {
             "type": "object"
+          }
+        }
+      }
+    }
+  },
+  "if": {
+    "required": [
+      "content_format"
+    ],
+    "properties": {
+      "content_format": {
+        "const": 1
+      }
+    }
+  },
+  "then": {
+    "description": "The negotiation rule on the object itself: a format-1 lesson holds only the four format-1 block types and only 'mcq' questions.",
+    "properties": {
+      "blocks": {
+        "items": {
+          "properties": {
+            "type": {
+              "enum": [
+                "heading",
+                "paragraph",
+                "example",
+                "callout"
+              ]
+            }
+          }
+        }
+      },
+      "questions": {
+        "items": {
+          "properties": {
+            "kind": {
+              "const": "mcq"
+            }
           }
         }
       }

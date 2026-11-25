@@ -113,7 +113,7 @@ def _math(c: Collector, b: dict[str, Any], p: str) -> None:
         f"{p}/source",
         max_len=MAX_SOURCE_LENGTH,
         pattern=_MATH_CHARSET,
-        no_control=True,
+        plain=True,  # no control character, no tag opener (bare or inside \\text{})
     )
     c.string(b["alt"], f"{p}/alt", max_len=300, plain=True)
     if "asset" in b:

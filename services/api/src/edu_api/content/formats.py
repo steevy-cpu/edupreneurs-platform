@@ -51,7 +51,9 @@ def required_format(blocks: Sequence[Mapping[str, Any]], question_kinds: Iterabl
     """
     needed = 1
     for block in blocks:
-        block_type = block.get("type")
+        block_type = block.get("type") if isinstance(block, Mapping) else None
+        if not isinstance(block_type, str):  # a list, a number, missing: never a TypeError
+            raise ValueError("unknown block type")
         if block_type in V1_BLOCK_TYPES:
             continue
         if block_type in V2_BLOCK_TYPES:
@@ -59,6 +61,8 @@ def required_format(blocks: Sequence[Mapping[str, Any]], question_kinds: Iterabl
         else:
             raise ValueError("unknown block type")
     for kind in question_kinds:
+        if not isinstance(kind, str):
+            raise ValueError("unknown question kind")
         if kind in V1_QUESTION_KINDS:
             continue
         if kind in V2_QUESTION_KINDS:

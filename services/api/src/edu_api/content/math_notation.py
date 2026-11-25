@@ -11,7 +11,8 @@ GRAMMAR (checked left to right; validation stops at the first error)
     formula := item+                         spaces (U+0020) between items are ignored
     item    := atom script*                  at most one '^' and one '_' per atom
     script  := ('^' | '_') (group | letter | digit | symbol-command)
-    group   := '{' item+ '}'                 nesting depth at most 4
+    group   := '{' item+ '}'                 nesting depth at most 4; the index
+                                             '[...]' of a root counts as one level
     atom    := character | group | command
     command := '\\' name args | '\\%' | '\\{' | '\\}' | '\\,'
 
@@ -22,19 +23,26 @@ GRAMMAR (checked left to right; validation stops at the first error)
     \\text{...}   plain words; the only place where accented letters
                  (U+00C0..U+017F except the signs U+00D7 and U+00F7) are allowed
 
+NO MARKUP: a source never contains '<' directly followed by a letter, '/', '!'
+or '?' - bare or inside \\text{...} (write 'a < b' with a space). That is part
+of the structural layer (same rule as every other new text field) and is
+repeated here. A renderer must never hand a source to an HTML engine.
+
 RULE CODES (stable; shared with the phone through the test vectors)
 
     math.syntax            stray '\\', bare '%', empty group, empty formula
     math.unknown_command   a command that is not on the whitelist
     math.missing_argument  a command without its '{...}' argument(s)
     math.unbalanced        '{', '}' or a root index '[' without its partner
-    math.depth             groups nested deeper than 4
+    math.depth             groups and root indices nested deeper than 4
     math.script            '^' or '_' without a base, doubled, or without a valid operand
     math.text              a non-ASCII character outside \\text{...}, or a
                            character that is not allowed inside \\text{...}
 """
 
 from __future__ import annotations
+
+import re
 
 NOTATION = "edu-math-1"
 MAX_SOURCE_LENGTH = 400
@@ -58,6 +66,7 @@ _LITERALS = frozenset(
 )
 _TEXT_FORBIDDEN = frozenset("\\{^_%")
 _ASCII_LETTERS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+_MARKUP = re.compile(r"<[A-Za-z/!?]")
 _ASCII_ALNUM = _ASCII_LETTERS | frozenset("0123456789")
 
 
@@ -180,8 +189,11 @@ class _Parser:
             self._number_set_argument()
         elif name in GROUP_ARG_COMMANDS:
             if name == "sqrt" and self.pos < self.n and self.s[self.pos] == "[":
+                # The index is one nesting level, exactly like a group.
+                if depth + 1 > MAX_GROUP_DEPTH:
+                    raise _MathError("math.depth")
                 self.pos += 1
-                if self._expr(depth, "]") == 0:
+                if self._expr(depth + 1, "]") == 0:
                     raise _MathError("math.syntax")
                 self.pos += 1  # ']'
             for _ in range(GROUP_ARG_COMMANDS[name]):
@@ -216,17 +228,27 @@ class _Parser:
         self.pos += 3
 
 
-def check_math_source(source: str) -> str | None:
+def check_math_source(source: object) -> str | None:
     """Rule code of the first grammar error in ``source``, or ``None`` when it is valid.
 
-    The character set and the length are the structural layer's job (the JSON
-    Schema pattern); this function assumes they were checked first, but stays
-    safe on any input: an unexpected character is a ``math.syntax`` or
-    ``math.text`` error, never an exception.
+    The character set, the length and the no-markup rule are the structural
+    layer's job (the JSON Schema); this function assumes they were checked
+    first, but stays safe on ANY input: an unexpected character is a
+    ``math.syntax`` or ``math.text`` error, a value that is not a string is
+    ``math.syntax``, markup-shaped text is ``math.text`` - never an exception.
+    Recursion is bounded by ``MAX_GROUP_DEPTH`` (every recursive construct -
+    group, script group, root index - counts as a level), so no input can
+    exhaust the stack; ``RecursionError`` is nevertheless mapped to
+    ``math.depth`` should a caller already be deep in its own stack.
     """
-    parser = _Parser(source)
+    if not isinstance(source, str):
+        return "math.syntax"
     try:
-        parser.parse()
+        _Parser(source).parse()
     except _MathError as error:
         return error.code
+    except RecursionError:
+        return "math.depth"
+    if _MARKUP.search(source):
+        return "math.text"
     return None

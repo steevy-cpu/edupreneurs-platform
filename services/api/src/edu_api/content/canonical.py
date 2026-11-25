@@ -51,14 +51,24 @@ def _normalise(value: Any) -> Any:
 
 
 def canonical_json(document: Any) -> bytes:
-    """The canonical bytes of ``document``. Raises ``TypeError`` for floats and odd keys."""
-    return json.dumps(
-        _normalise(document),
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=False,
-        allow_nan=False,
-    ).encode("utf-8")
+    """The canonical bytes of ``document``.
+
+    Raises ``TypeError`` - and nothing else - for what has no canonical form:
+    floats (also integral ones such as ``10.0``), odd keys, unsupported types,
+    a lone surrogate in a string (it has no UTF-8 encoding), nesting too deep.
+    """
+    try:
+        return json.dumps(
+            _normalise(document),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        ).encode("utf-8")
+    except UnicodeEncodeError:
+        raise TypeError("a lone surrogate has no canonical JSON form") from None
+    except RecursionError:
+        raise TypeError("nested too deeply for canonical JSON") from None
 
 
 def is_canonical_json(data: bytes) -> bool:

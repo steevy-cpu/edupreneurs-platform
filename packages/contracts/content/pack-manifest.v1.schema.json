@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.mon-edupreneur.local/content/pack-manifest.v1.schema.json",
   "title": "Pack manifest (pack-manifest-1)",
-  "description": "What a phone downloads first for one (pack_key, locale): the list of lesson objects and assets of one release, with their true SHA-256 and sizes. Stored as canonical JSON 'edu-canon-json-1' (keys sorted, no whitespace, integers only, NFC, UTF-8); the SHA-256 of those bytes identifies the release (app.pack_releases.manifest_sha256). No timestamp and nothing random: identical input gives identical bytes. Array order is part of the document: lessons by position, questions by position, assets and per-lesson asset lists by sha256. Object keys: packs/<pack_key>/<locale>/<revision>/manifest.json, lessons/sha256/<first 2 hex>/<sha256>.json, assets/sha256/<first 2 hex>/<sha256>.",
+  "description": "What a phone downloads first for one (pack_key, locale): the list of lesson objects and assets of one release, with their true SHA-256 and sizes. Stored as canonical JSON 'edu-canon-json-1' (keys sorted, no whitespace, integers only, NFC, UTF-8); the SHA-256 of those bytes identifies the release (app.pack_releases.manifest_sha256). No timestamp and nothing random: identical input gives identical bytes. Array order is part of the document: lessons by position, questions by position, assets and per-lesson asset lists by sha256. Object keys: packs/<pack_key>/<locale>/<revision>/manifest.json, lessons/sha256/<first 2 hex>/<sha256>.json, assets/sha256/<first 2 hex>/<sha256>. Rules a JSON Schema cannot express, checked by the verifier (README, vectors/pack-verify.json): lesson_id and revision_id are unique in the pack, question ids are unique in the pack, question positions are distinct inside a lesson, and 'totals' equals what the two lists add up to.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -105,9 +105,27 @@
             "maximum": 2147483647
           },
           "title": {
+            "description": "Plain text, never interpreted as markup: no C0 control character, no DEL, and no '<' directly followed by a letter, '/', '!' or '?'.",
             "type": "string",
             "minLength": 1,
-            "maxLength": 200
+            "maxLength": 200,
+            "allOf": [
+              {
+                "not": {
+                  "pattern": "[\\u0000-\\u001f\\u007f]"
+                }
+              },
+              {
+                "not": {
+                  "pattern": "<[A-Za-z/!?]"
+                }
+              },
+              {
+                "not": {
+                  "pattern": "[\\u0080-\\u009f\\u200b-\\u200f\\u2028-\\u202e\\u2060\\u2066-\\u2069\\ufeff\\ud800-\\udfff]"
+                }
+              }
+            ]
           },
           "content_format": {
             "description": "Smallest format able to carry this lesson.",
@@ -186,6 +204,30 @@
               "pattern": "^[0-9a-f]{64}$",
               "minLength": 64,
               "maxLength": 64
+            }
+          }
+        },
+        "if": {
+          "required": [
+            "content_format"
+          ],
+          "properties": {
+            "content_format": {
+              "const": 1
+            }
+          }
+        },
+        "then": {
+          "description": "A format-1 lesson only has format-1 question kinds.",
+          "properties": {
+            "questions": {
+              "items": {
+                "properties": {
+                  "kind": {
+                    "const": "mcq"
+                  }
+                }
+              }
             }
           }
         }
@@ -288,6 +330,31 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 9007199254740992
+        }
+      },
+      "description": "Derived from the two lists; a verifier recomputes it and refuses a manifest whose totals differ (manifest.totals)."
+    }
+  },
+  "if": {
+    "required": [
+      "content_format"
+    ],
+    "properties": {
+      "content_format": {
+        "const": 1
+      }
+    }
+  },
+  "then": {
+    "description": "A format-1 pack lists only format-1 lessons.",
+    "properties": {
+      "lessons": {
+        "items": {
+          "properties": {
+            "content_format": {
+              "const": 1
+            }
+          }
         }
       }
     }

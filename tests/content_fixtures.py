@@ -28,9 +28,32 @@ def load_schema(name: str) -> dict[str, Any]:
     return schema
 
 
+def _ecma_anchors(node: Any) -> Any:
+    """The contracts' patterns are ECMA-262: ``$`` matches only at the very end.
+
+    Python's ``$`` also matches before a trailing line feed, so the harness
+    rewrites a final ``$`` to ``\\Z`` (review L1). The published files are untouched.
+    """
+    if isinstance(node, dict):
+        return {
+            name: (
+                value[:-1] + "\\Z"
+                if name == "pattern"
+                and isinstance(value, str)
+                and value.endswith("$")
+                and not value.endswith("\\$")
+                else _ecma_anchors(value)
+            )
+            for name, value in node.items()
+        }
+    if isinstance(node, list):
+        return [_ecma_anchors(item) for item in node]
+    return node
+
+
 @cache
 def schema_validator(name: str) -> jsonschema.Draft202012Validator:
-    return jsonschema.Draft202012Validator(load_schema(name))
+    return jsonschema.Draft202012Validator(_ecma_anchors(load_schema(name)))
 
 
 def schema_accepts(name: str, document: Any) -> bool:

@@ -85,6 +85,12 @@
           "type": "boolean"
         }
       }
+    },
+    "noInvisible": {
+      "description": "No invisible or direction-changing character: C1 controls (U+0080-U+009F), zero-width characters and direction marks (U+200B-U+200F, U+2060, U+FEFF), line and paragraph separators (U+2028, U+2029), bidirectional embeddings, overrides and isolates (U+202A-U+202E, U+2066-U+2069), and lone surrogates (U+D800-U+DFFF). The pattern must be evaluated in Unicode mode (ECMA-262 'u' flag), where the surrogate range only matches a surrogate that is not part of a pair.",
+      "not": {
+        "pattern": "[\\u0080-\\u009f\\u200b-\\u200f\\u2028-\\u202e\\u2060\\u2066-\\u2069\\ufeff\\ud800-\\udfff]"
+      }
     }
   }
 }
