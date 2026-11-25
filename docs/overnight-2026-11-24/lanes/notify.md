@@ -185,3 +185,177 @@ No title, no body: the app renders the words from `kind` + `refs`.
 - The in-app list and preferences are not part of offline sync; the app must
   cache them itself.
 - Quiet hours use one product time zone; a learner abroad gets Haiti hours.
+
+---
+
+# Part B — security and operations basics
+
+Everything here is **opt-in and off by default**. With default settings no
+middleware is added, no handler is installed, and the API behaves exactly as on
+`main` (asserted by `test_default_settings_have_no_limiter_at_all` and
+`test_default_settings_leave_logging_exactly_as_it_was`: the middleware stack is
+still exactly `RequestIdMiddleware`, `BodyLimitMiddleware`).
+
+## Rate limiting — `services/api/src/edu_api/ratelimit.py`
+
+A token bucket per key, in the memory of one API process.
+
+| Setting (`EDU_…`) | Default | Meaning |
+|---|---|---|
+| `RATE_LIMIT_ENABLED` | `false` | Master switch |
+| `RATE_LIMIT_READ_BURST` / `_READ_PER_MINUTE` | 60 / 240 | Verified learner, safe methods (`GET` …) |
+| `RATE_LIMIT_WRITE_BURST` / `_WRITE_PER_MINUTE` | 20 / 60 | Verified learner, other methods except sync push |
+| `RATE_LIMIT_SYNC_PUSH_BURST` / `_SYNC_PUSH_PER_MINUTE` | 40 / 120 | Verified learner, `POST /v1/sync/push` (40 × 50 ops = a 2000-operation backlog at once) |
+| `RATE_LIMIT_ANONYMOUS_BURST` / `_ANONYMOUS_PER_MINUTE` | 30 / 60 | Any request **without a verified token**, per client address, all routes together |
+| `RATE_LIMIT_MAX_KEYS` | 20000 | Buckets kept in memory; least recently used are dropped |
+| `RATE_LIMIT_TRUSTED_PROXY_HOPS` | 0 | 0 = ignore `X-Forwarded-For`; N = trust the N-th entry from the right |
+
+The numbers are engineering placeholders, not measured against real usage.
+
+- **Key = verified principal.** The middleware verifies the access token itself
+  (same verifier, cached keys). Only a token that verifies is counted per
+  learner. An unverified token is never a key: a forged token naming another
+  learner cannot spend that learner's budget, and invented subjects do not mint
+  new buckets — such requests share the address's `anonymous` bucket.
+- **`/health` and `/ready` are never limited.**
+- **429** in the standard error shape, code `rate_limited`, with `Retry-After`
+  (whole seconds, ≥ 1) and `X-Request-ID`. The request is rejected **before its
+  body is read**.
+- Order: request id → (access log) → rate limit → body limit → routes.
+
+### Client retry contract for sync (so that a limit is never data loss)
+
+1. `429` means **nothing was read and nothing was applied**.
+2. Wait at least `Retry-After` seconds (add a little jitter), then send the
+   **same batch with the same `op_id`s**. Never drop operations, never generate
+   new `op_id`s for them, never split them into different ids.
+3. A batch that *was* applied but whose response was lost is answered with
+   `replayed: true` per operation — same rule as before, unchanged.
+4. Retrying early is harmless: it is refused again and does not push the wait
+   further away. `GET /v1/sync/pull` is in a different route class, so a limited
+   upload never blocks the download.
+
+`test_a_limited_sync_batch_is_neither_lost_nor_applied_twice` proves 1–4 against
+the real sync function (row counts in `practice_attempts` and `sync_receipts`).
+The mobile client does not handle `429` yet (native lane to pick up).
+
+### Stated limits — this is not the production limiter
+
+- **Per process, in memory.** N processes or instances give a caller N times the
+  budget; a restart forgets everything. **A hosted, multi-instance deployment
+  still needs a limiter at the gateway or in a shared store (Platform-02).**
+- **Nothing is stopped before it reaches the process**: connection floods, slow
+  bodies and TLS cost are a gateway's job.
+- **Fails open under key floods.** Above `RATE_LIMIT_MAX_KEYS` the least recently
+  used bucket is dropped and its owner starts with a full bucket (bounded memory
+  was preferred to unbounded memory; tested).
+- **Token verification happens twice** per request when the limiter is on (once
+  here, once in the route dependency; about a tenth of a millisecond with a
+  cached key). Removing that needs a small change in the shared `deps.py`, which
+  this lane does not own.
+- **Address-keyed limiting is coarse** behind carrier NAT or a school network.
+  It only applies to requests without a valid token; signed-in learners behind
+  one address are counted separately (tested). Behind a reverse proxy the socket
+  peer is the proxy: set `RATE_LIMIT_TRUSTED_PROXY_HOPS` correctly or all
+  anonymous traffic shares one bucket. IPv6 is counted per /64.
+- **No per-route cost, no global ceiling, no ban list, no sign-in protection**
+  (sign-in goes to Supabase Auth, not through this API).
+- `429` is not in the OpenAPI document (the middleware is off by default and the
+  committed contract is that of the default app).
+
+## Structured logs — `services/api/src/edu_api/logging_config.py`
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `EDU_LOG_FORMAT` | `text` | `text` = unchanged. `json` = one JSON line per record + one line per request |
+| `EDU_LOG_ACTOR_HASH_KEY` | unset | ≥ 32 bytes. Set = add a pseudonymous `actor` to request lines |
+
+A request line:
+
+```json
+{"ts":"2026-11-25T04:05:46.369+00:00","level":"INFO","logger":"edu_api.access",
+ "event":"http_request","request_id":"32718726a535461892cd9acf94f82aa9",
+ "method":"GET","route":"/v1/lessons/{lesson_id}","status":200,"duration_ms":1.4}
+```
+
+- `route` is the route **template**; a request that matched no route (or was
+  refused before routing, e.g. 429) is `unmatched`. The raw path and the query
+  string are never logged.
+- **Never logged:** tokens, any header, request or response bodies, answers,
+  names, e-mail addresses, client addresses, the raw user id.
+- **Actor: omitted by default; keyed hash when a key is configured** (first 16
+  hex digits of HMAC-SHA-256(key, user id), verified tokens only). Reason: a
+  user id is personal data about a probably-minor learner, and logs usually have
+  wider access and longer retention than the database. The request id is enough
+  to follow one request. Following one learner (abuse, a stuck sync) is a real
+  need, so it is possible — but only with a key, because an unkeyed hash of an
+  id that can be enumerated from the database is reversible by anyone holding
+  both. Rotating the key unlinks old logs.
+- Exceptions are logged as type + code locations; the exception **message** is
+  dropped (it can contain submitted values).
+- A redaction filter is a backstop for careless future log calls (bearer values,
+  JWT-shaped strings, Supabase keys, e-mail addresses, database URLs).
+- Third-party library records are kept from WARNING up only (an HTTP client
+  logs whole URLs at INFO). uvicorn's own access log is switched off in JSON
+  mode because it prints the raw path and query string.
+
+`tests/integration/test_logging_privacy.py` plants a real token, a forged token,
+a project key, an e-mail address, an answer and a name in headers, paths, query
+strings, bodies and an exception, and greps the captured output for each of
+them, the learner's display name, both user ids, the question id, the `op_id`
+and the client address. Checked once against a real local `uvicorn` process too.
+
+Limits: only what goes through Python `logging` is covered — a reverse proxy's
+or the platform's own access logs are outside this code and must be configured
+separately; the redaction filter is pattern-based and not a guarantee; there is
+no log shipping, retention or access policy (Platform-02).
+
+## Health and readiness rules
+
+| Probe | Means | Depends on | Must NOT depend on |
+|---|---|---|---|
+| `GET /health` | The process is running | nothing | anything |
+| `GET /ready` | This process can serve lessons and sync from its database | the **main** database pool (`SELECT 1`, read-only, 3 s) | notifications, billing, rewards, any other optional schema or pool; the Auth key service; any external HTTP call; rate limiting; a token |
+
+Why the Auth key service is not a readiness dependency: already-trusted keys
+keep verifying tokens during an outage, and taking instances out of rotation (or
+restarting them, which empties the key cache) would turn a partial outage into a
+total one. An unknown key still fails closed with 503 on the request itself.
+
+Rule for every later lane: **a new optional domain gets its own pool and its own
+503; it is never added to `/ready`.** If an optional domain needs a probe, add a
+separate one (e.g. `/ready/notifications`) that no orchestrator uses for routing.
+
+| Rule | Test |
+|---|---|
+| `/ready` 503 when the main database is down, `/health` still 200 | existing `test_database_outage_has_clear_error_behaviour` |
+| `/ready` stays 200 with `notify` unreachable; opens no notify connection | `test_readiness_does_not_look_at_notifications` |
+| `/ready` stays 200 with the Auth key service down, limiter on, no token | `test_readiness_depends_on_the_database_and_on_nothing_else` |
+| Probes are never rate limited | `test_probes_are_never_limited` |
+| Lessons, catalog, sync answer normally with `notify` revoked / locked | `test_learning_answers_normally_when_the_notify_schema_is_unreachable`, `…while_notify_tables_are_locked` |
+
+Not covered: billing and rewards do not exist in this branch, so "learning stays
+up when they are down" is a rule for those lanes to test the same way.
+
+## Backup / restore drill
+
+Performed for real on this lane's disposable database; commands, timings, sizes
+and limits are in [`operations-drill.md`](operations-drill.md).
+
+## Tests (Part B)
+
+| File | Tests | Covers |
+|---|---|---|
+| `tests/unit/test_ratelimit_buckets.py` | 19 | burst, refill, cap, no penalty growth, isolation, eviction, route classes, address handling |
+| `tests/integration/test_ratelimit_api.py` | 8 | default off; 429 shape; per-learner keys behind one address; forged tokens; probes; sync retry contract; rejected before body; proxy hops |
+| `tests/integration/test_logging_privacy.py` | 7 | default unchanged; fields and templates; planted values; exceptions; redaction; actor hash; with limiter + notifications on |
+| `tests/integration/test_notify_isolation.py` | +1 (6 in the file) | readiness rules |
+
+## `BLOCKED_BY_OWNER` / not decided here
+
+- Real rate budgets and who operates the gateway limiter (Platform-02).
+- Log retention, who may read logs, whether an `actor` pseudonym may be kept at
+  all for minors (PO-04; legal).
+- Backup policy: objectives, storage location, retention, erasure from backups
+  (PO-04; Platform-02).
+- Staff second factor: not implemented, not claimed (plan §7).

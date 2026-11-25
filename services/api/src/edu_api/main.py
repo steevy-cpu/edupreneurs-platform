@@ -18,7 +18,9 @@ from edu_api.auth.verifier import TokenVerifier
 from edu_api.config import Settings, get_settings
 from edu_api.db.session import Database, build_engine
 from edu_api.errors import install_error_handlers
+from edu_api.logging_config import AccessLogMiddleware, install_json_logging
 from edu_api.middleware import BodyLimitMiddleware, RequestIdMiddleware
+from edu_api.ratelimit import RateLimitMiddleware, build_rate_limiter
 from edu_api.routers import catalog, health, me, notifications, sync
 
 
@@ -27,6 +29,8 @@ def create_app(
 ) -> FastAPI:
     settings = settings or get_settings()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    # Lane notify, Part B: opt-in JSON logs. With the default "text" nothing changes.
+    json_logging = install_json_logging() if settings.log_format == "json" else None
 
     jwks_cache: JWKSCache | None = None
     if key_provider is None:
@@ -83,6 +87,24 @@ def create_app(
         max_wire_bytes=settings.max_wire_body_bytes,
         max_decoded_bytes=settings.max_decoded_body_bytes,
     )
+    # Lane notify, Part B (both opt-in, both absent by default). Added here so that
+    # they run AFTER the request id exists and BEFORE a body is read.
+    if settings.rate_limit_enabled:
+        app.state.rate_limiter = build_rate_limiter(settings)
+        app.add_middleware(
+            RateLimitMiddleware,
+            limiter=app.state.rate_limiter,
+            verifier=app.state.token_verifier,
+            trusted_proxy_hops=settings.rate_limit_trusted_proxy_hops,
+        )
+    if json_logging is not None:
+        app.state.json_log_handler, app.state.json_logging_undo = json_logging
+        actor_key = settings.log_actor_hash_key
+        app.add_middleware(
+            AccessLogMiddleware,
+            verifier=app.state.token_verifier,
+            actor_key=actor_key.get_secret_value().encode("utf-8") if actor_key else None,
+        )
     app.add_middleware(RequestIdMiddleware)
 
     app.include_router(health.router)

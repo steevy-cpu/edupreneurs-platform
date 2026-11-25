@@ -185,6 +185,44 @@ async def test_readiness_does_not_look_at_notifications(
     assert notify_app.state.notify_db.engine is not notify_app.state.db.engine
 
 
+async def test_readiness_depends_on_the_database_and_on_nothing_else(
+    local_env: dict[str, str], tokens: dict[str, str]
+) -> None:
+    """Readiness rules (docs/overnight-2026-11-24/lanes/notify.md, Part B):
+    `/ready` = "this process can serve lessons from its database". It must NOT fail
+    because the Auth key service is unreachable (already-trusted keys keep working and
+    restarting the API would not help), nor be subject to rate limiting, nor need a token."""
+    application = create_app(
+        build_settings(
+            local_env,
+            auth_jwks_url="http://127.0.0.1:1/jwks.json",
+            notifications_enabled=True,
+            rate_limit_enabled=True,
+            rate_limit_anonymous_burst=1,
+            rate_limit_anonymous_per_minute=1,
+        )
+    )
+    try:
+        transport = httpx.ASGITransport(app=application)
+        async with httpx.AsyncClient(transport=transport, base_url="http://api.test") as http:
+            for _ in range(5):
+                ready = await http.get("/ready")
+                assert (ready.status_code, ready.json()) == (
+                    200,
+                    {"status": "ready", "checks": {"database": "ok"}},
+                )
+                assert (await http.get("/health")).json() == {"status": "ok"}
+            # The outage is real: an authenticated route cannot verify the token.
+            # (The request is counted by address because the token could not be verified.)
+            unavailable = await http.get("/v1/me", headers=bearer(tokens["student_a"]))
+            assert unavailable.status_code == 503
+            assert (await http.get("/ready")).status_code == 200
+    finally:
+        await application.state.db.dispose()
+        await application.state.notify_db.dispose()
+        await application.state.token_verifier._keys.aclose()
+
+
 async def test_notify_schema_is_not_reachable_through_the_supabase_data_api(
     local_env: dict[str, str], tokens: dict[str, str], enqueue: Enqueue
 ) -> None:
