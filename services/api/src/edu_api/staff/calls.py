@@ -49,5 +49,7 @@ async def call_staff(
         if error is None:
             raise
         if error.status_code == 403:
-            await record_denial(request, db, staff.user_id, required=frozenset(), check="function")
+            await record_denial(
+                request, db, staff.user_id, required=frozenset(), held=staff.roles, check="function"
+            )
         raise error from None

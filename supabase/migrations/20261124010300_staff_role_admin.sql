@@ -24,7 +24,7 @@
 CREATE FUNCTION staff.lock_role_changes()
 RETURNS void
 LANGUAGE sql
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
     SELECT pg_advisory_xact_lock(hashtextextended('staff.role_changes', 0))
 $$;
@@ -33,7 +33,7 @@ $$;
 CREATE FUNCTION staff.check_role_target(p_user_id uuid, p_role text)
 RETURNS void
 LANGUAGE plpgsql STABLE
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 BEGIN
     IF p_role IS NULL OR p_role NOT IN ('editor', 'reviewer', 'publisher', 'admin') THEN
@@ -55,7 +55,7 @@ CREATE FUNCTION staff.grant_role(p_user_id uuid, p_role text)
 RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('admin');
@@ -86,7 +86,7 @@ CREATE FUNCTION staff.revoke_role(p_user_id uuid, p_role text)
 RETURNS boolean
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('admin');
@@ -123,7 +123,7 @@ CREATE FUNCTION staff.list_role_assignments(p_limit integer)
 RETURNS jsonb
 LANGUAGE plpgsql STABLE
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('admin');

@@ -205,7 +205,7 @@ SELECT is((SELECT (count(*) - (SELECT audit FROM counts))::int FROM app.audit_ev
 SELECT is((SELECT count(*)::int FROM app.audit_events WHERE created_at = now() AND actor_id IS NULL), 0, 'every event has an actor');
 SELECT is((SELECT actor_id FROM app.audit_events WHERE created_at = now() AND action = 'lesson_revision.review'), :REVIEWER::uuid, 'the review is attributed to the reviewer');
 SELECT is((SELECT details FROM app.audit_events WHERE created_at = now() AND action = 'pack_release.rollback'),
-    jsonb_build_object('pack_key', 't103-pack', 'locale', 'fr', 'revision', 1, 'previous_release_id', (SELECT id FROM ids WHERE label = 'rel2')),
+    jsonb_build_object('locale', 'fr', 'revision', 1, 'previous_release_id', (SELECT id FROM ids WHERE label = 'rel2')),
     'the rollback event names the release it replaced');
 SELECT is((SELECT count(*)::int FROM app.audit_events WHERE created_at = now()
            AND (details::text LIKE '%Titre%' OR details::text LIKE '%Synth%')), 0, 'no title, text or note is copied into audit details');

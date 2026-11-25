@@ -167,6 +167,11 @@ SELECT is(ops.actor_kind_for('t_other_login'), 'system', 'any other login writes
 SELECT is(ops.actor_kind_for('postgres'), 'system', 'the owner (ADMIN-only membership in the groups) writes as system');
 SELECT is(ops.actor_kind_for('t_mixed_login'), 'staff', 'a wrongly mixed login is recorded with the stronger kind');
 SELECT is(ops.actor_kind_for('authenticator'), 'system', 'the Data API login is not a staff, worker or user login');
+SELECT is(ops.actor_kind_for('supabase_admin'), 'system', 'a superuser session is system, never staff (pg_has_role is true for superusers)');
+SELECT is((SELECT count(*)::int FROM pg_roles WHERE rolsuper AND ops.actor_kind_for(rolname) <> 'system'), 0, 'no superuser is labelled staff, worker or user');
+SELECT is(pg_temp.as_role('edu_staff', NULL, 'SELECT ops.session_kind()'), 'system', 'session_kind reports the login of the session (postgres here), whatever the current role');
+SELECT is(pg_temp.as_role('edu_worker', NULL, 'SELECT ops.session_kind()'), 'system', 'edu_worker may ask for its session kind');
+SELECT is(pg_temp.as_role('edu_api', NULL, 'SELECT ops.session_kind()'), 'ERROR:42501', 'edu_api cannot call session_kind');
 
 -- ---- audit_write: input limits (no free text) -----------------------------------------
 CREATE FUNCTION pg_temp.audit_try(p_action text, p_kind text, p_id uuid, p_outcome text, p_details jsonb) RETURNS text
@@ -194,8 +199,19 @@ SELECT is(pg_temp.audit_try('staff.access', NULL, NULL, 'allowed', '"text"'), 'E
 SELECT is(pg_temp.audit_try('staff.access', NULL, NULL, 'allowed', '{"note":"the learner wrote this sentence"}'), 'ERROR:22023', 'a sentence is refused (no whitespace in values)');
 SELECT is(pg_temp.audit_try('staff.access', NULL, NULL, 'allowed', '{"name":"Élève"}'), 'ERROR:22023', 'non-ASCII text is refused');
 SELECT is(pg_temp.audit_try('staff.access', NULL, NULL, 'allowed', '{"email":"someone@example.test"}'), 'ERROR:22023', 'an e-mail address is refused');
-SELECT is(pg_temp.audit_try('staff.access', NULL, NULL, 'allowed', jsonb_build_object('code', repeat('x', 121))), 'ERROR:22023', 'strings are limited to 120 characters');
-SELECT is(pg_temp.audit_try('staff.access', NULL, NULL, 'allowed', jsonb_build_object('code', repeat('x', 120))), 'ok', 'a 120-character code is accepted');
+SELECT is(pg_temp.audit_try('staff.access', NULL, NULL, 'allowed', jsonb_build_object('code', repeat('x', 65))), 'ERROR:22023', 'strings are limited to 64 characters');
+SELECT is(pg_temp.audit_try('staff.access', NULL, NULL, 'allowed', jsonb_build_object('code', repeat('x', 64))), 'ok', 'a 64-character code is accepted');
+SELECT is(pg_temp.audit_try('staff.access', NULL, NULL, 'allowed', jsonb_build_object('route', '/' || repeat('x', 119))), 'ok', 'only the key "route" may hold up to 120 characters');
+SELECT is(pg_temp.audit_try('staff.access', NULL, NULL, 'allowed', jsonb_build_object('route', '/' || repeat('x', 120))), 'ERROR:22023', 'a route is limited to 120 characters');
+SELECT is(pg_temp.audit_try('staff.access', NULL, NULL, 'allowed', jsonb_build_object('routes', jsonb_build_array(repeat('x', 65)))), 'ERROR:22023', 'array items are limited to 64 characters');
+SELECT is(pg_temp.audit_try('staff.access', NULL, NULL, 'allowed', jsonb_build_object('blob', jsonb_build_array(repeat('A', 64), repeat('B', 64), repeat('C', 64)))), 'ok', 'KNOWN LIMIT: short machine-looking chunks pass; the check is structural');
+-- Pinned on purpose (review finding M2): these personal-data-shaped values are
+-- ACCEPTED by the structural check. Callers must never pass learner-typed values.
+SELECT is((SELECT array_agg(v ORDER BY v) FROM unnest(ARRAY[
+        '{"answer":"Paris"}', '{"name":"Jean-Pierre.Dupont"}', '{"phone":"+50937123456"}',
+        '{"dob":"2014-03-09"}', '{"ip":"192.168.1.20"}', '{"note":"my_teacher_hits_me_at_school"}']) AS v
+     WHERE pg_temp.audit_try('staff.access', NULL, NULL, 'allowed', v::jsonb) <> 'ok'),
+    NULL, 'KNOWN LIMIT: one-word answers, names, phone numbers, dates and addresses are not recognised as personal data');
 SELECT is(pg_temp.audit_try('staff.access', NULL, NULL, 'allowed', '{"response":{"choice_id":"b"}}'), 'ERROR:22023', 'nested objects are refused (no payload dumps)');
 SELECT is(pg_temp.audit_try('staff.access', NULL, NULL, 'allowed', '{"items":[["a"]]}'), 'ERROR:22023', 'nested arrays are refused');
 SELECT is(pg_temp.audit_try('staff.access', NULL, NULL, 'allowed', '{"items":["ok","not ok"]}'), 'ERROR:22023', 'array items follow the same string rule');

@@ -79,3 +79,22 @@ def test_require_staff_knows_exactly_the_four_roles() -> None:
     assert callable(require_staff())
     with pytest.raises(ValueError, match="unknown staff role"):
         require_staff("Editor")
+
+
+def test_an_exported_staff_url_does_not_change_the_published_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """scripts/export_openapi.py reads the process environment: a developer shell
+    with EDU_STAFF_DATABASE_URL exported must still produce the same openapi.json."""
+    import sys
+    from pathlib import Path
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
+    import export_openapi
+
+    monkeypatch.delenv("EDU_STAFF_DATABASE_URL", raising=False)
+    without = export_openapi.render()
+    monkeypatch.setenv("EDU_STAFF_DATABASE_URL", STAFF_URL)
+    assert export_openapi.render() == without
+    assert "/v1/staff" not in without
+    assert export_openapi.TARGET.read_text(encoding="utf-8") == without

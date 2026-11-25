@@ -51,8 +51,8 @@ All four callable functions are `SECURITY DEFINER`, owned by `postgres`, `SET se
   - `p_target_kind`: `NULL` or snake_case, 2–40 characters; `p_target_id` needs a target kind.
   - `p_outcome`: `allowed`, `denied` or `error`.
   - `p_details`: a **flat** JSON object, ≤ 2048 bytes, ≤ 24 keys, snake_case keys; values are
-    `null`, booleans, numbers, strings matching `^[A-Za-z0-9_.:/{}+-]{0,120}$`, or arrays (≤ 24) of
-    such strings / numbers / booleans. No nested objects, no whitespace, no `@`, no non-ASCII: a
+    `null`, booleans, numbers, strings matching `^[A-Za-z0-9_.:/{}+-]*$` of at most **64**
+    characters (120 for the key `route` only), or arrays (≤ 24) of such strings / numbers / booleans. No nested objects, no whitespace, no `@`, no non-ASCII: a
     sentence, a name or an e-mail address typed by a learner is rejected by shape. Put identifiers,
     status codes, counts and timestamps here; point at the row with `p_target_kind` / `p_target_id`.
 - The row is part of the caller's transaction. If the transaction rolls back (for example because
@@ -126,6 +126,32 @@ Errors, always `{"error": {"code", "message", "request_id"}}`:
 {"error": {"code": "forbidden", "message": "You do not have access to this resource.", "request_id": "…"}}
 ```
 
+## Hardening after the security review of B1 (ruling R-03)
+
+Migration `20261124010400_revoke_temp_and_search_path.sql` (the number `…010100` named in the ruling
+was already taken by the access-denial window; the content is what the ruling asks for).
+
+| Finding | What changed | Proof |
+|---|---|---|
+| **H1** pg_temp type shadowing | `REVOKE TEMPORARY ON DATABASE … FROM PUBLIC` (and from anon, authenticated, authenticator, service_role); every function in `ops`/`staff` now has `search_path = pg_catalog, pg_temp`; all later functions are created that way | `100_platform_structure.sql` (no `edu_*`, anon, authenticated, authenticator, service_role holds TEMP; search_path pinned); `test_staff_hardening.py` runs ten kinds of temporary-object creation and the reviewer's reproduction as each of the three real logins — all refused, nothing gained |
+| **M1** unbounded denial rows | `ops.audit_access_denied`: one persisted denial per actor per 60 s, the rest counted (`suppressed_before`) | `102_access_denial_window.sql`, `test_repeated_refusals_do_not_grow_the_audit_log` |
+| **M2** details are not a privacy filter | strings ≤ 64 characters (`route` ≤ 120); function comment and this document say so; personal-data-shaped values that still pass are **pinned as accepted** in `101_…sql` so nobody reads "validated" as "safe" | `101_staff_boundary_and_audit.sql` |
+| **L1** superuser labelled staff | `ops.actor_kind_for` returns `system` first for a superuser | `101_…sql` |
+| **L2** learner refusals look like staff | denial details carry `held_roles` (empty for a learner) and `check`; `actor_kind` is the channel | boundary / editorial / roles tests |
+| **L3** odd route → 500 | the route template is rebuilt from path parameters and falls back to `unknown` | `test_a_route_with_unusual_characters_is_still_refused_and_audited` |
+| **L4** wrong staff login → 500 | on first use the pool must report `ops.session_kind() = 'staff'`; wrong password → 503 `dependency_unavailable`; student / worker / owner login → 503 `staff_unavailable`, nothing written | `test_a_staff_pool_with_the_wrong_login_refuses_to_work` |
+| **L5** information_schema blind spot | structure test uses `has_table_privilege` / `has_sequence_privilege` over `pg_class` | `100_platform_structure.sql` |
+| Note: env leak into `openapi.json` | covered by `INCLUDE_IN_SCHEMA` | `test_an_exported_staff_url_does_not_change_the_published_contract` |
+
+**Rule for every caller of `ops.audit_write`:** never pass a value typed by a learner (answer, name,
+message, search term) in the action, the target kind or the details — only ids, enum codes, numbers
+and server-made timestamps. The input check is a structural guard, not a privacy filter.
+
+Still open from the review: `dashboard_user` (a Supabase platform role, not an API login) keeps TEMP;
+`CONNECTION LIMIT 10` for the staff login allows two API processes with the default pool, a third
+gets 503; a multi-dimensional role array raises `0A000` instead of `22023` (fails closed); a login
+can change its own password (standard PostgreSQL).
+
 ## B2.1 — Editorial workflow through the API
 
 Migration `20261124010200_staff_editorial.sql` (schema `staff` only), router
@@ -184,7 +210,7 @@ Error codes (standard error shape):
 
 | Status | Codes |
 |---|---|
-| 403 | `forbidden` (wrong role, or not the author; audited as `staff.access` / `denied`, `check` = `route` or `function`) |
+| 403 | `forbidden` (wrong role, or not the author; audited as `staff.access` / `denied` with `check` = `route` or `function` and `held_roles`) |
 | 404 | `unit_not_found`, `lesson_not_found`, `revision_not_found`, `source_not_found`, `source_not_attached`, `pack_release_not_found` |
 | 409 from the functions | `lesson_slug_taken`, `revision_in_review`, `revision_not_draft`, `revision_has_no_source`, `revision_not_in_review`, `pack_release_not_ready`, `pack_release_not_retired` |
 | 409 from the triggers | `author_cannot_review`, `revision_immutable`, `revision_already_reviewed`, `sources_not_cleared`, `approval_needs_independent_review`, `pack_item_not_approved`, `pack_finalized`, `pack_empty`, `pack_invalid_transition`, `source_in_use`, `editorial_rule_violation` (any trigger message without a translation) |

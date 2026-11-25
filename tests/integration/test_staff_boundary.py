@@ -130,6 +130,7 @@ async def test_a_learner_token_is_refused_and_the_refusal_is_audited(
             "method": "GET",
             "route": "/v1/staff/me",
             "check": "route",
+            "held_roles": [],
             "required_roles": ["any"],
         },
     }
@@ -196,6 +197,7 @@ async def test_repeated_refusals_do_not_grow_the_audit_log(
         "method": "GET",
         "route": "/v1/staff/me",
         "check": "route",
+        "held_roles": [],
         "required_roles": ["any"],
         "suppressed_before": 49,
     }
@@ -295,6 +297,7 @@ async def test_a_route_can_require_specific_roles(
         # the route TEMPLATE: the id from the URL is not copied into the audit log
         "route": "/v1/staff/test-only/publish/{thing_id}",
         "check": "route",
+        "held_roles": ["editor"],
         "required_roles": ["admin", "publisher"],
     }
     assert str(thing) not in json.dumps(editor_events[-1]["details"])
@@ -416,6 +419,11 @@ async def test_the_three_pools_use_three_separate_least_privilege_logins(
 
 
 STAFF_FORBIDDEN_SQL = [
+    "CREATE TEMP TABLE loot (x int)",
+    "CREATE DOMAIN pg_temp.text AS pg_catalog.text",
+    "CREATE FUNCTION pg_temp.evil() RETURNS int LANGUAGE sql AS 'SELECT 1'",
+    "SET SESSION AUTHORIZATION postgres",
+    "SET SESSION AUTHORIZATION edu_api_login",
     "SELECT * FROM app.staff_roles",
     "INSERT INTO app.staff_roles (user_id, role) VALUES ('a0000000-0000-4000-8000-000000000003', 'admin')",
     "UPDATE app.staff_roles SET is_active = true",

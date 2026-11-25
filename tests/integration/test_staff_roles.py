@@ -141,7 +141,12 @@ async def test_nobody_can_grant_themselves_a_role(
         boss.user_id,
     )
     assert [json.loads(row["details"]) for row in denied] == [
-        {"method": "PUT", "route": "/v1/staff/users/{user_id}/roles/{role}", "check": "function"}
+        {
+            "method": "PUT",
+            "route": "/v1/staff/users/{user_id}/roles/{role}",
+            "check": "function",
+            "held_roles": ["admin"],
+        }
     ], "the attempt is on record (one event per minute per account)"
 
     # two admins can give each other roles; that is the intended path

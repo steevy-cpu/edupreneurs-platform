@@ -33,7 +33,7 @@ CREATE FUNCTION ops.audit_access_denied(p_details jsonb DEFAULT '{}'::jsonb)
 RETURNS uuid
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := app.current_actor_id();
@@ -81,7 +81,7 @@ CREATE FUNCTION ops.erase_learner(p_user_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_windows integer;

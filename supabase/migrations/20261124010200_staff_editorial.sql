@@ -33,7 +33,7 @@
 CREATE FUNCTION staff.insert_questions(p_revision_id uuid, p_questions jsonb)
 RETURNS integer
 LANGUAGE plpgsql
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_question jsonb;
@@ -74,7 +74,7 @@ $$;
 CREATE FUNCTION staff.check_revision_content(p_title text, p_blocks jsonb)
 RETURNS void
 LANGUAGE plpgsql IMMUTABLE
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 BEGIN
     IF p_title IS NULL OR char_length(p_title) NOT BETWEEN 1 AND 200 THEN
@@ -94,7 +94,7 @@ $$;
 CREATE FUNCTION staff.lock_revision(p_revision_id uuid)
 RETURNS app.lesson_revisions
 LANGUAGE plpgsql
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_row app.lesson_revisions;
@@ -113,7 +113,7 @@ $$;
 CREATE FUNCTION staff.require_author(p_revision app.lesson_revisions, p_actor uuid)
 RETURNS void
 LANGUAGE plpgsql STABLE
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 BEGIN
     IF p_revision.created_by IS DISTINCT FROM p_actor AND NOT EXISTS (
@@ -130,7 +130,7 @@ $$;
 CREATE FUNCTION staff.lock_pack(p_pack_key text, p_locale text)
 RETURNS void
 LANGUAGE sql
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
     SELECT pg_advisory_xact_lock(hashtextextended('staff.pack:' || p_pack_key || ':' || p_locale, 0))
 $$;
@@ -138,7 +138,7 @@ $$;
 CREATE FUNCTION staff.revision_json(p_revision_id uuid)
 RETURNS jsonb
 LANGUAGE sql STABLE
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
     SELECT jsonb_build_object(
         'id', r.id, 'lesson_id', r.lesson_id, 'revision', r.revision, 'locale', r.locale,
@@ -170,7 +170,7 @@ $$;
 CREATE FUNCTION staff.pack_release_json(p_release_id uuid)
 RETURNS jsonb
 LANGUAGE sql STABLE
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
     SELECT jsonb_build_object(
         'id', p.id, 'pack_key', p.pack_key, 'locale', p.locale, 'revision', p.revision,
@@ -197,7 +197,7 @@ CREATE FUNCTION staff.create_lesson(p_unit_id uuid, p_slug text)
 RETURNS uuid
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('editor', 'admin');
@@ -231,7 +231,7 @@ CREATE FUNCTION staff.create_revision(
 RETURNS uuid
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('editor', 'admin');
@@ -269,7 +269,7 @@ CREATE FUNCTION staff.update_revision(
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('editor', 'admin');
@@ -297,7 +297,7 @@ CREATE FUNCTION staff.create_source(p_title text, p_uri text)
 RETURNS uuid
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('editor', 'admin');
@@ -322,7 +322,7 @@ CREATE FUNCTION staff.set_source_rights(p_source_id uuid, p_status text, p_notes
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('admin');
@@ -350,7 +350,7 @@ CREATE FUNCTION staff.attach_source(p_revision_id uuid, p_source_id uuid)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('editor', 'admin');
@@ -375,7 +375,7 @@ CREATE FUNCTION staff.detach_source(p_revision_id uuid, p_source_id uuid)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('editor', 'admin');
@@ -403,7 +403,7 @@ CREATE FUNCTION staff.submit_revision(p_revision_id uuid)
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('editor', 'admin');
@@ -434,7 +434,7 @@ CREATE FUNCTION staff.review_revision(p_revision_id uuid, p_verdict text, p_note
 RETURNS uuid
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('reviewer', 'admin');
@@ -477,7 +477,7 @@ CREATE FUNCTION staff.get_revision(p_revision_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql STABLE
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('editor', 'reviewer', 'publisher', 'admin');
@@ -496,7 +496,7 @@ CREATE FUNCTION staff.list_revisions(p_status text, p_mine boolean, p_limit inte
 RETURNS jsonb
 LANGUAGE plpgsql STABLE
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('editor', 'reviewer', 'publisher', 'admin');
@@ -523,7 +523,7 @@ CREATE FUNCTION staff.list_sources(p_limit integer)
 RETURNS jsonb
 LANGUAGE plpgsql STABLE
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('editor', 'reviewer', 'publisher', 'admin');
@@ -556,7 +556,7 @@ CREATE FUNCTION staff.build_pack(p_pack_key text, p_locale text, p_revision_ids 
 RETURNS uuid
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('editor', 'publisher', 'admin');
@@ -604,8 +604,7 @@ BEGIN
     WHERE id = v_id;
 
     PERFORM ops.audit_write('pack_release.build', 'pack_release', v_id, 'allowed',
-        jsonb_build_object('pack_key', p_pack_key, 'locale', p_locale,
-                           'revision', v_revision, 'items', v_count));
+        jsonb_build_object('locale', p_locale, 'revision', v_revision, 'items', v_count));
     RETURN v_id;
 END;
 $$;
@@ -616,7 +615,7 @@ $$;
 CREATE FUNCTION staff.switch_current_pack(p_release app.pack_releases, p_action text)
 RETURNS jsonb
 LANGUAGE plpgsql
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_previous uuid;
@@ -635,8 +634,8 @@ BEGIN
     END IF;
 
     PERFORM ops.audit_write(p_action, 'pack_release', p_release.id, 'allowed',
-        jsonb_build_object('pack_key', p_release.pack_key, 'locale', p_release.locale,
-                           'revision', p_release.revision, 'previous_release_id', v_previous));
+        jsonb_build_object('locale', p_release.locale, 'revision', p_release.revision,
+                           'previous_release_id', v_previous));
     RETURN jsonb_build_object('release_id', p_release.id, 'previous_release_id', v_previous);
 END;
 $$;
@@ -646,7 +645,7 @@ CREATE FUNCTION staff.release_pack(p_release_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('publisher', 'admin');
@@ -670,7 +669,7 @@ CREATE FUNCTION staff.rollback_pack(p_release_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('publisher', 'admin');
@@ -693,7 +692,7 @@ CREATE FUNCTION staff.get_pack_release(p_release_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql STABLE
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('editor', 'reviewer', 'publisher', 'admin');
@@ -711,7 +710,7 @@ CREATE FUNCTION staff.list_pack_releases(p_pack_key text, p_locale text, p_limit
 RETURNS jsonb
 LANGUAGE plpgsql STABLE
 SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_actor uuid := staff.require_role('editor', 'reviewer', 'publisher', 'admin');

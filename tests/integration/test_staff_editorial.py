@@ -436,6 +436,7 @@ async def test_an_editor_cannot_release_or_roll_back(
         "method": "POST",
         "route": "/v1/staff/packs/{release_id}/release",
         "check": "route",
+        "held_roles": ["editor"],
         "required_roles": ["admin", "publisher"],
     }
     assert release_id not in denied[0]["details"]
@@ -565,7 +566,12 @@ async def test_only_the_author_changes_a_draft(
         other_editor.user_id,
     )
     assert [json.loads(row["details"]) for row in denied] == [
-        {"method": "PUT", "route": "/v1/staff/revisions/{revision_id}", "check": "function"}
+        {
+            "method": "PUT",
+            "route": "/v1/staff/revisions/{revision_id}",
+            "check": "function",
+            "held_roles": ["editor"],
+        }
     ]
     # an admin may step in
     assert (await desk.put(desk.reviewer, f"/revisions/{rid}", body)).status_code == 200
