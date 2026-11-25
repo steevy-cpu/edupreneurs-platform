@@ -220,3 +220,22 @@ app.account_sync_state` without `CASCADE`. A foreign key from any lane table to 
 tables makes that TRUNCATE fail and every baseline integration test error. Reference
 `app.learner_profiles`, `app.lessons`, `app.lesson_revisions` etc. by FK if needed, but validate
 links to the five learning tables in a function or trigger instead.
+
+**R-03 (00:30) — hardening after the independent security review of staff B1 (finding H1, HIGH).**
+With `SET search_path = ''`, PostgreSQL still resolves unqualified *type* names through the session's
+temporary schema first. A session able to run arbitrary SQL on any API login (injection or leaked
+credential) could therefore make a `SECURITY DEFINER` function execute code as its owner. The class
+also exists in the verified baseline functions on `main` (reported to the owners in the morning
+report; nothing is hosted, so there is no live exposure). Ruling:
+1. The staff lane ships migration `20261124010100_*`: `REVOKE TEMPORARY ON DATABASE … FROM PUBLIC`
+   plus tests that no `edu_*` role, `anon`, `authenticated` or `authenticator` holds TEMP and that
+   temporary objects cannot be created by the three API logins. This closes the class for baseline
+   and new functions alike without editing a verified migration.
+2. Defence in depth for every **new** definer function in every lane schema:
+   `SET search_path = pg_catalog, pg_temp` (temporary schema explicitly last) instead of `''`, with
+   every non-catalog object schema-qualified as before. Lanes edit their own not-yet-merged
+   migrations in place; a migration already merged by another lane is corrected by a follow-up
+   `ALTER FUNCTION … SET search_path`. Each lane's structure test asserts it for its schema.
+3. `ops.audit_write` callers must **never** pass learner-typed values (answers, names, free text) in
+   action, target kind or details — only ids, enum codes and numbers. The validator is a structural
+   guard, not a privacy filter (finding M2).
