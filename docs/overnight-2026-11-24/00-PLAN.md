@@ -7,6 +7,8 @@ Sources read in full before this plan: the three v2 briefs in `/Volumes/Eduprene
 **Nothing in this mission is merged into `main`, deployed, linked to a hosted project, or run against
 real data.** Every database is a disposable local stack with synthetic accounts.
 
+Incidents are recorded in [`INCIDENTS.md`](INCIDENTS.md) (one so far: I-01, shared-stack learning tables truncated by the mobile test harness).
+
 Live status is in [`LEDGER.md`](LEDGER.md). Per-lane specifications are in [`briefs/`](briefs/).
 
 ## 1. Preflight (22:25–22:50 local)
