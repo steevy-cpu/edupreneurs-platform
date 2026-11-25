@@ -29,3 +29,23 @@ Integration order planned: staff → identity → rewards → vocab → entitlem
 gate), then one commit flipping the `INCLUDE_IN_SCHEMA` constants and extending the pinned OpenAPI
 path set (ruling R-01), then leaderboard on top of rewards, native as a separate stacked branch.
 Nothing has been pushed yet. Nothing is merged into `main`. Nothing is deployed.
+
+## Update 23:55 EST — usage limit reached again; director stopped here
+
+Pushed to GitHub (branches only, **no pull requests opened yet**, nothing merged into `main`, nothing deployed):
+integration a3174cf · staff 16f4ee1 · identity 114ab62 · rewards 4146267 · entitlements bf73f10 ·
+notify d960cd3 · content d1f5bf7 · native 779657f (stacked on `mobile-02`). Word of the Day
+(`overnight/word-of-the-day`) is **local only**, turn 2 committed (f7d4011, dd464dd), not yet merged or pushed.
+
+Integration branch = staff + identity + entitlements + notify + content. Last gate there
+(`integration-6lanes.log`): lint/mypy/OpenAPI clean; pgTAP 1819 of 1822 (3 failures, all in
+`124_account_erasure.sql`, a test assumption about other lanes' hooks — fix requested from identity);
+pytest 1327 of 1328 (one billing denial-count test after the staff security fixes — fix requested
+from entitlements). Rewards and vocab are not merged into integration yet. Leaderboard not started
+(waits for the rewards fix round). R-01 constant flip + pinned path set not done yet.
+
+Reviews: staff B1 security (done, fixes in 16f4ee1, not re-checked), rewards security + integration
+(done, fix round in progress in the rewards lane), entitlements / identity / native reviews were
+running when the limit hit; notify, content, vocab and staff B2 not yet reviewed.
+Secrets scan: only dummy test passwords (`unused`, `hunter2`) flagged; no real local secret value in any history.
+Not done: MORNING_REPORT.md, draft PRs, emulator screenshots.
