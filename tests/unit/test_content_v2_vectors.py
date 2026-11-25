@@ -62,6 +62,7 @@ def test_the_vector_files_are_the_expected_set() -> None:
         "lesson-blocks.json",
         "math-notation.json",
         "negotiation.json",
+        "pack-manifest.json",
         "questions.json",
         "scoring.json",
     ]
