@@ -90,9 +90,7 @@ def create_app(
     app.include_router(me.router)
     app.include_router(catalog.router)
     app.include_router(sync.router)
-    # Documented only where the staff side is switched on, so the learner
-    # contract (packages/contracts/openapi.json) is unchanged by its existence.
-    app.include_router(staff.router, include_in_schema=staff_database is not None)
+    app.include_router(staff.router)
     app.include_router(entitlements.build_router())
     app.include_router(staff_billing.build_router())
     return app

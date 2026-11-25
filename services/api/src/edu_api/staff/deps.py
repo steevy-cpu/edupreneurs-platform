@@ -18,7 +18,8 @@ What ``require_staff`` does, in order:
    (no caching: a revoked role stops working at once);
 4. without one of the required roles the caller gets 403 ``forbidden`` and the
    refusal is written to the audit log as ``staff.access`` / ``denied`` in its
-   own committed transaction.
+   own committed transaction — at most one event per actor per 60 seconds;
+   further refusals in that window are counted, not stored.
 
 This is the API's gate. It is not the only one: every ``staff.*`` database
 function checks the role again with ``staff.require_role``.
@@ -27,6 +28,8 @@ function checks the role again with ``staff.require_role``.
 from __future__ import annotations
 
 import json
+import logging
+import re
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -43,10 +46,15 @@ from edu_api.errors import ApiError
 #: Mirrors the CHECK constraint on ``app.staff_roles.role``.
 STAFF_ROLES = frozenset({"editor", "reviewer", "publisher", "admin"})
 
+#: What ops.audit_write accepts as a string value in audit details.
+_AUDIT_TOKEN = re.compile(r"[A-Za-z0-9_.:/{}+-]{1,120}")
+
+logger = logging.getLogger("edu_api.staff")
+
+_SESSION_KIND = text("SELECT ops.session_kind()")
 _ACTOR_ROLES = text("SELECT staff.actor_roles()")
-_AUDIT_DENIED = text(
-    "SELECT ops.audit_write('staff.access', NULL, NULL, 'denied', CAST(:details AS jsonb))"
-)
+#: Bounded in SQL: at most one persisted refusal per actor per 60-second window.
+_AUDIT_DENIED = text("SELECT ops.audit_access_denied(CAST(:details AS jsonb))")
 
 
 @dataclass(frozen=True)
@@ -67,10 +75,104 @@ def get_staff_db(request: Request) -> Database:
     return database
 
 
+def _login_problem(exc: Exception) -> ApiError | None:
+    """A staff database login that is refused, or is not a staff login at all.
+
+    A refused login surfaces from the driver directly (the connection never
+    existed), other errors wrapped by SQLAlchemy: both carry ``sqlstate``.
+    """
+    sqlstate = getattr(exc, "sqlstate", None) or getattr(
+        getattr(exc, "orig", None), "sqlstate", None
+    )
+    if not isinstance(sqlstate, str):
+        return None
+    if sqlstate.startswith("28"):  # invalid authorization: wrong or rotated credential
+        logger.error("staff database login refused: sqlstate=%s", sqlstate)
+        return ApiError(
+            503,
+            "dependency_unavailable",
+            "A required service is temporarily unavailable. Retry later.",
+            headers={"Retry-After": "5"},
+        )
+    if sqlstate in ("42501", "3F000", "42883"):  # the login cannot use the staff interface
+        logger.error("staff database login is not a staff login: sqlstate=%s", sqlstate)
+        return ApiError(
+            503, "staff_unavailable", "Staff services are not available on this deployment."
+        )
+    return None
+
+
+async def verified_staff_db(request: Request) -> Database:
+    """The staff pool, once it has proved that it logs in as a STAFF login.
+
+    Checked on first use and remembered. A pool that was pointed at the student
+    login, the worker login or the database owner by mistake would otherwise
+    either fail with 500s or — worse — work with different audit attribution.
+    """
+    database = get_staff_db(request)
+    state = request.app.state
+    if getattr(state, "staff_db_verified", False):
+        return database
+    try:
+        async with database.transaction(None, read_only=True) as conn:
+            kind = (await conn.execute(_SESSION_KIND)).scalar_one()
+    except Exception as exc:
+        problem = _login_problem(exc)
+        if problem is None:
+            raise
+        raise problem from None
+    if kind != "staff":
+        logger.error("staff database login has session kind %r, expected 'staff'", kind)
+        raise ApiError(
+            503, "staff_unavailable", "Staff services are not available on this deployment."
+        )
+    state.staff_db_verified = True
+    return database
+
+
 def _route_template(request: Request) -> str:
-    """The matched route pattern (``/v1/staff/x/{id}``), never the raw URL."""
-    path = getattr(request.scope.get("route"), "path", None)
-    return path if isinstance(path, str) and len(path) <= 120 else "unknown"
+    """The route pattern (``/v1/staff/x/{id}``), never the raw URL.
+
+    Built from the request path by putting each path parameter's name back in
+    place of its value. Only requests that matched a route get here, so every
+    other segment is fixed text from the route definition.
+    """
+    segments = request.url.path.split("/")
+    for name, value in request.path_params.items():
+        segments = ["{" + name + "}" if segment == str(value) else segment for segment in segments]
+    template = "/".join(segments)
+    return template if _AUDIT_TOKEN.fullmatch(template) else "unknown"
+
+
+async def record_denial(
+    request: Request,
+    database: Database,
+    actor_id: uuid.UUID,
+    *,
+    required: frozenset[str],
+    held: frozenset[str],
+    check: str = "route",
+) -> None:
+    """Write (or, inside the 60-second window, only count) one refused request.
+    Runs in its own transaction so that it survives the refusal itself.
+
+    ``check`` says where the refusal came from: ``route`` (the role gate of the
+    route, ``required_roles`` lists what it asked for) or ``function`` (the
+    database function refused: wrong role, or not the author of the object).
+    ``held_roles`` tells a learner (empty) from staff with the wrong role: the
+    event's ``actor_kind`` is the CHANNEL (written through the staff login), not
+    a statement about the person.
+    """
+    details: dict[str, object] = {
+        "method": request.method,
+        "route": _route_template(request),
+        "check": check,
+        "held_roles": sorted(held),
+    }
+    if check == "route":
+        details["required_roles"] = sorted(required) if required else ["any"]
+    async with database.transaction(actor_id) as conn:
+        await conn.execute(_AUDIT_DENIED, {"details": json.dumps(details)})
 
 
 def require_staff(*roles: str) -> Callable[..., Awaitable[StaffPrincipal]]:
@@ -84,18 +186,17 @@ def require_staff(*roles: str) -> Callable[..., Awaitable[StaffPrincipal]]:
     required = frozenset(roles)
 
     async def dependency(request: Request, principal: CurrentPrincipal) -> StaffPrincipal:
-        database = get_staff_db(request)
-        async with database.transaction(principal.user_id) as conn:
-            held = frozenset((await conn.execute(_ACTOR_ROLES)).scalar_one())
-            allowed = bool(held & required) if required else bool(held)
-            if not allowed:
-                details = {
-                    "method": request.method,
-                    "route": _route_template(request),
-                    "required_roles": sorted(required) if required else ["any"],
-                }
-                await conn.execute(_AUDIT_DENIED, {"details": json.dumps(details)})
-        if not allowed:
+        database = await verified_staff_db(request)
+        try:
+            async with database.transaction(principal.user_id, read_only=True) as conn:
+                held = frozenset((await conn.execute(_ACTOR_ROLES)).scalar_one())
+        except Exception as exc:
+            problem = _login_problem(exc)
+            if problem is None:
+                raise
+            raise problem from None
+        if not (held & required if required else held):
+            await record_denial(request, database, principal.user_id, required=required, held=held)
             # The same answer for "not staff" and "staff without this role".
             raise ApiError(403, "forbidden", "You do not have access to this resource.")
         return StaffPrincipal(user_id=principal.user_id, roles=held, principal=principal)
