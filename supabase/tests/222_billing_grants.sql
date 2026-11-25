@@ -48,6 +48,7 @@ SELECT throws_ok($$SELECT billing.grant_entitlement('a0000000-0000-4000-8000-000
 SELECT throws_ok($$SELECT billing.grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, now(), now() + interval '1 day', 'lottery', NULL, 'grant-bad-0010', NULL)$$, '22023', NULL, 'unknown source refused');
 SELECT throws_ok($$SELECT billing.grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, now(), now() + interval '1 day', 'purchase', NULL, 'grant-bad-0011', NULL)$$, '22023', NULL, 'a purchase grant without an order is refused');
 SELECT throws_ok($$SELECT billing.grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, now(), now() + interval '1 day', 'gift', NULL, 'short', NULL)$$, '22023', NULL, 'a too-short idempotency key is refused');
+SELECT throws_ok($$SELECT billing.grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, now(), now() + interval '1 day', 'gift', NULL, 'order:0d5c0e2e-6a0f-4a6e-9b61-3f5e5b0c9a11', NULL)$$, '22023', 'This idempotency key prefix is reserved', 'a non-purchase grant cannot occupy the key reserved for an order (review M1)');
 SELECT is((SELECT count(*)::int FROM billing.entitlements), 1, 'refused requests created no row');
 
 -- ---- expiry at the boundary: starts_at <= t < ends_at -------------------------------
@@ -209,6 +210,7 @@ SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.staff_grant_entitlemen
 SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, 30, 'gift', NULL, 'staff-key-0014')$$), 'ERROR:22023', 'a reason code is required');
 SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000004', 'all', NULL, 30, 'gift', 'goodwill', 'staff-key-0015')$$), 'ERROR:42501', 'an admin cannot grant to themselves');
 SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.staff_grant_entitlement(gen_random_uuid(), 'all', NULL, 30, 'gift', 'goodwill', 'staff-key-0016')$$), 'ERROR:22023', 'unknown learner refused');
+SELECT is(pg_temp.as_staff(:ADMIN::uuid, $$SELECT billing.staff_grant_entitlement('a0000000-0000-4000-8000-000000000001', 'all', NULL, 30, 'gift', 'goodwill', 'order:0d5c0e2e-6a0f-4a6e-9b61-3f5e5b0c9a11')$$), 'ERROR:22023', 'staff cannot use an order-reserved idempotency key (review M1)');
 SELECT is((SELECT count(*)::int FROM billing.entitlements WHERE idempotency_key LIKE 'staff-key-%'), 1, 'refused requests created no grant');
 
 SELECT is(pg_temp.as_staff(:ADMIN::uuid, format($$SELECT billing.staff_revoke_entitlement(%L, 'granted_in_error') ->> 'status'$$, (SELECT id FROM billing.entitlements WHERE idempotency_key = 'staff-key-0010'))), 'revoked', 'an admin revokes');

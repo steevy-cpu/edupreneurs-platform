@@ -48,7 +48,10 @@ SYNTHETIC_CURRENCY = "HTG"
 @pytest.fixture
 async def billing_clean(admin: asyncpg.Pool) -> AsyncIterator[None]:
     """Empty billing tables before AND after a test, so nothing leaks into
-    another test file (the database is shared by the whole run)."""
+    another test file (the database is shared by the whole run). Also restores
+    the API role's access to the schema, in case an earlier run was killed inside
+    the "billing unreachable" test (review finding L5)."""
+    await admin.execute("GRANT USAGE ON SCHEMA billing TO edu_api")
     await admin.execute(f"TRUNCATE {BILLING_TABLES}")
     yield
     await admin.execute(f"TRUNCATE {BILLING_TABLES}")

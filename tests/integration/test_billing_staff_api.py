@@ -340,6 +340,11 @@ async def test_reusing_a_key_for_a_different_grant_is_a_409_and_changes_nothing(
         ({"learner_id": "not-a-uuid"}, 422, "validation_error"),
         ({"learner_id": str(uuid.UUID(int=7))}, 422, "invalid_entitlement_request"),
         (
+            {"idempotency_key": "order:0d5c0e2e-6a0f-4a6e-9b61-3f5e5b0c9a11"},
+            422,
+            "invalid_entitlement_request",
+        ),
+        (
             {"scope": {"kind": "grade", "id": str(uuid.UUID(int=8))}},
             422,
             "invalid_entitlement_request",

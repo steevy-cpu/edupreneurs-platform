@@ -204,6 +204,12 @@ BEGIN
     IF (p_source = 'purchase') <> (p_order_id IS NOT NULL) THEN
         RAISE EXCEPTION 'A purchase grant needs an order, and only a purchase has one' USING ERRCODE = '22023';
     END IF;
+    -- Keys of the form 'order:<id>' are reserved for purchase grants. Without this
+    -- a staff grant could occupy the key of a pending order and make its payment
+    -- message fail for ever (review finding M1).
+    IF p_source <> 'purchase' AND p_idempotency_key LIKE 'order:%' THEN
+        RAISE EXCEPTION 'This idempotency key prefix is reserved' USING ERRCODE = '22023';
+    END IF;
     IF p_scope_kind NOT IN ('all', 'grade', 'course') OR (p_scope_kind = 'all') <> (p_scope_id IS NULL) THEN
         RAISE EXCEPTION 'Malformed entitlement scope' USING ERRCODE = '22023';
     END IF;
