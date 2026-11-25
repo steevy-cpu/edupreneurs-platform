@@ -57,6 +57,13 @@ class Settings(BaseSettings):
     pull_default_limit: int = Field(default=100, ge=1)
     pull_max_limit: int = Field(default=200, ge=1)
 
+    # --- Entitlements (schema `billing`; overnight lane "entitlements") --------
+    #: Switches on ``GET /v1/entitlements`` (read-only status of the caller's own
+    #: grants) and the staff routes under ``/v1/staff/billing``. Off by default:
+    #: those routes then answer 404 like any unknown path.
+    #: It never gates content — no paywall exists (BLOCKED_BY_OWNER PO-01).
+    entitlements_enabled: bool = False
+
     # --- Staff boundary (overnight 2026-11-24, staff lane) -------------------
     #: Optional. Must log in as ``edu_staff_login`` (member of ``edu_staff`` only).
     #: When unset the staff side is off: every ``/v1/staff`` route answers 503.
