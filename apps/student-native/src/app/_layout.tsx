@@ -32,12 +32,15 @@ function Root() {
     <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="sign-in" />
+      <Stack.Screen name="onboarding" />
       <Stack.Screen name="home" />
       <Stack.Screen name="learn" />
       <Stack.Screen name="review" />
       <Stack.Screen name="profile" />
       <Stack.Screen name="lesson/[id]" />
       <Stack.Screen name="quiz/[id]" />
+      <Stack.Screen name="tour" />
+      <Stack.Screen name="leaderboard" />
     </Stack>
   );
 }
