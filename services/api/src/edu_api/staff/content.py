@@ -10,7 +10,8 @@ On top of the schemas, four rules that a schema cannot express:
 block keys are unique in a lesson, question keys and choice ids are unique,
 the correct choice is one of the offered choices, and no text contains a
 control character (Unicode category Cc: U+0000-U+001F, U+007F-U+009F) other
-than tab and line feed. PostgreSQL cannot store U+0000 in ``text`` or ``jsonb``
+than tab and line feed (multi-line text; CRLF and CR are first turned into LF;
+titles and URIs allow none). PostgreSQL cannot store U+0000 in ``text`` or ``jsonb``
 at all, and the others have no place in text shown to learners.
 """
 
@@ -22,6 +23,7 @@ from typing import Annotated, Any, Literal
 from pydantic import (
     AfterValidator,
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     StringConstraints,
@@ -30,28 +32,50 @@ from pydantic import (
 
 _STRICT = ConfigDict(extra="forbid", strict=True)
 
-# Category Cc is exactly U+0000-U+001F and U+007F-U+009F. Tab (U+0009) and line
-# feed (U+000A) stay allowed; carriage return and everything else do not.
+# Category Cc is exactly U+0000-U+001F and U+007F-U+009F.
+# Multi-line text: CRLF and a lone CR become LF on input (Windows clients), then
+# every control character except tab and LF is refused.
+# Single-line text (titles, URIs): every control character is refused, CR and LF
+# included.
 _CONTROL_CHARACTER = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
+_ANY_CONTROL_CHARACTER = re.compile(r"[\x00-\x1f\x7f-\x9f]")
 
 
-def _refuse_control_characters(value: str) -> str:
-    found = _CONTROL_CHARACTER.search(value)
-    if found is not None:
-        raise ValueError(
-            f"control character U+{ord(found.group()):04X} is not allowed "
-            "(only tab and line feed are)"
-        )
+def normalise_line_endings(value: Any) -> Any:
+    """CRLF and lone CR to LF; anything that is not a string is passed through."""
+    if isinstance(value, str):
+        return value.replace("\r\n", "\n").replace("\r", "\n")
     return value
 
 
-#: Add to any free-text request field: refuses control characters with 422.
-NoControlCharacters = AfterValidator(_refuse_control_characters)
+def _refuse(pattern: re.Pattern[str], value: str, allowed: str) -> str:
+    found = pattern.search(value)
+    if found is not None:
+        raise ValueError(f"control character U+{ord(found.group()):04X} is not allowed ({allowed})")
+    return value
 
+
+def _refuse_control_characters(value: str) -> str:
+    return _refuse(_CONTROL_CHARACTER, value, "only tab and line feed are")
+
+
+def _refuse_all_control_characters(value: str) -> str:
+    return _refuse(_ANY_CONTROL_CHARACTER, value, "this is a single-line field")
+
+
+#: Add to any multi-line free-text request field: normalises line endings, then
+#: refuses control characters with 422. Put it AFTER the StringConstraints.
+NoControlCharacters = AfterValidator(_refuse_control_characters)
+#: Normaliser; goes first so that length limits count the stored text.
+LineEndingsToLF = BeforeValidator(normalise_line_endings)
+#: For titles and URIs: no control character at all (not even tab or line breaks).
+SingleLine = AfterValidator(_refuse_all_control_characters)
 
 BlockKey = Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,63}$")]
-LongText = Annotated[str, StringConstraints(min_length=1, max_length=4000), NoControlCharacters]
-ShortText = Annotated[str, StringConstraints(min_length=1, max_length=200), NoControlCharacters]
+LongText = Annotated[
+    str, LineEndingsToLF, StringConstraints(min_length=1, max_length=4000), NoControlCharacters
+]
+ShortText = Annotated[str, StringConstraints(min_length=1, max_length=200), SingleLine]
 ChoiceId = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,64}$")]
 
 
@@ -75,7 +99,14 @@ class Example(BaseModel):
     type: Literal["example"]
     title: ShortText | None = None
     steps: Annotated[
-        list[Annotated[str, StringConstraints(min_length=1, max_length=500), NoControlCharacters]],
+        list[
+            Annotated[
+                str,
+                LineEndingsToLF,
+                StringConstraints(min_length=1, max_length=500),
+                NoControlCharacters,
+            ]
+        ],
         Field(min_length=1, max_length=20),
     ]
 
@@ -101,18 +132,24 @@ Block = Annotated[Heading | Paragraph | Example | Callout, Field(discriminator="
 
 class _Text1000(BaseModel):
     model_config = _STRICT
-    text: Annotated[str, StringConstraints(min_length=1, max_length=1000), NoControlCharacters]
+    text: Annotated[
+        str, LineEndingsToLF, StringConstraints(min_length=1, max_length=1000), NoControlCharacters
+    ]
 
 
 class _Text2000(BaseModel):
     model_config = _STRICT
-    text: Annotated[str, StringConstraints(min_length=1, max_length=2000), NoControlCharacters]
+    text: Annotated[
+        str, LineEndingsToLF, StringConstraints(min_length=1, max_length=2000), NoControlCharacters
+    ]
 
 
 class Choice(BaseModel):
     model_config = _STRICT
     id: ChoiceId
-    text: Annotated[str, StringConstraints(min_length=1, max_length=300), NoControlCharacters]
+    text: Annotated[
+        str, LineEndingsToLF, StringConstraints(min_length=1, max_length=300), NoControlCharacters
+    ]
 
 
 class ResponseSpec(BaseModel):
