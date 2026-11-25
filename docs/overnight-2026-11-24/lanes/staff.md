@@ -126,6 +126,106 @@ Errors, always `{"error": {"code", "message", "request_id"}}`:
 {"error": {"code": "forbidden", "message": "You do not have access to this resource.", "request_id": "…"}}
 ```
 
+## B2.1 — Editorial workflow through the API
+
+Migration `20261124010200_staff_editorial.sql` (schema `staff` only), router
+`services/api/src/edu_api/routers/staff_editorial.py`, request models
+`edu_api/staff/content.py`, error translation `edu_api/staff/errors.py`.
+
+Each route calls one `staff.*` definer function. That function checks the role again
+(`staff.require_role`), writes, and records one audit event in the same transaction. **The triggers
+of schema `app` stay the enforcement of record** for the editorial rules: the functions do not
+re-implement "reviewer ≠ author", "approved is immutable", "cleared sources" or the pack lifecycle;
+when a rule is broken the trigger raises and the API answers 409 with a stable code.
+
+| Method and path (under `/v1/staff`) | Role | Function | Audit action |
+|---|---|---|---|
+| `POST /lessons` `{unit_id, slug}` → 201 `{lesson_id}` | editor, admin | `create_lesson` | `lesson.create` |
+| `POST /lessons/{lesson_id}/revisions` `{locale, title, blocks, questions}` → 201 revision | editor, admin | `create_revision` | `lesson_revision.create` |
+| `GET /revisions?status=&mine=&limit=` | any | `list_revisions` | — |
+| `GET /revisions/{revision_id}` | any | `get_revision` | — |
+| `PUT /revisions/{revision_id}` `{title, blocks, questions}` | author (or admin) | `update_revision` | `lesson_revision.update` |
+| `POST /revisions/{revision_id}/sources` `{source_id}` | author (or admin) | `attach_source` | `lesson_revision.attach_source` |
+| `DELETE /revisions/{revision_id}/sources/{source_id}` → 204 | author (or admin) | `detach_source` | `lesson_revision.detach_source` |
+| `POST /revisions/{revision_id}/submit` | author (or admin) | `submit_revision` | `lesson_revision.submit` |
+| `POST /revisions/{revision_id}/reviews` `{verdict, notes?}` → 201 | reviewer, admin — never the author | `review_revision` | `lesson_revision.review` |
+| `POST /sources` `{source_title, source_uri?}` → 201 `{source_id}` | editor, admin | `create_source` | `content_source.create` |
+| `GET /sources?limit=` | any | `list_sources` | — |
+| `PUT /sources/{source_id}/rights` `{rights_status, rights_notes?}` → 204 | admin | `set_source_rights` | `content_source.set_rights` |
+| `POST /packs` `{pack_key, locale, revision_ids}` → 201 release (`ready`) | editor, publisher, admin | `build_pack` | `pack_release.build` |
+| `GET /packs?pack_key=&locale=&limit=` | any | `list_pack_releases` | — |
+| `POST /packs/{release_id}/release` | publisher, admin | `release_pack` | `pack_release.release` |
+| `POST /packs/{release_id}/rollback` | publisher, admin | `rollback_pack` | `pack_release.rollback` |
+
+Behaviour worth knowing:
+
+- **Content format.** `blocks` and `questions` are validated by Pydantic models that mirror
+  `packages/contracts/content/lesson-blocks.schema.json` and `question-mcq.schema.json`
+  (`tests/unit/test_staff_content_models.py` runs 64 vectors through both and requires the same
+  verdict). Three rules go beyond the schemas: unique block keys, unique question keys / choice ids,
+  and a correct choice that exists. Only `mcq` questions are accepted. Unknown fields are refused
+  (a client cannot send `status`, `created_by`, …).
+- **Workflow.** `draft` → `submit` → `in_review` → review. `approved` approves the revision
+  (`approved_by` = the reviewer). `rejected` **and** `changes_requested` both set `rejected`: a
+  review freezes the content it looked at (trigger), so a correction is a new revision (next number).
+  A draft needs at least one source to be submitted; it can be approved only when every attached
+  source is `cleared` (trigger).
+- **Rights decision** on a source is `admin` only, so an author cannot clear the rights of their own
+  material. Who really decides on rights is an owner question (PO-17/18): `BLOCKED_BY_OWNER`,
+  synthetic default = any admin.
+- **Release** is one transaction and one audit event: activate the release, move
+  `app.pack_current`, retire the previous release. **Rollback** is the same switch towards an
+  earlier `retired` release of the same pack. Both run under a per-(pack_key, locale) advisory lock.
+- **Manifest.** No pack file is produced or stored. The manifest columns hold a deterministic
+  object key and the SHA-256 / byte length of the canonical item list. A real pack builder is not
+  part of tonight's work.
+
+Error codes (standard error shape):
+
+| Status | Codes |
+|---|---|
+| 403 | `forbidden` (wrong role, or not the author; audited as `staff.access` / `denied`, `check` = `route` or `function`) |
+| 404 | `unit_not_found`, `lesson_not_found`, `revision_not_found`, `source_not_found`, `source_not_attached`, `pack_release_not_found` |
+| 409 from the functions | `lesson_slug_taken`, `revision_in_review`, `revision_not_draft`, `revision_has_no_source`, `revision_not_in_review`, `pack_release_not_ready`, `pack_release_not_retired` |
+| 409 from the triggers | `author_cannot_review`, `revision_immutable`, `revision_already_reviewed`, `sources_not_cleared`, `approval_needs_independent_review`, `pack_item_not_approved`, `pack_finalized`, `pack_empty`, `pack_invalid_transition`, `source_in_use`, `editorial_rule_violation` (any trigger message without a translation) |
+| 422 | `validation_error` (request shape), `pack_items_duplicated`, `invalid_content` and the `*_invalid` codes of the functions |
+
+Example — create a draft:
+
+```json
+{
+  "locale": "fr",
+  "title": "Additionner de petits nombres",
+  "blocks": [
+    {"key": "intro", "type": "paragraph", "text": "…"},
+    {"key": "exemple", "type": "example", "title": "Exemple", "steps": ["2 + 2 = 4"]}
+  ],
+  "questions": [
+    {
+      "question_key": "q1",
+      "kind": "mcq",
+      "prompt": {"text": "Combien font 2 + 2 ?"},
+      "response_spec": {"choices": [{"id": "a", "text": "3"}, {"id": "b", "text": "4"}]},
+      "answer_key": {"correct_choice_id": "b"},
+      "explanation": {"text": "2 + 2 = 4."}
+    }
+  ]
+}
+```
+
+The answer is the revision: `id`, `lesson_id`, `revision`, `locale`, `title`, `status`, `blocks`,
+`created_by`, `created_at`, `approved_by`, `approved_at`, `questions[]`, `sources[]`, `reviews[]`.
+
+Known gaps of this part:
+
+- Courses and units cannot be created or published through the API (lessons go into existing units).
+- A lesson cannot be deactivated or moved, a pack release cannot be revoked, through the API.
+- Request bodies are subject to the API-wide limits (20 KiB on the wire, 128 KiB after gzip), which
+  is small for a long lesson; the limit is a setting shared with the learner routes and was not changed.
+- Review notes are free text written by staff; they are stored in `app.editorial_reviews.notes`
+  and never copied to the audit log.
+- List endpoints have a `limit` (≤ 200) but no cursor.
+
 ## Local environment
 
 `make db-reset` (or `uv run python scripts/local_stack.py env` followed by `… provision`) now also

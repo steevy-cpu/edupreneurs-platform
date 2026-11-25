@@ -13,8 +13,7 @@ from typing import Annotated, Any
 import asyncpg
 import httpx
 import pytest
-from fastapi import APIRouter, Depends, FastAPI
-from fastapi.routing import APIRoute
+from fastapi import Depends, FastAPI
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 
@@ -52,24 +51,6 @@ async def denied_events(admin: asyncpg.Pool, actor: uuid.UUID) -> list[dict[str,
         actor,
     )
     return [{**dict(row), "details": json.loads(row["details"])} for row in rows]
-
-
-def _rebuilt_router(original: APIRouter, *, include_in_schema: bool) -> APIRouter:
-    """The same routes on a router declared with the given ``include_in_schema``."""
-    rebuilt = APIRouter(
-        prefix=original.prefix, tags=list(original.tags), include_in_schema=include_in_schema
-    )
-    for route in original.routes:
-        assert isinstance(route, APIRoute)
-        rebuilt.add_api_route(
-            route.path.removeprefix(original.prefix),
-            route.endpoint,
-            methods=list(route.methods),
-            response_model=route.response_model,
-            responses=route.responses,
-            summary=route.summary,
-        )
-    return rebuilt
 
 
 def assert_error(response: httpx.Response, status: int, code: str) -> None:
@@ -145,7 +126,12 @@ async def test_a_learner_token_is_refused_and_the_refusal_is_audited(
         "target_kind": None,
         "target_id": None,
         "outcome": "denied",
-        "details": {"method": "GET", "route": "/v1/staff/me", "required_roles": ["any"]},
+        "details": {
+            "method": "GET",
+            "route": "/v1/staff/me",
+            "check": "route",
+            "required_roles": ["any"],
+        },
     }
     assert others_before == await admin.fetchval(
         "SELECT count(*) FROM app.audit_events WHERE actor_id IS DISTINCT FROM $1", STUDENT_A
@@ -209,6 +195,7 @@ async def test_repeated_refusals_do_not_grow_the_audit_log(
     assert events[-1]["details"] == {
         "method": "GET",
         "route": "/v1/staff/me",
+        "check": "route",
         "required_roles": ["any"],
         "suppressed_before": 49,
     }
@@ -307,6 +294,7 @@ async def test_a_route_can_require_specific_roles(
         "method": "GET",
         # the route TEMPLATE: the id from the URL is not copied into the audit log
         "route": "/v1/staff/test-only/publish/{thing_id}",
+        "check": "route",
         "required_roles": ["admin", "publisher"],
     }
     assert str(thing) not in json.dumps(editor_events[-1]["details"])
@@ -719,25 +707,24 @@ async def test_staff_routes_follow_the_api_contract_rules_once_included(
     local_env: dict[str, str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """With INCLUDE_IN_SCHEMA on (as the director will set it at integration)."""
-    monkeypatch.setattr(staff_router, "INCLUDE_IN_SCHEMA", True)
-    original_router = staff_router.router
-    monkeypatch.setattr(
-        staff_router, "router", _rebuilt_router(original_router, include_in_schema=True)
-    )
+    monkeypatch.setattr(staff_router, "router", staff_router.build_router(include_in_schema=True))
     application = create_app(build_staff_settings(local_env))
     try:
         spec = application.openapi()
     finally:
         await dispose_app(application)
     staff_paths = {path: ops for path, ops in spec["paths"].items() if path.startswith("/v1/staff")}
-    assert set(staff_paths) == {"/v1/staff/me"}
+    assert "/v1/staff/me" in staff_paths and len(staff_paths) >= 12
+    assert all(
+        operation["tags"] == ["staff"] for ops in staff_paths.values() for operation in ops.values()
+    )
     error_ref = {"$ref": "#/components/schemas/ErrorResponse"}
     for path, operations in staff_paths.items():
         for operation in operations.values():
             assert operation["security"] == [{"HTTPBearer": []}], path
             assert {"401", "403", "503"} <= set(operation["responses"]), path
             for status, response in operation["responses"].items():
-                if status != "200":
+                if not status.startswith("2"):
                     assert response["content"]["application/json"]["schema"] == error_ref, (
                         path,
                         status,
