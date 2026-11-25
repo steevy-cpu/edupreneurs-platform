@@ -42,6 +42,14 @@ PASS_A="$(password student_a)"; PASS_B="$(password student_b)"
 ENVS=(-e EMAIL=student.a@edupreneur.test -e "PASSWORD=$PASS_A" -e EMAIL_B=student.b@edupreneur.test -e "PASSWORD_B=$PASS_B")
 
 api_up() { curl -s --max-time 2 http://127.0.0.1:8000/ready | grep -q ready; }
+# The API this script started is tracked by PID (one file per checkout) and stopped by PID only:
+# never by process-name pattern, which could hit another checkout's server.
+API_PID_FILE="$EDU_DEV_VOLUME/logs/mobile02-api-$(printf %s "$ROOT" | shasum | cut -c1-12).pid"
+kill_tree() { local c; for c in $(pgrep -P "$1" 2>/dev/null); do kill_tree "$c"; done; kill "$1" >/dev/null 2>&1 || true; }
+stop_api() {
+  if [ -s "$API_PID_FILE" ]; then kill_tree "$(cat "$API_PID_FILE")"; rm -f "$API_PID_FILE"; sleep 1; fi
+  if api_up; then echo "    note: an API on :8000 is still up and was not started by this script; not touching it" >&2; fi
+}
 backend() { # reachable | unreachable
   if [ "$PLATFORM" = android ] && [ "${E2E_OFFLINE:-}" = airplane ]; then
     # Release builds reach the Mac at 10.0.2.2, so "offline" is real airplane mode on the emulator.
@@ -66,12 +74,12 @@ backend() { # reachable | unreachable
     fi
   else
     if [ "$1" = unreachable ]; then
-      pkill -f 'uvicorn edu_api.main' >/dev/null 2>&1 || true
+      stop_api
       docker pause "$KONG_CONTAINER" >/dev/null 2>&1 || true
     else
       docker unpause "$KONG_CONTAINER" >/dev/null 2>&1 || true
       if ! api_up; then
-        (cd "$ROOT" && nohup make api > "$EDU_DEV_VOLUME/logs/mobile02-api.log" 2>&1 < /dev/null &)
+        (cd "$ROOT" && nohup make api > "$EDU_DEV_VOLUME/logs/mobile02-api.log" 2>&1 < /dev/null & echo $! > "$API_PID_FILE")
         for _ in $(seq 1 30); do api_up && break; sleep 1; done
       fi
     fi
