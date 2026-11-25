@@ -3,6 +3,9 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import type { CatalogResponse } from '../core/api/types';
+import { FLAGS } from '../core/experience/flags';
+import { onboardingGate } from '../core/experience/onboarding';
+import { onboardingSyncDue, syncOnboarding } from '../core/experience/onboardingSync';
 import {
   findLessonContext,
   LessonStanding,
@@ -13,6 +16,7 @@ import {
 } from '../core/learning/overview';
 import { AppText, Button, HeroCard, Icon, ListRow, LoadingState, MessageState, Notice, ProgressBar, SectionHeader, space } from '../design';
 import { perfHomeReady, perfTap } from '../ui/perf';
+import { useRemote } from '../ui/remote';
 import { TabScreen } from '../ui/shell';
 import { useSignedIn } from '../ui/useSession';
 
@@ -26,8 +30,11 @@ interface HomeView {
 export default function Home() {
   const app = useSignedIn();
   const router = useRouter();
+  const remote = useRemote();
   const [view, setView] = useState<HomeView | null>(null);
   const [failed, setFailed] = useState(false);
+  // First-run onboarding (flag off by default: the check is then skipped entirely).
+  const [onboardingDue, setOnboardingDue] = useState(false);
   const session = app?.session;
   const locale = app?.locale;
   // Re-read after every sync run so confirmations and other devices' work appear.
@@ -40,20 +47,29 @@ export default function Home() {
       let live = true;
       (async () => {
         const { content } = app.services;
+        if (FLAGS.onboarding && (await onboardingGate(session.account, app.services.env.now())) === 'required') {
+          if (live && session.isActive()) setOnboardingDue(true);
+          return;
+        }
         const standings = await savedLessonStandings(content, session.account, locale);
         const lastLessonId = await session.account.getPreference(PREF_LAST_LESSON);
         const cached = await content.getCatalog(locale);
         if (live && session.isActive()) {
           setView({ standings, lastLessonId, catalog: cached?.catalog ?? null });
           setFailed(false);
+          setOnboardingDue(false);
         }
         await app.refreshSummary();
+        // Network flag (off by default): tell the server what this phone finished, only when something is owed.
+        if (FLAGS.onboardingSync && remote && (await onboardingSyncDue(session.account))) {
+          void syncOnboarding(session.account, remote, { now: app.services.env.now, isActive: () => session.isActive() });
+        }
       })().catch(() => live && setFailed(true));
       return () => {
         live = false;
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [session, locale, pending, syncedAt]),
+    }, [session, locale, pending, syncedAt, remote]),
   );
 
   // Measurement builds only (see ui/perf.ts): runs after the Home content has been committed.
@@ -63,6 +79,7 @@ export default function Home() {
   }, [ready]);
 
   if (!app) return <Redirect href="/sign-in" />;
+  if (onboardingDue) return <Redirect href="/onboarding" />;
   const { t, sync, needsReauth } = app;
   const name = app.session.email.split('@')[0];
 
