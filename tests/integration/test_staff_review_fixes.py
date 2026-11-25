@@ -257,7 +257,7 @@ def _set_explanation(body: dict[str, Any], text: str) -> None:
     [_set_title, _set_heading, _set_paragraph, _set_prompt, _set_choice, _set_explanation],
 )
 @pytest.mark.parametrize(
-    "bad", ["a\u0000b", "a\u0007b", "a\rb", "a\u001bb", "a\u007fb", "a\u0085b"]
+    "bad", ["a\u0000b", "a\u0007b", "a\u001bb", "a\u007fb", "a\u0085b", "a\r\u0000b"]
 )
 async def test_a_control_character_in_lesson_or_question_text_is_a_422(
     desk: Desk, admin: asyncpg.Pool, put_text: Any, bad: str
@@ -324,3 +324,54 @@ async def test_tab_and_line_feed_stay_allowed_in_text(desk: Desk) -> None:
     assert created.status_code == 201, created.text
     texts = [b.get("text") for b in created.json()["blocks"]]
     assert "ligne 1\n\tligne 2 — é ô" in texts
+
+
+@pytest.mark.parametrize(
+    "uri",
+    [
+        "https://example.invalid/a\u0000b",
+        "https://example.invalid/a\u0007b",
+        "https://example.invalid/a\u0085b",
+    ],
+)
+async def test_a_control_character_in_a_source_uri_is_a_422_not_a_500(desk: Desk, uri: str) -> None:
+    refused = await desk.post(desk.author, "/sources", {"source_title": "ok", "source_uri": uri})
+    assert_error(refused, 422, "validation_error")
+
+
+@pytest.mark.parametrize("title", ["a\nb", "a\rb", "a\r\nb", "a\tb"])
+async def test_single_line_fields_refuse_line_breaks(desk: Desk, title: str) -> None:
+    assert_error(
+        await desk.post(desk.author, "/sources", {"source_title": title}), 422, "validation_error"
+    )
+    lesson_id = await desk.lesson()
+    body = json.loads(json.dumps(sample_revision_body()))
+    _set_title(body, title)
+    assert_error(
+        await desk.post(desk.author, f"/lessons/{lesson_id}/revisions", body),
+        422,
+        "validation_error",
+    )
+
+
+@pytest.mark.parametrize("raw", ["l1\r\nl2", "l1\rl2"])
+async def test_windows_line_endings_are_stored_as_line_feed(desk: Desk, raw: str) -> None:
+    lesson_id = await desk.lesson()
+    body = json.loads(json.dumps(sample_revision_body()))
+    _set_paragraph(body, raw)
+    _set_prompt(body, raw)
+    _set_explanation(body, raw)
+    created = await desk.post(desk.author, f"/lessons/{lesson_id}/revisions", body)
+    assert created.status_code == 201, created.text
+    assert "l1\nl2" in [b.get("text") for b in created.json()["blocks"]]
+    question = created.json()["questions"][0]
+    assert question["prompt"]["text"] == "l1\nl2"
+    assert question["explanation"]["text"] == "l1\nl2"
+
+    source_id = await desk.cleared_source()
+    noted = await desk.put(
+        desk.reviewer,
+        f"/sources/{source_id}/rights",
+        {"rights_status": "blocked", "rights_notes": raw},
+    )
+    assert noted.status_code == 204, noted.text
