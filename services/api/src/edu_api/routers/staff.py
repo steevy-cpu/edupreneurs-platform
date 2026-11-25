@@ -10,7 +10,12 @@ from pydantic import BaseModel
 from edu_api.errors import error_responses
 from edu_api.staff.deps import AnyStaff
 
-router = APIRouter(prefix="/v1/staff", tags=["staff"])
+#: Director ruling R-01 (overnight 2026-11-24): new paths stay out of the OpenAPI
+#: document on lane branches, so packages/contracts/openapi.json is unchanged.
+#: The routes are registered either way. Flipped once, at integration.
+INCLUDE_IN_SCHEMA = False
+
+router = APIRouter(prefix="/v1/staff", tags=["staff"], include_in_schema=INCLUDE_IN_SCHEMA)
 
 
 class StaffMeResponse(BaseModel):

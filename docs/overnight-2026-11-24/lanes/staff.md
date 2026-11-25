@@ -100,7 +100,31 @@ async def create_thing(
   `transaction(actor_id)` contract as the student pool.
 - Settings: `EDU_STAFF_DATABASE_URL` (optional, `postgresql+asyncpg://…`),
   `EDU_STAFF_DB_POOL_SIZE` (2), `EDU_STAFF_DB_MAX_OVERFLOW` (3).
-- `GET /v1/staff/me` → `{"user_id": "...", "roles": ["editor"]}`.
+
+### Contract: `GET /v1/staff/me`
+
+Request: `Authorization: Bearer <Supabase Auth access token>`; no parameters, no body.
+
+`200`:
+
+```json
+{"user_id": "a0000000-0000-4000-8000-000000000003", "roles": ["editor"]}
+```
+
+`roles` is sorted and is a non-empty subset of `editor`, `reviewer`, `publisher`, `admin`.
+
+Errors, always `{"error": {"code", "message", "request_id"}}`:
+
+| Status | `code` | When |
+|---|---|---|
+| 401 | `unauthenticated` | missing or invalid token (`WWW-Authenticate: Bearer`) |
+| 403 | `forbidden` | signed in, but no active staff role (or not the role a route needs); audited |
+| 503 | `staff_unavailable` | `EDU_STAFF_DATABASE_URL` is not set on this deployment |
+| 503 | `dependency_unavailable` | staff database or auth key service unreachable (`Retry-After: 5`) |
+
+```json
+{"error": {"code": "forbidden", "message": "You do not have access to this resource.", "request_id": "…"}}
+```
 
 ## Local environment
 
@@ -117,13 +141,12 @@ See the module docstring of `tests/staff_fixtures.py` for the fixtures (`staff_a
 
 ## Deviations from the brief, and why
 
-1. **Staff routes are left out of the OpenAPI document while the staff side is not configured.**
-   The existing test `test_openapi_contract` (read-only) pins the exact set of paths of the default
-   application and the committed `packages/contracts/openapi.json`. The staff router is always
-   mounted (so an unconfigured deployment answers 503, as specified) but is documented only when
-   `EDU_STAFF_DATABASE_URL` is set. Consequence: `packages/contracts/openapi.json` and the mobile
-   `schema.d.ts` are byte-identical to `main` and contain no staff route. A separate staff contract
-   file can be exported later if a staff client needs generated types.
+1. **Staff routes are not in the OpenAPI document on this branch (director ruling R-01).**
+   `routers/staff.py` declares its router with the module-level constant `INCLUDE_IN_SCHEMA = False`.
+   The routes are registered and work; `packages/contracts/openapi.json` and the mobile
+   `schema.d.ts` are byte-identical to `main`. The director flips the constant at integration.
+   With the staff side unset the routes answer **503 `staff_unavailable`** (as the staff brief
+   specifies), not 404.
 2. **`staff.actor_roles()` was added** to the interface (one extra function) so that
    `GET /v1/staff/me` and `require_staff` need a single round trip.
 3. **`pg_has_role(…, 'USAGE')` instead of plain membership** for `actor_kind`: in PostgreSQL 16+ the

@@ -13,12 +13,14 @@ from typing import Annotated, Any
 import asyncpg
 import httpx
 import pytest
-from fastapi import Depends, FastAPI
+from fastapi import APIRouter, Depends, FastAPI
+from fastapi.routing import APIRoute
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 
 from edu_api.db.session import Database
 from edu_api.main import create_app
+from edu_api.routers import staff as staff_router
 from edu_api.staff.deps import StaffPrincipal, require_staff
 from tests.helpers import EDITOR, REVIEWER, STUDENT_A, STUDENT_B, bearer
 from tests.staff_fixtures import (  # noqa: F401  (fixtures are used by name)
@@ -49,6 +51,24 @@ async def denied_events(admin: asyncpg.Pool, actor: uuid.UUID) -> list[dict[str,
         actor,
     )
     return [{**dict(row), "details": json.loads(row["details"])} for row in rows]
+
+
+def _rebuilt_router(original: APIRouter, *, include_in_schema: bool) -> APIRouter:
+    """The same routes on a router declared with the given ``include_in_schema``."""
+    rebuilt = APIRouter(
+        prefix=original.prefix, tags=list(original.tags), include_in_schema=include_in_schema
+    )
+    for route in original.routes:
+        assert isinstance(route, APIRoute)
+        rebuilt.add_api_route(
+            route.path.removeprefix(original.prefix),
+            route.endpoint,
+            methods=list(route.methods),
+            response_model=route.response_model,
+            responses=route.responses,
+            summary=route.summary,
+        )
+    return rebuilt
 
 
 def assert_error(response: httpx.Response, status: int, code: str) -> None:
@@ -622,10 +642,29 @@ async def _audit_count(env: dict[str, str]) -> int:
 
 
 # ------------------------------------------------------------------ contract
-async def test_staff_routes_follow_the_api_contract_rules(
+async def test_staff_routes_stay_out_of_the_published_contract_on_this_branch(
     staff_client: httpx.AsyncClient,
 ) -> None:
+    """Ruling R-01: registered and working, but absent from the OpenAPI document."""
+    assert staff_router.INCLUDE_IN_SCHEMA is False
     spec = (await staff_client.get("/openapi.json")).json()
+    assert not [path for path in spec["paths"] if path.startswith("/v1/staff")]
+
+
+async def test_staff_routes_follow_the_api_contract_rules_once_included(
+    local_env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With INCLUDE_IN_SCHEMA on (as the director will set it at integration)."""
+    monkeypatch.setattr(staff_router, "INCLUDE_IN_SCHEMA", True)
+    original_router = staff_router.router
+    monkeypatch.setattr(
+        staff_router, "router", _rebuilt_router(original_router, include_in_schema=True)
+    )
+    application = create_app(build_staff_settings(local_env))
+    try:
+        spec = application.openapi()
+    finally:
+        await dispose_app(application)
     staff_paths = {path: ops for path, ops in spec["paths"].items() if path.startswith("/v1/staff")}
     assert set(staff_paths) == {"/v1/staff/me"}
     error_ref = {"$ref": "#/components/schemas/ErrorResponse"}

@@ -55,7 +55,7 @@ def test_the_staff_url_must_use_asyncpg() -> None:
         make_settings(staff_database_url=SecretStr("postgresql://edu_staff_login@127.0.0.1/x"))
 
 
-async def test_a_configured_staff_side_has_its_own_pool_and_documents_its_routes() -> None:
+async def test_a_configured_staff_side_has_its_own_pool_and_an_unchanged_contract() -> None:
     settings = make_settings(staff_database_url=SecretStr(STAFF_URL), staff_db_pool_size=3)
     app = create_app(settings)
     try:
@@ -64,7 +64,9 @@ async def test_a_configured_staff_side_has_its_own_pool_and_documents_its_routes
         assert app.state.staff_db.engine.url.username == "edu_staff_login"
         assert app.state.db.engine.url.username != "edu_staff_login"
         assert app.state.staff_db.engine.pool.size() == 3  # type: ignore[attr-defined]
-        assert "/v1/staff/me" in app.openapi()["paths"]
+        # ruling R-01: registered (the integration tests call it), but not in the
+        # published contract on lane branches
+        assert not [path for path in app.openapi()["paths"] if path.startswith("/v1/staff")]
     finally:
         await app.state.db.dispose()
         await app.state.staff_db.dispose()
