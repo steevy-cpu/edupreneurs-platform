@@ -17,7 +17,6 @@ Roles (recorded choice, see docs/overnight-2026-11-24/lanes/vocab.md):
 
 from __future__ import annotations
 
-import json
 import logging
 import uuid
 from collections.abc import AsyncIterator
@@ -33,7 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 
 from edu_api.db.session import Database
 from edu_api.errors import ApiError, error_responses
-from edu_api.staff.deps import AnyStaff, StaffDb, StaffPrincipal, require_staff
+from edu_api.staff.deps import AnyStaff, StaffDb, StaffPrincipal, record_denial, require_staff
 from edu_api.vocab.schemas import PartOfSpeech
 
 logger = logging.getLogger("edu_api.staff_vocab")
@@ -49,14 +48,6 @@ Reviewer = Annotated[StaffPrincipal, Depends(require_staff("reviewer", "admin"))
 Publisher = Annotated[StaffPrincipal, Depends(require_staff("publisher", "admin"))]
 
 _ERRORS = error_responses(401, 403, 404, 409, 422, 503)
-_AUDIT_DENIED = text(
-    "SELECT ops.audit_write('vocab.access', NULL, NULL, 'denied', CAST(:details AS jsonb))"
-)
-
-
-def _route(request: Request) -> str:
-    path = getattr(request.scope.get("route"), "path", None)
-    return path if isinstance(path, str) and len(path) <= 120 else "unknown"
 
 
 @asynccontextmanager
@@ -68,7 +59,8 @@ async def staff_tx(
     The messages passed through for 409 are the fixed sentences of the vocab
     integrity rules (they never contain a value). A refusal by the database
     (42501, e.g. "only the author can change this draft") is recorded as a
-    ``denied`` audit event in its own committed transaction.
+    ``staff.access`` / ``denied`` audit event (``check: function``) in its own
+    committed transaction, bounded per actor like every other refusal.
     """
     try:
         async with db.transaction(staff.user_id) as conn:
@@ -79,9 +71,9 @@ async def staff_tx(
         message = getattr(cause, "message", None)
         rule = message if isinstance(message, str) and len(message) <= 200 else None
         if sqlstate == "42501":
-            details = {"method": request.method, "route": _route(request), "reason": "rule"}
-            async with db.transaction(staff.user_id) as conn:
-                await conn.execute(_AUDIT_DENIED, {"details": json.dumps(details)})
+            await record_denial(
+                request, db, staff.user_id, required=frozenset(), held=staff.roles, check="function"
+            )
             raise ApiError(403, "forbidden", "You do not have access to this resource.") from None
         if sqlstate == "P0002":
             raise ApiError(404, "vocab_not_found", rule or "Not found.") from None

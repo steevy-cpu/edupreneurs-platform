@@ -107,8 +107,10 @@ Store, per account and per `requested_locale`, the last `200` body verbatim plus
    label **"Dernier mot téléchargé · <haiti_date>"** / **"Dènye mo telechaje · <haiti_date>"**
    (Creole wording is a draft pending native review) — never the "Mot du jour" title, never
    today's date.
-4. **Revalidate cheaply**: when online and the card is shown (at most once per app start / return
-   to foreground), send `If-None-Match`. `304` → keep the entry. `200` → replace entry and tag.
+4. **Revalidate cheaply**: `Cache-Control: private, no-cache` stays. When online, send
+   `If-None-Match` each time the card is displayed, but at most once every few minutes; the app
+   **MUST** revalidate once `now >= valid_until`. `304` → keep the entry. `200` → replace entry
+   and tag.
 5. **`404 daily_word_not_available`**: there is no word today. If the cached entry's
    `haiti_date` is older than today it stays "last downloaded word"; if the cached entry claimed to
    be valid (`now < valid_until`) it has been withdrawn — remove it. Retry on next foreground, not
@@ -221,7 +223,8 @@ key); `422 validation_error` (body or query; unknown fields are refused); `422
 vocab_invalid_content` with `details: [{"constraint": "…"}]` when a database limit refuses content
 that passed the field checks (byte budget, control characters). A refusal raised by the database
 itself (another editor touching a draft) answers 403 and is recorded by the HTTP layer as
-`vocab.access` / `denied` in its own transaction.
+`staff.access` / `denied` with `check: "function"` in its own transaction (persisted refusals are
+bounded per actor per 60 s by the staff lane).
 
 Audit details hold identifiers, dates, numbers and closed-list codes only — never a term, a
 definition or a note (ruling R-03). Database grants: `edu_staff` executes exactly these 15

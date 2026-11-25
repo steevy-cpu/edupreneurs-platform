@@ -23,12 +23,13 @@ from fastapi import FastAPI
 from edu_api.main import create_app
 from edu_api.routers import staff_vocab
 from tests import vocab_fixtures
-from tests.helpers import bearer
+from tests.helpers import STUDENT_A, STUDENT_B, bearer
 from tests.staff_fixtures import (  # noqa: F401  (fixtures are used by name)
     MakeStaff,
     build_staff_settings,
     dispose_app,
     make_staff,
+    reset_denial_windows,
     staff_app,
     staff_client,
     staff_settings,
@@ -158,9 +159,8 @@ async def test_learner_token_is_refused_on_every_staff_vocab_route(
     before = await admin.fetchval("SELECT count(*) FROM vocab.words") + await admin.fetchval(
         "SELECT count(*) FROM vocab.sources"
     )
-    denied_before = await admin.fetchval(
-        "SELECT count(*) FROM app.audit_events WHERE action = 'staff.access' AND outcome = 'denied'"
-    )
+    started = await admin.fetchval("SELECT clock_timestamp()")
+    await reset_denial_windows(admin)
     # no token -> 401, whatever the body
     assert_error(
         await staff_client.request(method, url(template), **request_kw), 401, "unauthenticated"
@@ -175,16 +175,15 @@ async def test_learner_token_is_refused_on_every_staff_vocab_route(
             method, url(template), headers=bearer(tokens[learner]), json={"unexpected": True}
         )
         assert malformed.status_code == 403, malformed.text
-    denied_after = await admin.fetchval(
-        "SELECT count(*) FROM app.audit_events WHERE action = 'staff.access' AND outcome = 'denied'"
+    # Refusals are audited (persisted rows are bounded per actor per minute: at least one each).
+    denied = await admin.fetch(
+        "SELECT actor_id, details FROM app.audit_events WHERE action = 'staff.access' "
+        "AND outcome = 'denied' AND created_at >= $1",
+        started,
     )
-    assert denied_after == denied_before + 4, "each refusal is audited"
-    last = await admin.fetchrow(
-        "SELECT details FROM app.audit_events WHERE action = 'staff.access' ORDER BY created_at DESC, id DESC LIMIT 1"
-    )
-    assert (
-        json.loads(last["details"])["route"] == BASE + template
-    )  # the template, never the raw URL
+    assert {row["actor_id"] for row in denied} == {STUDENT_A, STUDENT_B}
+    for row in denied:  # the template, never the raw URL
+        assert json.loads(row["details"])["route"] == BASE + template
     after = await admin.fetchval("SELECT count(*) FROM vocab.words") + await admin.fetchval(
         "SELECT count(*) FROM vocab.sources"
     )
@@ -321,6 +320,7 @@ async def test_http_journey_draft_review_schedule_learner_reads_it(
     publisher = await make_staff("publisher")
     learner = bearer(tokens["student_a"])
     started = await admin.fetchval("SELECT clock_timestamp()")
+    await reset_denial_windows(admin)
 
     # Nothing yet for the learner.
     assert (
@@ -499,7 +499,7 @@ async def test_http_journey_draft_review_schedule_learner_reads_it(
         "SELECT action FROM app.audit_events WHERE outcome = 'denied' AND created_at >= $1 AND actor_id = $2",
         started, uuid.UUID(e),
     )  # fmt: skip
-    assert len(denied) == 3 and {d["action"] for d in denied} == {"staff.access"}
+    assert denied and {d["action"] for d in denied} == {"staff.access"}
 
 
 # ------------------------------------------------------------------ errors and limits
@@ -511,6 +511,7 @@ async def test_error_mapping_and_limits(
 ) -> None:
     editor = staff_tokens["editor"]
     other_editor = await make_staff("editor")
+    await reset_denial_windows(admin)
     source = (await ok(staff_client, editor, "POST", "/sources",
                        json={"source_title": "Synthetic limits source", "licence": "synthetic-test-only"}))["id"]  # fmt: skip
     word = (await ok(staff_client, editor, "POST", "/words", json={"slug": "http-limits"}))["id"]
@@ -580,11 +581,15 @@ async def test_error_mapping_and_limits(
         assert_error(
             await call(staff_client, other_editor.token, method, path, **kw), 403, "forbidden"
         )
-    denied = await audit(admin, other_editor.user_id, "vocab.access")
-    assert [(d["outcome"], d["actor_kind"], d["details"]["reason"]) for d in denied] == [
-        ("denied", "staff", "rule")
-    ] * 3
+    denied = await audit(admin, other_editor.user_id, "staff.access")
+    assert denied, "a refusal by the database function is audited by the HTTP layer"
+    assert (denied[0]["outcome"], denied[0]["actor_kind"], denied[0]["details"]["check"]) == (
+        "denied",
+        "staff",
+        "function",
+    )
     assert denied[0]["details"]["route"] == BASE + "/revisions/{revision_id}"
+    assert denied[0]["details"]["held_roles"] == ["editor"]
     assert (
         await admin.fetchval(
             "SELECT term FROM vocab.word_revisions WHERE id = $1", uuid.UUID(revision)
