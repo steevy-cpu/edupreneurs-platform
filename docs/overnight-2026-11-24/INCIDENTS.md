@@ -26,3 +26,18 @@ hard-coded reference to the shared stack exists in `tests/`, `scripts/` or the m
 
 **Recommended permanent fix (not applied — it edits an existing verified test support file on
 `mobile-02`/`main`):** derive the container name from `supabase/config.toml` `project_id`.
+
+## I-02 · Shared scratchpad: one lane ran another lane's gate script by mistake (≈23:02)
+
+All agents of this session share one scratchpad directory. The native lane and the staff lane both
+wrote a file named `gate.sh` there; the native lane then executed the staff lane's version. It ran
+`make lint` in the staff worktree, failed on an in-progress lint error and stopped. **No file
+changed and no database was reset**, but had lint been green the script would have reset the staff
+lane's database mid-work. The native lane also committed its slice 3 on the strength of that wrong
+exit code; it then re-ran the real mobile gate on the committed tree (267 passed, 0 failed) and
+corrected the count in the unpushed commit message.
+
+**Cause.** The isolation model gave every lane its own worktree, branch, ports and database but not
+its own scratch directory. **Containment (ruling R-04).** Every lane now keeps helper scripts and
+temporary files only under `/Volumes/EdupreneursDev/logs/overnight-2026-11-24/tmp/<lane>/`, and every
+helper script starts by changing into its own absolute worktree path and refusing to run elsewhere.

@@ -239,3 +239,9 @@ report; nothing is hosted, so there is no live exposure). Ruling:
 3. `ops.audit_write` callers must **never** pass learner-typed values (answers, names, free text) in
    action, target kind or details — only ids, enum codes and numbers. The validator is a structural
    guard, not a privacy filter (finding M2).
+
+**R-04 (00:45) — private scratch space per lane (incident I-02).** The session scratchpad is shared
+by all agents. Helper scripts, logs and temporary files go only in
+`/Volumes/EdupreneursDev/logs/overnight-2026-11-24/tmp/<lane>/`. Every helper script begins with
+`cd <own absolute worktree> || exit 1` and checks `git rev-parse --abbrev-ref HEAD` is the lane's
+branch before doing anything. Never execute a script you did not write in this turn without reading it.
