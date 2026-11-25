@@ -20,6 +20,12 @@ import { AppText, Card, Pill, space } from '../../design';
  * The heading says "Mot du jour" ONLY while the server's deadline for the word
  * has not passed; afterwards it says "Dernier mot téléchargé · <date>".
  */
+/**
+ * Which languages have been checked with the server since the app started or last came back to
+ * the foreground, per signed-in account store. In memory only: a new app start begins empty.
+ */
+const checkedSinceForeground = new WeakMap<AccountStore, Set<Locale>>();
+
 export function DailyWordCard({
   account,
   remote,
@@ -42,10 +48,12 @@ export function DailyWordCard({
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') setWake((count) => count + 1);
+      if (state !== 'active') return;
+      checkedSinceForeground.delete(account); // back in the foreground: one fresh check is due
+      setWake((count) => count + 1);
     });
     return () => subscription.remove();
-  }, []);
+  }, [account]);
 
   // Every time the screen gains focus (not only when it is first mounted) and every return to the foreground.
   useFocusEffect(
@@ -58,7 +66,11 @@ export function DailyWordCard({
     (async () => {
       await show(); // the cached word first: no waiting on the network
       if (!remote) return;
-      const outcome = await refreshDailyWord(account, remote, locale, { now, isActive });
+      const checked = checkedSinceForeground.get(account) ?? new Set<Locale>();
+      checkedSinceForeground.set(account, checked);
+      const force = !checked.has(locale);
+      checked.add(locale);
+      const outcome = await refreshDailyWord(account, remote, locale, { now, isActive, force });
       // Re-read after anything that may have changed the cache (a new word, a confirmation, a withdrawal).
       if (outcome !== 'cached_today' && outcome !== 'throttled' && outcome !== 'aborted') await show();
     })().catch(() => undefined);

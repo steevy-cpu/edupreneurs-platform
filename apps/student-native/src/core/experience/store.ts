@@ -127,6 +127,11 @@ export interface StoredDailyWord {
   body: unknown;
   /** This phone's clock when the word was downloaded (or last confirmed by a 304). */
   fetchedAt: string;
+  /**
+   * How long after `fetchedAt` the word is still today's, in milliseconds: the time that was left
+   * until the server's deadline, measured on the SERVER's clock at download, and capped.
+   */
+  lifetimeMs: number;
 }
 
 export interface RewardsRow {
@@ -229,6 +234,7 @@ export class ExperienceStore {
       etag: string | null;
       body_json: string | null;
       fetched_at: string | null;
+      lifetime_ms: number | null;
       last_attempt_at: string | null;
       last_outcome: DailyWordOutcome | null;
     }>('SELECT * FROM daily_word_cache WHERE locale = ?', [locale]);
@@ -242,6 +248,7 @@ export class ExperienceStore {
           etag: row.etag,
           body: JSON.parse(row.body_json) as unknown,
           fetchedAt: row.fetched_at,
+          lifetimeMs: row.lifetime_ms ?? 0,
         };
       } catch {
         word = null; // an unreadable row is treated as "nothing cached", never shown
@@ -253,12 +260,12 @@ export class ExperienceStore {
   /** Replace the cached word for a language (one statement: a reader sees the old word or the new one). */
   async putDailyWord(locale: Locale, word: StoredDailyWord): Promise<void> {
     await this.db.run(
-      `INSERT INTO daily_word_cache (locale, haiti_date, valid_until, etag, body_json, fetched_at, last_attempt_at, last_outcome)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'updated')
+      `INSERT INTO daily_word_cache (locale, haiti_date, valid_until, etag, body_json, fetched_at, lifetime_ms, last_attempt_at, last_outcome)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'updated')
        ON CONFLICT (locale) DO UPDATE SET haiti_date = excluded.haiti_date, valid_until = excluded.valid_until,
          etag = excluded.etag, body_json = excluded.body_json, fetched_at = excluded.fetched_at,
-         last_attempt_at = excluded.last_attempt_at, last_outcome = excluded.last_outcome`,
-      [locale, word.haitiDate, word.validUntil, word.etag, JSON.stringify(word.body), word.fetchedAt, word.fetchedAt],
+         lifetime_ms = excluded.lifetime_ms, last_attempt_at = excluded.last_attempt_at, last_outcome = excluded.last_outcome`,
+      [locale, word.haitiDate, word.validUntil, word.etag, JSON.stringify(word.body), word.fetchedAt, Math.trunc(word.lifetimeMs), word.fetchedAt],
     );
   }
 
@@ -266,18 +273,26 @@ export class ExperienceStore {
   async clearDailyWord(locale: Locale, at: string): Promise<void> {
     await this.db.run(
       `UPDATE daily_word_cache SET haiti_date = NULL, valid_until = NULL, etag = NULL, body_json = NULL, fetched_at = NULL,
-         last_attempt_at = ?, last_outcome = 'none_today' WHERE locale = ?`,
+         lifetime_ms = NULL, last_attempt_at = ?, last_outcome = 'none_today' WHERE locale = ?`,
       [at, locale],
     );
   }
 
   /** Remember an attempt that brought no new word. The cached word, if any, is left exactly as it was. */
-  async noteDailyWordAttempt(locale: Locale, at: string, outcome: DailyWordOutcome, confirmed = false): Promise<void> {
+  async noteDailyWordAttempt(locale: Locale, at: string, outcome: DailyWordOutcome): Promise<void> {
     await this.db.run(
       `INSERT INTO daily_word_cache (locale, last_attempt_at, last_outcome) VALUES (?, ?, ?)
-       ON CONFLICT (locale) DO UPDATE SET last_attempt_at = excluded.last_attempt_at, last_outcome = excluded.last_outcome,
-         fetched_at = CASE WHEN ? = 1 AND body_json IS NOT NULL THEN excluded.last_attempt_at ELSE fetched_at END`,
-      [locale, at, outcome, confirmed ? 1 : 0],
+       ON CONFLICT (locale) DO UPDATE SET last_attempt_at = excluded.last_attempt_at, last_outcome = excluded.last_outcome`,
+      [locale, at, outcome],
+    );
+  }
+
+  /** The server confirmed (304) that the cached word still stands and said what time it is: restart its lifetime. */
+  async reconfirmDailyWord(locale: Locale, at: string, lifetimeMs: number): Promise<void> {
+    await this.db.run(
+      `UPDATE daily_word_cache SET fetched_at = ?, lifetime_ms = ?, last_attempt_at = ?, last_outcome = 'not_modified'
+       WHERE locale = ? AND body_json IS NOT NULL`,
+      [at, Math.trunc(lifetimeMs), at, locale],
     );
   }
 

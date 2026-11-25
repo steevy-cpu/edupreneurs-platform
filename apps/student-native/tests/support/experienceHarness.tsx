@@ -98,6 +98,8 @@ export class FakeRemote implements ExperienceRemote {
   // ------------------------------------------------------------- word of the day
   /** Today's word per requested language; a missing entry answers 404 `daily_word_not_available`. */
   dailyWords: Partial<Record<Locale, RemoteDailyWord>> = {};
+  /** The server's own clock, sent as the `Date` header. Null: the header is not readable (the app falls back to its clock). */
+  serverNow: (() => Date) | null = null;
   /** Set to make the endpoint answer 404 with this code (e.g. the feature is off on the server). */
   dailyWordDisabledCode: string | null = null;
 
@@ -110,8 +112,9 @@ export class FakeRemote implements ExperienceRemote {
     if (this.dailyWordDisabledCode) throw new ApiError('client', this.dailyWordDisabledCode, 404);
     const word = this.dailyWords[locale];
     if (!word) throw new ApiError('client', 'daily_word_not_available', 404);
-    if (etag && etag === FakeRemote.etagOf(word)) return { kind: 'not_modified' };
-    return { kind: 'word', word: JSON.parse(JSON.stringify(word)) as RemoteDailyWord, etag: FakeRemote.etagOf(word) };
+    const serverDate = this.serverNow ? this.serverNow().toUTCString() : null;
+    if (etag && etag === FakeRemote.etagOf(word)) return { kind: 'not_modified', serverDate };
+    return { kind: 'word', word: JSON.parse(JSON.stringify(word)) as RemoteDailyWord, etag: FakeRemote.etagOf(word), serverDate };
   }
 
   // ------------------------------------------------------------------------ gold

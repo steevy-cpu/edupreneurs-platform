@@ -77,6 +77,7 @@ export const EXPERIENCE_MIGRATION_V3: Migration = {
        etag             TEXT,
        body_json        TEXT,
        fetched_at       TEXT,
+       lifetime_ms      INTEGER,
        last_attempt_at  TEXT,
        last_outcome     TEXT
      )`,

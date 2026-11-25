@@ -266,12 +266,46 @@ describe('a card that stays on screen (review H1)', () => {
   });
 });
 
+describe('revalidation rhythm (review M2)', () => {
+  test('one cheap check per return to the foreground, none for plain re-openings of Accueil; feature off hides the card', async () => {
+    const app = await signInAt(MORNING);
+    let at = Date.parse(MORNING);
+    app.services.env.now = () => new Date(at);
+    const listeners: ((state: string) => void)[] = [];
+    const spy = jest.spyOn(AppState, 'addEventListener').mockImplementation(((_e: string, listener: (state: string) => void) => {
+      listeners.push(listener);
+      return { remove: () => undefined };
+    }) as never);
+    const screen = await phone.render(<Home />);
+    remote.calls.length = 0;
+
+    at += 30 * 60 * 1000;
+    await act(async () => phone.renderer!.update(<DesignProvider theme="light" locale="fr"><Home /></DesignProvider>));
+    await screen.settle();
+    expect(remote.calls).toEqual([]); // same foreground session: nothing
+
+    await act(async () => listeners.forEach((listener) => listener('active')));
+    await screen.settle();
+    expect(remote.calls).toEqual([`GET /v1/daily-word?locale=fr If-None-Match="2026-11-24:fr:rev-2026-11-24-fr"`]);
+    expect(screen.texts()).toContain('Mot du jour');
+
+    // The server switches the feature off: at the next return to the foreground the card goes away.
+    remote.dailyWordDisabledCode = 'not_found';
+    at += 30 * 60 * 1000;
+    await act(async () => listeners.forEach((listener) => listener('active')));
+    await screen.settle();
+    expect(screen.text()).not.toMatch(/Mot du jour|Dernier mot|persévérance/);
+    spy.mockRestore();
+  });
+});
+
 describe('withdrawn during the day', () => {
   test('the card disappears instead of keeping withdrawn content on screen', async () => {
-    const app = await signInAt(MORNING);
+    await signInAt(MORNING);
     await phone.render(<Home />);
     delete remote.dailyWords.fr;
-    app.services.env.now = () => new Date(BEFORE_MIDNIGHT); // many hours later, still the 24th in Haiti
+    await phone.kill(); // the next app start, many hours later, still the 24th in Haiti: one check is due
+    await signInAt(BEFORE_MIDNIGHT);
     const screen = await phone.render(<Home />);
     await screen.settle();
     expect(screen.text()).not.toMatch(/Mot du jour|Dernier mot|persévérance/);

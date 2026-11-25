@@ -2,23 +2,28 @@
  * Word of the Day: read-through cache and the honesty rule for its label.
  *
  * - The card is drawn from SQLite. Re-reading the cached word never needs the network.
- * - A word is called "today's" ONLY while the server's own deadline for it has
- *   not passed: `fetchedAt <= now < validUntil`, where `validUntil` is the
- *   instant of the next midnight in Haiti as sent by the server. This phone
- *   never works out the Haitian date itself.
- * - After that instant — or if this phone's clock has gone backwards since the
- *   download — the same word is shown as "last downloaded word · <its date>".
+ * - A word is called "today's" ONLY for a measured stretch of time after its
+ *   download: `0 <= now - fetchedAt < lifetimeMs`. The lifetime is what was
+ *   left until the server's deadline (`valid_until`, the next Haiti midnight)
+ *   on the SERVER's clock (the response `Date` header) when the word arrived,
+ *   capped at `MAX_LIFETIME_MS`. Only ELAPSED time on this phone is used, so a
+ *   phone whose date is wrong — behind, ahead, or reset to another year — still
+ *   stops saying "Mot du jour" at the right moment; a clock that jumps backwards
+ *   past the download ends it at once. The phone never works out the Haitian date.
+ * - Afterwards the same word is shown as "last downloaded word · <its date>".
  *   Yesterday's word is never presented as today's.
- * - The network is used sparingly. While today's word is in the cache: one
- *   small conditional request (ETag, answered 304 with no body) at most every
- *   `REVALIDATE_AFTER_MS`, because the server may withdraw a word during the
- *   day. Otherwise: at most one attempt every `RETRY_AFTER_MS`.
- * - A word the server withdrew (404 while the cached one is still "today's")
- *   is removed from the cache: withdrawn content is not kept on screen.
+ * - Revalidation (rule agreed with the vocab lane, whose answers are
+ *   `Cache-Control: private, no-cache` because a word can be withdrawn during
+ *   the day): one conditional request (ETag; a 304 has no body) per app start
+ *   and per return to the foreground — the caller passes `force` — and never
+ *   more often than `REVALIDATE_SPACING_MS`. Once the lifetime is over the app
+ *   always asks (unconditionally), `RETRY_AFTER_MS` apart after a failure.
+ * - A word the server withdrew (404 `daily_word_not_available` while the cached
+ *   one is still today's) is removed from the cache. When the feature is off on
+ *   the server (any other 404) the cache is kept but the card is hidden.
  *
- * Known limit (documented in the lane notes): if the phone's clock is set
- * BEHIND the real time, "now < validUntil" stays true for longer than it
- * should. Any successful refresh corrects it.
+ * Remaining limit: with no readable `Date` header the lifetime falls back to
+ * `valid_until - phone clock` at download, which is only as good as that clock.
  */
 import { ApiError, isAborted } from '../api/errors';
 import type { Locale } from '../api/types';
@@ -27,25 +32,35 @@ import type { StringKey } from '../i18n/strings';
 import { ExperienceRemote, parseRemoteDailyWord, RemoteDailyWord } from './remote';
 import type { DailyWordOutcome, DailyWordRow, StoredDailyWord } from './store';
 
-/** Minimum wait between two download attempts that did not bring today's word. */
+/** Minimum wait after an attempt that did not bring or confirm a word. */
 export const RETRY_AFTER_MS = 10 * 60 * 1000;
-/** How long today's cached word is shown before the server is asked (cheaply) whether it still stands. */
-export const REVALIDATE_AFTER_MS = 6 * 60 * 60 * 1000;
+/** Minimum wait between two checks of a word that is in the cache as today's. */
+export const REVALIDATE_SPACING_MS = 5 * 60 * 1000;
+/** No word is "today's" for longer than this after its download, whatever deadline was received. */
+export const MAX_LIFETIME_MS = 25 * 60 * 60 * 1000;
 
 export type DailyWordFreshness = 'today' | 'last_downloaded';
+export type DailyWordTiming = Pick<StoredDailyWord, 'fetchedAt' | 'lifetimeMs'>;
 
-export function freshnessOf(word: Pick<StoredDailyWord, 'fetchedAt' | 'validUntil'>, now: Date): DailyWordFreshness {
-  const at = now.getTime();
-  const fetched = Date.parse(word.fetchedAt);
-  const until = Date.parse(word.validUntil);
-  return Number.isFinite(fetched) && Number.isFinite(until) && fetched <= at && at < until ? 'today' : 'last_downloaded';
+/** Time left until the server's deadline, by the server's own clock when it is known. Clamped to [0, MAX_LIFETIME_MS]. */
+export function lifetimeFrom(validUntil: string, serverDate: string | null, phoneNow: Date): number {
+  const until = Date.parse(validUntil);
+  const server = serverDate === null ? NaN : Date.parse(serverDate);
+  const from = Number.isFinite(server) ? server : phoneNow.getTime();
+  if (!Number.isFinite(until)) return 0;
+  return Math.max(0, Math.min(MAX_LIFETIME_MS, until - from));
+}
+
+export function freshnessOf(word: DailyWordTiming, now: Date): DailyWordFreshness {
+  const elapsed = now.getTime() - Date.parse(word.fetchedAt);
+  return Number.isFinite(elapsed) && elapsed >= 0 && elapsed < word.lifetimeMs ? 'today' : 'last_downloaded';
 }
 
 export interface DailyWordView {
   /** As of the `now` given to `dailyWordView`. Screens that stay open must use `freshnessOf(view.timing, now)` at render time. */
   freshness: DailyWordFreshness;
   /** What freshness is computed from, so a mounted screen can re-evaluate it as time passes. */
-  timing: Pick<StoredDailyWord, 'fetchedAt' | 'validUntil'>;
+  timing: DailyWordTiming;
   /** `YYYY-MM-DD`, the Haitian calendar day the word was assigned to (from the server). */
   haitiDate: string;
   word: RemoteDailyWord['word'];
@@ -57,9 +72,12 @@ export interface DailyWordView {
   lastOutcome: DailyWordOutcome | null;
 }
 
-/** What the card shows, or null when nothing has ever been downloaded (then there is no card). */
+/**
+ * What the card shows, or null when there is no card: nothing was ever
+ * downloaded, or the server last said the feature is off (the cache is kept).
+ */
 export function dailyWordView(row: DailyWordRow | null, now: Date): DailyWordView | null {
-  if (!row?.word) return null;
+  if (!row?.word || row.lastOutcome === 'unavailable') return null;
   let parsed: RemoteDailyWord;
   try {
     // Validated again on the way out: a row written by another app version is never trusted blindly.
@@ -69,7 +87,7 @@ export function dailyWordView(row: DailyWordRow | null, now: Date): DailyWordVie
   }
   return {
     freshness: freshnessOf(row.word, now),
-    timing: { fetchedAt: row.word.fetchedAt, validUntil: row.word.validUntil },
+    timing: { fetchedAt: row.word.fetchedAt, lifetimeMs: row.word.lifetimeMs },
     haitiDate: row.word.haitiDate,
     word: parsed.word,
     servedLocale: parsed.locale,
@@ -82,14 +100,15 @@ export function dailyWordView(row: DailyWordRow | null, now: Date): DailyWordVie
 export type DailyWordRefresh = 'cached_today' | 'throttled' | DailyWordOutcome | 'aborted';
 
 /**
- * Bring today's word into the cache if it is not there yet. Never throws.
- * NETWORK: callers only invoke this when the `dailyWord` flag is on.
+ * Bring today's word into the cache, or check that the cached one still stands.
+ * Never throws. NETWORK: callers only invoke this when the `dailyWord` flag is on.
+ * `force`: the first call after an app start or a return to the foreground.
  */
 export async function refreshDailyWord(
   account: AccountStore,
   remote: ExperienceRemote,
   locale: Locale,
-  env: { now: () => Date; isActive?: () => boolean },
+  env: { now: () => Date; isActive?: () => boolean; force?: boolean },
 ): Promise<DailyWordRefresh> {
   const store = account.experience;
   const now = env.now();
@@ -99,20 +118,25 @@ export async function refreshDailyWord(
     const isToday = Boolean(row?.word && freshnessOf(row.word, now) === 'today');
     if (row?.lastAttemptAt) {
       const since = now.getTime() - Date.parse(row.lastAttemptAt);
-      if (since >= 0 && since < (isToday ? REVALIDATE_AFTER_MS : RETRY_AFTER_MS)) return isToday ? 'cached_today' : 'throttled';
+      const settled = row.lastOutcome === 'updated' || row.lastOutcome === 'not_modified';
+      if (since >= 0 && since < (isToday && settled ? REVALIDATE_SPACING_MS : RETRY_AFTER_MS)) return isToday ? 'cached_today' : 'throttled';
     }
-    // A conditional request only makes sense while the cached word could still be today's
-    // (revalidation during the day, or the clock went backwards). Past its deadline we ask
-    // plainly, so that an answer always carries a new `valid_until`.
-    const stillCurrent = Boolean(row?.word && now.getTime() < Date.parse(row.word.validUntil));
-    const conditional = stillCurrent ? (row?.word?.etag ?? null) : null;
+    if (isToday && !env.force) return 'cached_today';
+    // Conditional only while the cached word is still today's; past its lifetime we ask plainly,
+    // so that an answer always carries a new deadline.
+    const conditional = isToday ? (row?.word?.etag ?? null) : null;
     let outcome: DailyWordOutcome;
     try {
-      const result = await remote.getDailyWord(locale, conditional ?? null);
+      const result = await remote.getDailyWord(locale, conditional);
       if (!active()) return 'aborted';
-      const at = env.now().toISOString();
+      const arrived = env.now();
+      const at = arrived.toISOString();
       if (result.kind === 'not_modified') {
-        await store.noteDailyWordAttempt(locale, at, 'not_modified', true);
+        if (row?.word && result.serverDate !== null) {
+          await store.reconfirmDailyWord(locale, at, lifetimeFrom(row.word.validUntil, result.serverDate, arrived));
+        } else {
+          await store.noteDailyWordAttempt(locale, at, 'not_modified');
+        }
         return 'not_modified';
       }
       await store.putDailyWord(locale, {
@@ -121,13 +145,14 @@ export async function refreshDailyWord(
         etag: result.etag,
         body: result.word,
         fetchedAt: at,
+        lifetimeMs: lifetimeFrom(result.word.valid_until, result.serverDate, arrived),
       });
       return 'updated';
     } catch (error) {
       if (isAborted(error) || !active()) return 'aborted';
       if (error instanceof ApiError && error.kind === 'client') {
         outcome = error.code === 'daily_word_not_available' ? 'none_today' : 'unavailable';
-        if (outcome === 'none_today' && stillCurrent) {
+        if (outcome === 'none_today' && isToday) {
           // The server says there is no word today, yet this phone holds one for today: it was withdrawn.
           await store.clearDailyWord(locale, env.now().toISOString());
           return 'none_today';

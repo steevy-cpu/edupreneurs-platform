@@ -13,10 +13,12 @@ import {
   dailyWordView,
   formatHaitiDate,
   freshnessOf,
+  lifetimeFrom,
+  MAX_LIFETIME_MS,
   partOfSpeechKey,
   refreshDailyWord,
   RETRY_AFTER_MS,
-  REVALIDATE_AFTER_MS,
+  REVALIDATE_SPACING_MS,
 } from '../../src/core/experience/dailyWord';
 import { ExperienceApi, parseRemoteDailyWord } from '../../src/core/experience/remote';
 import { FakeRemote, sampleWord } from '../support/experienceHarness';
@@ -47,23 +49,42 @@ afterEach(async () => {
 
 const view = async (locale: 'fr' | 'ht' = 'fr') => dailyWordView(await account.experience.getDailyWord(locale), env.now());
 
-describe('"today" ends exactly at the server’s deadline (Haiti midnight)', () => {
-  const word = { fetchedAt: '2026-11-24T15:00:00.000Z', validUntil: '2026-11-25T05:00:00Z' };
+describe('"today" ends exactly at the server’s deadline (Haiti midnight), measured as elapsed time', () => {
+  const fetchedAt = '2026-11-24T15:00:00.000Z';
+  const word = { fetchedAt, lifetimeMs: lifetimeFrom('2026-11-25T05:00:00Z', 'Tue, 24 Nov 2026 15:00:00 GMT', new Date(fetchedAt)) };
   test('23:59:59.999 in Haiti is still today; 00:00:00.000 is not', () => {
+    expect(word.lifetimeMs).toBe(14 * 60 * 60 * 1000);
     expect(freshnessOf(word, new Date(MIDNIGHT - 1))).toBe('today');
     expect(freshnessOf(word, new Date(MIDNIGHT))).toBe('last_downloaded');
     expect(freshnessOf(word, new Date(MIDNIGHT + 1))).toBe('last_downloaded');
   });
   test('the deadline is the server’s instant, whatever the offset it is written with', () => {
-    // the same instant during daylight time would be written with -04:00; only the instant matters
-    expect(freshnessOf({ ...word, validUntil: '2026-11-25T00:00:00-05:00' }, new Date(MIDNIGHT - 1))).toBe('today');
-    expect(freshnessOf({ ...word, validUntil: '2026-11-25T00:00:00-05:00' }, new Date(MIDNIGHT))).toBe('last_downloaded');
+    expect(lifetimeFrom('2026-11-25T00:00:00-05:00', 'Tue, 24 Nov 2026 15:00:00 GMT', new Date(0))).toBe(14 * 60 * 60 * 1000);
   });
-  test('a phone clock that went backwards since the download is not trusted', () => {
+  test('a phone clock that went backwards past the download ends "today" at once', () => {
     expect(freshnessOf(word, new Date('2026-11-24T14:59:59.000Z'))).toBe('last_downloaded');
+    expect(freshnessOf(word, new Date('2019-01-01T00:00:00.000Z'))).toBe('last_downloaded');
+  });
+  test('the lifetime comes from the SERVER clock: a phone 5 hours slow still stops at the real midnight (review M1)', () => {
+    // Real time 15:00Z; the phone believes it is 10:00Z.
+    const slow = { fetchedAt: '2026-11-24T10:00:00.000Z', lifetimeMs: lifetimeFrom('2026-11-25T05:00:00Z', 'Tue, 24 Nov 2026 15:00:00 GMT', new Date('2026-11-24T10:00:00.000Z')) };
+    // Real midnight = phone 00:00Z on the 25th, although the phone's clock is still 5 h before `valid_until`.
+    expect(freshnessOf(slow, new Date('2026-11-24T23:59:59.999Z'))).toBe('today');
+    expect(freshnessOf(slow, new Date('2026-11-25T00:00:00.000Z'))).toBe('last_downloaded');
+    // A phone 5 hours FAST: still today for the 14 real hours that remain (review L1).
+    const fast = { fetchedAt: '2026-11-24T20:00:00.000Z', lifetimeMs: slow.lifetimeMs };
+    expect(freshnessOf(fast, new Date('2026-11-25T09:59:59.999Z'))).toBe('today');
+    expect(freshnessOf(fast, new Date('2026-11-25T10:00:00.000Z'))).toBe('last_downloaded');
+  });
+  test('no word is today’s for more than about a day, whatever deadline arrives; a past deadline gives no lifetime', () => {
+    expect(lifetimeFrom('2031-01-01T00:00:00Z', 'Tue, 24 Nov 2026 15:00:00 GMT', new Date(0))).toBe(MAX_LIFETIME_MS);
+    expect(lifetimeFrom('2026-11-24T05:00:00Z', 'Tue, 24 Nov 2026 15:00:00 GMT', new Date(0))).toBe(0);
+    expect(lifetimeFrom('soon', null, new Date(0))).toBe(0);
+    // no readable Date header: the phone's clock at download is the only reference left
+    expect(lifetimeFrom('2026-11-25T05:00:00Z', null, new Date('2026-11-24T15:00:00.000Z'))).toBe(14 * 60 * 60 * 1000);
   });
   test('unreadable timestamps never count as today', () => {
-    expect(freshnessOf({ fetchedAt: 'yesterday', validUntil: 'soon' }, new Date(MIDNIGHT - 1))).toBe('last_downloaded');
+    expect(freshnessOf({ fetchedAt: 'yesterday', lifetimeMs: 1e9 }, new Date(MIDNIGHT - 1))).toBe('last_downloaded');
   });
 });
 
@@ -75,38 +96,42 @@ describe('read-through cache', () => {
 
     remote.calls.length = 0;
     remote.mode = 'offline';
-    clock += REVALIDATE_AFTER_MS - 1; // later the same Haitian day
+    clock += 6 * 60 * 60 * 1000; // later the same Haitian day, same app session
     expect(await refreshDailyWord(account, remote, 'fr', env)).toBe('cached_today');
     expect(remote.calls).toEqual([]);
     expect((await view())?.freshness).toBe('today');
   });
 
-  test('during the day the server is asked, cheaply and rarely, whether the word still stands (ETag → 304)', async () => {
+  test('once per app start / return to foreground the server is asked, cheaply, whether the word still stands (review M2)', async () => {
     await refreshDailyWord(account, remote, 'fr', env);
     remote.calls.length = 0;
-    clock += REVALIDATE_AFTER_MS;
-    expect(await refreshDailyWord(account, remote, 'fr', env)).toBe('not_modified');
+    // too soon after the download: even a forced check waits
+    clock += REVALIDATE_SPACING_MS - 1;
+    expect(await refreshDailyWord(account, remote, 'fr', { ...env, force: true })).toBe('cached_today');
+    expect(remote.calls).toEqual([]);
+    clock += 1;
+    expect(await refreshDailyWord(account, remote, 'fr', { ...env, force: true })).toBe('not_modified');
     expect(remote.calls).toEqual([`GET /v1/daily-word?locale=fr If-None-Match="2026-11-24:fr:rev-2026-11-24-fr"`]);
     expect((await view())?.freshness).toBe('today');
-    // and not again right away
-    clock += 60_000;
+    // later visits in the same foreground session are not forced: no request
+    clock += 60 * 60 * 1000;
     expect(await refreshDailyWord(account, remote, 'fr', env)).toBe('cached_today');
     expect(remote.calls).toHaveLength(1);
   });
 
-  test('revalidation with no network changes nothing: the word is still today’s until its deadline', async () => {
+  test('a check with no network changes nothing: the word is still today’s until its deadline', async () => {
     await refreshDailyWord(account, remote, 'fr', env);
     remote.mode = 'offline';
-    clock += REVALIDATE_AFTER_MS;
-    expect(await refreshDailyWord(account, remote, 'fr', env)).toBe('unreachable');
+    clock += REVALIDATE_SPACING_MS;
+    expect(await refreshDailyWord(account, remote, 'fr', { ...env, force: true })).toBe('unreachable');
     expect(await view()).toMatchObject({ freshness: 'today', word: { term: 'persévérance' } });
   });
 
-  test('a word the server withdrew during the day is removed from the phone, not kept on screen', async () => {
+  test('a word the server withdrew during the day is removed from the phone at the next check', async () => {
     await refreshDailyWord(account, remote, 'fr', env);
     delete remote.dailyWords.fr; // staff withdrew it: the endpoint now answers 404 daily_word_not_available
-    clock += REVALIDATE_AFTER_MS;
-    expect(await refreshDailyWord(account, remote, 'fr', env)).toBe('none_today');
+    clock += REVALIDATE_SPACING_MS;
+    expect(await refreshDailyWord(account, remote, 'fr', { ...env, force: true })).toBe('none_today');
     expect(await view()).toBeNull();
     expect((await account.experience.getDailyWord('fr'))?.lastOutcome).toBe('none_today');
   });
@@ -114,17 +139,54 @@ describe('read-through cache', () => {
   test('a word the server replaced during the day replaces the cached one', async () => {
     await refreshDailyWord(account, remote, 'fr', env);
     remote.dailyWords.fr = { ...sampleWord('2026-11-25', 'fr'), haiti_date: '2026-11-24', valid_until: '2026-11-25T05:00:00Z' };
-    clock += REVALIDATE_AFTER_MS;
-    expect(await refreshDailyWord(account, remote, 'fr', env)).toBe('updated');
+    clock += REVALIDATE_SPACING_MS;
+    expect(await refreshDailyWord(account, remote, 'fr', { ...env, force: true })).toBe('updated');
     expect(await view()).toMatchObject({ freshness: 'today', haitiDate: '2026-11-24', word: { term: 'hypothèse' } });
   });
 
-  test('the feature being switched off on the server does not erase the cached word', async () => {
+  test('feature switched off on the server: the card is hidden, the cache is kept, and it comes back with the feature', async () => {
     await refreshDailyWord(account, remote, 'fr', env);
     remote.dailyWordDisabledCode = 'not_found';
-    clock += REVALIDATE_AFTER_MS;
-    expect(await refreshDailyWord(account, remote, 'fr', env)).toBe('unavailable');
+    clock += REVALIDATE_SPACING_MS;
+    expect(await refreshDailyWord(account, remote, 'fr', { ...env, force: true })).toBe('unavailable');
+    expect(await view()).toBeNull(); // hidden…
+    expect((await account.experience.getDailyWord('fr'))?.word).not.toBeNull(); // …not erased
+    remote.dailyWordDisabledCode = null;
+    clock += RETRY_AFTER_MS;
+    expect(await refreshDailyWord(account, remote, 'fr', { ...env, force: true })).toBe('not_modified');
     expect((await view())?.word.term).toBe('persévérance');
+  });
+
+  test('phone clock 5 hours slow, ONLINE: after the real midnight the word is no longer today’s and the new one is fetched (review M1)', async () => {
+    const SLOW = 5 * 60 * 60 * 1000;
+    remote.serverNow = () => new Date(clock + SLOW); // the server knows the real time
+    await refreshDailyWord(account, remote, 'fr', env);
+    clock = MIDNIGHT - SLOW + 1000; // real time: one second past Haiti midnight; the phone thinks it is 19:00
+    expect((await view())?.freshness).toBe('last_downloaded');
+    remote.dailyWords.fr = sampleWord('2026-11-25', 'fr');
+    expect(await refreshDailyWord(account, remote, 'fr', env)).toBe('updated'); // not forced: it asks because the lifetime is over
+    expect(await view()).toMatchObject({ freshness: 'today', haitiDate: '2026-11-25' });
+  });
+
+  test('phone clock reset to another year, offline: never today’s', async () => {
+    await refreshDailyWord(account, remote, 'fr', env);
+    remote.mode = 'offline';
+    clock = Date.parse('2020-01-01T00:00:00.000Z');
+    expect((await view())?.freshness).toBe('last_downloaded');
+  });
+
+  test('phone clock 5 hours fast: one download serves the rest of the real day (review L1)', async () => {
+    const FAST = 5 * 60 * 60 * 1000;
+    clock = Date.parse('2026-11-25T00:00:00.000Z') + FAST; // real 19:00 Haiti on the 24th; the phone is already past valid_until
+    remote.serverNow = () => new Date(clock - FAST);
+    expect(await refreshDailyWord(account, remote, 'fr', env)).toBe('updated');
+    expect((await view())?.freshness).toBe('today');
+    remote.calls.length = 0;
+    for (let i = 0; i < 6; i += 1) {
+      clock += 20 * 60 * 1000;
+      await refreshDailyWord(account, remote, 'fr', env);
+    }
+    expect(remote.calls).toEqual([]);
   });
 
   test('past midnight with no network: the same word is "last downloaded", never "today"', async () => {
@@ -171,16 +233,6 @@ describe('read-through cache', () => {
     expect(remote.calls).toHaveLength(1);
   });
 
-  test('clock went backwards: a conditional request (ETag) lets the server confirm the word is still today’s', async () => {
-    await refreshDailyWord(account, remote, 'fr', env);
-    clock -= 60 * 60 * 1000;
-    expect((await view())?.freshness).toBe('last_downloaded');
-    remote.calls.length = 0;
-    expect(await refreshDailyWord(account, remote, 'fr', env)).toBe('not_modified');
-    expect(remote.calls).toEqual([`GET /v1/daily-word?locale=fr If-None-Match="2026-11-24:fr:rev-2026-11-24-fr"`]);
-    expect(await view()).toMatchObject({ freshness: 'today', word: { term: 'persévérance' } });
-  });
-
   test('Creole requested but only French exists: stored for Creole, flagged as a fallback; the French cache is separate', async () => {
     remote.dailyWords.ht = { ...sampleWord('2026-11-24', 'fr'), requested_locale: 'ht', is_fallback_locale: true };
     expect(await refreshDailyWord(account, remote, 'ht', env)).toBe('updated');
@@ -213,6 +265,7 @@ describe('read-through cache', () => {
       etag: null,
       body: { haiti_date: '2026-11-24', locale: 'fr', valid_until: '2026-11-25T05:00:00Z', word: { term: '' } },
       fetchedAt: env.now().toISOString(),
+      lifetimeMs: 60 * 60 * 1000,
     });
     expect(await view()).toBeNull();
   });
@@ -283,13 +336,13 @@ describe('the HTTP adapter', () => {
     const { client, seen } = api((init) =>
       (init.headers as Record<string, string>)['If-None-Match'] === '"abc"'
         ? new Response(null, { status: 304 })
-        : new Response(JSON.stringify(word), { status: 200, headers: { ETag: '"abc"', 'Cache-Control': 'private' } }),
+        : new Response(JSON.stringify(word), { status: 200, headers: { ETag: '"abc"', 'Cache-Control': 'private, no-cache', Date: 'Tue, 24 Nov 2026 15:00:00 GMT' } }),
     );
     const first = await client.getDailyWord('ht', null);
-    expect(first).toMatchObject({ kind: 'word', etag: '"abc"', word: { word: { term: 'pèseverans' } } });
+    expect(first).toMatchObject({ kind: 'word', etag: '"abc"', serverDate: 'Tue, 24 Nov 2026 15:00:00 GMT', word: { word: { term: 'pèseverans' } } });
     expect(seen[0].url).toBe('http://127.0.0.1:9/v1/daily-word?locale=ht');
     expect(seen[0].headers['If-None-Match']).toBeUndefined();
-    expect(await client.getDailyWord('ht', '"abc"')).toEqual({ kind: 'not_modified' });
+    expect(await client.getDailyWord('ht', '"abc"')).toEqual({ kind: 'not_modified', serverDate: null });
     expect(seen[1].headers['If-None-Match']).toBe('"abc"');
   });
 

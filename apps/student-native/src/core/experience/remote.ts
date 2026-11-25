@@ -90,7 +90,10 @@ export interface RemoteRewardsSummary {
   rules_status: 'provisional' | null;
 }
 
-export type DailyWordFetch = { kind: 'word'; word: RemoteDailyWord; etag: string | null } | { kind: 'not_modified' };
+/** `serverDate` is the response's `Date` header (the server's clock), or null when it was not readable. */
+export type DailyWordFetch =
+  | { kind: 'word'; word: RemoteDailyWord; etag: string | null; serverDate: string | null }
+  | { kind: 'not_modified'; serverDate: string | null };
 
 export interface ExperienceRemote {
   getOnboarding(): Promise<RemoteOnboarding>;
@@ -235,6 +238,8 @@ export interface RawResponse {
   status: number;
   body: unknown;
   etag: string | null;
+  /** The `Date` response header, as sent. */
+  serverDate: string | null;
 }
 
 /**
@@ -269,8 +274,8 @@ export class ExperienceApi implements ExperienceRemote {
     const response = await this.send('GET', `/v1/daily-word?locale=${locale}`, {
       headers: etag ? { 'If-None-Match': etag } : undefined,
     });
-    if (response.status === 304) return { kind: 'not_modified' };
-    return { kind: 'word', word: parseRemoteDailyWord(this.ok(response).body, locale), etag: response.etag };
+    if (response.status === 304) return { kind: 'not_modified', serverDate: response.serverDate };
+    return { kind: 'word', word: parseRemoteDailyWord(this.ok(response).body, locale), etag: response.etag, serverDate: response.serverDate };
   }
 
   async getRewardsSummary(): Promise<RemoteRewardsSummary> {
@@ -294,10 +299,12 @@ export class ExperienceApi implements ExperienceRemote {
       const headers: Record<string, string> = { Accept: 'application/json', Authorization: `Bearer ${token}`, ...extra.headers };
       if (extra.json !== undefined) headers['Content-Type'] = 'application/json';
       let etag: string | null = null;
+      let serverDate: string | null = null;
       // `requestJson` owns timeout, cancellation and error mapping; the wrapper only notes the ETag on the way through.
       const noteEtag: FetchLike = async (input, init) => {
         const response = await this.fetchImpl(input, init);
         etag = response.headers.get('etag');
+        serverDate = response.headers.get('date');
         return response;
       };
       const { status, body } = await requestJson(
@@ -310,7 +317,7 @@ export class ExperienceApi implements ExperienceRemote {
         forceRefresh = true; // the token may simply have expired between our check and the server's
         continue;
       }
-      return { status, body, etag };
+      return { status, body, etag, serverDate };
     }
   }
 }
