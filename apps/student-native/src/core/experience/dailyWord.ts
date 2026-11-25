@@ -42,7 +42,10 @@ export function freshnessOf(word: Pick<StoredDailyWord, 'fetchedAt' | 'validUnti
 }
 
 export interface DailyWordView {
+  /** As of the `now` given to `dailyWordView`. Screens that stay open must use `freshnessOf(view.timing, now)` at render time. */
   freshness: DailyWordFreshness;
+  /** What freshness is computed from, so a mounted screen can re-evaluate it as time passes. */
+  timing: Pick<StoredDailyWord, 'fetchedAt' | 'validUntil'>;
   /** `YYYY-MM-DD`, the Haitian calendar day the word was assigned to (from the server). */
   haitiDate: string;
   word: RemoteDailyWord['word'];
@@ -66,6 +69,7 @@ export function dailyWordView(row: DailyWordRow | null, now: Date): DailyWordVie
   }
   return {
     freshness: freshnessOf(row.word, now),
+    timing: { fetchedAt: row.word.fetchedAt, validUntil: row.word.validUntil },
     haitiDate: row.word.haitiDate,
     word: parsed.word,
     servedLocale: parsed.locale,

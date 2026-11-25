@@ -3,11 +3,15 @@
  * Behind the `dailyWord` client flag, OFF by default. Synthetic words only.
  */
 import React from 'react';
+import { act } from 'react-test-renderer';
+
+import { DesignProvider } from '../../src/design';
 
 import Home from '../../src/app/home';
 import { FakeRemote, RestartablePhone, sampleWord } from '../support/experienceHarness';
 import { navigation } from '../support/expoRouterMock';
 import { resetFlags } from '../support/flagsMock';
+import { AppState } from '../support/reactNativeMock';
 import { catalog, FakeApp, lessonSnapshot } from '../support/screenHarness';
 
 const mockHolder: { phone: RestartablePhone | null; remote: FakeRemote | null } = { phone: null, remote: null };
@@ -203,6 +207,62 @@ describe('never yesterday’s word as today’s', () => {
     expect(screen.texts()).toContain('Dernier mot téléchargé · 24 novembre 2026');
     expect(screen.has('Pas de nouveau mot pour aujourd’hui.')).toBe(true);
     expect(screen.text()).not.toMatch(/Mot du jour/);
+  });
+});
+
+describe('a card that stays on screen (review H1)', () => {
+  /** Capture the app-state listeners so a test can bring the app "back to the foreground". */
+  function foregroundSwitch() {
+    const listeners: ((state: string) => void)[] = [];
+    const spy = jest.spyOn(AppState, 'addEventListener').mockImplementation(((_event: string, listener: (state: string) => void) => {
+      listeners.push(listener);
+      return { remove: () => undefined };
+    }) as never);
+    return { foreground: () => listeners.forEach((listener) => listener('active')), restore: () => spy.mockRestore() };
+  }
+
+  test('left open across Haiti midnight with no network: after returning to the app it no longer says "Mot du jour"', async () => {
+    const app = await signInAt(MORNING);
+    let at = MORNING; // one clock function for the whole life of the screen, like the real app
+    app.services.env.now = () => new Date(at);
+    const sw = foregroundSwitch();
+    const screen = await phone.render(<Home />); // ONE instance, never re-mounted below
+    expect(screen.texts()).toContain('Mot du jour');
+
+    remote.mode = 'offline';
+    at = AFTER_MIDNIGHT;
+    await act(async () => sw.foreground());
+    await screen.settle();
+    expect(screen.texts()).toContain('Dernier mot téléchargé · 24 novembre 2026');
+    expect(screen.text()).not.toMatch(/Mot du jour/);
+    sw.restore();
+  });
+
+  test('left open across Haiti midnight with network: returning to the app brings the new day’s word', async () => {
+    const app = await signInAt(MORNING);
+    let at = MORNING; // one clock function for the whole life of the screen, like the real app
+    app.services.env.now = () => new Date(at);
+    const sw = foregroundSwitch();
+    const screen = await phone.render(<Home />);
+    remote.dailyWords.fr = sampleWord('2026-11-25', 'fr');
+    at = '2026-11-25T15:00:00.000Z';
+    await act(async () => sw.foreground());
+    await screen.settle();
+    expect(screen.texts()).toEqual(expect.arrayContaining(['Mot du jour', '25 novembre 2026', 'hypothèse']));
+    expect(screen.has('persévérance')).toBe(false);
+    sw.restore();
+  });
+
+  test('even a plain redraw, with no event at all, re-labels the card from the clock', async () => {
+    const app = await signInAt(MORNING);
+    let at = MORNING;
+    app.services.env.now = () => new Date(at);
+    const screen = await phone.render(<Home />);
+    remote.mode = 'offline';
+    at = AFTER_MIDNIGHT;
+    await act(async () => phone.renderer!.update(<DesignProvider theme="light" locale="fr"><Home /></DesignProvider>)); // same instance, redrawn
+    expect(screen.text()).not.toMatch(/Mot du jour/);
+    expect(screen.texts()).toContain('Dernier mot téléchargé · 24 novembre 2026');
   });
 });
 

@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
+import { AppState, StyleSheet, View } from 'react-native';
 
 import type { Locale } from '../../core/api/types';
 import type { AccountStore } from '../../core/db/accountStore';
-import { dailyWordView, DailyWordView, formatHaitiDate, partOfSpeechKey, refreshDailyWord } from '../../core/experience/dailyWord';
+import { dailyWordView, DailyWordView, formatHaitiDate, freshnessOf, partOfSpeechKey, refreshDailyWord } from '../../core/experience/dailyWord';
 import type { ExperienceRemote } from '../../core/experience/remote';
 import type { Translate } from '../../core/i18n/strings';
 import { AppText, Card, Pill, space } from '../../design';
@@ -36,8 +37,19 @@ export function DailyWordCard({
   isActive: () => boolean;
 }) {
   const [view, setView] = useState<DailyWordView | null>(null);
+  // Bumped when the app returns to the foreground: the card is read, refreshed and re-labelled again.
+  const [wake, setWake] = useState(0);
 
   useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') setWake((count) => count + 1);
+    });
+    return () => subscription.remove();
+  }, []);
+
+  // Every time the screen gains focus (not only when it is first mounted) and every return to the foreground.
+  useFocusEffect(
+    useCallback(() => {
     let live = true;
     const show = async () => {
       const row = await account.experience.getDailyWord(locale);
@@ -54,11 +66,14 @@ export function DailyWordCard({
       live = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account, remote, locale]);
+    }, [account, remote, locale, wake]),
+  );
 
   if (!view) return null;
   const { word } = view;
-  const today = view.freshness === 'today';
+  // Decided at EVERY render from the clock, never remembered: a card left open past the deadline
+  // stops saying "Mot du jour" the next time anything redraws it.
+  const today = freshnessOf(view.timing, now()) === 'today';
   const date = formatHaitiDate(view.haitiDate, locale);
   const partOfSpeech = partOfSpeechKey(word.part_of_speech);
   const details = [partOfSpeech ? t(partOfSpeech) : null, word.pronunciation ? t('wordPronunciation', { text: word.pronunciation }) : null].filter(
