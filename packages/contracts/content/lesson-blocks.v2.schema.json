@@ -1,0 +1,264 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.mon-edupreneur.local/content/lesson-blocks.v2.schema.json",
+  "title": "Lesson blocks (content format v2)",
+  "description": "Value of app.lesson_revisions.blocks for content format 2. Every format-1 block (heading, paragraph, example, callout) is accepted unchanged; format 2 adds math, image, list, table and audio. Still an ordered list of small typed blocks: no HTML, no scripts, no remote URLs. This schema is the STRUCTURAL layer; the semantic rules that JSON Schema cannot express (unique keys, the edu-math-1 grammar, table width budget, transcript references, asset consistency and budgets) are listed in packages/contracts/content/README.md and exercised by vectors/*.json. String lengths are counted in Unicode code points. Integers are written without fraction or exponent.",
+  "type": "array",
+  "minItems": 1,
+  "maxItems": 200,
+  "items": { "$ref": "#/$defs/block" },
+  "$defs": {
+    "noControl": {
+      "description": "No C0 control character and no DEL. Written as a negated, unanchored pattern so that every regular-expression engine agrees (no dependence on how '$' treats a trailing line break).",
+      "not": { "pattern": "[\\u0000-\\u001f\\u007f]" }
+    },
+    "noMarkup": {
+      "description": "No HTML/XML-looking tag opener: '<' directly followed by a letter, '/', '!' or '?'. 'x < 3' and '3<5' stay valid.",
+      "not": { "pattern": "<[A-Za-z/!?]" }
+    },
+    "key": {
+      "description": "Stable identifier of the block inside this revision (used for reading position). Same pattern as format 1.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+      "maxLength": 64,
+      "$ref": "#/$defs/noControl"
+    },
+    "text": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "sha256": {
+      "description": "Lower-case hexadecimal SHA-256 of the asset's bytes. This IS the asset's identity.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "minLength": 64,
+      "maxLength": 64
+    },
+    "altText": {
+      "description": "Mandatory plain-language equivalent, read by screen readers and shown when the visual cannot be drawn.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 300,
+      "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }]
+    },
+    "imageAsset": {
+      "description": "Reference to an image inside the pack, by content hash. Byte budget: 200 000 bytes per image; intrinsic size at most 1600 x 1600 pixels. SVG is deliberately not allowed (it can carry scripts).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "mime", "bytes", "width", "height"],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "mime": { "enum": ["image/webp", "image/png", "image/jpeg"] },
+        "bytes": { "type": "integer", "minimum": 1, "maximum": 200000 },
+        "width": { "type": "integer", "minimum": 1, "maximum": 1600 },
+        "height": { "type": "integer", "minimum": 1, "maximum": 1600 }
+      }
+    },
+    "audioAsset": {
+      "description": "Reference to an audio file inside the pack, by content hash. Byte budget: 2 000 000 bytes.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "mime", "bytes"],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "mime": { "enum": ["audio/mp4", "audio/mpeg"] },
+        "bytes": { "type": "integer", "minimum": 1, "maximum": 2000000 }
+      }
+    },
+    "block": {
+      "oneOf": [
+        { "$ref": "#/$defs/heading" },
+        { "$ref": "#/$defs/paragraph" },
+        { "$ref": "#/$defs/example" },
+        { "$ref": "#/$defs/callout" },
+        { "$ref": "#/$defs/math" },
+        { "$ref": "#/$defs/image" },
+        { "$ref": "#/$defs/list" },
+        { "$ref": "#/$defs/table" },
+        { "$ref": "#/$defs/audio" }
+      ]
+    },
+    "heading": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "type", "text"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "type": { "const": "heading" },
+        "text": { "type": "string", "minLength": 1, "maxLength": 200 }
+      }
+    },
+    "paragraph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "type", "text"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "type": { "const": "paragraph" },
+        "text": { "$ref": "#/$defs/text" }
+      }
+    },
+    "example": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "type", "steps"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "type": { "const": "example" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": { "type": "string", "minLength": 1, "maxLength": 500 }
+        }
+      }
+    },
+    "callout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "type", "tone", "text"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "type": { "const": "callout" },
+        "tone": { "enum": ["tip", "warning", "remember"] },
+        "text": { "$ref": "#/$defs/text" }
+      }
+    },
+    "math": {
+      "description": "One displayed formula in the restricted plain-text notation 'edu-math-1' (a small, whitelisted subset of LaTeX mathematics; grammar in README.md). 'alt' says the formula in words. 'asset' optionally points at a pre-rendered image of the same formula, so that either rendering decision (PO-08) can be served from the same content.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "type", "notation", "source", "alt"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "type": { "const": "math" },
+        "notation": { "const": "edu-math-1" },
+        "source": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 400,
+          "pattern": "^[A-Za-z0-9 +*/=<>()\\[\\]|,.;:!'^_{}\\\\%\\u00c0-\\u017f-]+$",
+          "$ref": "#/$defs/noControl"
+        },
+        "alt": { "$ref": "#/$defs/altText" },
+        "asset": { "$ref": "#/$defs/imageAsset" }
+      }
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "type", "asset", "alt"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "type": { "const": "image" },
+        "asset": { "$ref": "#/$defs/imageAsset" },
+        "alt": { "$ref": "#/$defs/altText" },
+        "caption": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }]
+        }
+      }
+    },
+    "list": {
+      "description": "A flat list (no nesting).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "type", "style", "items"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "type": { "const": "list" },
+        "style": { "enum": ["bullet", "number"] },
+        "items": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 30,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }]
+          }
+        }
+      }
+    },
+    "table": {
+      "description": "A small data table: 2 to 4 columns, 1 to 20 rows, one header cell per column, plain-text cells. Readable without horizontal scrolling on a 320 dp wide screen: see the semantic rules 'table.row_width' and 'table.width_budget'.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "type", "caption", "columns", "rows"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "type": { "const": "table" },
+        "caption": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }]
+        },
+        "columns": {
+          "description": "Header cell of each column, left to right.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 24,
+            "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }]
+          }
+        },
+        "row_headers": {
+          "description": "true when the first cell of every row is a header for that row.",
+          "type": "boolean"
+        },
+        "rows": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "maxLength": 80,
+              "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }]
+            }
+          }
+        }
+      }
+    },
+    "audio": {
+      "description": "An optional audio clip. It never plays by itself: there is no autoplay property and unknown properties are rejected. 'transcript.block_keys' names the blocks of this same lesson that carry the text equivalent.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "type", "asset", "duration_ms", "title", "transcript"],
+      "properties": {
+        "key": { "$ref": "#/$defs/key" },
+        "type": { "const": "audio" },
+        "asset": { "$ref": "#/$defs/audioAsset" },
+        "duration_ms": { "type": "integer", "minimum": 1, "maximum": 600000 },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "allOf": [{ "$ref": "#/$defs/noControl" }, { "$ref": "#/$defs/noMarkup" }]
+        },
+        "transcript": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["block_keys"],
+          "properties": {
+            "block_keys": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 20,
+              "uniqueItems": true,
+              "items": { "$ref": "#/$defs/key" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
