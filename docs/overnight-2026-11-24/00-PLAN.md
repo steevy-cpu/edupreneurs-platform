@@ -194,3 +194,29 @@ director merges into `overnight/integration-2026-11-24` → full suite → push 
 | PO-17/18 | Exam and book rights | No exam or book content |
 | — | Haitian Creole wording | Draft strings pending native-speaker/educator review |
 | — | Staff second factor (MFA) | Designed and documented; **not implemented, not claimed** |
+
+## 8. Director rulings issued during the night
+
+**R-01 (23:35) — new routes and the pinned OpenAPI path set.** The baseline test
+`tests/integration/test_isolation_and_operations.py::test_openapi_contract` asserts that the served
+OpenAPI document has *exactly* the seven `main` paths. Ruling (supersedes §5.3 on generated files):
+- A lane that adds a **new path** registers its router always (404 in the standard error shape when
+  its flag is off) but declares it with `include_in_schema=False` behind **one module-level constant**
+  (`INCLUDE_IN_SCHEMA = False`) in the router file. `packages/contracts/openapi.json` and
+  `apps/student-native/src/core/api/schema.d.ts` therefore stay byte-identical to `main` on lane
+  branches, and no baseline test is edited by a lane.
+- The lane documents the full contract (JSON examples, error codes) in its lane doc and adds its own
+  test proving that, with the constant on, its operations carry the bearer security scheme and only
+  the standard error shape.
+- A lane that only adds a **method to an existing path** (identity: `PATCH /v1/me`) keeps it in the
+  schema and regenerates both generated files.
+- At integration the director flips the constants and extends the pinned path set **once**, in a
+  single clearly labelled commit — the only edit to a baseline test file tonight, an extension of
+  the allowed set and not a weakening — and regenerates both generated files there.
+
+**R-02 (23:35) — no foreign key to the five learning tables.** The baseline suites
+`TRUNCATE app.practice_attempts, app.sync_receipts, app.account_change_feed, app.lesson_progress,
+app.account_sync_state` without `CASCADE`. A foreign key from any lane table to one of those five
+tables makes that TRUNCATE fail and every baseline integration test error. Reference
+`app.learner_profiles`, `app.lessons`, `app.lesson_revisions` etc. by FK if needed, but validate
+links to the five learning tables in a function or trigger instead.
