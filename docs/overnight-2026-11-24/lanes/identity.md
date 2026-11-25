@@ -86,15 +86,26 @@ Database: `account.update_own_profile(p_patch jsonb) RETURNS jsonb` — `SECURIT
 to `edu_api` only. It re-validates everything the API validated (defence in depth) and refuses,
 rather than repairs, a non-canonical display name.
 
-### Audit — status: seam in place, **not wired**
+### Audit — wired to `ops.audit_write` (B1)
 
 Every change calls `account.audit_seam('account.profile_updated', 'learner_profile', <actor>,
-'allowed', {"fields":[…names…]})`: who and **which fields**, never a value. `audit_seam` is the one
-internal function to rewire: today its body is `RETURN NULL` (the staff lane's `ops.audit_write`
-does not exist in this branch). When B1 is merged, a follow-up migration replaces the body with
-`RETURN ops.audit_write(p_action, p_target_kind, p_target_id, p_outcome, p_details);` — no call
-site changes. Until then **profile edits are not audited**; `121_account_profile.sql` proves the
-call sites pass the right arguments by substituting the seam inside the test transaction.
+'allowed', {"fields":[…names…]})`, and `audit_seam` (one internal function, `EXECUTE` to nobody)
+forwards to the staff lane's `ops.audit_write` since `20261124020400_account_b1_wiring.sql`. The
+event is in the caller's transaction; the actor and the actor kind (`user` for the learner API) are
+decided by `ops.audit_write`, never passed in.
+
+Ruling R-03, item 3: **no value typed by a person is ever passed** — not in the action, the target
+kind or the details. Call sites pass literals, a row id, column names chosen by the function
+(`grade_code`, `preferred_locale`, `display_name`) or counts. Tests search the whole audit table
+for the submitted display name after an edit and find nothing. A repeated, refused or invalid
+request writes no event.
+
+| Action | Target | Details |
+|---|---|---|
+| `account.profile_updated` | `learner_profile`, the learner id | `{"fields":[names]}` |
+| `account.deletion_requested` / `account.deletion_cancelled` | `deletion_request`, the request id | `{}` |
+| `account.data_exported` | `export_request`, the export id | two counts |
+| `account.learner_erased` | `learner`, **no id** | counts only |
 
 ### Design — future offline `profile_updated` sync operation (not built)
 
@@ -277,7 +288,7 @@ object in `app`, and do not weaken the triggers for anyone else.
 |---|---|---|---|---|
 | A | **`SET LOCAL session_replication_role = replica`** inside one definer function, only around the deletes of this learner's rows, then back to `origin` | No — no catalog row changes | No — the setting is local to one session and one transaction | **Chosen** |
 | B | `ALTER TABLE … DISABLE TRIGGER`, delete, `ENABLE TRIGGER`, in one transaction | Yes (`pg_trigger`), even if the net change is nil | Not visibly (other writers block on the table lock until commit), but it takes a `SHARE ROW EXCLUSIVE` lock on three hot tables — every learner's sync stalls — and a crash-safe proof rests on DDL being transactional | Rejected: violates "no change in `app`", and stalls all sync |
-| C | Add an escape hatch to `app.prevent_append_only_change()` (e.g. honour a custom setting) | Yes — rewrites a verified guard | Yes — a custom setting can be set by **any** role, including `edu_api` | Rejected: strictly worse |
+| C | A **reviewed change to the trigger function** `app.prevent_append_only_change()` so that it lets one named, owner-only erasure path through (for example: only when the row's learner is flagged for erasure in a table that only the orchestrator can write) | Yes — rewrites a verified guard | Depends entirely on the design: a naive version (honour a custom setting) is strictly worse, because **any** role, including `edu_api`, can set a custom setting | Not allowed tonight. **This is the portable option** — it works on any PostgreSQL without a privileged setting — and needs owner approval and its own review |
 | D | `TRUNCATE` / copy-the-others-out-and-back | No | Yes — rewrites every learner's history under an exclusive lock | Rejected |
 | E | Keep the rows, overwrite or pseudonymise the learner id | — | — | Impossible: `UPDATE` is blocked by the same trigger, and the id is a foreign key to the profile |
 | F | Do nothing in the database; leave rows and delete only the Auth account | No | No | Impossible (`RESTRICT`), and not an erasure |
@@ -318,8 +329,51 @@ object in `app`, and do not weaken the triggers for anyone else.
 Why this does not weaken the triggers for anyone else: `session_replication_role` is a
 per-session, transaction-local setting. No row of `pg_trigger` changes; a second session — even the
 table owner — is refused throughout (tested with two real connections). Only a privileged role may
-set it: the function's owner can, a caller cannot (tested: the executor role is refused both `SET`
-and `set_config`), and the function has no dynamic SQL built from caller input.
+set it: the function's owner can, a caller cannot (tested: `edu_worker` is refused both `SET` and
+`set_config`), and the function has no dynamic SQL built from caller input.
+
+**This is the highest-risk function of the lane; its containment is explicit.**
+
+- `SET LOCAL` lasts until the end of the **caller's transaction**, not of the function. The window
+  is a block that sets the value back to `origin` after its last statement **and** in an exception
+  handler, and the function re-checks the value before continuing. Tested: after the function
+  returns, and after it fails *inside* the window (a test trigger that fires even in `replica`
+  mode), `current_setting('session_replication_role')` is `origin` in the caller's still-open
+  transaction, a `DELETE` on `app.practice_attempts` there is refused again, and the delete that
+  had already run inside the window is rolled back.
+- It refuses to start if the session is not in `origin` mode.
+- Foreign keys are also trigger-based. Inside the window only leaf rows are deleted (after the
+  pre-check of step 5); parents are deleted after it. A test scans **every** foreign key of the
+  application schemas for orphans before and after an erasure.
+- Every `DELETE` / `UPDATE` is scoped by the learner id; another learner's rows are compared
+  byte for byte before and after.
+- Concurrency (two real connections): a sync in flight for the same learner makes the erasure
+  wait, and its rows are then erased too; a push that arrives during the erasure waits and can only
+  start a brand-new account afterwards — it never lands inside erased history. Lock order is
+  profile row, then sync row: the sync function touches the profile (foreign-key share lock)
+  before it locks the sync row, so taking the sync row first could deadlock with it.
+
+**Platform dependency, stated plainly.** This relies on Supabase's `supautils` extension allowing
+`postgres` to set `session_replication_role` (`supautils.privileged_role_allowed_configs`). That is
+true on the local image used tonight. **It is unverified on a hosted project.** If a platform
+refuses, `erase_learner` fails with `42501` before deleting anything, and the alternative is
+option C above (a reviewed change to the append-only trigger function), which needs owner approval.
+
+**Executors (B1).** `EXECUTE` on `account.erase_learner(uuid)`: `edu_worker` only.
+`account.staff_erase_learner(uuid)` (`EXECUTE`: `edu_staff` only) starts with
+`staff.require_role('admin')` and then calls the same orchestrator. Tested with the real roles and
+over real connections of `edu_worker_login` / `edu_staff_login`: a learner (through `edu_api`), an
+editor, a reviewer, a learner id on the staff channel and a session without an actor are all
+refused; staff cannot call the orchestrator around the role check; the worker cannot use the staff
+path; an administrator cannot erase a staff account or themselves. There is **no HTTP route** for
+erasure and nothing calls it automatically.
+
+**Hook registry — what other lanes must do.** A schema that stores per-learner rows ships
+`<schema>.erase_learner(p_user_id uuid) RETURNS jsonb` (owner `postgres`, `EXECUTE` to nobody) and
+must be listed in `account.erasure_hooks`. Registered today: `notify`, `leaderboard`, `rewards`,
+`vocab`, `billing`, `content`, `staff`, `ops`. A hook in an unlisted schema blocks every erasure
+(fail closed) until one `INSERT INTO account.erasure_hooks` is added by migration. A schema with
+learner rows and **no** hook is caught by the postcondition scan (uuid columns) and also blocks.
 
 ### What is proven, and what is only designed
 
@@ -335,8 +389,8 @@ Proven by tests on the local stack (`124_account_erasure.sql`,
 - The 16 `app` triggers are the same catalog rows with the same definitions and enabled state, and
   every `app` function is unchanged (source, settings, ACL). After the erasure, `DELETE` / `UPDATE`
   on the append-only tables is refused again, including for the owner, and foreign keys bite again.
-- It runs when called by a **non-owner role holding only `EXECUTE`** (a stand-in for `edu_worker`,
-  created inside the test transaction). That role can do nothing by itself.
+- It runs when called by **`edu_worker`** (pgTAP, and a real `edu_worker_login` connection) and by
+  a staff administrator through the wrapper. Neither role can do anything else in this schema.
 - Fail-closed cases, each leaving everything in place: unknown module holding the id; unregistered
   hook; foreign key onto an append-only row that a hook forgot; staff account; session already in
   `replica`.
@@ -347,11 +401,8 @@ Proven by tests on the local stack (`124_account_erasure.sql`,
 
 Designed, **not** built or not proven:
 
-- **Executor wiring (B1 seam).** As migrated, `EXECUTE` on `erase_learner` is granted to nobody.
-  When `edu_worker` / `staff.require_role` exist: a follow-up migration grants `EXECUTE` (and
-  `USAGE` on `account`) to `edu_worker`, adds a staff-`admin` wrapper calling
-  `staff.require_role('admin')` first, wires `audit_seam` to `ops.audit_write`, and repeats test
-  124 under the real roles. Nothing calls `erase_learner` automatically: no job, no timer.
+- **No caller yet.** No worker job and no staff route calls the erasure; the worker path does not
+  require an open deletion request for the id it is given (a guard worth adding with the job).
 - **Hosted Supabase.** The design depends on the migration owner being allowed to set
   `session_replication_role`. On the local image this is granted to `postgres` by the `supautils`
   extension (`supautils.privileged_role_allowed_configs` lists it); the hosted platform is believed
@@ -397,17 +448,17 @@ Designed, **not** built or not proven:
 | PO-04 / legal | Retention: how long requests, the de-identified "processed" record, audit events and backups are kept | nothing is purged or scheduled; no retention value exists in code |
 | PO-04 / legal | Audit history versus erasure: delete, keep, or de-identify audit events about an erased learner | de-identify (keep the event, drop the id); reversible choice inside `erase_learner` |
 | PO-04 / legal | Whether an export must also contain data of other modules, receipts, the change feed | profile, onboarding, progress, attempts only |
-| owner | Running any erasure on a real account | not possible: `EXECUTE` granted to nobody |
+| owner | Running any erasure on a real account; approving option C if the hosted platform refuses the setting | no caller exists; flags off |
 | — | Turning the flags on by default (changes the published contract) | off; contracts documented here |
 
 ## Known gaps
 
-- Profile edits are not audited until the B1 seam is wired (see above).
 - No offline profile operation (design above); profile changes do not appear in `/v1/sync/pull`.
 - Onboarding state changes are not audited (not required by the brief; they carry no personal data).
 - Lifecycle: see "Designed, not built or not proven" above (executor wiring, hosted check, Auth
   orchestration, other modules' hooks, scale, device copies).
-- No rate limit on `POST /v1/me/export` (each call reads up to 4000 rows and writes one record).
+- No rate limit on `POST /v1/me/export`, and no "one export per N hours" rule (each call reads up
+  to 4000 rows and writes one record and one audit event). Documented gap; belongs with rate limiting.
 - A token that outlives its deleted Auth account makes `GET /v1/me` answer 500 (the profile insert
   violates the foreign key to `auth.users`). This is existing behaviour of `main`, not introduced
   here; mapping it to 401 belongs to the API foundation.

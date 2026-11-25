@@ -315,7 +315,12 @@ INSERT INTO account.erasure_hooks (schema_name, position, note) VALUES
     ('leaderboard', 20, 'ranks derive from rewards: before rewards'),
     ('rewards',     30, 'ledger, streaks'),
     ('vocab',       40, 'word-of-the-day progress'),
-    ('billing',     50, 'entitlement grants');
+    ('billing',     50, 'entitlement grants'),
+    -- Not expected to hold per-learner rows today; registered so that a hook
+    -- added there later is called instead of blocking every erasure.
+    ('content',     60, 'no learner rows expected'),
+    ('staff',       70, 'no learner rows expected'),
+    ('ops',         80, 'audit events live in app.audit_events and are handled by the orchestrator');
 
 -- Every place (schema.table.column) outside Supabase-managed schemas where a
 -- uuid column still holds this id. Used as the orchestrator's postcondition.
@@ -512,25 +517,35 @@ BEGIN
     END LOOP;
 
     -- ---- 4. the window: this session only, this transaction only -------------
-    SET LOCAL session_replication_role = replica;
+    -- SET LOCAL lasts until the end of the CALLER'S transaction, not of this
+    -- function. The setting is therefore put back on every path out of the
+    -- window: explicitly after the last statement, and in the handler if any
+    -- statement fails (the failed block is rolled back as a whole, which
+    -- already restores the setting; the handler does not rely on that).
+    BEGIN
+        SET LOCAL session_replication_role = replica;
 
-    DELETE FROM app.account_change_feed f WHERE f.learner_id = p_user_id;
-    GET DIAGNOSTICS n_feed = ROW_COUNT;
-    DELETE FROM app.sync_receipts r WHERE r.learner_id = p_user_id;
-    GET DIAGNOSTICS n_receipts = ROW_COUNT;
-    DELETE FROM app.practice_attempts a WHERE a.learner_id = p_user_id;
-    GET DIAGNOSTICS n_attempts = ROW_COUNT;
-    -- Audit history is kept; what identifies the learner in it is removed.
-    UPDATE app.audit_events e
-       SET actor_id = CASE WHEN e.actor_id = p_user_id THEN NULL ELSE e.actor_id END,
-           target_id = CASE WHEN e.target_id = p_user_id THEN NULL ELSE e.target_id END,
-           details = CASE WHEN position(p_user_id::text IN e.details::text) > 0
-                          THEN jsonb_build_object('redacted', true) ELSE e.details END
-     WHERE e.actor_id = p_user_id OR e.target_id = p_user_id
-        OR position(p_user_id::text IN e.details::text) > 0;
-    GET DIAGNOSTICS n_audit = ROW_COUNT;
+        DELETE FROM app.account_change_feed f WHERE f.learner_id = p_user_id;
+        GET DIAGNOSTICS n_feed = ROW_COUNT;
+        DELETE FROM app.sync_receipts r WHERE r.learner_id = p_user_id;
+        GET DIAGNOSTICS n_receipts = ROW_COUNT;
+        DELETE FROM app.practice_attempts a WHERE a.learner_id = p_user_id;
+        GET DIAGNOSTICS n_attempts = ROW_COUNT;
+        -- Audit history is kept; what identifies the learner in it is removed.
+        UPDATE app.audit_events e
+           SET actor_id = CASE WHEN e.actor_id = p_user_id THEN NULL ELSE e.actor_id END,
+               target_id = CASE WHEN e.target_id = p_user_id THEN NULL ELSE e.target_id END,
+               details = CASE WHEN position(p_user_id::text IN e.details::text) > 0
+                              THEN jsonb_build_object('redacted', true) ELSE e.details END
+         WHERE e.actor_id = p_user_id OR e.target_id = p_user_id
+            OR position(p_user_id::text IN e.details::text) > 0;
+        GET DIAGNOSTICS n_audit = ROW_COUNT;
 
-    SET LOCAL session_replication_role = origin;
+        SET LOCAL session_replication_role = origin;
+    EXCEPTION WHEN OTHERS THEN
+        SET LOCAL session_replication_role = origin;
+        RAISE;
+    END;
     IF current_setting('session_replication_role') <> 'origin' THEN
         RAISE EXCEPTION 'session_replication_role was not restored' USING ERRCODE = 'XX000';
     END IF;
@@ -563,10 +578,23 @@ BEGIN
         'app.account_sync_state', n_sync_state,
         'app.learner_profiles', n_profile);
 
-    -- A record that an erasure happened: counts only, no target id.
+    -- A record that an erasure happened: numbers only, no target id. (The
+    -- audit writer accepts a flat object of counts and codes, nothing else.)
     PERFORM account.audit_seam(
         'account.learner_erased', 'learner', NULL, 'allowed',
-        jsonb_build_object('counts', v_counts));
+        jsonb_build_object(
+            'practice_attempts', n_attempts,
+            'sync_receipts', n_receipts,
+            'change_feed_entries', n_feed,
+            'lesson_progress', n_progress,
+            'sync_states', n_sync_state,
+            'learner_profiles', n_profile,
+            'onboarding_states', n_onboarding,
+            'export_requests', n_exports,
+            'deletion_requests_cancelled', n_deletion_cancelled,
+            'deletion_requests_processed', n_deletion_processed,
+            'audit_events_deidentified', n_audit,
+            'hooks_called', (SELECT count(*) FROM jsonb_each(v_hooks) h WHERE h.value <> '"absent"'::jsonb)));
 
     RETURN jsonb_build_object('erased', true, 'counts', v_counts, 'hooks', v_hooks);
 END;
@@ -582,14 +610,8 @@ GRANT EXECUTE ON FUNCTION account.cancel_deletion_request() TO edu_api;
 GRANT EXECUTE ON FUNCTION account.export_own_data() TO edu_api;
 
 -- >>> B1 SEAM (identity lane) — the erasure executor <<<
--- account.erase_learner(uuid) and account.find_learner_references(uuid) are
--- executable by NOBODY but the owner. When the staff lane's roles exist (B1),
--- a follow-up migration in this lane's block adds, and tests under the real roles:
---
---     GRANT USAGE ON SCHEMA account TO edu_worker;
---     GRANT EXECUTE ON FUNCTION account.erase_learner(uuid) TO edu_worker;
---     -- and, for a staff administrator, a wrapper that first calls
---     -- staff.require_role('admin') and then account.erase_learner(p_user_id).
---
--- together with the audit wiring described in 20261124020100_account_profile.sql.
--- It must never be granted to edu_api.
+-- As created here, account.erase_learner(uuid) and
+-- account.find_learner_references(uuid) are executable by NOBODY but the owner.
+-- The executors (edu_worker, and a staff administrator through a wrapper) are
+-- added by 20261124020400_account_b1_wiring.sql, which needs the staff lane's
+-- roles. erase_learner must never be granted to edu_api.

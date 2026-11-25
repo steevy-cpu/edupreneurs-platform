@@ -381,6 +381,56 @@ async def test_grade_must_exist_and_be_active(
         await admin.execute("DELETE FROM app.grades WHERE id = $1", inactive_id)
 
 
+# -------------------------------------------------------------------- audit
+async def test_profile_changes_are_audited_by_field_name_never_by_value(
+    account_client: httpx.AsyncClient, learners: dict[str, SyntheticLearner], admin: asyncpg.Pool
+) -> None:
+    x = learners["x"]
+    events = (
+        "SELECT actor_kind, action, target_kind, target_id, outcome, details "
+        "FROM app.audit_events WHERE actor_id = $1 ORDER BY created_at"
+    )
+    before = len(await admin.fetch(events, x.user_id))
+    marker = f"Marker {uuid.uuid4().hex[:10]}"
+    body = {"display_name": marker, "grade_code": "9AF", "preferred_locale": "ht"}
+    assert (await account_client.patch("/v1/me", json=body, headers=x.headers)).status_code == 200
+    # A repeat, a refused request and an invalid one leave no event.
+    await account_client.patch("/v1/me", json=body, headers=x.headers)
+    await account_client.patch("/v1/me", json={"grade_code": "NOPE1"}, headers=x.headers)
+    await account_client.patch("/v1/me", json={"display_name": "a\nb"}, headers=x.headers)
+    assert (
+        await account_client.patch("/v1/me", json={"display_name": None}, headers=x.headers)
+    ).status_code == 200
+
+    rows = (await admin.fetch(events, x.user_id))[before:]
+    assert len(rows) == 2
+    import json
+
+    for row in rows:
+        assert (row["actor_kind"], row["action"], row["outcome"]) == (
+            "user",
+            "account.profile_updated",
+            "allowed",
+        )
+        assert (row["target_kind"], row["target_id"]) == ("learner_profile", x.user_id)
+        assert set(json.loads(row["details"])) == {"fields"}
+    assert sorted(json.loads(rows[0]["details"])["fields"]) == [
+        "display_name",
+        "grade_code",
+        "preferred_locale",
+    ]
+    assert json.loads(rows[1]["details"]) == {"fields": ["display_name"]}
+    # The value typed by the learner is nowhere in the audit log.
+    assert (
+        await admin.fetchval(
+            "SELECT count(*) FROM app.audit_events WHERE position($1 IN details::text) > 0 "
+            "OR position($1 IN action) > 0 OR position($1 IN COALESCE(target_kind, '')) > 0",
+            marker,
+        )
+        == 0
+    )
+
+
 # ---------------------------------------------------------------- isolation
 async def test_a_learner_can_only_ever_edit_their_own_profile(
     account_client: httpx.AsyncClient, learners: dict[str, SyntheticLearner], admin: asyncpg.Pool

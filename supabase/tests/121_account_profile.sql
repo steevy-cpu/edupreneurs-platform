@@ -26,19 +26,11 @@ $fn$;
 \set B '''a0000000-0000-4000-8000-000000000002'''
 \set EDITOR '''a0000000-0000-4000-8000-000000000003'''
 
--- Record what the audit seam is asked to write. The replacement lives only in
--- this transaction; it stands in for ops.audit_write() until B1 is merged.
-CREATE TEMP TABLE seam_calls (
-    n serial, actor uuid, action text, target_kind text, target_id uuid, outcome text, details jsonb);
-CREATE OR REPLACE FUNCTION account.audit_seam(
-    p_action text, p_target_kind text, p_target_id uuid, p_outcome text, p_details jsonb DEFAULT '{}'::jsonb)
-RETURNS uuid LANGUAGE plpgsql VOLATILE SET search_path = pg_catalog, pg_temp AS $fn$
-BEGIN
-    INSERT INTO pg_temp.seam_calls (actor, action, target_kind, target_id, outcome, details)
-    VALUES (app.current_actor_id(), p_action, p_target_kind, p_target_id, p_outcome, p_details);
-    RETURN NULL;
-END;
-$fn$;
+-- Audit events written from here on, through the real ops.audit_write().
+-- (TRUNCATE is rolled back with the transaction; nothing is really removed.)
+TRUNCATE app.audit_events;
+CREATE TEMP VIEW seam_calls AS
+    SELECT actor_id AS actor, actor_kind, action, target_kind, target_id, outcome, details FROM app.audit_events;
 
 -- Exact starting point (rolled back with the transaction; nothing is really
 -- removed): the API tests may have left a learner profile for the editor.
@@ -123,7 +115,8 @@ SELECT is((SELECT count(*)::int FROM seam_calls), 4, 'one audit call per request
 SELECT is((SELECT count(*)::int FROM seam_calls
            WHERE actor = :A::uuid AND action = 'account.profile_updated' AND target_kind = 'learner_profile'
              AND target_id = :A::uuid AND outcome = 'allowed'), 4, 'audit calls carry actor, action, target and outcome');
-SELECT is((SELECT details FROM seam_calls ORDER BY n LIMIT 1 OFFSET 1), '{"fields":["grade_code","display_name"]}'::jsonb, 'audit details list the changed field names');
+SELECT is((SELECT count(*)::int FROM seam_calls WHERE details = '{"fields":["grade_code","display_name"]}'::jsonb), 1, 'audit details list the changed field names');
+SELECT is((SELECT array_agg(DISTINCT f ORDER BY f) FROM seam_calls s, jsonb_array_elements_text(s.details -> 'fields') f), ARRAY['display_name','grade_code','preferred_locale'], 'only column names chosen by the function ever appear');
 SELECT is((SELECT count(*)::int FROM seam_calls s, jsonb_object_keys(s.details) k WHERE k <> 'fields'), 0, 'audit details contain nothing but the field list');
 SELECT is((SELECT count(*)::int FROM seam_calls WHERE details::text ~ 'Synthetic A|NS4|xxxx'), 0, 'no profile value appears in any audit call');
 

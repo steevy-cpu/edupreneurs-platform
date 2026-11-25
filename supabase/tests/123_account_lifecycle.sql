@@ -31,16 +31,11 @@ DELETE FROM account.deletion_requests;
 DELETE FROM account.export_requests;
 DELETE FROM account.onboarding_state;
 
-CREATE TEMP TABLE seam_calls (n serial, actor uuid, action text, target_kind text, target_id uuid, details jsonb);
-CREATE OR REPLACE FUNCTION account.audit_seam(
-    p_action text, p_target_kind text, p_target_id uuid, p_outcome text, p_details jsonb DEFAULT '{}'::jsonb)
-RETURNS uuid LANGUAGE plpgsql VOLATILE SET search_path = pg_catalog, pg_temp AS $fn$
-BEGIN
-    INSERT INTO pg_temp.seam_calls (actor, action, target_kind, target_id, details)
-    VALUES (app.current_actor_id(), p_action, p_target_kind, p_target_id, p_details);
-    RETURN NULL;
-END;
-$fn$;
+-- Audit events written from here on, through the real ops.audit_write().
+-- (TRUNCATE is rolled back with the transaction; nothing is really removed.)
+TRUNCATE app.audit_events;
+CREATE TEMP VIEW seam_calls AS
+    SELECT actor_id AS actor, actor_kind, action, target_kind, target_id, outcome, details FROM app.audit_events;
 
 -- Both learners have real learning data, written through the only write path.
 SELECT is(pg_temp.as_api(:A::uuid, $$SELECT app.sync_apply_operation('11111111-1111-4111-8111-000000000001','practice_answer','{"question_revision_id":"d0000000-0000-4000-8000-000000000101","response":{"choice_id":"b"}}', sha256('a1'), 'mep-canon-1') ->> 'status'$$), 'accepted', 'A answers');
@@ -162,10 +157,14 @@ SELECT is((SELECT doc #>> '{truncated,practice_attempts}' FROM export_big), 'tru
 SELECT ok((SELECT octet_length(doc::text) < 1500000 FROM export_big), 'a capped export stays under 1.5 MB');
 
 -- ---- audit seam ------------------------------------------------------------------------
-SELECT is((SELECT array_agg(action ORDER BY n) FROM seam_calls WHERE actor = :A::uuid),
-    ARRAY['account.deletion_requested', 'account.deletion_cancelled', 'account.deletion_requested',
-          'account.data_exported', 'account.data_exported'],
-    'each lifecycle action of A went through the audit seam once (idempotent repeats did not)');
+SELECT is((SELECT array_agg(action ORDER BY action) FROM seam_calls WHERE actor = :A::uuid),
+    ARRAY['account.data_exported', 'account.data_exported', 'account.deletion_cancelled',
+          'account.deletion_requested', 'account.deletion_requested'],
+    'each lifecycle action of A was audited once (idempotent repeats were not)');
+SELECT is((SELECT count(*)::int FROM seam_calls WHERE actor = :A::uuid AND action LIKE 'account.deletion%'
+           AND target_kind = 'deletion_request'
+           AND target_id IN (SELECT id FROM account.deletion_requests WHERE user_id = :A::uuid)), 3,
+    'deletion audit events point at the request row');
 SELECT is((SELECT count(*)::int FROM seam_calls WHERE details::text ~ 'synth|choice_id|a0000000'), 0, 'audit details carry no personal value');
 
 SELECT * FROM finish();

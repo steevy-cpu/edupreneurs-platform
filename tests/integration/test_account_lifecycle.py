@@ -1,7 +1,9 @@
+# ruff: noqa: F811
 """Account lifecycle on SYNTHETIC users: deletion requests, export, erasure (slice 3)."""
 
 from __future__ import annotations
 
+import asyncio
 import uuid
 from typing import TYPE_CHECKING, Any
 
@@ -11,6 +13,7 @@ import pytest
 from fastapi import FastAPI
 
 from tests.helpers import SEED_QUESTIONS_FR, SEED_QUESTIONS_HT, SEED_REV_FR, answer_op, completed_op
+from tests.staff_fixtures import make_staff, staff_url, worker_url  # noqa: F401
 
 if TYPE_CHECKING:
     from tests.account_fixtures import SyntheticLearner
@@ -352,10 +355,36 @@ async def test_a_synthetic_learner_is_fully_erased_and_another_is_untouched(
     assert refused.status_code >= 400
     assert await admin.fetchval("SELECT count(*) FROM auth.users WHERE id = $1", z.user_id) == 1
 
-    # The erasure, run by the database owner (the worker role does not exist in
-    # this branch yet; the pgTAP suite runs it as a non-owner executor role).
-    report = await admin.fetchval("SELECT account.erase_learner($1)::text", z.user_id)
+    # The erasure, run over a real connection of the WORKER login role
+    # (edu_worker_login): the only thing that role can do in this schema.
+    worker = await asyncpg.connect(worker_url(local_env))
+    try:
+        assert await worker.fetchval("SELECT session_user::text") == "edu_worker_login"
+        for forbidden in (
+            "SELECT count(*) FROM app.practice_attempts",
+            "DELETE FROM app.practice_attempts",
+            "SET session_replication_role = replica",
+            "SELECT account.find_learner_references(gen_random_uuid())",
+            "SELECT account.staff_erase_learner(gen_random_uuid())",
+            "SELECT account.export_own_data()",
+        ):
+            with pytest.raises(asyncpg.InsufficientPrivilegeError):
+                await worker.execute(forbidden)
+        async with worker.transaction():
+            report = await worker.fetchval("SELECT account.erase_learner($1)::text", z.user_id)
+            # Still inside the worker's own transaction: protections are back.
+            assert await worker.fetchval("SHOW session_replication_role") == "origin"
+        assert await worker.fetchval("SHOW session_replication_role") == "origin"
+    finally:
+        await worker.close()
     assert str(z.user_id) not in report
+    erased_event = await admin.fetchrow(
+        "SELECT actor_id, actor_kind, target_id, details FROM app.audit_events "
+        "WHERE action = 'account.learner_erased' ORDER BY created_at DESC LIMIT 1"
+    )
+    assert (erased_event["actor_id"], erased_event["actor_kind"]) == (None, "worker")
+    assert erased_event["target_id"] is None and str(z.user_id) not in erased_event["details"]
+    assert '"practice_attempts": 2' in erased_event["details"]
 
     # No row in any application schema references the id.
     assert tuple(await admin.fetchrow(LEARNER_ROWS, z.user_id)) == (0,) * 9
@@ -363,7 +392,7 @@ async def test_a_synthetic_learner_is_fully_erased_and_another_is_untouched(
     text_columns = await admin.fetch(
         "SELECT n.nspname, c.relname, a.attname FROM pg_attribute a "
         "JOIN pg_class c ON c.oid = a.attrelid JOIN pg_namespace n ON n.oid = c.relnamespace "
-        "WHERE n.nspname IN ('app', 'account', 'public') AND c.relkind = 'r' AND a.attnum > 0 "
+        "WHERE n.nspname IN ('app', 'account', 'ops', 'staff', 'public') AND c.relkind = 'r' AND a.attnum > 0 "
         "AND NOT a.attisdropped AND a.atttypid IN ('uuid'::regtype, 'text'::regtype, "
         "'jsonb'::regtype, 'json'::regtype)"
     )
@@ -437,3 +466,157 @@ async def test_a_synthetic_learner_is_fully_erased_and_another_is_untouched(
     )
     assert await snapshot(admin, y.user_id) != y_before  # (Y studied once more, above)
     assert len((await snapshot(admin, y.user_id))["attempts"]) == 3
+
+
+# ------------------------------------------------------- who may run erasure
+async def test_only_the_worker_and_a_staff_administrator_can_erase(
+    account_client: httpx.AsyncClient,
+    learners: dict[str, SyntheticLearner],
+    admin: asyncpg.Pool,
+    local_env: dict[str, str],
+    make_staff,  # type: ignore[no-untyped-def]
+) -> None:
+    from tests.account_fixtures import create_synthetic_learner
+    from tests.helpers import EDITOR, REVIEWER
+
+    y = learners["y"]
+    target = create_synthetic_learner(local_env)
+    await study(account_client, target)
+    await study(account_client, y, creole=True)
+    administrator = await make_staff("admin")
+    y_before = await snapshot(admin, y.user_id)
+
+    staff = await asyncpg.connect(staff_url(local_env))
+    try:
+        assert await staff.fetchval("SELECT session_user::text") == "edu_staff_login"
+
+        async def as_actor(actor: uuid.UUID | None, user_id: uuid.UUID) -> str:
+            async with staff.transaction():
+                if actor is not None:
+                    await staff.execute("SELECT set_config('edu.actor_id', $1, true)", str(actor))
+                return str(
+                    await staff.fetchval("SELECT account.staff_erase_learner($1)::text", user_id)
+                )
+
+        # editor, reviewer, a learner's id, another learner, and no actor at all
+        for actor in (EDITOR, REVIEWER, target.user_id, y.user_id, None):
+            with pytest.raises(asyncpg.InsufficientPrivilegeError):
+                await as_actor(actor, target.user_id)
+        # staff cannot reach the orchestrator around the role check
+        with pytest.raises(asyncpg.InsufficientPrivilegeError):
+            await staff.execute("SELECT account.erase_learner($1)", target.user_id)
+        # an administrator cannot erase staff accounts (including their own)
+        for staff_account in (EDITOR, administrator.user_id):
+            with pytest.raises(asyncpg.PostgresError, match="staff records"):
+                await as_actor(administrator.user_id, staff_account)
+        assert tuple(await admin.fetchrow(LEARNER_ROWS, target.user_id))[:6] == (1, 2, 3, 3, 1, 1)
+
+        report = await as_actor(administrator.user_id, target.user_id)
+        assert '"erased": true' in report and str(target.user_id) not in report
+    finally:
+        await staff.close()
+
+    assert tuple(await admin.fetchrow(LEARNER_ROWS, target.user_id)) == (0,) * 9
+    assert await admin.fetchval("SELECT account.find_learner_references($1)", target.user_id) == []
+    assert await snapshot(admin, y.user_id) == y_before
+    event = await admin.fetchrow(
+        "SELECT actor_id, actor_kind, target_id FROM app.audit_events "
+        "WHERE action = 'account.learner_erased' AND actor_id = $1",
+        administrator.user_id,
+    )
+    assert event is not None and event["actor_kind"] == "staff" and event["target_id"] is None
+    # (The erased account's Auth row is left for `make db-reset`; no token of it is used again.)
+
+
+# ------------------------------------------- concurrency: nothing interleaves
+async def test_a_push_in_flight_makes_the_erasure_wait_and_is_then_erased_too(
+    account_client: httpx.AsyncClient,
+    learners: dict[str, SyntheticLearner],
+    admin: asyncpg.Pool,
+) -> None:
+    """Connection 1 is in the middle of a sync for the learner (it holds the
+    learner's sync-row lock, like the API does until COMMIT). The erasure on
+    connection 2 must wait, then remove that operation's rows as well."""
+    x, y = learners["x"], learners["y"]
+    await study(account_client, x)
+    await study(account_client, y, creole=True)
+    y_before = await snapshot(admin, y.user_id)
+    async with admin.acquire() as one, admin.acquire() as two:
+        push = one.transaction()
+        await push.start()
+        await one.execute("SELECT set_config('edu.actor_id', $1, true)", str(x.user_id))
+        status = await one.fetchval(
+            "SELECT app.sync_apply_operation($1, 'practice_answer', $2::jsonb, sha256('p'), "
+            "'mep-canon-1') ->> 'status'",
+            uuid.uuid4(),
+            f'{{"question_revision_id":"{SEED_QUESTIONS_FR[2][0]}","response":{{"choice_id":"c"}}}}',
+        )
+        assert status == "accepted"
+
+        erasure = asyncio.ensure_future(
+            two.fetchval("SELECT account.erase_learner($1)::text", x.user_id)
+        )
+        await asyncio.sleep(0.7)
+        assert not erasure.done(), "the erasure must wait for the sync in flight"
+        # Meanwhile nothing of the learner has been touched (as seen by a third session).
+        assert tuple(await admin.fetchrow(LEARNER_ROWS, x.user_id))[:6] == (1, 2, 3, 3, 1, 1)
+
+        await push.commit()
+        report = await asyncio.wait_for(erasure, timeout=10)
+    assert '"app.practice_attempts": 3' in report, "the just-committed attempt was erased too"
+    assert tuple(await admin.fetchrow(LEARNER_ROWS, x.user_id)) == (0,) * 9
+    assert await snapshot(admin, y.user_id) == y_before
+
+
+async def test_a_push_arriving_during_the_erasure_waits_and_never_mixes_with_old_data(
+    account_client: httpx.AsyncClient,
+    learners: dict[str, SyntheticLearner],
+    admin: asyncpg.Pool,
+) -> None:
+    """Connection 1 has run the erasure but not committed. A push by the same
+    learner through the real API must wait; once the erasure commits, the push
+    either fails or starts a brand-new, complete account — it never lands
+    inside the erased history. (Why the Auth account must be disabled first.)"""
+    x, y = learners["x"], learners["y"]
+    await study(account_client, x)
+    await study(account_client, y, creole=True)
+    y_before = await snapshot(admin, y.user_id)
+    old_attempts = {
+        row["id"]
+        for row in await admin.fetch(
+            "SELECT id FROM app.practice_attempts WHERE learner_id = $1", x.user_id
+        )
+    }
+    async with admin.acquire() as one:
+        erasure = one.transaction()
+        await erasure.start()
+        await one.fetchval("SELECT account.erase_learner($1)", x.user_id)
+
+        push = asyncio.ensure_future(
+            account_client.post(
+                "/v1/sync/push",
+                json={"ops": [answer_op(SEED_QUESTIONS_FR[3][0], SEED_QUESTIONS_FR[3][1])]},
+                headers=x.headers,
+            )
+        )
+        await asyncio.sleep(0.7)
+        assert not push.done(), "the push must wait for the erasure in flight"
+        await erasure.commit()
+        response = await asyncio.wait_for(push, timeout=15)
+
+    rows = tuple(await admin.fetchrow(LEARNER_ROWS, x.user_id))
+    if response.status_code == 200:
+        # A fresh account: exactly this one operation, version 1, nothing older.
+        assert response.json()["results"][0]["status"] == "accepted"
+        assert response.json()["results"][0]["result"]["change_version"] == 1
+        assert rows[:6] == (1, 1, 1, 1, 0, 1)
+    else:
+        assert response.status_code >= 500 and rows[:6] == (0, 0, 0, 0, 0, 0)
+    remaining = {
+        row["id"]
+        for row in await admin.fetch(
+            "SELECT id FROM app.practice_attempts WHERE learner_id = $1", x.user_id
+        )
+    }
+    assert not remaining & old_attempts, "none of the erased attempts came back"
+    assert await snapshot(admin, y.user_id) == y_before
