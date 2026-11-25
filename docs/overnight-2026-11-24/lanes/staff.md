@@ -226,6 +226,37 @@ Known gaps of this part:
   and never copied to the audit log.
 - List endpoints have a `limit` (≤ 200) but no cursor.
 
+## B2.2 — Role administration
+
+Migration `20261124010300_staff_role_admin.sql`, router `routers/staff_roles.py`.
+
+| Method and path (under `/v1/staff`) | Role | Function | Audit action |
+|---|---|---|---|
+| `GET /roles?limit=` → `{assignments: [{user_id, role, is_active, granted_by, granted_at}]}` | admin | `list_role_assignments` | — |
+| `PUT /users/{user_id}/roles/{role}` → `{user_id, role, is_active: true, changed}` | admin | `grant_role` | `staff_role.grant` (target `user`) |
+| `DELETE /users/{user_id}/roles/{role}` → `{user_id, role, is_active: false, changed}` | admin | `revoke_role` | `staff_role.revoke` (target `user`) |
+
+Rules enforced in SQL (the API gate is in front, not instead):
+
+- Only an active admin grants or revokes.
+- **Nobody grants a role to themselves**, admin included: 403 `forbidden`, audited as a denial.
+  Two admins give each other roles.
+- **The last active admin cannot be revoked**: 409 `last_admin`. An admin may step down while
+  another active admin remains. All role changes take one advisory lock and re-check the caller's
+  admin role after getting it, so two admins revoking each other at the same moment end with one
+  admin (tested five times over real concurrent requests: one 200, one 403).
+- The target must be an existing, permanent, non-deleted Auth account (404 `user_not_found`).
+- Revoking keeps the row with `is_active = false`; granting again reactivates it and records the new
+  grantor. Both are idempotent: a call that changes nothing answers `changed: false` and writes no
+  audit event.
+- A change takes effect on the account's very next request (roles are read per request).
+- The listing returns account ids only — no e-mail address. Finding an account by e-mail is not
+  offered (it would expose learner addresses to staff; owner decision).
+
+**First admin.** No API can create the first admin of an environment. The database owner inserts it
+once: `INSERT INTO app.staff_roles (user_id, role) VALUES ('<auth user id>', 'admin');`. Locally the
+tests do this through `make_staff("admin")`. The seed contains no admin.
+
 ## Local environment
 
 `make db-reset` (or `uv run python scripts/local_stack.py env` followed by `… provision`) now also

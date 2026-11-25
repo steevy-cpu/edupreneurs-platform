@@ -8,7 +8,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from edu_api.errors import error_responses
-from edu_api.routers import staff_editorial
+from edu_api.routers import staff_editorial, staff_roles
 from edu_api.staff.deps import AnyStaff
 
 #: Director ruling R-01 (overnight 2026-11-24): new paths stay out of the OpenAPI
@@ -47,6 +47,7 @@ def build_router(include_in_schema: bool | None = None) -> APIRouter:
     staff_router = APIRouter(prefix="/v1/staff", tags=["staff"], include_in_schema=documented)
     staff_router.include_router(_me)
     staff_router.include_router(staff_editorial.router)
+    staff_router.include_router(staff_roles.router)
     return staff_router
 
 

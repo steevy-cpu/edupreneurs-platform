@@ -82,7 +82,9 @@ SELECT functions_are('staff', ARRAY['check_role_names','actor_roles','actor_has_
     'create_lesson','create_revision','update_revision','create_source','set_source_rights',
     'attach_source','detach_source','submit_revision','review_revision','get_revision',
     'list_revisions','list_sources','build_pack','release_pack','rollback_pack',
-    'get_pack_release','list_pack_releases'],
+    'get_pack_release','list_pack_releases',
+    -- role administration (20261124010300)
+    'lock_role_changes','check_role_target','grant_role','revoke_role','list_role_assignments'],
     'staff holds exactly the expected functions');
 SELECT function_returns('ops', 'audit_write', ARRAY['text','text','uuid','text','jsonb'], 'uuid');
 SELECT function_returns('staff', 'actor_has_role', ARRAY['text[]'], 'boolean');
@@ -108,7 +110,7 @@ SELECT is((SELECT array_agg(n.nspname || '.' || p.proname ORDER BY (n.nspname ||
            JOIN pg_namespace n ON n.oid = p.pronamespace
            WHERE n.nspname IN ('ops','staff') AND has_function_privilege('edu_staff', p.oid, 'EXECUTE')),
     ARRAY['ops.audit_access_denied','ops.audit_write',
-          'staff.actor_has_role','staff.actor_roles','staff.attach_source','staff.build_pack','staff.create_lesson','staff.create_revision','staff.create_source','staff.detach_source','staff.get_pack_release','staff.get_revision','staff.list_pack_releases','staff.list_revisions','staff.list_sources','staff.release_pack','staff.require_role','staff.review_revision','staff.rollback_pack','staff.set_source_rights','staff.submit_revision','staff.update_revision'],
+          'staff.actor_has_role','staff.actor_roles','staff.attach_source','staff.build_pack','staff.create_lesson','staff.create_revision','staff.create_source','staff.detach_source','staff.get_pack_release','staff.get_revision','staff.grant_role','staff.list_pack_releases','staff.list_revisions','staff.list_role_assignments','staff.list_sources','staff.release_pack','staff.require_role','staff.review_revision','staff.revoke_role','staff.rollback_pack','staff.set_source_rights','staff.submit_revision','staff.update_revision'],
     'edu_staff may execute exactly the functions granted to it');
 SELECT is((SELECT array_agg(n.nspname || '.' || p.proname ORDER BY (n.nspname || '.' || p.proname) COLLATE "C") FROM pg_proc p
            JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -129,7 +131,7 @@ SELECT is((SELECT array_agg(n.nspname || '.' || p.proname ORDER BY (n.nspname ||
            JOIN pg_namespace n ON n.oid = p.pronamespace
            WHERE n.nspname IN ('ops','staff') AND p.prosecdef),
     ARRAY['ops.audit_access_denied','ops.audit_write','ops.erase_learner',
-          'staff.actor_has_role','staff.actor_roles','staff.attach_source','staff.build_pack','staff.create_lesson','staff.create_revision','staff.create_source','staff.detach_source','staff.get_pack_release','staff.get_revision','staff.list_pack_releases','staff.list_revisions','staff.list_sources','staff.release_pack','staff.require_role','staff.review_revision','staff.rollback_pack','staff.set_source_rights','staff.submit_revision','staff.update_revision'],
+          'staff.actor_has_role','staff.actor_roles','staff.attach_source','staff.build_pack','staff.create_lesson','staff.create_revision','staff.create_source','staff.detach_source','staff.get_pack_release','staff.get_revision','staff.grant_role','staff.list_pack_releases','staff.list_revisions','staff.list_role_assignments','staff.list_sources','staff.release_pack','staff.require_role','staff.review_revision','staff.revoke_role','staff.rollback_pack','staff.set_source_rights','staff.submit_revision','staff.update_revision'],
     'exactly these functions are SECURITY DEFINER; the internal helpers are not');
 
 SELECT * FROM finish();
