@@ -1,7 +1,8 @@
 -- Mon Edupreneur 2.0 — Word of the Day: functions (learner read, schedule, staff workflow)
 --
 -- Every function here is SECURITY DEFINER, owned by the migration owner
--- (postgres), pins an empty search_path, uses schema-qualified names only and
+-- (postgres), pins `search_path = pg_catalog, pg_temp` (ruling R-03), uses
+-- schema-qualified names for every non-catalog object and
 -- takes the actor from app.current_actor_id() — never from a parameter.
 --
 -- EXECUTE (see the end of this file):
@@ -26,7 +27,7 @@
 CREATE FUNCTION vocab._require_staff(VARIADIC p_roles text[])
 RETURNS uuid
 LANGUAGE plpgsql STABLE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE v_actor uuid := app.current_actor_id();
 BEGIN
@@ -53,7 +54,7 @@ CREATE FUNCTION vocab._audit(
     p_action text, p_target_kind text, p_target_id uuid, p_details jsonb DEFAULT '{}'::jsonb)
 RETURNS void
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 BEGIN
     INSERT INTO app.audit_events (actor_id, actor_kind, action, target_kind, target_id, outcome, details)
@@ -71,7 +72,7 @@ $$;
 CREATE FUNCTION vocab._lock_schedule()
 RETURNS void
 LANGUAGE sql VOLATILE
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$ SELECT pg_advisory_xact_lock(hashtextextended('vocab.daily_assignments', 0)) $$;
 
 -- The revision a NEW assignment of this word would use in one locale: the
@@ -79,7 +80,7 @@ AS $$ SELECT pg_advisory_xact_lock(hashtextextended('vocab.daily_assignments', 0
 CREATE FUNCTION vocab._assignable_revision(p_word_id uuid, p_locale text)
 RETURNS uuid
 LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
     SELECT r.id
     FROM vocab.word_revisions r
@@ -97,7 +98,7 @@ $$;
 CREATE FUNCTION vocab._assign_word(p_date date, p_word_id uuid, p_via text)
 RETURNS integer
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
     v_locale text;
@@ -128,20 +129,24 @@ $$;
 -- are today or later, and RECORDS them, so the word of a day is a stored fact
 -- and never a formula over the current word list.
 --
--- Order (deterministic): the active word used least recently — never used
--- first, then the oldest "most recent date" over the whole schedule, past and
--- future — then the oldest word, then the stable id.
+-- Order (deterministic) and MINIMUM GAP: for each date, the active word whose
+-- nearest use — before OR after that date, whoever scheduled it — is farthest
+-- away; a never-used word first; ties by oldest word, then stable id. So no
+-- word repeats while another usable word has been away longer, and a word a
+-- person placed on the next day is not chosen for the day before. With a pool
+-- of P usable words the gap between two uses of a word is P days (P = 1: the
+-- same word every day; nothing is invented to avoid it).
 -- For a FUTURE date that already has its French row, a missing Creole row is
 -- added when an approved translation of THE SAME word now exists; a FUTURE
 -- date whose word became unusable (retired / rights withdrawn) is freed and
--- chosen again. An opened day (today) is only ever filled when it has no row
--- at all, and is otherwise never touched.
+-- chosen again. A LOCKED day (opened, or opening within the freeze) is only
+-- ever filled when it has no row at all, and is otherwise never touched.
 -- Running it twice, or concurrently, gives the same schedule: see _lock_schedule.
 -- Returns the rows it created (none when there was nothing to do).
 CREATE FUNCTION vocab.ensure_assignments(p_from date, p_days integer)
 RETURNS TABLE (haiti_date date, locale text, word_id uuid, word_revision_id uuid)
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 #variable_conflict use_column
 DECLARE
@@ -168,8 +173,8 @@ BEGIN
         SELECT a.word_id INTO v_word
         FROM vocab.daily_assignments a WHERE a.haiti_date = v_date LIMIT 1;
         IF FOUND THEN
-            -- An opened day is never touched, whatever it holds.
-            CONTINUE WHEN v_date <= v_today;
+            -- A locked day (opened, or about to open) is never touched.
+            CONTINUE WHEN vocab.is_day_locked(v_date, v_started);
             -- A FUTURE day whose French row can no longer be shown (word
             -- retired, or rights withdrawn since it was scheduled) is a hole
             -- in waiting: free it and choose again below.
@@ -187,11 +192,14 @@ BEGIN
             END IF;
         END IF;
         IF v_word IS NULL THEN
+            -- MINIMUM GAP: prefer the word whose NEAREST use (before or after
+            -- this date, scheduled by anyone) is farthest away; a word never
+            -- used comes first. Filling forward this is "least recently used".
             SELECT w.id INTO v_word
             FROM vocab.words w
             WHERE w.is_active AND vocab._assignable_revision(w.id, 'fr') IS NOT NULL
-            ORDER BY (SELECT max(a.haiti_date) FROM vocab.daily_assignments a
-                      WHERE a.word_id = w.id) NULLS FIRST,
+            ORDER BY (SELECT min(abs(a.haiti_date - v_date)) FROM vocab.daily_assignments a
+                      WHERE a.word_id = w.id) DESC NULLS FIRST,
                      w.created_at, w.id
             LIMIT 1;
             EXIT WHEN NOT FOUND; -- empty pool: nothing is invented
@@ -242,7 +250,7 @@ RETURNS TABLE (
     audio_sha256 text,
     valid_until timestamptz)
 LANGUAGE plpgsql STABLE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 #variable_conflict use_column
 DECLARE
@@ -310,7 +318,7 @@ RETURNS TABLE (
     audio_sha256 text,
     valid_until timestamptz)
 LANGUAGE plpgsql STABLE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 BEGIN
     IF app.current_actor_id() IS NULL THEN
@@ -328,7 +336,7 @@ $$;
 CREATE FUNCTION vocab.erase_learner(p_user_id uuid)
 RETURNS jsonb
 LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$ SELECT '{}'::jsonb $$;
 
 -- ============================================================================
@@ -344,7 +352,7 @@ CREATE FUNCTION vocab.register_source(
     p_source_title text, p_source_uri text, p_licence text, p_rights_notes text DEFAULT NULL)
 RETURNS uuid
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE v_actor uuid := vocab._require_staff('editor', 'publisher', 'admin'); v_id uuid;
 BEGIN
@@ -359,7 +367,7 @@ $$;
 CREATE FUNCTION vocab.set_source_rights(p_source_id uuid, p_rights_status text, p_rights_notes text DEFAULT NULL)
 RETURNS void
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 BEGIN
     PERFORM vocab._require_staff('publisher', 'admin');
@@ -378,7 +386,7 @@ $$;
 CREATE FUNCTION vocab.create_word(p_slug text)
 RETURNS uuid
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE v_actor uuid := vocab._require_staff('editor', 'admin'); v_id uuid;
 BEGIN
@@ -395,7 +403,7 @@ CREATE FUNCTION vocab.create_draft(
     p_definition text, p_example text, p_gloss text, p_source_id uuid)
 RETURNS uuid
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE v_actor uuid := vocab._require_staff('editor', 'admin'); v_id uuid; v_next integer;
 BEGIN
@@ -426,7 +434,7 @@ $$;
 CREATE FUNCTION vocab._own_revision_for_update(p_revision_id uuid, p_actor uuid)
 RETURNS void
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE v_author uuid;
 BEGIN
@@ -446,7 +454,7 @@ CREATE FUNCTION vocab.update_draft(
     p_definition text, p_example text, p_gloss text, p_source_id uuid)
 RETURNS void
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE v_actor uuid := vocab._require_staff('editor', 'admin');
 BEGIN
@@ -469,7 +477,7 @@ CREATE FUNCTION vocab.set_audio(
     p_mime_type text, p_duration_ms integer, p_source_id uuid)
 RETURNS uuid
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE v_actor uuid := vocab._require_staff('editor', 'admin'); v_id uuid;
 BEGIN
@@ -492,7 +500,7 @@ $$;
 CREATE FUNCTION vocab.remove_audio(p_revision_id uuid)
 RETURNS void
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE v_actor uuid := vocab._require_staff('editor', 'admin');
 BEGIN
@@ -505,7 +513,7 @@ $$;
 CREATE FUNCTION vocab.submit_revision(p_revision_id uuid)
 RETURNS void
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE v_actor uuid := vocab._require_staff('editor', 'admin');
 BEGIN
@@ -525,7 +533,7 @@ $$;
 CREATE FUNCTION vocab.review_revision(p_revision_id uuid, p_verdict text, p_notes text DEFAULT NULL)
 RETURNS uuid
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE v_actor uuid := vocab._require_staff('reviewer', 'admin'); v_review uuid;
 BEGIN
@@ -560,7 +568,7 @@ RETURNS TABLE (
     gloss text, source_id uuid, source_rights_status text, has_audio boolean,
     created_by uuid, created_at timestamptz)
 LANGUAGE plpgsql STABLE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 #variable_conflict use_column
 BEGIN
@@ -585,7 +593,7 @@ $$;
 CREATE FUNCTION vocab.schedule_word(p_date date, p_word_id uuid)
 RETURNS integer
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE v_written integer;
 BEGIN
@@ -610,7 +618,7 @@ $$;
 CREATE FUNCTION vocab.unschedule_date(p_date date)
 RETURNS integer
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE v_removed integer;
 BEGIN
@@ -635,7 +643,7 @@ RETURNS TABLE (
     revision integer, term text, assigned_via text, assigned_by uuid,
     assigned_at timestamptz, is_locked boolean)
 LANGUAGE plpgsql STABLE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 #variable_conflict use_column
 BEGIN
@@ -647,7 +655,7 @@ BEGIN
     RETURN QUERY
     SELECT a.haiti_date, a.locale, a.word_id, w.slug, a.word_revision_id, r.revision, r.term,
            a.assigned_via, a.assigned_by, a.assigned_at,
-           a.haiti_date <= vocab.haiti_date(clock_timestamp())
+           vocab.is_day_locked(a.haiti_date, clock_timestamp())
     FROM vocab.daily_assignments a
     JOIN vocab.words w ON w.id = a.word_id
     JOIN vocab.word_revisions r ON r.id = a.word_revision_id
@@ -660,7 +668,7 @@ $$;
 CREATE FUNCTION vocab.staff_ensure_assignments(p_from date, p_days integer)
 RETURNS TABLE (haiti_date date, locale text, word_id uuid, word_revision_id uuid)
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 #variable_conflict use_column
 DECLARE v_created integer;
@@ -675,12 +683,12 @@ END;
 $$;
 
 -- Retire a word: it is never chosen again and its assignments on dates that
--- have NOT opened are removed (so the fill can choose another word). Dates
+-- are NOT locked are removed (so the fill can choose another word). Dates
 -- that already opened keep it for ever. Returns the number of rows removed.
 CREATE FUNCTION vocab.retire_word(p_word_id uuid)
 RETURNS integer
 LANGUAGE plpgsql VOLATILE SECURITY DEFINER
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE v_removed integer;
 BEGIN
@@ -691,7 +699,7 @@ BEGIN
         RAISE EXCEPTION 'Word not found' USING ERRCODE = 'P0002';
     END IF;
     DELETE FROM vocab.daily_assignments a
-     WHERE a.word_id = p_word_id AND a.haiti_date > vocab.haiti_date(clock_timestamp());
+     WHERE a.word_id = p_word_id AND NOT vocab.is_day_locked(a.haiti_date, clock_timestamp());
     GET DIAGNOSTICS v_removed = ROW_COUNT;
     PERFORM vocab._audit('vocab.word.retire', 'vocab_word', p_word_id,
                          jsonb_build_object('future_rows_removed', v_removed));

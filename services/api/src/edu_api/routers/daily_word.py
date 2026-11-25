@@ -1,7 +1,11 @@
 """Word of the Day for learners.
 
-Mounted only when ``EDU_DAILY_WORD_ENABLED`` is true (see ``main.py``). The
-query runs as the least-privileged ``edu_api`` role, which can execute one
+Always registered (director ruling R-01). While ``EDU_DAILY_WORD_ENABLED`` is
+off the route answers the same 404 ``not_found`` as an unknown path, before
+authentication, and it stays out of the OpenAPI document until the director
+flips ``INCLUDE_IN_SCHEMA`` at integration.
+
+The query runs as the least-privileged ``edu_api`` role, which can execute one
 function in schema ``vocab`` and read none of its tables: a draft, a rejected
 revision or a future date cannot appear in a response
 (tests/integration/test_vocab_daily_word.py).
@@ -11,9 +15,9 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Header, Response
+from fastapi import APIRouter, Depends, Header, Response
 
-from edu_api.deps import CurrentPrincipal, Db, Locale
+from edu_api.deps import AppSettings, CurrentPrincipal, Db, Locale
 from edu_api.errors import ApiError, error_responses
 from edu_api.vocab.schemas import DailyWordResponse
 from edu_api.vocab.service import (
@@ -23,7 +27,21 @@ from edu_api.vocab.service import (
     load_daily_word,
 )
 
-router = APIRouter(prefix="/v1", tags=["daily-word"])
+#: Ruling R-01: new paths stay out of the generated contract on lane branches.
+#: The director sets this to True once, at integration.
+INCLUDE_IN_SCHEMA = False
+
+
+async def require_daily_word_enabled(settings: AppSettings) -> None:
+    """Feature flag. Runs before authentication: with the flag off the path
+    behaves exactly like a path that does not exist."""
+    if not settings.daily_word_enabled:
+        raise ApiError(404, "not_found", "Not Found")
+
+
+router = APIRouter(
+    prefix="/v1", tags=["daily-word"], dependencies=[Depends(require_daily_word_enabled)]
+)
 
 #: ``private``: the response is for one signed-in user's app, never a shared
 #: cache. ``no-cache``: a stored copy must be revalidated (a cheap 304) before
@@ -36,6 +54,7 @@ CACHE_CONTROL = "private, no-cache"
     response_model=DailyWordResponse,
     responses=error_responses(401, 404, 422, 503),
     summary="Today's word (Haiti date), in French or Haitian Creole",
+    include_in_schema=INCLUDE_IN_SCHEMA,
 )
 async def get_daily_word(
     principal: CurrentPrincipal,

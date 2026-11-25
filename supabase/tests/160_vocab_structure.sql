@@ -1,6 +1,12 @@
 -- Word of the Day: structure, privileges and exposure of the private `vocab` schema.
 BEGIN;
 SELECT * FROM no_plan();
+-- Never straddle Haiti midnight: if the date changes within 5 seconds, wait for it.
+DO $$ BEGIN
+    PERFORM pg_sleep(GREATEST(0, 5 - EXTRACT(epoch FROM
+        vocab.haiti_day_start(vocab.haiti_date(clock_timestamp()) + 1) - clock_timestamp()))::int
+        * CASE WHEN vocab.haiti_day_start(vocab.haiti_date(clock_timestamp()) + 1) - clock_timestamp() < interval '5 seconds' THEN 1 ELSE 0 END);
+END $$;
 
 -- ---- tables, keys, RLS -------------------------------------------------------
 SELECT tables_are('vocab', ARRAY[
@@ -93,16 +99,46 @@ SELECT is((SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p
 SELECT is((SELECT pg_get_function_identity_arguments(p.oid) FROM pg_proc p
            WHERE p.pronamespace = 'vocab'::regnamespace AND p.proname = 'daily_word'),
     'p_locale text', 'daily_word takes a locale and NO clock');
--- Until the staff lane's roles exist, the staff workflow is callable by the owner only.
+SELECT is((SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p
+           WHERE p.pronamespace = 'vocab'::regnamespace AND has_function_privilege('edu_staff', p.oid, 'EXECUTE')),
+    ARRAY['calendar','create_draft','create_word','register_source','remove_audio','retire_word','review_queue',
+          'review_revision','schedule_word','set_audio','set_source_rights','staff_ensure_assignments',
+          'submit_revision','unschedule_date','update_draft'],
+    'edu_staff may execute exactly the 15 staff workflow functions (each starts with a role check)');
+SELECT is((SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p
+           WHERE p.pronamespace = 'vocab'::regnamespace AND has_function_privilege('edu_worker', p.oid, 'EXECUTE')),
+    ARRAY['ensure_assignments'], 'edu_worker may execute exactly ensure_assignments');
 SELECT is((SELECT count(*)::int FROM pg_proc p
            CROSS JOIN LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) acl
            JOIN pg_roles g ON g.oid = acl.grantee
-           WHERE p.pronamespace = 'vocab'::regnamespace AND p.proname <> 'daily_word'
-             AND g.rolname <> 'postgres'), 0,
-    'every other vocab function is granted to nobody (staff wiring comes with the staff lane)');
+           WHERE p.pronamespace = 'vocab'::regnamespace
+             AND g.rolname NOT IN ('postgres', 'edu_api', 'edu_staff', 'edu_worker')), 0,
+    'no other role is granted any vocab function');
+SELECT is((SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p
+           WHERE p.pronamespace = 'vocab'::regnamespace
+             AND NOT has_function_privilege('edu_api', p.oid, 'EXECUTE')
+             AND NOT has_function_privilege('edu_staff', p.oid, 'EXECUTE')
+             AND NOT has_function_privilege('edu_worker', p.oid, 'EXECUTE')
+             AND p.prorettype <> 'trigger'::regtype),
+    ARRAY['_assign_word','_assignable_revision','_audit','_lock_schedule','_own_revision_for_update','_require_staff',
+          'daily_word_at','erase_learner','haiti_date','haiti_day_start','is_day_locked','schedule_freeze'],
+    'internal helpers, the clock seam and the erasure hook are executable by the owner only');
+SELECT is(has_schema_privilege('edu_staff', 'vocab', 'USAGE') AND has_schema_privilege('edu_worker', 'vocab', 'USAGE')
+          AND NOT has_schema_privilege('edu_staff', 'vocab', 'CREATE') AND NOT has_schema_privilege('edu_worker', 'vocab', 'CREATE'),
+    true, 'edu_staff and edu_worker may enter schema vocab and create nothing in it');
+-- Ruling R-03: temporary schema explicitly last, so it can never shadow a name.
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'vocab'::regnamespace
-           AND NOT COALESCE(p.proconfig @> ARRAY['search_path=""'], false)), 0,
-    'every vocab function pins an empty search_path');
+           AND p.proconfig IS DISTINCT FROM ARRAY['search_path=pg_catalog, pg_temp']), 0,
+    'every vocab function pins exactly search_path = pg_catalog, pg_temp (and sets nothing else)');
+SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'vocab'::regnamespace
+           AND p.prosecdef AND pg_get_userbyid(p.proowner) <> 'postgres'), 0,
+    'every SECURITY DEFINER vocab function is owned by postgres');
+SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'vocab'::regnamespace
+           AND p.proname IN ('_require_staff', '_audit')
+           AND (p.prosrc ILIKE '%app.staff_roles%' OR p.prosrc ILIKE '%app.audit_events%')), 0,
+    'the two seams no longer touch app tables: they call staff.require_role and ops.audit_write');
+SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'vocab'::regnamespace
+           AND p.prosrc ILIKE '%insert into app.%'), 0, 'no vocab function inserts into an app table');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'vocab'::regnamespace
            AND pg_get_userbyid(p.proowner) <> 'postgres'), 0,
     'vocab functions are owned by the migration owner (postgres)');

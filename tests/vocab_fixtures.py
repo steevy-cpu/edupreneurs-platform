@@ -20,6 +20,7 @@ table owner, and the integrity triggers still check both:
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import uuid
 from collections.abc import AsyncIterator
@@ -66,9 +67,38 @@ async def clean_vocab(admin: asyncpg.Pool) -> AsyncIterator[None]:
     nor the database tests that run afterwards see leftovers. TRUNCATE on the
     local disposable database by its owner; nothing else can remove a day that
     has opened."""
+    await wait_out_haiti_midnight(admin)
     await admin.execute(f"TRUNCATE {VOCAB_TABLES}")
     yield
     await admin.execute(f"TRUNCATE {VOCAB_TABLES}")
+
+
+async def wait_out_haiti_midnight(admin: asyncpg.Pool, margin_s: float = 20.0) -> None:
+    """Tests place a word on "today" and then read "today" again. If the Haiti
+    date is about to change, wait until it has, so no test straddles midnight."""
+    remaining: float = await admin.fetchval(
+        "SELECT EXTRACT(epoch FROM vocab.haiti_day_start(vocab.haiti_date(clock_timestamp()) + 1)"
+        " - clock_timestamp())::float8"
+    )
+    if remaining < margin_s:
+        await asyncio.sleep(remaining + 0.5)
+
+
+def documented_openapi(settings: Any, *routers: Any) -> dict[str, Any]:
+    """The OpenAPI document as it will be once ``INCLUDE_IN_SCHEMA`` is flipped
+    in ``routers`` (ruling R-01): the flag each route got from the constant is
+    switched on, a fresh app is built, and the flags are restored."""
+    from edu_api.auth.jwks import StaticKeyProvider
+
+    routes = [route for router in routers for route in router.routes]
+    try:
+        for route in routes:
+            route.include_in_schema = True
+        application = create_app(settings, key_provider=StaticKeyProvider({}))
+        return application.openapi()
+    finally:
+        for route in routes:
+            route.include_in_schema = False
 
 
 async def _act_as(conn: asyncpg.Connection, actor: uuid.UUID) -> None:

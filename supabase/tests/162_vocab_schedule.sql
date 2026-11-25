@@ -7,6 +7,12 @@
 --  tests/integration/test_vocab_schedule.py.)
 BEGIN;
 SELECT * FROM no_plan();
+-- Never straddle Haiti midnight: if the date changes within 5 seconds, wait for it.
+DO $$ BEGIN
+    PERFORM pg_sleep(GREATEST(0, 5 - EXTRACT(epoch FROM
+        vocab.haiti_day_start(vocab.haiti_date(clock_timestamp()) + 1) - clock_timestamp()))::int
+        * CASE WHEN vocab.haiti_day_start(vocab.haiti_date(clock_timestamp()) + 1) - clock_timestamp() < interval '5 seconds' THEN 1 ELSE 0 END);
+END $$;
 
 TRUNCATE vocab.daily_assignments, vocab.audio_assets, vocab.reviews, vocab.word_revisions, vocab.words, vocab.sources;
 -- The "one word per day, French included" rule is checked at COMMIT in real
@@ -96,6 +102,10 @@ SELECT is((SELECT count(*)::int FROM vocab.ensure_assignments(pg_temp.today() + 
     'five future days: 5 French rows + 4 Creole rows (w-b and w-c have a translation, w-a has not)');
 SELECT is(pg_temp.slug_on(1) || ',' || pg_temp.slug_on(2) || ',' || pg_temp.slug_on(3) || ',' || pg_temp.slug_on(4) || ',' || pg_temp.slug_on(5),
     'w-b,w-c,w-a,w-b,w-c', 'words rotate least-recently-used first (w-a was used today, so it comes last)');
+SELECT is((SELECT count(*)::int FROM vocab.daily_assignments a JOIN vocab.daily_assignments b
+             ON b.word_id = a.word_id AND b.locale = 'fr' AND b.haiti_date > a.haiti_date AND b.haiti_date - a.haiti_date < 3
+           WHERE a.locale = 'fr'), 0,
+    'MINIMUM GAP: with 3 usable words no word comes back in fewer than 3 days');
 SELECT is(pg_temp.locales_on(1) || '|' || pg_temp.locales_on(3), 'fr,ht|fr', 'a day carries a Creole row only when the translation is approved');
 SELECT is((SELECT count(*)::int FROM vocab.daily_assignments a JOIN vocab.words w ON w.id = a.word_id
            WHERE w.slug IN ('w-draft', 'w-rejected', 'w-creole-only', 'w-in-review')), 0,
@@ -113,9 +123,9 @@ SELECT is(pg_temp.schedule_digest(), (SELECT d FROM digest), 'and the schedule i
 
 -- ---- a person's choice is kept; only unassigned dates are filled ------------------------
 SET LOCAL edu.actor_id = 'a0000000-0000-4000-8000-000000000003';
-SELECT throws_ok($$SELECT vocab.schedule_word(pg_temp.today() + 7, pg_temp.id('w-a'))$$, '42501', 'Staff role required', 'an editor cannot schedule (publisher decides)');
+SELECT throws_ok($$SELECT vocab.schedule_word(pg_temp.today() + 7, pg_temp.id('w-a'))$$, '42501', 'A staff role is required for this action', 'an editor cannot schedule (publisher decides)');
 SET LOCAL edu.actor_id = 'a0000000-0000-4000-8000-000000000004';
-SELECT throws_ok($$SELECT vocab.schedule_word(pg_temp.today() + 7, pg_temp.id('w-a'))$$, '42501', 'Staff role required', 'a reviewer cannot schedule');
+SELECT throws_ok($$SELECT vocab.schedule_word(pg_temp.today() + 7, pg_temp.id('w-a'))$$, '42501', 'A staff role is required for this action', 'a reviewer cannot schedule');
 SET LOCAL edu.actor_id = 'a0000000-0000-4000-8000-000000000021';
 SELECT is(vocab.schedule_word(pg_temp.today() + 7, pg_temp.id('w-a')), 1, 'a publisher schedules w-a on day +7');
 SELECT is((SELECT assigned_via || '/' || assigned_by FROM vocab.daily_assignments WHERE haiti_date = pg_temp.today() + 7),
@@ -123,6 +133,7 @@ SELECT is((SELECT assigned_via || '/' || assigned_by FROM vocab.daily_assignment
 SELECT is((SELECT count(*)::int FROM vocab.staff_ensure_assignments(pg_temp.today() + 1, 8)), 4, 'the fill then creates only days +6 and +8');
 SELECT is(pg_temp.slug_on(6) || ',' || pg_temp.slug_on(7) || ',' || pg_temp.slug_on(8), 'w-b,w-a,w-c',
     'the staff choice is kept and counts as a use: the fill works around it');
+SELECT isnt(pg_temp.slug_on(6), pg_temp.slug_on(7), 'MINIMUM GAP: the day before a staff-chosen word does not get the same word');
 SELECT is((SELECT assigned_via FROM vocab.daily_assignments WHERE haiti_date = pg_temp.today() + 7 AND locale = 'fr'), 'staff', 'day +7 is still the staff row');
 
 -- ---- reschedule the future --------------------------------------------------------------
@@ -245,7 +256,7 @@ SELECT throws_ok($$INSERT INTO vocab.daily_assignments (haiti_date, locale, word
 
 -- ---- WORD RETIRED AFTER ASSIGNMENT ------------------------------------------------------------------
 SET LOCAL edu.actor_id = 'a0000000-0000-4000-8000-000000000003';
-SELECT throws_ok($$SELECT vocab.retire_word(pg_temp.id('w-a'))$$, '42501', 'Staff role required', 'an editor cannot retire a word');
+SELECT throws_ok($$SELECT vocab.retire_word(pg_temp.id('w-a'))$$, '42501', 'A staff role is required for this action', 'an editor cannot retire a word');
 SET LOCAL edu.actor_id = 'a0000000-0000-4000-8000-000000000021';
 SELECT throws_ok($$SELECT vocab.retire_word(gen_random_uuid())$$, 'P0002', 'Word not found', 'unknown word');
 CREATE TEMP TABLE before_retire AS SELECT count(*)::int AS n FROM vocab.daily_assignments WHERE word_id = pg_temp.id('w-a') AND haiti_date > pg_temp.today();
@@ -268,8 +279,10 @@ SELECT is((SELECT count(*)::int FROM vocab.daily_assignments a GROUP BY a.haiti_
 -- ---- calendar ---------------------------------------------------------------------------------------
 SET LOCAL edu.actor_id = 'a0000000-0000-4000-8000-000000000004';
 SELECT is((SELECT string_agg((haiti_date - pg_temp.today())::text || locale || ':' || is_locked, ',' ORDER BY haiti_date, locale)
-           FROM vocab.calendar(pg_temp.today() - 1, 3)),
-    '-1fr:true,0fr:true,1fr:false,1ht:false', 'the calendar shows recorded days and which are locked');
+           FROM vocab.calendar(pg_temp.today() - 1, 2)),
+    '-1fr:true,0fr:true', 'the calendar shows opened days as locked');
+SELECT is((SELECT bool_or(is_locked)::text || '/' || count(*) FROM vocab.calendar(pg_temp.today() + 2, 2)), 'false/4',
+    'and days further ahead as open to rescheduling');
 SELECT throws_ok($$SELECT * FROM vocab.calendar(pg_temp.today(), 93)$$, '22023', NULL, 'the calendar window is bounded');
 SET LOCAL edu.actor_id = '';
 

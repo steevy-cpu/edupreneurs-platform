@@ -48,39 +48,29 @@ def assert_error_shape(response: httpx.Response, status: int, code: str) -> None
 
 
 # ------------------------------------------------------------------ feature flag
-async def test_flag_off_is_the_default_and_the_route_does_not_exist(
+async def test_flag_off_is_the_default_and_the_path_answers_like_an_unknown_path(
     client: httpx.AsyncClient, app: FastAPI, tokens: dict[str, str], admin: asyncpg.Pool
 ) -> None:
     word = await approved_word(admin, term="DRAPEAU")
     await assign(admin, word["word_id"])
     assert app.state.settings.daily_word_enabled is False
 
-    with_token = await client.get(URL, params={"locale": "fr"}, headers=bearer(tokens["student_a"]))
-    assert_error_shape(with_token, 404, "not_found")
-    assert "DRAPEAU" not in with_token.text
-    assert_error_shape(await client.get(URL, params={"locale": "fr"}), 404, "not_found")
+    unknown = await client.get("/v1/no-such-path", headers=bearer(tokens["student_a"]))
+    for headers in (bearer(tokens["student_a"]), {}, bearer("not-a-token")):
+        for params in ({"locale": "fr"}, {}, {"locale": "xx"}):
+            response = await client.get(URL, params=params, headers=headers)
+            assert_error_shape(response, 404, "not_found")
+            assert response.json()["error"]["message"] == unknown.json()["error"]["message"]
+            assert "DRAPEAU" not in response.text and "etag" not in response.headers
+    # Ruling R-01: registered, but not in the contract on lane branches.
     assert URL not in (await client.get("/openapi.json")).json()["paths"]
 
 
-async def test_flag_on_openapi_documents_the_route_in_the_single_error_shape(
+async def test_flag_on_route_is_still_outside_the_generated_contract(
     vocab_client: httpx.AsyncClient,
 ) -> None:
     spec = (await vocab_client.get("/openapi.json")).json()
-    operations = spec["paths"][URL]
-    assert set(operations) == {"get"}
-    operation = operations["get"]
-    assert operation["security"] == [{"HTTPBearer": []}]
-    assert set(operation["responses"]) == {"200", "401", "404", "422", "503"}
-    error_ref = {"$ref": "#/components/schemas/ErrorResponse"}
-    for status, declared in operation["responses"].items():
-        if status != "200":
-            assert declared["content"]["application/json"]["schema"] == error_ref, status
-    assert "HTTPValidationError" not in spec["components"]["schemas"]
-    # The ONLY inputs: a locale and a cache validator. No date, no time, no user.
-    assert {(p["name"], p["in"]) for p in operation["parameters"]} == {
-        ("locale", "query"),
-        ("if-none-match", "header"),
-    }
+    assert not [path for path in spec["paths"] if "daily-word" in path or "vocab" in path]
 
 
 # ------------------------------------------------------------------ auth + validation

@@ -148,17 +148,49 @@ def test_build_response_without_and_with_audio() -> None:
     assert "autoplay" not in with_audio.model_dump_json()
 
 
-# ---------------------------------------------------------------- feature flag
-def test_flag_defaults_to_off_and_the_route_is_absent() -> None:
+# ---------------------------------------------------------------- feature flag, R-01
+def test_flag_defaults_to_off_and_new_paths_are_not_in_the_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from edu_api.routers import daily_word, staff_vocab
+
     assert settings().daily_word_enabled is False
+    assert daily_word.INCLUDE_IN_SCHEMA is False and staff_vocab.INCLUDE_IN_SCHEMA is False
     app = create_app(settings(), key_provider=StaticKeyProvider({}))
-    assert "/v1/daily-word" not in {getattr(route, "path", None) for route in app.routes}
-    assert "/v1/daily-word" not in app.openapi()["paths"]
-
-
-def test_flag_on_mounts_the_route(monkeypatch: pytest.MonkeyPatch) -> None:
-    app = create_app(settings(daily_word_enabled=True), key_provider=StaticKeyProvider({}))
-    assert "/v1/daily-word" in app.openapi()["paths"]
+    assert [route.path for route in daily_word.router.routes] == ["/v1/daily-word"]  # type: ignore[attr-defined]
+    documented = set(app.openapi()["paths"])
+    assert not [p for p in documented if "daily-word" in p or "vocab" in p]
     # The setting is read from EDU_DAILY_WORD_ENABLED.
     monkeypatch.setenv("EDU_DAILY_WORD_ENABLED", "true")
     assert settings().daily_word_enabled is True
+
+
+def test_with_the_constant_on_operations_carry_bearer_security_and_one_error_shape() -> None:
+    """What the director gets when INCLUDE_IN_SCHEMA is flipped at integration."""
+    from edu_api.routers import daily_word, staff_vocab
+    from tests.vocab_fixtures import documented_openapi
+
+    spec = documented_openapi(settings(), daily_word.router, staff_vocab.router)
+    mine = {p: ops for p, ops in spec["paths"].items() if "daily-word" in p or "/vocab" in p}
+    assert "/v1/daily-word" in mine and len(mine) == 14, sorted(mine)
+    error_ref = {"$ref": "#/components/schemas/ErrorResponse"}
+    operations = 0
+    for path, by_method in mine.items():
+        for method, operation in by_method.items():
+            operations += 1
+            assert operation["security"] == [{"HTTPBearer": []}], (method, path)
+            assert "401" in operation["responses"] and "503" in operation["responses"]
+            if path.startswith("/v1/staff"):
+                assert "403" in operation["responses"], (method, path)
+            for status, declared in operation["responses"].items():
+                if status != "200":  # the baseline contract test's rule
+                    schema = declared["content"]["application/json"]["schema"]
+                    assert schema == error_ref, (method, path, status)
+    assert operations == 16
+    assert "HTTPValidationError" not in spec["components"]["schemas"], "one error shape only"
+    # The learner endpoint takes a locale and a cache validator. Nothing else.
+    parameters = mine["/v1/daily-word"]["get"]["parameters"]
+    assert {(p["name"], p["in"]) for p in parameters} == {
+        ("locale", "query"),
+        ("if-none-match", "header"),
+    }

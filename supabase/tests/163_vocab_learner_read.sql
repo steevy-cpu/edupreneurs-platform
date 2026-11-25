@@ -4,6 +4,12 @@
 -- the same word and reading writes nothing anywhere.
 BEGIN;
 SELECT * FROM no_plan();
+-- Never straddle Haiti midnight: if the date changes within 5 seconds, wait for it.
+DO $$ BEGIN
+    PERFORM pg_sleep(GREATEST(0, 5 - EXTRACT(epoch FROM
+        vocab.haiti_day_start(vocab.haiti_date(clock_timestamp()) + 1) - clock_timestamp()))::int
+        * CASE WHEN vocab.haiti_day_start(vocab.haiti_date(clock_timestamp()) + 1) - clock_timestamp() < interval '5 seconds' THEN 1 ELSE 0 END);
+END $$;
 
 TRUNCATE vocab.daily_assignments, vocab.audio_assets, vocab.reviews, vocab.word_revisions, vocab.words, vocab.sources;
 TRUNCATE app.practice_attempts, app.sync_receipts, app.account_change_feed,

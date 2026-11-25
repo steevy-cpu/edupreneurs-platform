@@ -16,6 +16,10 @@
 -- "Today" is always the America/Port-au-Prince calendar date computed from the
 -- SERVER clock. A device clock is never an input anywhere in this schema.
 --
+-- SEARCH PATH (ruling R-03): every function pins `pg_catalog, pg_temp` — the
+-- temporary schema explicitly LAST, so a session's temporary objects can never
+-- shadow a type or function name — and qualifies every non-catalog object.
+--
 -- WHY TRIGGERS, WHY SECURITY DEFINER, CONCURRENCY: same reasoning as
 -- 20261121000200_integrity_guards.sql. The rules must hold for every writer
 -- (staff API, worker, a person in a SQL console); a guard must see every row
@@ -35,7 +39,7 @@ COMMENT ON SCHEMA vocab IS
 CREATE FUNCTION vocab.haiti_date(p_now timestamptz DEFAULT now())
 RETURNS date
 LANGUAGE sql STABLE
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$ SELECT (p_now AT TIME ZONE 'America/Port-au-Prince')::date $$;
 
 -- The instant a Haiti calendar date begins. Haiti's clock changes happen at
@@ -43,8 +47,26 @@ AS $$ SELECT (p_now AT TIME ZONE 'America/Port-au-Prince')::date $$;
 CREATE FUNCTION vocab.haiti_day_start(p_date date)
 RETURNS timestamptz
 LANGUAGE sql STABLE
-SET search_path = ''
+SET search_path = pg_catalog, pg_temp
 AS $$ SELECT p_date::timestamp AT TIME ZONE 'America/Port-au-Prince' $$;
+
+-- How long before a Haiti date opens its schedule is frozen. A change made in
+-- the last minutes of a day could otherwise be committed after midnight and
+-- replace a word some learners had already received.
+CREATE FUNCTION vocab.schedule_freeze()
+RETURNS interval
+LANGUAGE sql IMMUTABLE
+SET search_path = pg_catalog, pg_temp
+AS $$ SELECT interval '10 minutes' $$;
+
+-- Is p_date locked at instant p_now? Locked = the date has opened in Haiti, or
+-- opens within vocab.schedule_freeze(). Pure (the instant is an argument), so
+-- the boundary is testable; the guards below pass the server's clock.
+CREATE FUNCTION vocab.is_day_locked(p_date date, p_now timestamptz)
+RETURNS boolean
+LANGUAGE sql STABLE
+SET search_path = pg_catalog, pg_temp
+AS $$ SELECT p_now >= vocab.haiti_day_start(p_date) - vocab.schedule_freeze() $$;
 
 -- ============================================================================
 -- TABLES (6)
@@ -210,7 +232,7 @@ ALTER TABLE vocab.daily_assignments ENABLE ROW LEVEL SECURITY;
 -- be granted or withdrawn) and the decision is stamped by the server; the
 -- identity of a source that submitted material cites cannot be rewritten.
 CREATE FUNCTION vocab.guard_source()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         IF NEW.rights_status <> 'unverified' OR NEW.rights_decided_by IS NOT NULL
@@ -252,7 +274,7 @@ FOR EACH ROW EXECUTE FUNCTION vocab.guard_source();
 -- GUARDS: words
 -- ============================================================================
 CREATE FUNCTION vocab.guard_word()
-RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $$
+RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
     IF TG_OP = 'INSERT' THEN
         IF NOT NEW.is_active OR NEW.retired_at IS NOT NULL OR NEW.retired_by IS NOT NULL THEN
@@ -287,7 +309,7 @@ FOR EACH ROW EXECUTE FUNCTION vocab.guard_word();
 -- ============================================================================
 -- New rows must be drafts: a revision cannot be INSERTed already approved.
 CREATE FUNCTION vocab.guard_word_revision_insert()
-RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $$
+RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
     IF NEW.status <> 'draft' OR NEW.approved_by IS NOT NULL OR NEW.approved_at IS NOT NULL THEN
         RAISE EXCEPTION 'Word revisions must be created as unapproved drafts';
@@ -305,7 +327,7 @@ FOR EACH ROW EXECUTE FUNCTION vocab.guard_word_revision_insert();
 --   approved, rejected -> nothing, ever. A correction is a NEW revision.
 -- Only drafts can be deleted.
 CREATE FUNCTION vocab.protect_word_revision()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 DECLARE
     v_content_changed boolean;
     v_latest_verdict text;
@@ -415,7 +437,7 @@ FOR EACH ROW EXECUTE FUNCTION vocab.protect_word_revision();
 -- GUARDS: reviews
 -- ============================================================================
 CREATE FUNCTION vocab.validate_review()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 DECLARE v_created_by uuid; v_status text;
 BEGIN
     -- Locks the revision so reviews, content edits and approval are serialised.
@@ -448,7 +470,7 @@ BEFORE INSERT ON vocab.reviews
 FOR EACH ROW EXECUTE FUNCTION vocab.validate_review();
 
 CREATE FUNCTION vocab.prevent_append_only_change()
-RETURNS trigger LANGUAGE plpgsql SET search_path = '' AS $$
+RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $$
 BEGIN
     RAISE EXCEPTION 'Append-only records cannot be updated or deleted';
 END;
@@ -462,7 +484,7 @@ CREATE TRIGGER no_edit_reviews BEFORE UPDATE OR DELETE ON vocab.reviews
 -- A recording is part of the snapshot a reviewer approves: it can only be
 -- attached, changed or removed while the revision is still a draft.
 CREATE FUNCTION vocab.protect_audio_asset()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 DECLARE v_parent_id uuid;
 BEGIN
     IF TG_OP = 'UPDATE' AND NEW.word_revision_id <> OLD.word_revision_id THEN
@@ -487,23 +509,31 @@ FOR EACH ROW EXECUTE FUNCTION vocab.protect_audio_asset();
 -- ============================================================================
 -- GUARDS: the daily schedule
 -- ============================================================================
--- * A date that has OPENED in Haiti (today or earlier) is frozen: its rows can
---   never be updated or deleted, by anyone.
+-- A date is LOCKED once it has opened in Haiti (today or earlier) or opens
+-- within vocab.schedule_freeze() (10 minutes).
+-- * The rows of a locked date can never be updated or deleted, by anyone.
 -- * A date in the past can never receive a row (history is not back-filled).
--- * Today can receive a row only if it has none yet (a late fill of a day that
---   had no word; nothing a learner already saw is replaced).
--- * Future dates can be scheduled and rescheduled, at most 366 days ahead.
+-- * A locked date can receive its word only if it has none yet (a late fill of
+--   a day that had no word; nothing a learner already saw is replaced). Its
+--   Creole row can only be written in the transaction that writes its French
+--   row: a translation approved later never changes an opened day.
+-- * Other future dates can be scheduled and rescheduled, at most 366 days ahead.
 -- * Only an APPROVED revision of an ACTIVE word with CLEARED rights is assignable.
 -- The clock is clock_timestamp() (the real instant of the write), not now()
--- (transaction start), so a transaction left open across midnight cannot
--- rewrite the day that opened meanwhile. Residual window: docs lane note.
+-- (transaction start). check_daily_assignment_day() below looks again at COMMIT.
 CREATE FUNCTION vocab.guard_daily_assignment()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 DECLARE
-    v_today date := vocab.haiti_date(clock_timestamp());
+    v_clock timestamptz := clock_timestamp();
+    v_today date := vocab.haiti_date(v_clock);
 BEGIN
-    IF TG_OP IN ('UPDATE','DELETE') AND OLD.haiti_date <= v_today THEN
-        RAISE EXCEPTION 'The word of a day that has already opened cannot be changed';
+    IF TG_OP IN ('UPDATE','DELETE') THEN
+        IF OLD.haiti_date <= v_today THEN
+            RAISE EXCEPTION 'The word of a day that has already opened cannot be changed';
+        END IF;
+        IF vocab.is_day_locked(OLD.haiti_date, v_clock) THEN
+            RAISE EXCEPTION 'The schedule of a day is frozen shortly before it opens';
+        END IF;
     END IF;
     IF TG_OP = 'DELETE' THEN
         RETURN OLD;
@@ -517,6 +547,15 @@ BEGIN
     END IF;
     IF NEW.haiti_date > v_today + 366 THEN
         RAISE EXCEPTION 'A day more than 366 days ahead cannot be assigned';
+    END IF;
+    IF TG_OP = 'INSERT' AND NEW.locale <> 'fr'
+       AND vocab.is_day_locked(NEW.haiti_date, v_clock)
+       AND NOT EXISTS (
+           SELECT 1 FROM vocab.daily_assignments a
+           WHERE a.haiti_date = NEW.haiti_date AND a.locale = 'fr'
+             AND a.assigned_at >= transaction_timestamp()
+       ) THEN
+        RAISE EXCEPTION 'A translation cannot be added to a day that has opened or is about to open';
     END IF;
     -- FOR SHARE on the word: a concurrent retirement waits for this write.
     IF NOT EXISTS (
@@ -544,9 +583,14 @@ BEFORE INSERT OR UPDATE OR DELETE ON vocab.daily_assignments
 FOR EACH ROW EXECUTE FUNCTION vocab.guard_daily_assignment();
 
 -- Checked at COMMIT (deferred), so one transaction may replace both locale rows
--- of a future date: every row of a date is the same word, and French exists.
+-- of a future date:
+-- * every row of a date is the same word, and French exists;
+-- * a change (update or delete) that was allowed when it was made is refused
+--   if the date has OPENED by the time the transaction commits. Together with
+--   the freeze above this closes the midnight race: a reschedule started at
+--   23:49 and left open past midnight cannot land.
 CREATE FUNCTION vocab.check_daily_assignment_day()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 DECLARE
     v_date date;
     v_rows integer;
@@ -554,6 +598,9 @@ DECLARE
     v_has_fr boolean;
 BEGIN
     IF TG_OP = 'DELETE' THEN v_date := OLD.haiti_date; ELSE v_date := NEW.haiti_date; END IF;
+    IF TG_OP IN ('UPDATE','DELETE') AND clock_timestamp() >= vocab.haiti_day_start(OLD.haiti_date) THEN
+        RAISE EXCEPTION 'The day opened before this schedule change was committed';
+    END IF;
     SELECT count(*), count(DISTINCT a.word_id), COALESCE(bool_or(a.locale = 'fr'), false)
       INTO v_rows, v_words, v_has_fr
     FROM vocab.daily_assignments a WHERE a.haiti_date = v_date;

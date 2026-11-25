@@ -144,6 +144,73 @@ async def test_opened_day_survives_everything_a_writer_can_try(admin: asyncpg.Po
     assert await schedule_rows(admin) == before
 
 
+async def test_translation_approved_later_cannot_be_added_to_an_opened_day(
+    admin: asyncpg.Pool,
+) -> None:
+    word = await approved_word(admin, term="MATIN", locales=("fr",))
+    today = await assign(admin, word["word_id"])
+    creole = await vocab_fixtures.create_revision(
+        admin, word["word_id"], "ht", word["source_id"], term="MATEN"
+    )
+    before = await schedule_rows(admin)
+    with pytest.raises(asyncpg.RaiseError, match="translation cannot be added"):
+        await admin.execute(
+            "INSERT INTO vocab.daily_assignments (haiti_date, locale, word_id, word_revision_id, "
+            "assigned_via) VALUES ($1, 'ht', $2, $3, 'auto')",
+            today,
+            word["word_id"],
+            creole,
+        )
+    with pytest.raises(asyncpg.RaiseError, match="translation cannot be added"):
+        await admin.execute("SELECT vocab._assign_word($1, $2, 'auto')", today, word["word_id"])
+    assert await admin.fetch("SELECT * FROM vocab.ensure_assignments($1, 1)", today) == []
+    assert await schedule_rows(admin) == before
+
+
+async def test_worker_login_can_run_the_fill_and_nothing_else(
+    admin: asyncpg.Pool, local_env: dict[str, str]
+) -> None:
+    from tests.staff_fixtures import staff_url, worker_url
+
+    await approved_word(admin, term="OUVRIER")
+    today = await haiti_today(admin)
+    worker = await asyncpg.connect(worker_url(local_env), timeout=10)
+    try:
+        assert await worker.fetchval("SELECT session_user::text") == "edu_worker_login"
+        created = await worker.fetch("SELECT * FROM vocab.ensure_assignments($1, 3)", today)
+        assert len(created) == 6
+        for statement in (
+            "SELECT count(*) FROM vocab.daily_assignments",
+            "SELECT * FROM vocab.daily_word('fr')",
+            "SELECT * FROM vocab.daily_word_at('fr', now())",
+            "SELECT vocab.create_word('from-the-worker')",
+            "SELECT vocab.schedule_word(current_date + 5, gen_random_uuid())",
+            "SELECT * FROM vocab.staff_ensure_assignments(current_date, 3)",
+            "SELECT vocab._assign_word(current_date + 5, gen_random_uuid(), 'auto')",
+            "DELETE FROM vocab.daily_assignments",
+        ):
+            with pytest.raises(asyncpg.InsufficientPrivilegeError):
+                await worker.execute(statement)
+    finally:
+        await worker.close()
+    # The staff login without a verified staff actor: every function refuses.
+    staff = await asyncpg.connect(staff_url(local_env), timeout=10)
+    try:
+        for statement in (
+            "SELECT vocab.create_word('no-actor')",
+            "SELECT * FROM vocab.review_queue()",
+            "SELECT * FROM vocab.staff_ensure_assignments(current_date, 3)",
+            "SELECT * FROM vocab.ensure_assignments(current_date, 3)",
+            "SELECT * FROM vocab.daily_word('fr')",
+            "SELECT count(*) FROM vocab.words",
+            "SELECT vocab._audit('vocab.forged.event', NULL, NULL)",
+        ):
+            with pytest.raises(asyncpg.InsufficientPrivilegeError):
+                await staff.execute(statement)
+    finally:
+        await staff.close()
+
+
 # ------------------------------------------------- the API's real database login
 async def test_api_database_login_reaches_one_function_only(
     admin: asyncpg.Pool, local_env: dict[str, str]

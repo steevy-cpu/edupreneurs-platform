@@ -7,6 +7,12 @@
 -- Only the owner-only clock seam vocab.daily_word_at(locale, p_now) takes a time.
 BEGIN;
 SELECT * FROM no_plan();
+-- Never straddle Haiti midnight: if the date changes within 5 seconds, wait for it.
+DO $$ BEGIN
+    PERFORM pg_sleep(GREATEST(0, 5 - EXTRACT(epoch FROM
+        vocab.haiti_day_start(vocab.haiti_date(clock_timestamp()) + 1) - clock_timestamp()))::int
+        * CASE WHEN vocab.haiti_day_start(vocab.haiti_date(clock_timestamp()) + 1) - clock_timestamp() < interval '5 seconds' THEN 1 ELSE 0 END);
+END $$;
 
 TRUNCATE vocab.daily_assignments, vocab.audio_assets, vocab.reviews, vocab.word_revisions, vocab.words, vocab.sources;
 SET CONSTRAINTS ALL IMMEDIATE;
@@ -62,6 +68,25 @@ SELECT is((SELECT count(*)::int FROM generate_series('2012-01-01'::date, '2030-1
               OR vocab.haiti_date(vocab.haiti_day_start(g::date) - interval '1 microsecond') <> g::date - 1
               OR (vocab.haiti_day_start(g::date) AT TIME ZONE 'America/Port-au-Prince')::time <> '00:00'), 0,
     'for every date 2012-2030: day_start is local 00:00, belongs to that date, and the instant before belongs to the previous date');
+
+-- ====================== the schedule freeze (clock seam) ======================
+SELECT is(vocab.schedule_freeze(), interval '10 minutes', 'the schedule of a day freezes 10 minutes before it opens');
+-- 15 Jan 2026 opens at 05:00:00 UTC; it is frozen from 04:50:00 UTC (23:50 local on the 14th).
+SELECT is(vocab.is_day_locked('2026-01-15', '2026-01-15 04:49:59+00'), false, 'FREEZE: 23:49:59 local, the next day can still be rescheduled');
+SELECT is(vocab.is_day_locked('2026-01-15', '2026-01-15 04:50:00+00'), true, 'FREEZE: at 23:50:00 local the next day is locked');
+SELECT is(vocab.is_day_locked('2026-01-15', '2026-01-15 04:59:59+00'), true, 'FREEZE: 23:59:59 local, locked');
+SELECT is(vocab.is_day_locked('2026-01-15', '2026-01-15 05:00:00+00'), true, 'an opened day is locked');
+SELECT is(vocab.is_day_locked('2026-01-15', '2027-01-01 00:00:00+00'), true, 'a past day is locked for ever');
+SELECT is(vocab.is_day_locked('2026-01-16', '2026-01-15 05:00:00+00'), false, 'the day after tomorrow is not locked');
+-- The freeze follows the real length of the day: 13 March 2017 opened at 04:00 UTC (after a 23-hour day).
+SELECT is(vocab.is_day_locked('2017-03-13', '2017-03-13 03:49:59+00'), false, 'FREEZE on a 23-hour day: open until 10 minutes before the real midnight');
+SELECT is(vocab.is_day_locked('2017-03-13', '2017-03-13 03:50:00+00'), true, 'FREEZE on a 23-hour day: locked from 03:50 UTC, not 04:50');
+SELECT is(vocab.is_day_locked('2017-11-06', '2017-11-06 04:49:59+00'), false, 'FREEZE on a 25-hour day: still open at 04:49:59 UTC');
+SELECT is(vocab.is_day_locked('2017-11-06', '2017-11-06 04:50:00+00'), true, 'FREEZE on a 25-hour day: locked from 04:50 UTC');
+SELECT is((SELECT count(*)::int FROM generate_series('2012-01-01'::date, '2030-12-31'::date, interval '1 day') g
+           WHERE NOT vocab.is_day_locked(g::date, vocab.haiti_day_start(g::date) - interval '10 minutes')
+              OR vocab.is_day_locked(g::date, vocab.haiti_day_start(g::date) - interval '10 minutes 1 second')), 0,
+    'for every date 2012-2030 the lock begins exactly 10 minutes before local midnight');
 
 -- ====================== the word served around a midnight ======================
 CREATE TEMP TABLE ids (k text PRIMARY KEY, v uuid NOT NULL);
@@ -145,6 +170,13 @@ SELECT pg_temp.put(pg_temp.today(), 'w-first');
 SELECT throws_ok($$DELETE FROM vocab.daily_assignments WHERE haiti_date = vocab.haiti_date(clock_timestamp())$$,
     'P0001', 'The word of a day that has already opened cannot be changed', 'the guard''s "today" is the Haiti date of the server clock');
 SELECT is(pg_temp.term_at(clock_timestamp()), 'PREMIER', 'and the reader''s "today" is the same date');
+SELECT is(vocab.is_day_locked(vocab.haiti_date(clock_timestamp()), clock_timestamp()), true, 'the guard and is_day_locked agree that today is locked');
+-- The guard really uses the lock: a day far ahead can be deleted, and the same
+-- function decides both (the trigger passes clock_timestamp()).
+SELECT lives_ok($$DELETE FROM vocab.daily_assignments WHERE haiti_date = (SELECT long_day + 1 FROM days)$$, 'an unlocked future day can be changed');
+SELECT ok((SELECT prosrc LIKE '%vocab.is_day_locked(OLD.haiti_date, v_clock)%' AND prosrc LIKE '%clock_timestamp()%'
+           FROM pg_proc WHERE pronamespace = 'vocab'::regnamespace AND proname = 'guard_daily_assignment'),
+    'the day guard decides with vocab.is_day_locked on the server clock');
 
 SELECT * FROM finish();
 ROLLBACK;

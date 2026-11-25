@@ -4,6 +4,12 @@
 -- trigger rules must hold even for privileged writers.
 BEGIN;
 SELECT * FROM no_plan();
+-- Never straddle Haiti midnight: if the date changes within 5 seconds, wait for it.
+DO $$ BEGIN
+    PERFORM pg_sleep(GREATEST(0, 5 - EXTRACT(epoch FROM
+        vocab.haiti_day_start(vocab.haiti_date(clock_timestamp()) + 1) - clock_timestamp()))::int
+        * CASE WHEN vocab.haiti_day_start(vocab.haiti_date(clock_timestamp()) + 1) - clock_timestamp() < interval '5 seconds' THEN 1 ELSE 0 END);
+END $$;
 
 -- Exact counts need an empty schema. Inside the test transaction; rolled back.
 TRUNCATE vocab.daily_assignments, vocab.audio_assets, vocab.reviews, vocab.word_revisions, vocab.words, vocab.sources;
@@ -36,13 +42,13 @@ SELECT throws_ok($$INSERT INTO vocab.sources (source_title, licence, rights_stat
 
 SET LOCAL edu.actor_id = 'a0000000-0000-4000-8000-000000000004';
 SELECT throws_ok($$SELECT vocab.register_source('Synthetic test source', NULL, 'synthetic-test-only')$$,
-    '42501', 'Staff role required', 'a reviewer cannot register a source');
+    '42501', 'A staff role is required for this action', 'a reviewer cannot register a source');
 SET LOCAL edu.actor_id = 'a0000000-0000-4000-8000-000000000003';
 INSERT INTO ids SELECT 'src_ok', vocab.register_source('Synthetic test source (text)', NULL, 'synthetic-test-only');
 INSERT INTO ids SELECT 'src_unverified', vocab.register_source('Synthetic test source (unverified)', NULL, 'synthetic-test-only');
 INSERT INTO ids SELECT 'src_audio', vocab.register_source('Synthetic test source (recording)', NULL, 'synthetic-test-only');
 SELECT throws_ok($$SELECT vocab.set_source_rights(pg_temp.id('src_ok'), 'cleared')$$,
-    '42501', 'Staff role required', 'an editor cannot decide rights');
+    '42501', 'A staff role is required for this action', 'an editor cannot decide rights');
 SET LOCAL edu.actor_id = 'a0000000-0000-4000-8000-000000000021';
 SELECT lives_ok($$SELECT vocab.set_source_rights(pg_temp.id('src_ok'), 'cleared', 'synthetic decision')$$, 'a publisher clears rights');
 SELECT lives_ok($$SELECT vocab.set_source_rights(pg_temp.id('src_audio'), 'cleared')$$, 'a publisher clears the recording rights');
@@ -57,19 +63,19 @@ SELECT ok((SELECT rights_decided_at > now() - interval '1 minute' AND rights_dec
 
 -- ============================ who may write words ============================
 SET LOCAL edu.actor_id = '';
-SELECT throws_ok($$SELECT vocab.create_word('no-actor')$$, '42501', 'Staff role required', 'no actor: refused');
+SELECT throws_ok($$SELECT vocab.create_word('no-actor')$$, '42501', 'A staff role is required for this action', 'no actor: refused');
 SET LOCAL edu.actor_id = 'a0000000-0000-4000-8000-000000000001';
-SELECT throws_ok($$SELECT vocab.create_word('learner-word')$$, '42501', 'Staff role required', 'a learner cannot create a word');
-SELECT throws_ok($$SELECT * FROM vocab.review_queue()$$, '42501', 'Staff role required', 'a learner cannot read the review queue');
-SELECT throws_ok($$SELECT * FROM vocab.calendar(current_date, 7)$$, '42501', 'Staff role required', 'a learner cannot read the calendar');
-SELECT throws_ok($$SELECT vocab.retire_word(gen_random_uuid())$$, '42501', 'Staff role required', 'a learner cannot retire a word');
-SELECT throws_ok($$SELECT * FROM vocab.staff_ensure_assignments(current_date, 7)$$, '42501', 'Staff role required', 'a learner cannot run the fill');
+SELECT throws_ok($$SELECT vocab.create_word('learner-word')$$, '42501', 'A staff role is required for this action', 'a learner cannot create a word');
+SELECT throws_ok($$SELECT * FROM vocab.review_queue()$$, '42501', 'A staff role is required for this action', 'a learner cannot read the review queue');
+SELECT throws_ok($$SELECT * FROM vocab.calendar(current_date, 7)$$, '42501', 'A staff role is required for this action', 'a learner cannot read the calendar');
+SELECT throws_ok($$SELECT vocab.retire_word(gen_random_uuid())$$, '42501', 'A staff role is required for this action', 'a learner cannot retire a word');
+SELECT throws_ok($$SELECT * FROM vocab.staff_ensure_assignments(current_date, 7)$$, '42501', 'A staff role is required for this action', 'a learner cannot run the fill');
 SET LOCAL edu.actor_id = 'a0000000-0000-4000-8000-000000000004';
-SELECT throws_ok($$SELECT vocab.create_word('reviewer-word')$$, '42501', 'Staff role required', 'a reviewer cannot create a word');
+SELECT throws_ok($$SELECT vocab.create_word('reviewer-word')$$, '42501', 'A staff role is required for this action', 'a reviewer cannot create a word');
 SET LOCAL edu.actor_id = 'a0000000-0000-4000-8000-000000000023';
-SELECT throws_ok($$SELECT vocab.create_word('inactive-word')$$, '42501', 'Staff role required', 'an INACTIVE editor role does not count');
+SELECT throws_ok($$SELECT vocab.create_word('inactive-word')$$, '42501', 'A staff role is required for this action', 'an INACTIVE editor role does not count');
 SET LOCAL edu.actor_id = 'a0000000-0000-4000-8000-000000000024';
-SELECT throws_ok($$SELECT vocab.create_word('norole-word')$$, '42501', 'Staff role required', 'a signed-in account without a role is refused');
+SELECT throws_ok($$SELECT vocab.create_word('norole-word')$$, '42501', 'A staff role is required for this action', 'a signed-in account without a role is refused');
 
 SET LOCAL edu.actor_id = 'a0000000-0000-4000-8000-000000000003';
 INSERT INTO ids SELECT 'w1', vocab.create_word('test-word-one');
@@ -171,7 +177,7 @@ SELECT throws_ok($$UPDATE vocab.word_revisions SET status='approved', approved_b
     'P0001', 'Approval requires the latest review to be an approval by an active, independent reviewer', 'approval without any review is refused');
 SELECT throws_ok($$UPDATE vocab.word_revisions SET status='rejected' WHERE id = pg_temp.id('r1')$$,
     'P0001', 'Rejection requires the latest review to be a rejection', 'rejection without any review is refused');
-SELECT throws_ok($$SELECT vocab.review_revision(pg_temp.id('r1'), 'approved')$$, '42501', 'Staff role required', 'the author (an editor) cannot review through the function');
+SELECT throws_ok($$SELECT vocab.review_revision(pg_temp.id('r1'), 'approved')$$, '42501', 'A staff role is required for this action', 'the author (an editor) cannot review through the function');
 SELECT throws_ok($$INSERT INTO vocab.reviews (word_revision_id, reviewer_id, verdict) VALUES (pg_temp.id('r1'), 'a0000000-0000-4000-8000-000000000003', 'approved')$$,
     'P0001', 'Author cannot review own word', 'self-review is refused by the table itself');
 SELECT throws_ok($$INSERT INTO vocab.reviews (word_revision_id, reviewer_id, verdict) VALUES (pg_temp.id('r1'), 'a0000000-0000-4000-8000-000000000024', 'approved')$$,
@@ -274,8 +280,8 @@ SELECT is((SELECT revision FROM vocab.word_revisions WHERE id = pg_temp.id('r_ht
 SELECT lives_ok($$DELETE FROM vocab.word_revisions WHERE id = pg_temp.id('r2')$$, 'an unsubmitted draft can be deleted');
 
 -- ============================ audit trail (seam) ============================
-SELECT is((SELECT count(*)::int FROM app.audit_events WHERE created_at = now() AND action LIKE 'vocab.%' AND (actor_kind <> 'staff' OR outcome <> 'allowed' OR actor_id IS NULL)), 0,
-    'every vocab audit row is a staff decision with an actor');
+SELECT is((SELECT count(*)::int FROM app.audit_events WHERE created_at = now() AND action LIKE 'vocab.%' AND (outcome <> 'allowed' OR actor_id IS NULL)), 0,
+    'every vocab audit row is an allowed decision with an actor (actor_kind comes from the database login: see the HTTP tests)');
 SELECT is((SELECT actor_id::text || '|' || (details ->> 'verdict') FROM app.audit_events
            WHERE created_at = now() AND action = 'vocab.revision.review' AND target_id = pg_temp.id('r1')),
     'a0000000-0000-4000-8000-000000000004|approved', 'the approval is audited with reviewer and verdict');
