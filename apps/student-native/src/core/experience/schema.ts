@@ -61,4 +61,26 @@ export const EXPERIENCE_MIGRATION_V2: Migration = {
   ],
 };
 
-export const EXPERIENCE_MIGRATIONS: Migration[] = [EXPERIENCE_MIGRATION_V2];
+/**
+ * Word of the Day: the last word downloaded for each interface language, so it
+ * can be re-read with no network. One row per language. A row may exist with no
+ * word in it (only `last_attempt_at`): that is how a failed first download is
+ * remembered so the app does not retry on every screen.
+ */
+export const EXPERIENCE_MIGRATION_V3: Migration = {
+  version: 3,
+  statements: [
+    `CREATE TABLE daily_word_cache (
+       locale           TEXT PRIMARY KEY NOT NULL CHECK (locale IN ('fr','ht')),
+       haiti_date       TEXT,
+       valid_until      TEXT,
+       etag             TEXT,
+       body_json        TEXT,
+       fetched_at       TEXT,
+       last_attempt_at  TEXT,
+       last_outcome     TEXT
+     )`,
+  ],
+};
+
+export const EXPERIENCE_MIGRATIONS: Migration[] = [EXPERIENCE_MIGRATION_V2, EXPERIENCE_MIGRATION_V3];

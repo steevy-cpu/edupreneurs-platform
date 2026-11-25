@@ -30,10 +30,46 @@ export interface ProfilePatch {
   preferred_locale?: Locale;
 }
 
+/**
+ * `GET /v1/daily-word?locale=fr|ht` (briefs/vocab.md). The word fields are read
+ * from a nested `word` object; if the backend ends up sending them at the top
+ * level instead, they are read from there (see `parseRemoteDailyWord`).
+ */
+export interface RemoteDailyWord {
+  haiti_date: string;
+  /** Language of the content actually served. */
+  locale: Locale;
+  requested_locale: Locale;
+  /** True when the requested language has no translation and French is served instead. */
+  is_fallback_locale: boolean;
+  /** Instant of the next Haiti midnight (ISO 8601). */
+  valid_until: string;
+  word: {
+    word_id: string | null;
+    revision_id: string | null;
+    term: string;
+    pronunciation: string | null;
+    part_of_speech: string | null;
+    definition: string;
+    example: string | null;
+    gloss: string | null;
+  };
+  /** Metadata only; null when the word has no recording. Nothing is ever downloaded or played from it here. */
+  audio: { mime: string | null; bytes: number | null; duration_ms: number | null } | null;
+}
+
+export type DailyWordFetch = { kind: 'word'; word: RemoteDailyWord; etag: string | null } | { kind: 'not_modified' };
+
 export interface ExperienceRemote {
   getOnboarding(): Promise<RemoteOnboarding>;
   putOnboarding(body: RemoteOnboarding): Promise<RemoteOnboarding>;
   patchProfile(body: ProfilePatch): Promise<void>;
+  /**
+   * Today's word. `etag` (from an earlier answer) makes the request conditional.
+   * Throws `ApiError` kind `client` with code `daily_word_not_available` when no
+   * word is assigned today, and with another code when the feature is off on the server.
+   */
+  getDailyWord(locale: Locale, etag: string | null): Promise<DailyWordFetch>;
 }
 
 // -------------------------------------------------------------------- validators
@@ -61,6 +97,58 @@ export function parseRemoteOnboarding(body: unknown): RemoteOnboarding {
     onboarding_version: wholeNumber(body.onboarding_version ?? 0),
     tour_version_seen: wholeNumber(body.tour_version_seen ?? 0),
     tour_dismissed: body.tour_dismissed === true,
+  };
+}
+
+function text(value: unknown, max: number): string | null {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= max ? trimmed : null;
+}
+
+function localeOf(value: unknown): Locale | null {
+  return value === 'fr' || value === 'ht' ? value : null;
+}
+
+/** The contract promises about 1.5 KB; anything far beyond that is not a daily word. */
+const DAILY_WORD_MAX_BYTES = 8_000;
+
+export function parseRemoteDailyWord(body: unknown, requested: Locale): RemoteDailyWord {
+  if (!isObject(body) || JSON.stringify(body).length > DAILY_WORD_MAX_BYTES) return invalid();
+  const fields = isObject(body.word) ? body.word : body;
+  const term = text(fields.term, 200);
+  const definition = text(fields.definition, 2000);
+  const haitiDate = typeof body.haiti_date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.haiti_date) ? body.haiti_date : null;
+  const validUntil = typeof body.valid_until === 'string' && Number.isFinite(Date.parse(body.valid_until)) ? body.valid_until : null;
+  const served = localeOf(body.locale);
+  if (!term || !definition || !haitiDate || !validUntil || !served) return invalid();
+  // An answer for another language than the one asked for is only acceptable as the declared French fallback.
+  const isFallback = body.is_fallback_locale === true;
+  if (served !== requested && !(isFallback && served === 'fr')) return invalid();
+  const audio = isObject(body.audio)
+    ? {
+        mime: text(body.audio.mime, 100),
+        bytes: typeof body.audio.bytes === 'number' ? body.audio.bytes : null,
+        duration_ms: typeof body.audio.duration_ms === 'number' ? body.audio.duration_ms : null,
+      }
+    : null;
+  return {
+    haiti_date: haitiDate,
+    locale: served,
+    requested_locale: requested,
+    is_fallback_locale: served !== requested,
+    valid_until: validUntil,
+    word: {
+      word_id: text(fields.word_id ?? fields.id, 100),
+      revision_id: text(fields.revision_id ?? fields.word_revision_id, 100),
+      term,
+      pronunciation: text(fields.pronunciation, 200),
+      part_of_speech: text(fields.part_of_speech, 100),
+      definition,
+      example: text(fields.example, 2000),
+      gloss: text(fields.gloss, 500),
+    },
+    audio,
   };
 }
 
@@ -107,6 +195,14 @@ export class ExperienceApi implements ExperienceRemote {
 
   async patchProfile(body: ProfilePatch): Promise<void> {
     this.ok(await this.send('PATCH', '/v1/me', { json: body }));
+  }
+
+  async getDailyWord(locale: Locale, etag: string | null): Promise<DailyWordFetch> {
+    const response = await this.send('GET', `/v1/daily-word?locale=${locale}`, {
+      headers: etag ? { 'If-None-Match': etag } : undefined,
+    });
+    if (response.status === 304) return { kind: 'not_modified' };
+    return { kind: 'word', word: parseRemoteDailyWord(this.ok(response).body, locale), etag: response.etag };
   }
 
   /** Throws the app's usual error for a non-2xx answer. */

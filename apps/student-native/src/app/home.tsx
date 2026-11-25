@@ -17,6 +17,7 @@ import {
   totalsOf,
 } from '../core/learning/overview';
 import { AppText, Button, HeroCard, Icon, ListRow, LoadingState, MessageState, Notice, ProgressBar, SectionHeader, space } from '../design';
+import { DailyWordCard } from '../ui/experience/DailyWordCard';
 import { TourInvite } from '../ui/experience/TourInvite';
 import { perfHomeReady, perfTap } from '../ui/perf';
 import { useRemote } from '../ui/remote';
@@ -135,6 +136,18 @@ export default function Home() {
     />
   ) : null;
 
+  // Word of the Day (flag off by default): drawn from the account's cache, refreshed in the background.
+  const dailyWord = FLAGS.dailyWord ? (
+    <DailyWordCard
+      account={app.session.account}
+      remote={remote}
+      locale={app.locale}
+      t={t}
+      now={app.services.env.now}
+      isActive={() => app.session.isActive()}
+    />
+  ) : null;
+
   const next = pickContinueLesson(view.standings, view.lastLessonId);
   const context = next ? findLessonContext(view.catalog, next.lessonId) : null;
   const totals = totalsOf(view.standings);
@@ -161,6 +174,7 @@ export default function Home() {
           onAction={() => router.replace('/learn')}
         />
         {pendingRow}
+        {dailyWord}
         {tourInvite}
       </TabScreen>
     );
@@ -209,6 +223,8 @@ export default function Home() {
       </HeroCard>
 
       {pendingRow}
+
+      {dailyWord}
 
       <View style={{ gap: space.sm }}>
         <SectionHeader title={t('tabReview')} />

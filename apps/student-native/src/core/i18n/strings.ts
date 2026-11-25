@@ -209,6 +209,17 @@ const fr = {
   tourProfileBody: 'Profil montre ta progression, l’état de la synchronisation et la langue. Tu peux revoir cette visite ici.',
   tourReplay: 'Revoir la visite guidée',
   tourReplayHint: '{count} étapes · sans internet',
+  // Overnight 2026-11-24, slice 3: Word of the Day card
+  wordToday: 'Mot du jour',
+  wordLastDownloaded: 'Dernier mot téléchargé · {date}',
+  wordStaleOffline: 'Le mot d’aujourd’hui se chargera à la prochaine connexion.',
+  wordNoneToday: 'Pas de nouveau mot pour aujourd’hui.',
+  wordPronunciation: 'Prononciation : {text}',
+  wordExample: 'Exemple',
+  wordGlossHt: 'En créole : {gloss}',
+  wordGlossFr: 'En français : {gloss}',
+  wordFallbackLocale: 'Ce mot n’est pas encore disponible en créole. Il est affiché en français.',
+  wordAudioSoon: 'Audio : bientôt disponible',
 } as const;
 
 export type StringKey = keyof typeof fr;
@@ -409,6 +420,17 @@ const ht: Record<StringKey, string> = {
   tourProfileBody: 'Pwofil montre pwogrè ou, eta senkronizasyon an ak lang lan. Ou ka revwè vizit sa a la.',
   tourReplay: 'Revwè vizit gide a',
   tourReplayHint: '{count} etap · san entènèt',
+  // Overnight 2026-11-24, slice 3: Word of the Day card (DRAFT wording: needs review by a Creole-speaking educator)
+  wordToday: 'Mo jodi a',
+  wordLastDownloaded: 'Dènye mo ki telechaje · {date}',
+  wordStaleOffline: 'Mo jodi a ap chaje lè ou gen koneksyon ankò.',
+  wordNoneToday: 'Pa gen nouvo mo pou jodi a.',
+  wordPronunciation: 'Pwononsyasyon: {text}',
+  wordExample: 'Egzanp',
+  wordGlossHt: 'An kreyòl: {gloss}',
+  wordGlossFr: 'An fransè: {gloss}',
+  wordFallbackLocale: 'Mo sa a poko disponib an kreyòl. Nou montre l an fransè.',
+  wordAudioSoon: 'Odyo: l ap disponib talè',
 };
 
 export const STRINGS: Record<Locale, Record<StringKey, string>> = { fr, ht };

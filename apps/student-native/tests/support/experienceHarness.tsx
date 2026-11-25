@@ -4,7 +4,7 @@
  */
 import type { Locale } from '../../src/core/api/types';
 import type { AccountStore } from '../../src/core/db/accountStore';
-import type { ExperienceRemote, ProfilePatch, RemoteOnboarding } from '../../src/core/experience/remote';
+import type { DailyWordFetch, ExperienceRemote, ProfilePatch, RemoteDailyWord, RemoteOnboarding } from '../../src/core/experience/remote';
 import { ApiError } from '../../src/core/api/errors';
 import { translator } from '../../src/core/i18n/strings';
 import { FakeApp, Phone } from './screenHarness';
@@ -77,4 +77,62 @@ export class FakeRemote implements ExperienceRemote {
     this.reach(`PATCH /v1/me ${JSON.stringify(body)}`);
     this.profile = { ...this.profile, ...body };
   }
+
+  // ------------------------------------------------------------- word of the day
+  /** Today's word per requested language; a missing entry answers 404 `daily_word_not_available`. */
+  dailyWords: Partial<Record<Locale, RemoteDailyWord>> = {};
+  /** Set to make the endpoint answer 404 with this code (e.g. the feature is off on the server). */
+  dailyWordDisabledCode: string | null = null;
+
+  static etagOf(word: RemoteDailyWord): string {
+    return `"${word.haiti_date}:${word.locale}:${word.word.revision_id}"`;
+  }
+
+  async getDailyWord(locale: Locale, etag: string | null): Promise<DailyWordFetch> {
+    this.reach(`GET /v1/daily-word?locale=${locale}${etag ? ` If-None-Match=${etag}` : ''}`);
+    if (this.dailyWordDisabledCode) throw new ApiError('client', this.dailyWordDisabledCode, 404);
+    const word = this.dailyWords[locale];
+    if (!word) throw new ApiError('client', 'daily_word_not_available', 404);
+    if (etag && etag === FakeRemote.etagOf(word)) return { kind: 'not_modified' };
+    return { kind: 'word', word: JSON.parse(JSON.stringify(word)) as RemoteDailyWord, etag: FakeRemote.etagOf(word) };
+  }
+}
+
+/**
+ * Synthetic words for tests. `valid_until` is the next midnight in Haiti as a UTC
+ * instant: in November Haiti is on standard time (UTC-5), so the day 2026-11-24
+ * ends at 2026-11-25T05:00:00Z.
+ */
+export function sampleWord(day: '2026-11-23' | '2026-11-24' | '2026-11-25', locale: Locale, over: Partial<RemoteDailyWord> = {}): RemoteDailyWord {
+  const next = { '2026-11-23': '2026-11-24', '2026-11-24': '2026-11-25', '2026-11-25': '2026-11-26' }[day];
+  const fr = {
+    '2026-11-23': ['curiosité', 'ku-rio-zi-té', 'Envie d’apprendre et de comprendre des choses nouvelles.', 'Sa curiosité le pousse à poser des questions en classe.', 'kiryozite'],
+    '2026-11-24': ['persévérance', 'pèr-sé-vé-rans', 'Qualité d’une personne qui continue ses efforts malgré les difficultés.', 'Avec de la persévérance, elle a terminé tous ses exercices.', 'pèseverans'],
+    '2026-11-25': ['hypothèse', 'i-po-tèz', 'Idée que l’on propose pour expliquer quelque chose, avant de la vérifier.', 'Nous testons notre hypothèse par une expérience.', 'ipotèz'],
+  }[day];
+  const ht = {
+    '2026-11-23': ['kiryozite', 'ki-ryo-zi-te', 'Anvi aprann epi konprann bagay ki nouvo.', 'Kiryozite li fè l poze kesyon nan klas la.', 'curiosité'],
+    '2026-11-24': ['pèseverans', 'pè-se-ve-rans', 'Kalite yon moun ki kontinye fè efò menm lè sa difisil.', 'Ak pèseverans, li fini tout egzèsis li yo.', 'persévérance'],
+    '2026-11-25': ['ipotèz', 'i-po-tèz', 'Yon lide nou pwopoze pou eksplike yon bagay, anvan nou verifye l.', 'N ap teste ipotèz nou an ak yon eksperyans.', 'hypothèse'],
+  }[day];
+  const [term, pronunciation, definition, example, gloss] = locale === 'fr' ? fr : ht;
+  return {
+    haiti_date: day,
+    locale,
+    requested_locale: locale,
+    is_fallback_locale: false,
+    valid_until: `${next}T05:00:00Z`,
+    word: {
+      word_id: `word-${day}`,
+      revision_id: `rev-${day}-${locale}`,
+      term,
+      pronunciation,
+      part_of_speech: locale === 'fr' ? 'nom' : 'non',
+      definition,
+      example,
+      gloss,
+    },
+    audio: null,
+    ...over,
+  };
 }

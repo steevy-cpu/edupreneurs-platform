@@ -5,6 +5,7 @@
  * connection, so it is opened, isolated and closed exactly like the learning
  * data. Nothing here reads or writes a learning table.
  */
+import type { Locale } from '../api/types';
 import type { SqlDatabase, SqlExecutor } from '../db/driver';
 import type { ONBOARDING_STEPS } from './schema';
 
@@ -105,6 +106,29 @@ function toTour(row: TourRow): TourRecord {
   };
 }
 
+/** What the last attempt to download today's word ended with. */
+export type DailyWordOutcome = 'updated' | 'not_modified' | 'none_today' | 'unavailable' | 'unreachable';
+
+export interface DailyWordRow {
+  locale: Locale;
+  /** Null when no word has ever been downloaded for this language. */
+  word: StoredDailyWord | null;
+  lastAttemptAt: string | null;
+  lastOutcome: DailyWordOutcome | null;
+}
+
+export interface StoredDailyWord {
+  /** The server's calendar day (America/Port-au-Prince) this word belongs to, `YYYY-MM-DD`. */
+  haitiDate: string;
+  /** The instant of the next Haiti midnight, from the server. After it, this is no longer "today's" word. */
+  validUntil: string;
+  etag: string | null;
+  /** The validated response body, stored as received. */
+  body: unknown;
+  /** This phone's clock when the word was downloaded (or last confirmed by a 304). */
+  fetchedAt: string;
+}
+
 export const EMPTY_TOUR: TourRecord = { versionSeen: 0, dismissed: false, inProgress: false, step: 0, updatedAt: '', needsPush: false };
 
 async function readOnboarding(db: SqlExecutor): Promise<OnboardingRecord | null> {
@@ -187,5 +211,56 @@ export class ExperienceStore {
       );
       return next;
     });
+  }
+
+  // --------------------------------------------------------------- word of the day
+  async getDailyWord(locale: Locale): Promise<DailyWordRow | null> {
+    const row = await this.db.first<{
+      haiti_date: string | null;
+      valid_until: string | null;
+      etag: string | null;
+      body_json: string | null;
+      fetched_at: string | null;
+      last_attempt_at: string | null;
+      last_outcome: DailyWordOutcome | null;
+    }>('SELECT * FROM daily_word_cache WHERE locale = ?', [locale]);
+    if (!row) return null;
+    let word: StoredDailyWord | null = null;
+    if (row.body_json && row.haiti_date && row.valid_until && row.fetched_at) {
+      try {
+        word = {
+          haitiDate: row.haiti_date,
+          validUntil: row.valid_until,
+          etag: row.etag,
+          body: JSON.parse(row.body_json) as unknown,
+          fetchedAt: row.fetched_at,
+        };
+      } catch {
+        word = null; // an unreadable row is treated as "nothing cached", never shown
+      }
+    }
+    return { locale, word, lastAttemptAt: row.last_attempt_at, lastOutcome: row.last_outcome };
+  }
+
+  /** Replace the cached word for a language (one statement: a reader sees the old word or the new one). */
+  async putDailyWord(locale: Locale, word: StoredDailyWord): Promise<void> {
+    await this.db.run(
+      `INSERT INTO daily_word_cache (locale, haiti_date, valid_until, etag, body_json, fetched_at, last_attempt_at, last_outcome)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'updated')
+       ON CONFLICT (locale) DO UPDATE SET haiti_date = excluded.haiti_date, valid_until = excluded.valid_until,
+         etag = excluded.etag, body_json = excluded.body_json, fetched_at = excluded.fetched_at,
+         last_attempt_at = excluded.last_attempt_at, last_outcome = excluded.last_outcome`,
+      [locale, word.haitiDate, word.validUntil, word.etag, JSON.stringify(word.body), word.fetchedAt, word.fetchedAt],
+    );
+  }
+
+  /** Remember an attempt that brought no new word. The cached word, if any, is left exactly as it was. */
+  async noteDailyWordAttempt(locale: Locale, at: string, outcome: DailyWordOutcome, confirmed = false): Promise<void> {
+    await this.db.run(
+      `INSERT INTO daily_word_cache (locale, last_attempt_at, last_outcome) VALUES (?, ?, ?)
+       ON CONFLICT (locale) DO UPDATE SET last_attempt_at = excluded.last_attempt_at, last_outcome = excluded.last_outcome,
+         fetched_at = CASE WHEN ? = 1 AND body_json IS NOT NULL THEN excluded.last_attempt_at ELSE fetched_at END`,
+      [locale, at, outcome, confirmed ? 1 : 0],
+    );
   }
 }
