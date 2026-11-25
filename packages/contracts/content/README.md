@@ -185,6 +185,23 @@ renders in the header `Edu-Content-Formats`; no header means format 1 only; a
 format-1 pack never contains a format-2 block or question; a format-2 body is
 never sent to, or converted for, a format-1 client.
 
+## Packs: what a verifier checks beyond the two schemas
+
+`pack-manifest.v1.schema.json` and `pack-lesson.v1.schema.json` are the
+structural layer. A verifier (reference: `edu_api.content.pack.verify_pack`;
+vectors: `pack-verify.json`) additionally refuses, with these stable codes:
+
+| Code | Rule |
+|---|---|
+| `manifest.structure` | not the schema's shape — including: a format-1 pack lists only format-1 lessons, a format-1 lesson lists only `mcq` questions, a lesson `title` is plain text (no control character, no `<` directly followed by a letter, `/`, `!` or `?`); also lessons not in ascending distinct positions, assets not sorted, an asset nobody references |
+| `manifest.duplicate` | a `lesson_id` or `revision_id` listed twice; a question id twice in the pack; two questions of a lesson at the same position or out of order |
+| `manifest.totals` | `totals` differs from what the two lists add up to (recomputed, never believed) |
+| `lesson.content_format` | a lesson object's `content_format` is not exactly the smallest format that carries its blocks **and** its question kinds: "format 1" means only `heading`, `paragraph`, `example`, `callout` and only `mcq` |
+| `lesson.blocks`, `lesson.questions`, `lesson.mismatch` | the body or a question is not valid for the declared format, or the object disagrees with its manifest entry |
+
+A client that only knows format 1 must apply these rules too: it must never
+trust the manifest's `content_format` alone.
+
 ## Test vectors
 
 Every file is `{"vector_format": 1, "suite": ..., "description": ..., "cases": [...]}`
@@ -198,6 +215,7 @@ and every case has a unique `id`. All content is synthetic.
 | `scoring.json` | `kind`, `response_spec`, `answer_key`, `response` | `{status: "scored", scoring_version, score, is_correct}` or `{status: "invalid_response", scoring_version, code}`; for short text also `normalised_response` |
 | `negotiation.json` | `type` = `parse_header` / `negotiate` / `required_format` | `expect_formats` or `expect` |
 | `pack-manifest.json` | a pack described as input, with its assets in base64 | the exact manifest bytes, hashes and sizes |
+| `pack-verify.json` | a complete stored pack: every object by key with its exact bytes (`utf8`), and `manifest_key`; verify without a trusted hash | `{intact: true}` or `{error: code}` (first problem) |
 
 `scoring.json` is written with ASCII-only JSON escapes so that invisible
 characters (no-break spaces, the minus sign, combining accents) are unambiguous.

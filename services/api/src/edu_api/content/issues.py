@@ -23,6 +23,11 @@ _CONTROL = re.compile(r"[\u0000-\u001f\u007f]")
 _MARKUP = re.compile(r"<[A-Za-z/!?]")
 
 
+def is_plain_text(value: str) -> bool:
+    """The plain-text rule of every new text field: no control character, no tag opener."""
+    return not _CONTROL.search(value) and not _MARKUP.search(value)
+
+
 @dataclass(frozen=True)
 class Issue:
     """One finding. ``path`` is a JSON Pointer into the validated document."""

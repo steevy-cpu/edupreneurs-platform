@@ -54,8 +54,13 @@ from typing import Any
 
 from edu_api.content.blocks import asset_references, validate_blocks
 from edu_api.content.canonical import canonical_json, is_canonical_json, sha256_hex
-from edu_api.content.formats import SUPPORTED_FORMATS, V2_QUESTION_KINDS, required_format
-from edu_api.content.issues import Collector, Issue
+from edu_api.content.formats import (
+    SUPPORTED_FORMATS,
+    V1_QUESTION_KINDS,
+    V2_QUESTION_KINDS,
+    required_format,
+)
+from edu_api.content.issues import Collector, Issue, is_plain_text
 from edu_api.content.questions import validate_question
 from edu_api.content.storage import PackStorage, StorageError
 
@@ -230,6 +235,10 @@ def _check_lesson(pack: PackInput, lesson: PackLesson) -> int:
         raise PackBuildError("lesson.identity", f"{where}: malformed id")
     if lesson.revision < 1 or not 1 <= len(lesson.title) <= 200:
         raise PackBuildError("lesson.identity", f"{where}: malformed revision or title")
+    if not is_plain_text(lesson.title):
+        raise PackBuildError(
+            "lesson.title", f"{where}: the title must be plain text (no control, no markup)"
+        )
     if len(lesson.questions) > MAX_QUESTIONS_PER_LESSON:
         raise PackBuildError("lesson.questions", f"{where}: too many questions")
     kinds = [question.kind for question in lesson.questions]
@@ -432,14 +441,7 @@ def build_pack(
         },
         "lessons": manifest_lessons,
         "assets": manifest_assets,
-        "totals": {
-            "lessons": len(manifest_lessons),
-            "questions": sum(len(entry["questions"]) for entry in manifest_lessons),
-            "assets": len(manifest_assets),
-            "lesson_bytes": sum(entry["bytes"] for entry in manifest_lessons),
-            "required_asset_bytes": sum(a["bytes"] for a in manifest_assets if a["required"]),
-            "optional_asset_bytes": sum(a["bytes"] for a in manifest_assets if not a["required"]),
-        },
+        "totals": _totals(manifest_lessons, manifest_assets),
     }
     manifest_bytes = canonical_json(manifest)
     if len(manifest_bytes) > MAX_MANIFEST_BYTES:
@@ -452,6 +454,20 @@ def build_pack(
         objects=objects,
         sizes=tuple(sizes),
     )
+
+
+def _totals(
+    lessons: Sequence[Mapping[str, Any]], assets: Sequence[Mapping[str, Any]]
+) -> dict[str, int]:
+    """The ``totals`` object of a manifest, computed from its two lists."""
+    return {
+        "lessons": len(lessons),
+        "questions": sum(len(entry["questions"]) for entry in lessons),
+        "assets": len(assets),
+        "lesson_bytes": sum(entry["bytes"] for entry in lessons),
+        "required_asset_bytes": sum(a["bytes"] for a in assets if a["required"]),
+        "optional_asset_bytes": sum(a["bytes"] for a in assets if not a["required"]),
+    }
 
 
 # --- manifest structure (mirrors pack-manifest.v1.schema.json) ---------------------------
@@ -473,6 +489,14 @@ def validate_manifest(document: Any) -> list[Issue]:
     if c.array(document["lessons"], "/lessons", 1, MAX_PACK_LESSONS):
         for index, lesson in enumerate(document["lessons"]):
             _manifest_lesson(c, lesson, f"/lessons/{index}")
+            # The negotiation rule, structurally: a format-1 pack lists only format-1 lessons.
+            if (
+                _is_one(document["content_format"])
+                and isinstance(lesson, dict)
+                and "content_format" in lesson
+                and not _is_one(lesson["content_format"])
+            ):
+                c.schema(f"/lessons/{index}/content_format", "is higher than the pack's format")
     if c.array(document["assets"], "/assets", 0, MAX_PACK_ASSETS):
         for index, asset in enumerate(document["assets"]):
             path = f"/assets/{index}"
@@ -498,6 +522,11 @@ def validate_manifest(document: Any) -> list[Issue]:
     return c.issues
 
 
+def _is_one(value: Any) -> bool:
+    """JSON Schema ``const: 1`` (a boolean is not the number 1)."""
+    return not isinstance(value, bool) and isinstance(value, int | float) and value == 1
+
+
 def _manifest_lesson(c: Collector, lesson: Any, path: str) -> None:
     names = (
         "position",
@@ -518,8 +547,9 @@ def _manifest_lesson(c: Collector, lesson: Any, path: str) -> None:
     c.string(lesson["lesson_id"], f"{path}/lesson_id", min_len=36, max_len=36, pattern=_UUID)
     c.string(lesson["revision_id"], f"{path}/revision_id", min_len=36, max_len=36, pattern=_UUID)
     c.integer(lesson["revision"], f"{path}/revision", 1, 2_147_483_647)
-    c.string(lesson["title"], f"{path}/title", max_len=200)
+    c.string(lesson["title"], f"{path}/title", max_len=200, plain=True)
     c.integer(lesson["content_format"], f"{path}/content_format", 1, 2)
+    format_1 = _is_one(lesson["content_format"])
     c.string(lesson["object_key"], f"{path}/object_key", max_len=300, no_control=True)
     c.string(lesson["sha256"], f"{path}/sha256", min_len=64, max_len=64, pattern=_SHA256)
     c.integer(lesson["bytes"], f"{path}/bytes", 1, MAX_LESSON_BYTES)
@@ -533,6 +563,10 @@ def _manifest_lesson(c: Collector, lesson: Any, path: str) -> None:
                 )
                 c.integer(question["position"], f"{q}/position", 1, 2_147_483_647)
                 c.enum(question["kind"], f"{q}/kind", V2_QUESTION_KINDS)
+                # A format-1 lesson only has format-1 question kinds (mcq).
+                kind = question["kind"]
+                if format_1 and not (isinstance(kind, str) and kind in V1_QUESTION_KINDS):
+                    c.schema(f"{q}/kind", "is not a question kind of content format 1")
     if c.array(lesson["assets"], f"{path}/assets", 0, 200):
         for index, sha256 in enumerate(lesson["assets"]):
             c.string(sha256, f"{path}/assets/{index}", min_len=64, max_len=64, pattern=_SHA256)
@@ -612,6 +646,23 @@ def verify_pack(
     positions = [lesson["position"] for lesson in manifest["lessons"]]
     if positions != sorted(set(positions)):
         raise PackIntegrityError("manifest.structure", manifest_key)
+    # A lesson, a lesson revision and a question appear once in a pack; inside a
+    # lesson the questions are in ascending, distinct positions.
+    question_ids: list[str] = []
+    for name in ("lesson_id", "revision_id"):
+        values = [lesson[name] for lesson in manifest["lessons"]]
+        if len(set(values)) != len(values):
+            raise PackIntegrityError("manifest.duplicate", manifest_key)
+    for entry in manifest["lessons"]:
+        question_positions = [question["position"] for question in entry["questions"]]
+        if question_positions != sorted(set(question_positions)):
+            raise PackIntegrityError("manifest.duplicate", manifest_key)
+        question_ids.extend(question["id"] for question in entry["questions"])
+    if len(set(question_ids)) != len(question_ids):
+        raise PackIntegrityError("manifest.duplicate", manifest_key)
+    # The totals are recomputed, never believed: a phone budgets its download from them.
+    if manifest["totals"] != _totals(manifest["lessons"], manifest["assets"]):
+        raise PackIntegrityError("manifest.totals", manifest_key)
     for entry in manifest["lessons"]:
         key = lesson_object_key(entry["sha256"])
         if entry["object_key"] != key or entry["content_format"] > manifest["content_format"]:
@@ -658,6 +709,18 @@ def _verify_lesson_object(
         raise PackIntegrityError("lesson.mismatch", key)
     if validate_blocks(lesson["blocks"], lesson["content_format"]):
         raise PackIntegrityError("lesson.blocks", key)
+    # The negotiation rule on the object itself: a lesson declares exactly the
+    # smallest format that carries its blocks AND its question kinds. A lesson
+    # that says "format 1" therefore holds only the four format-1 block types
+    # and only 'mcq' questions - whatever the manifest says.
+    kinds: list[str] = []
+    for question in lesson["questions"]:
+        kind = question.get("kind") if isinstance(question, dict) else None
+        if not isinstance(kind, str) or kind not in V2_QUESTION_KINDS:
+            raise PackIntegrityError("lesson.questions", key)
+        kinds.append(kind)
+    if required_format(lesson["blocks"], kinds) != lesson["content_format"]:
+        raise PackIntegrityError("lesson.content_format", key)
     listed = [
         {name: q.get(name) for name in ("id", "question_key", "position", "kind")}
         if isinstance(q, dict)
@@ -667,6 +730,8 @@ def _verify_lesson_object(
     if listed != entry["questions"]:
         raise PackIntegrityError("lesson.mismatch", key)
     for question in lesson["questions"]:
+        # (ids and positions were compared with the manifest entry just above,
+        # where they are required to be unique)
         columns = {
             name: question.get(name)
             for name in ("prompt", "response_spec", "answer_key", "explanation")

@@ -23,6 +23,7 @@ from edu_api.content.pack import (
     BuiltPack,
     PackBuildError,
     PackIntegrityError,
+    _verify_lesson_object,
     asset_object_key,
     build_pack,
     lesson_object_key,
@@ -380,6 +381,14 @@ def test_a_tampered_manifest_is_rejected(tmp_path: Path, golden: BuiltPack) -> N
     assert rejected_with(canonical_json(lower), None) == "manifest.structure"
     dropped = json.loads(original)
     dropped["assets"].pop()
+    assert rejected_with(canonical_json(dropped), None) == "manifest.totals"
+    dropped["totals"]["assets"] -= 1  # even with totals made to agree
+    dropped["totals"]["optional_asset_bytes"] = sum(
+        a["bytes"] for a in dropped["assets"] if not a["required"]
+    )
+    dropped["totals"]["required_asset_bytes"] = sum(
+        a["bytes"] for a in dropped["assets"] if a["required"]
+    )
     assert rejected_with(canonical_json(dropped), None) in {"lesson.mismatch", "manifest.structure"}
     moved = json.loads(original)
     moved["pack"]["revision"] = 9
@@ -501,3 +510,147 @@ def test_manifest_validator_and_json_schema_agree_on_damaged_manifests(golden: B
 
 def test_the_vector_file_is_listed() -> None:
     assert (VECTORS / "pack-manifest.json").is_file()
+
+
+# ------------------------------------------------------------------ review H1 / M3: verifier
+class MemoryStorage:
+    """A stored pack held in a dictionary (the shape of vectors/pack-verify.json)."""
+
+    def __init__(self, objects: dict[str, bytes]) -> None:
+        self.objects = dict(objects)
+
+    def put(self, key: str, data: bytes) -> None:
+        self.objects[key] = data
+
+    def get(self, key: str) -> bytes:
+        if key not in self.objects:
+            raise StorageError(key)
+        return self.objects[key]
+
+    def exists(self, key: str) -> bool:
+        return key in self.objects
+
+
+def storage_of(case: dict[str, Any]) -> MemoryStorage:
+    return MemoryStorage({o["key"]: o["utf8"].encode("utf-8") for o in case["objects"]})
+
+
+@pytest.mark.parametrize("case", [pytest.param(c, id=c["id"]) for c in cases("pack-verify.json")])
+def test_pack_verify_vectors(case: dict[str, Any]) -> None:
+    storage, expected = storage_of(case), case["expect"]
+    manifest = json.loads(storage.get(case["manifest_key"]))
+    if expected == {"intact": True}:
+        assert verify_pack(storage, case["manifest_key"]) == manifest
+        assert schema_accepts("pack-manifest.v1.schema.json", manifest)
+        return
+    with pytest.raises(PackIntegrityError) as refused:
+        verify_pack(storage, case["manifest_key"])
+    assert refused.value.code == expected["error"]
+    # Every refused vector is self-consistent: hashes, sizes and keys all match,
+    # so it is the named rule that refuses it and nothing else.
+    for entry in manifest["lessons"]:
+        data = storage.get(entry["object_key"])
+        assert (sha256_hex(data), len(data)) == (entry["sha256"], entry["bytes"])
+        assert entry["object_key"] == lesson_object_key(entry["sha256"])
+    # The published schemas hold the phone to the structural part of the rule.
+    structural = expected["error"] == "manifest.structure"
+    assert schema_accepts("pack-manifest.v1.schema.json", manifest) == (not structural)
+    assert (validate_manifest(manifest) == []) == (not structural)
+
+
+def test_the_verify_vectors_cover_the_review_findings() -> None:
+    seen = {case["expect"].get("error") for case in cases("pack-verify.json")}
+    assert seen == {
+        None,
+        "manifest.structure",
+        "manifest.totals",
+        "manifest.duplicate",
+        "lesson.content_format",
+        "lesson.blocks",
+    }
+
+
+def test_a_lesson_object_never_carries_more_than_its_declared_format() -> None:
+    """Review H1, on the lesson object alone (schema and verifier), independent of the manifest."""
+    case = next(c for c in cases("pack-verify.json") if c["id"] == "v-ok-format-1")
+    storage = storage_of(case)
+    manifest = json.loads(storage.get(case["manifest_key"]))
+    entry = manifest["lessons"][0]
+    lesson = json.loads(storage.get(entry["object_key"]))
+    assert lesson["content_format"] == 1
+    assert schema_accepts("pack-lesson.v1.schema.json", lesson)
+
+    numeric = {
+        "prompt": {"text": "1 + 1 ?"},
+        "response_spec": {"allow_fraction": False},
+        "answer_key": {"scoring_version": "numeric-v1", "value": "2", "tolerance": "0"},
+        "explanation": {"text": "Deux."},
+    }
+    for kind, columns in (
+        ("numeric", numeric),
+        ("true_false", {**numeric, "response_spec": {}, "answer_key": {
+            "scoring_version": "true-false-v1", "correct": True}}),
+    ):  # fmt: skip
+        forged = json.loads(json.dumps(lesson))
+        forged["questions"][0] |= {"kind": kind, **columns}
+        assert not schema_accepts("pack-lesson.v1.schema.json", forged)
+        # Even with a manifest entry that (wrongly) agrees, the object is refused.
+        agreeing = json.loads(json.dumps(entry))
+        agreeing["questions"][0]["kind"] = kind
+        with pytest.raises(PackIntegrityError) as refused:
+            _verify_lesson_object(canonical_json(forged), "k", agreeing, "fr", {})
+        assert refused.value.code == "lesson.content_format"
+        forged["content_format"] = agreeing["content_format"] = 2
+        assert schema_accepts("pack-lesson.v1.schema.json", forged)
+        _verify_lesson_object(canonical_json(forged), "k", agreeing, "fr", {})
+
+    with_list = json.loads(json.dumps(lesson))
+    with_list["blocks"].append({"key": "l", "type": "list", "style": "bullet", "items": ["a"]})
+    assert not schema_accepts("pack-lesson.v1.schema.json", with_list)
+    with pytest.raises(PackIntegrityError, match=r"lesson\.blocks"):
+        _verify_lesson_object(canonical_json(with_list), "k", entry, "fr", {})
+    # A question whose kind is not a string / not known never reaches the format rule.
+    for odd in (None, ["mcq"], "matching", 1):
+        broken = json.loads(json.dumps(lesson))
+        broken["questions"][0]["kind"] = odd
+        with pytest.raises(PackIntegrityError):
+            _verify_lesson_object(canonical_json(broken), "k", entry, "fr", {})
+
+
+@pytest.mark.parametrize(
+    "title",
+    ["a\u0000b", "x\ty", "<script>alert(1)</script>", "a</b", "<!--", "ligne\ndeux", "\u007f"],
+)
+def test_a_lesson_title_is_plain_text_for_builder_and_verifier(title: str) -> None:
+    """Review M3."""
+    case = json.loads(json.dumps(case_by_id("v1-pack-one-lesson")))
+    case["input"]["lessons"][0]["title"] = title
+    with pytest.raises(PackBuildError) as refused:
+        build(case)
+    assert refused.value.code == "lesson.title"
+    manifest = json.loads(build(case_by_id("v1-pack-one-lesson")).manifest_bytes)
+    manifest["lessons"][0]["title"] = title
+    assert validate_manifest(manifest) != []
+    assert not schema_accepts("pack-manifest.v1.schema.json", manifest)
+
+
+def test_plain_titles_with_signs_still_build() -> None:
+    case = json.loads(json.dumps(case_by_id("v1-pack-one-lesson")))
+    case["input"]["lessons"][0]["title"] = "Comparer : 3 < 5 et 1/2 > 1/4 (\u00e9t\u00e9)"
+    assert build(case).manifest["lessons"][0]["title"].startswith("Comparer : 3 < 5")
+
+
+def test_golden_totals_are_what_the_verifier_recomputes(tmp_path: Path, golden: BuiltPack) -> None:
+    """Review M3 on a pack WITH assets: any single wrong total is refused."""
+    storage = stored(tmp_path, golden)
+    path = storage.root / golden.manifest_key
+    for name in golden.manifest["totals"]:
+        for delta in (1, -1):
+            wrong = json.loads(golden.manifest_bytes)
+            wrong["totals"][name] += delta
+            path.write_bytes(canonical_json(wrong))
+            with pytest.raises(PackIntegrityError) as refused:
+                verify_pack(storage, golden.manifest_key)
+            assert refused.value.code == "manifest.totals", name
+    path.write_bytes(golden.manifest_bytes)
+    assert verify_pack(storage, golden.manifest_key, golden.manifest_sha256) == golden.manifest
