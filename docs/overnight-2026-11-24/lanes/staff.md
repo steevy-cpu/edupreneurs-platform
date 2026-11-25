@@ -1,8 +1,8 @@
 # Lane STAFF — B1: shared platform interface
 
-Status: **B1 delivered and tested on the lane's local stack only.** Nothing here is deployed, linked
-to a hosted project or merged into `main`. B2 (editorial slice, role administration, worker, MFA
-design) is not started.
+Status: **B1 and B2 (editorial workflow, role administration, worker leasing) delivered and tested on
+the lane's local stack only.** Nothing here is deployed, linked to a hosted project or merged into
+`main`. A second factor for staff is **designed below and not implemented**.
 
 ## What exists after B1
 
@@ -325,6 +325,48 @@ Known gaps: no handler timeout (a handler that hangs keeps renewing its lease); 
 re-queue a dead job through an API; no metrics; no retention for completed jobs; the worker has no
 deployment unit (process manager, container) yet.
 
+## B2.4 — Second factor for staff (design only — NOT implemented, nothing is claimed)
+
+Today a staff member signs in with one factor, exactly like a learner. No code in this branch
+checks, requires or enrols a second factor. This section is the proposal to review.
+
+**Goal.** Every `/v1/staff` request must come from a session in which the person proved a second
+factor, so that a stolen password alone cannot edit, approve or publish content or change roles.
+
+**Mechanism (Supabase Auth MFA, TOTP).**
+
+1. *Token claim.* Supabase access tokens carry `aal` (`aal1` after a password, `aal2` after a
+   verified second factor) and `amr` (the methods used, with times). `edu_api.auth.verifier` already
+   verifies the token; `Principal` would gain `aal` and the time of the latest second-factor entry.
+2. *Enforcement in one place.* `require_staff` refuses a principal whose `aal` is not `aal2` with
+   **403 `mfa_required`** before any role lookup, and records the refusal (bounded, like other
+   denials). A setting `EDU_STAFF_REQUIRE_MFA` (default on outside `local`/`test`) controls it; the
+   learner routes are untouched.
+3. *Defence in depth in the database.* The API would also set a transaction-local `edu.actor_aal`
+   next to `edu.actor_id`, and `staff.require_role` would refuse unless it is `aal2`. A bug in one
+   route then cannot skip the check. (Same trust model as `edu.actor_id`.)
+4. *Step-up for dangerous actions.* Releasing or rolling back a pack and granting or revoking roles
+   would additionally require that the second factor was entered recently (proposal: 15 minutes),
+   answered with **403 `mfa_step_up_required`**.
+5. *Enrolment.* The staff client uses the Auth API directly (`/factors` enrol → QR code → verify).
+   An account can be given a staff role before it has a factor; it then gets `mfa_required` until it
+   enrols. Two factors per person are recommended (phone + spare).
+6. *Recovery.* No self-service recovery. A person who lost their device is identified out of band
+   by an admin, who removes the factor through an audited staff function (`staff.reset_mfa`, to be
+   written; it needs the Auth admin API, so it belongs to a server-side component that holds the
+   service key — not to the staff pool). The last admin's recovery is a database-owner procedure.
+7. *Sessions.* Shorter session lifetime and inactivity timeout for staff than for learners
+   (Auth project settings), and sign-out everywhere when a role is revoked.
+
+**What has to be decided by the owners (`BLOCKED_BY_OWNER`).** TOTP only, or also passkeys/WebAuthn;
+the step-up window; who may reset a factor and how identity is checked; whether a hosted Supabase
+plan with the needed MFA options is used; staff session lifetime.
+
+**Tests that would prove it** (none exist): an `aal1` token of a real staff member gets 403 on every
+staff route and 200 on learner routes; an `aal2` token passes; a forged `aal` claim cannot exist
+(signature); step-up window honoured; `staff.require_role` refuses without `edu.actor_aal = aal2`
+even when called directly on the staff connection; reset is audited and admin-only.
+
 ## Local environment
 
 `make db-reset` (or `uv run python scripts/local_stack.py env` followed by `… provision`) now also
@@ -357,7 +399,7 @@ See the module docstring of `tests/staff_fixtures.py` for the fixtures (`staff_a
 
 ## Known gaps (B1)
 
-- No second factor for staff (design is a B2 item; nothing is implemented or claimed).
+- No second factor for staff: designed in B2.4, **not implemented**.
 - No rate limit on refused staff requests: every refusal appends one audit row, so a signed-in
   account can grow `app.audit_events` by repeating a refused call. Belongs with the rate-limiting
   work of the notify/security lane.
