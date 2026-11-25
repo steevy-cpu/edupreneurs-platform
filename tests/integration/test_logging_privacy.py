@@ -334,3 +334,94 @@ async def test_logs_stay_clean_with_the_rate_limiter_and_notifications_on(
             str(uuid.UUID(int=0)),
         ):
             assert forbidden not in capture.text
+
+
+# ------------------------------------------------------------ real uvicorn (review L-1)
+_UVICORN_APPS: list[FastAPI] = []
+_UVICORN_SETTINGS: list[Any] = []
+
+
+def _uvicorn_factory() -> FastAPI:
+    application = create_app(_UVICORN_SETTINGS[0])
+    _UVICORN_APPS.append(application)
+    return application
+
+
+async def test_uvicorn_records_never_carry_the_request_target_in_json_mode(
+    local_env: dict[str, str],
+) -> None:
+    """Review L-1, driven through a REAL uvicorn server: a refused WebSocket handshake
+    makes uvicorn log the peer address and the raw request target (query string
+    included). In JSON mode none of that may reach the log; lifecycle lines still do."""
+    import asyncio
+    import socket
+
+    import uvicorn
+
+    names = ("uvicorn", "uvicorn.error", "uvicorn.access")
+    saved = [
+        (logging.getLogger(n), logging.getLogger(n).handlers[:], logging.getLogger(n).propagate)
+        for n in names
+    ]
+    _UVICORN_SETTINGS[:] = [
+        build_settings(local_env, log_format="json", notifications_enabled=True)
+    ]
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        port = probe.getsockname()[1]
+    # Configuring the Config is what installs uvicorn's own log handlers; the app
+    # factory then runs (as with `uvicorn --factory`) and switches them to JSON.
+    config = uvicorn.Config(
+        "tests.integration.test_logging_privacy:_uvicorn_factory",
+        factory=True,
+        host="127.0.0.1",
+        port=port,
+    )
+    buffer = io.StringIO()
+    for handler in logging.getLogger("uvicorn").handlers:
+        assert isinstance(handler, logging.StreamHandler)
+        handler.setStream(buffer)
+    server = uvicorn.Server(config)
+    serving = asyncio.create_task(server.serve())
+    try:
+        for _ in range(200):
+            if server.started:
+                break
+            await asyncio.sleep(0.05)
+        assert server.started
+        target = "/v1/ws?name=Jean-Baptiste&answer=quarante-deux&phone=50937001234"
+        reader, writer = await asyncio.open_connection("127.0.0.1", port)
+        writer.write(
+            (
+                f"GET {target} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: Upgrade\r\n"
+                "Upgrade: websocket\r\nSec-WebSocket-Version: 13\r\n"
+                "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n"
+            ).encode()
+        )
+        await writer.drain()
+        assert (await reader.read(64)).startswith(b"HTTP/1.1 ")
+        writer.close()
+        plain = await asyncio.open_connection("127.0.0.1", port)
+        plain[1].write(f"GET {target} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n".encode())
+        await plain[1].drain()
+        await plain[0].read(64)
+        plain[1].close()
+        await asyncio.sleep(0.2)
+    finally:
+        server.should_exit = True
+        await serving
+        for application in _UVICORN_APPS:
+            application.state.json_logging_undo()
+            await application.state.db.dispose()
+            if hasattr(application.state, "notify_db"):
+                await application.state.notify_db.dispose()
+        _UVICORN_APPS.clear()
+        for logger, handlers, propagate in saved:
+            logger.handlers[:] = handlers
+            logger.propagate = propagate
+    output = buffer.getvalue()
+    for planted in ("Jean-Baptiste", "quarante-deux", "50937001234", "/v1/ws", ' - "', "WebSocket"):
+        assert planted not in output, planted
+    lines = [json.loads(line) for line in output.splitlines()]
+    assert lines, "lifecycle lines are still logged"
+    assert any(line["message"].startswith("Started server process") for line in lines)

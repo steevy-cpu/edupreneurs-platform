@@ -1,8 +1,11 @@
 """Learner-facing notification routes (flag ``EDU_NOTIFICATIONS_ENABLED``, default off).
 
 The routes are always registered. With the flag off every one of them answers
-the same 404 as an unknown path — before authentication and before the body is
-looked at — and no notification database pool exists.
+the same 404 as an unknown path — before authentication, before the body is
+looked at and whatever the method — and no notification database pool exists.
+(The decision is made when the router MATCHES the request, see ``_FlagGatedRoute``:
+a dependency would run only after the framework had parsed the body, and a wrong
+method would answer 405.)
 
 Read my in-app list, read and replace my preferences. There is deliberately no
 route that creates a notification: only server code can (``notify.enqueue`` is
@@ -25,9 +28,12 @@ from contextlib import asynccontextmanager
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request
+from fastapi.routing import APIRoute
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 from sqlalchemy.ext.asyncio import AsyncConnection
+from starlette.routing import Match
+from starlette.types import Scope
 
 from edu_api.config import Settings
 from edu_api.db.session import Database, build_engine
@@ -75,6 +81,23 @@ def _require_enabled(request: Request) -> None:
         raise ApiError(404, "not_found", "Not Found")
 
 
+class _FlagGatedRoute(APIRoute):
+    """A route that does not exist at all while the flag is off.
+
+    Starlette asks every route ``matches(scope)`` before anything else happens: no
+    body parsing, no dependencies, no 405 for a wrong method. Reporting "no match"
+    makes the request fall through to the router's ordinary 404, exactly as for a
+    path nobody registered.
+    """
+
+    def matches(self, scope: Scope) -> tuple[Match, Scope]:
+        app = scope.get("app")
+        settings = getattr(getattr(app, "state", None), "settings", None)
+        if settings is None or not settings.notifications_enabled:
+            return Match.NONE, {}
+        return super().matches(scope)
+
+
 def _notify_db(request: Request) -> Database:
     database: Database = request.app.state.notify_db
     return database
@@ -111,7 +134,8 @@ def build_router(include_in_schema: bool) -> APIRouter:
     router = APIRouter(
         prefix="/v1",
         tags=["notifications"],
-        dependencies=[Depends(_require_enabled)],
+        route_class=_FlagGatedRoute,
+        dependencies=[Depends(_require_enabled)],  # belt and braces behind the route class
         include_in_schema=include_in_schema,
     )
 
