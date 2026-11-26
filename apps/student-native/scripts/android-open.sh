@@ -14,26 +14,34 @@ PACKAGE="ht.edupreneur.student.dev"
 ADB="$ANDROID_HOME/platform-tools/adb"
 APK="$APP_DIR/android/app/build/outputs/apk/debug/app-debug.apk"
 
-if ! "$ADB" devices | grep -q "emulator-.*device$"; then
-  echo "1/5 starting emulator $AVD_NAME (first boot of an old Android image takes a few minutes)"
-  nohup "$ANDROID_HOME/emulator/emulator" -avd "$AVD_NAME" -no-snapshot -no-boot-anim -no-audio \
-    > "${TMPDIR:-/tmp}/edupreneurs-emulator.log" 2>&1 < /dev/null &
-  "$ADB" wait-for-device
-else
-  echo "1/5 emulator already running"
-fi
-until [ "$("$ADB" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 2; done
+. "$APP_DIR/scripts/android-device.sh"
+: "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the intended device or emulator serial}"
+# Development normally uses make api (8000). Tests select their own checkout port.
+export EDU_MOBILE_TEST_API_PORT="${EDU_MOBILE_TEST_API_PORT:-8000}"
+TARGET=$(node "$APP_DIR/scripts/e2e-target.js" dev)
+read -r _ _ FASTAPI_PORT AUTH_PORT <<< "$TARGET"
 
-echo "2/5 forwarding the emulator's localhost to this Mac (Metro 8081, API 8000, Auth 54321)"
-for port in 8081 8000 54321; do "$ADB" reverse "tcp:$port" "tcp:$port" >/dev/null; done
+if ! select_android 2>/dev/null; then
+  [[ "$ANDROID_SERIAL" =~ ^emulator-([0-9]+)$ ]] || { echo "Selected device is unavailable" >&2; exit 1; }
+  port="${BASH_REMATCH[1]}"
+  nohup "$ANDROID_HOME/emulator/emulator" -avd "$AVD_NAME" -port "$port" -no-snapshot -no-boot-anim -no-audio \
+    > "${TMPDIR:-/tmp}/edupreneurs-emulator-$port.log" 2>&1 < /dev/null &
+  device_adb wait-for-device
+  select_android
+fi
+until [ "$(device_adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ]; do sleep 2; done
+
+echo "2/5 forwarding Metro and the verified backend ports"
+device_adb reverse tcp:8081 tcp:8081 >/dev/null
+android_backend reachable
 
 echo "3/5 checking the app is installed"
-if ! "$ADB" shell pm list packages | grep -q "$PACKAGE"; then
+if ! device_adb shell pm list packages | grep -q "$PACKAGE"; then
   if [ ! -f "$APK" ]; then
     echo "error: no debug build found. Build once with: make mobile-android" >&2
     exit 1
   fi
-  "$ADB" install -r "$APK" >/dev/null
+  device_adb install -r "$APK" >/dev/null
   echo "    installed app-debug.apk"
 fi
 
@@ -48,10 +56,5 @@ if ! curl -s --max-time 2 http://127.0.0.1:8081/status | grep -q running; then
 fi
 
 echo "5/5 launching the app"
-"$ADB" shell am force-stop "$PACKAGE"
-"$ADB" shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
-
-if ! curl -s --max-time 2 http://127.0.0.1:8000/ready | grep -q ready; then
-  echo "note: the API is not running. Start it in another terminal with: make api"
-fi
-echo "done. To stop: adb emu kill ; pkill -f 'expo start --port 8081'"
+device_adb shell am force-stop "$PACKAGE"
+device_adb shell monkey -p "$PACKAGE" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1

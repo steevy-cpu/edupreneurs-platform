@@ -10,6 +10,7 @@ import type { SyncEngine, SyncPhase, SyncReport } from '../core/sync/engine';
 import { createServices, Services } from '../platform/services';
 
 export interface SyncStatus {
+  serviceReachable: boolean | null;
   phase: SyncPhase;
   summary: SyncSummary;
   lastReport: SyncReport | null;
@@ -51,6 +52,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<ActiveSession | null>(null);
   const [needsReauth, setNeedsReauth] = useState(false);
   const [locale, setLocaleState] = useState<Locale>('fr');
+  const [serviceReachable, setServiceReachable] = useState<boolean | null>(null);
   const [phase, setPhase] = useState<SyncPhase>('idle');
   const [summary, setSummary] = useState<SyncSummary>(EMPTY_SUMMARY);
   const [lastReport, setLastReport] = useState<SyncReport | null>(null);
@@ -61,7 +63,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     (async () => {
       try {
-        const created = await createServices();
+        const created = await createServices(setServiceReachable);
         const restored = await created.sessions.restore();
         if (cancelled) return;
         setServices(created);
@@ -85,6 +87,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSummary(await active.account.syncSummary());
     setNeedsReauth(active.needsReauth());
     setLastReport(null);
+    setServiceReachable(null);
     setSession(active);
   }, []);
 
@@ -143,6 +146,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setNeedsReauth(false);
     setSummary(EMPTY_SUMMARY);
     setLastReport(null);
+    setServiceReachable(null);
     setPhase('idle');
     await services.sessions.signOut();
   }, [services]);
@@ -169,7 +173,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     needsReauth,
     locale,
     t,
-    sync: { phase, summary, lastReport },
+    sync: { phase, summary, lastReport, serviceReachable },
     api,
     setLocale,
     signIn,

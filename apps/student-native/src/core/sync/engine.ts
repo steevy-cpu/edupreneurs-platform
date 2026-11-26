@@ -25,6 +25,10 @@ export function wasUnreachable(report: SyncReport | null | undefined): boolean {
   return report?.outcome === 'offline' && report.serverAnswered !== true;
 }
 
+export function serviceUnreachable(status: { serviceReachable?: boolean | null; lastReport: SyncReport | null }): boolean {
+  return status.serviceReachable == null ? wasUnreachable(status.lastReport) : !status.serviceReachable;
+}
+
 export type SyncPhase = 'idle' | 'syncing' | 'waiting_to_retry';
 
 export interface SyncEngineOptions {

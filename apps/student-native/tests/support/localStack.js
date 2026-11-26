@@ -48,12 +48,14 @@ const PID_FILE = path.join(os.tmpdir(), `edu-mobile-test-api-${repoTag()}.pid`);
 const LOG_FILE = path.join(os.tmpdir(), `edu-mobile-test-api-${repoTag()}.log`);
 
 function readEnvFile(file) {
-  const values = {};
+  const values = Object.create(null);
   if (!fs.existsSync(file)) return values;
   for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
     if (!line.trim() || line.trim().startsWith('#') || !line.includes('=')) continue;
     const index = line.indexOf('=');
-    values[line.slice(0, index).trim()] = line.slice(index + 1).trim();
+    const name = line.slice(0, index).trim();
+    if (name in values || !/^[a-z_][a-z0-9_]*$/i.test(name)) throw new Error('Ambiguous environment file');
+    values[name] = line.slice(index + 1).trim();
   }
   return values;
 }
@@ -83,78 +85,64 @@ function parseSupabaseConfig(text) {
   return out;
 }
 
-function dockerContainerRunning(name) {
-  try {
-    const out = execFileSync('docker', ['ps', '--filter', `name=^${name}$`, '--format', '{{.Names}}'], {
-      encoding: 'utf8',
-    });
-    return out.split('\n').map((s) => s.trim()).includes(name);
-  } catch {
-    return false;
+function publishedPorts(container, internal) {
+  const format = `{{json (index .NetworkSettings.Ports "${internal}/tcp")}}`;
+  const bindings = JSON.parse(execFileSync('docker', ['inspect', '--format', format, container], { encoding: 'utf8' }));
+  return (bindings ?? []).filter((binding) => ['0.0.0.0', '127.0.0.1', '::'].includes(binding.HostIp))
+    .map((binding) => Number(binding.HostPort));
+}
+
+const ENDPOINTS = {
+  LOCAL_ADMIN_DATABASE_URL: ['postgresql:', 'dbPort', '/postgres'],
+  EDU_DATABASE_URL: ['postgresql+asyncpg:', 'dbPort', '/postgres'],
+  LOCAL_SUPABASE_URL: ['http:', 'apiPort', '/'],
+  EDU_AUTH_ISSUER: ['http:', 'apiPort', '/auth/v1'],
+  EDU_AUTH_JWKS_URL: ['http:', 'apiPort', '/auth/v1/.well-known/jwks.json'],
+};
+
+function validateEndpoint(name, value, protocol, port, pathname, hosts = ['127.0.0.1', 'localhost']) {
+  let url;
+  try { url = new URL(value); } catch { throw new Error(`${name} is missing or invalid`); }
+  if (!hosts.includes(url.hostname)) throw new Error(`${name} is not this machine`);
+  if (url.protocol !== protocol || Number(url.port) !== port || url.pathname !== pathname ||
+      url.search || url.hash || (protocol === 'http:' && (url.username || url.password))) {
+    throw new Error(`${name} does not match the verified endpoint on port ${port}`);
   }
 }
 
-/**
- * Work out which stack the harness may touch, or throw. Pure apart from `isRunning`
- * (injectable so the logic is testable without Docker).
- *
- *   configText  contents of this repository's supabase/config.toml
- *   env         parsed root .env
- *   processEnv  environment variables (EDU_TEST_ALLOW_SHARED_STACK)
- *   isRunning   (containerName) => boolean
- */
-function deriveTarget({ configText, env, processEnv = process.env, isRunning = dockerContainerRunning }) {
+function deriveTarget({ configText, env, processEnv = process.env, getPorts = publishedPorts }) {
   const config = parseSupabaseConfig(configText);
-  if (!config.projectId) throw new Error('supabase/config.toml has no project_id; refusing to run the test harness.');
-  if (!config.dbPort || !config.apiPort) {
-    throw new Error('supabase/config.toml has no [api] / [db] port; refusing to run the test harness.');
+  if (!config.projectId) throw new Error('supabase/config.toml has no project_id');
+  if (config.projectId === SHARED_PROJECT_ID || !/^[a-zA-Z0-9_-]+$/.test(config.projectId)) {
+    throw new Error('Refusing shared stack or invalid project_id. Use a separate worktree with its own project_id.');
   }
-  if (config.projectId === SHARED_PROJECT_ID && processEnv.EDU_TEST_ALLOW_SHARED_STACK !== '1') {
-    throw new Error(
-      `supabase/config.toml project_id is the shared stack "${SHARED_PROJECT_ID}". The test harness TRUNCATEs ` +
-        'learning tables, so it refuses to run there. Use your own stack, or set EDU_TEST_ALLOW_SHARED_STACK=1 ' +
-        'if you really mean it (the recommended way is a separate worktree with its own project_id).',
-    );
-  }
-
-  const adminUrl = env.LOCAL_ADMIN_DATABASE_URL;
-  if (!adminUrl) throw new Error('LOCAL_ADMIN_DATABASE_URL is missing from the root .env; refusing to run.');
-  let admin;
-  try {
-    admin = new URL(adminUrl);
-  } catch {
-    throw new Error('LOCAL_ADMIN_DATABASE_URL in the root .env is not a valid URL; refusing to run.');
-  }
-  if (!['127.0.0.1', 'localhost'].includes(admin.hostname)) {
-    throw new Error('LOCAL_ADMIN_DATABASE_URL is not this machine; refusing to run.');
-  }
-  if (Number(admin.port) !== config.dbPort) {
-    throw new Error(
-      `Root .env database port ${admin.port || '(none)'} does not match supabase/config.toml [db] port ` +
-        `${config.dbPort}. The .env belongs to another stack; run \`make db-reset\` in this checkout. Refusing to run.`,
-    );
-  }
-  if (env.LOCAL_SUPABASE_URL) {
-    const api = new URL(env.LOCAL_SUPABASE_URL);
-    if (Number(api.port) !== config.apiPort) {
-      throw new Error(
-        `LOCAL_SUPABASE_URL port ${api.port || '(none)'} does not match supabase/config.toml [api] port ` +
-          `${config.apiPort}. Refusing to run.`,
-      );
+  const fastApiPort = resolveApiPort(processEnv);
+  if (new Set([fastApiPort, config.apiPort, config.dbPort]).size !== 3) throw new Error('Conflicting stack ports');
+  for (const [name, [protocol, portKey, pathname]] of Object.entries(ENDPOINTS)) {
+    // Pydantic settings are case insensitive. Validate all spellings before a child can inherit them.
+    for (const source of [env, processEnv]) {
+      for (const key of Object.keys(source)) {
+        if (key.toUpperCase() === name && (key !== name || source[key] !== env[name])) {
+          throw new Error(`Conflicting environment override for ${name}`);
+        }
+      }
     }
+    validateEndpoint(name, env[name], protocol, parsePort(config[portKey], name), pathname);
   }
-
   const dbContainer = `supabase_db_${config.projectId}`;
   const kongContainer = `supabase_kong_${config.projectId}`;
-  if (!isRunning(dbContainer)) {
-    throw new Error(`Database container ${dbContainer} is not running. Start this checkout's stack: \`make start\`.`);
+  for (const [container, internal, expected] of [[dbContainer, 5432, config.dbPort], [kongContainer, 8000, config.apiPort]]) {
+    const ports = getPorts(container, internal);
+    if (!ports.length || ports.some((port) => port !== expected)) {
+      throw new Error(`${container} does not publish the verified port ${expected}`);
+    }
   }
-  return { projectId: config.projectId, dbContainer, kongContainer, dbPort: config.dbPort, apiPort: config.apiPort };
+  return { projectId: config.projectId, dbContainer, kongContainer, dbPort: config.dbPort, apiPort: config.apiPort, fastApiPort };
 }
 
-function deriveRepoTarget() {
+function deriveRepoTarget(env = readRootEnv()) {
   const configText = fs.readFileSync(path.join(REPO_ROOT, 'supabase', 'config.toml'), 'utf8');
-  return deriveTarget({ configText, env: readRootEnv() });
+  return deriveTarget({ configText, env });
 }
 
 const TRUNCATE_SQL =
@@ -181,21 +169,10 @@ function assertPortFree(port) {
             'Stop it, or choose a free port with EDU_MOBILE_TEST_API_PORT.',
         ),
       );
-    const socket = net.connect({ host: '127.0.0.1', port });
-    socket.setTimeout(2000);
-    socket.once('connect', () => {
-      socket.destroy();
-      taken();
-    });
-    socket.once('timeout', () => {
-      socket.destroy();
-      taken();
-    });
-    socket.once('error', (error) => {
-      socket.destroy();
-      if (error.code === 'ECONNREFUSED') resolve();
-      else reject(error);
-    });
+    // Bind locally instead of opening a connection to an unknown listener.
+    const probe = net.createServer();
+    probe.once('error', (error) => error.code === 'EADDRINUSE' ? taken() : reject(error));
+    probe.listen(port, '127.0.0.1', () => probe.close((error) => error ? reject(error) : resolve()));
   });
 }
 
@@ -226,7 +203,7 @@ async function awaitOwnApi({
     if (/address already in use|errno 98|errno 48/i.test(log)) {
       fail(`The test API could not bind port ${port} (already in use). Set EDU_MOBILE_TEST_API_PORT to a free port.`);
     }
-    if (log.includes('Uvicorn running on') && log.includes(`:${port}`)) {
+    if (log.includes(`Uvicorn running on http://127.0.0.1:${port} `)) {
       try {
         const response = await fetchFn(`http://127.0.0.1:${port}/ready`);
         if (response.ok) return;
@@ -244,5 +221,5 @@ async function awaitOwnApi({
 module.exports = {
   assertPortFree, awaitOwnApi, defaultApiPort, resolveApiPort, API_URL,
   REPO_ROOT, API_PORT, PID_FILE, LOG_FILE, SHARED_PROJECT_ID, readRootEnv,
-  parseSupabaseConfig, deriveTarget, deriveRepoTarget, resetLearningState, repoTag, TRUNCATE_SQL,
+  validateEndpoint, readEnvFile, parseSupabaseConfig, deriveTarget, deriveRepoTarget, resetLearningState, repoTag, TRUNCATE_SQL,
 };

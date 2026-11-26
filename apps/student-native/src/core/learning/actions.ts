@@ -2,7 +2,7 @@ import { ApiClient } from '../api/client';
 import type { Locale, PracticeQuestion } from '../api/types';
 import { validateLessonSnapshot } from '../api/validate';
 import { AccountStore, LessonRef } from '../db/accountStore';
-import { ContentStore, SavedLessonInfo } from '../db/contentStore';
+import { ContentStore, DownloadOutcome, SavedLessonInfo } from '../db/contentStore';
 
 export interface Environment {
   /** RFC 4122 v4 UUID, lower case. */
@@ -92,7 +92,7 @@ export function completeLesson(
 export interface SaveLessonResult {
   revisionId: string;
   /** 'new' first save, 'updated' a different revision replaced the saved one, 'unchanged' same revision. */
-  outcome: 'new' | 'updated' | 'unchanged';
+  outcome: DownloadOutcome;
 }
 
 /**
@@ -109,14 +109,16 @@ export async function saveLessonOffline(
   locale: Locale,
   env: Pick<Environment, 'now'>,
 ): Promise<SaveLessonResult> {
-  const previous = await content.getLessonInfo(lessonId, locale);
-  const downloaded = await api.getLesson(lessonId, locale);
-  const snapshot = validateLessonSnapshot(downloaded, { lessonId, locale });
-  if (previous && previous.revisionId === snapshot.revision_id) {
-    return { revisionId: snapshot.revision_id, outcome: 'unchanged' };
+  const token = await content.beginDownload(lessonId, locale);
+  try {
+    const snapshot = validateLessonSnapshot(await api.getLesson(lessonId, locale), { lessonId, locale });
+    const outcome = await content.replaceLesson(snapshot, env.now().toISOString(), token);
+    return { revisionId: snapshot.revision_id, outcome };
+  } catch (error) {
+    const gone = (error as { status?: number } | null)?.status === 404;
+    await content.finishFailedDownload(lessonId, locale, token, gone ? env.now().toISOString() : null);
+    throw error;
   }
-  await content.replaceLesson(snapshot, env.now().toISOString());
-  return { revisionId: snapshot.revision_id, outcome: previous ? 'updated' : 'new' };
 }
 
 /** Fetch the catalog and cache it. Screens read the cache; this only refreshes it. */

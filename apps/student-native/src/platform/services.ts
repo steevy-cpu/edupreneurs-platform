@@ -22,7 +22,7 @@ export interface Services {
 }
 
 /** Wires the platform adapters into the core. Called once at app start. */
-export async function createServices(): Promise<Services> {
+export async function createServices(onReachability: (reachable: boolean) => void): Promise<Services> {
   const config = loadConfig();
   const sessions = new SessionManager({
     auth: new SupabaseAuthClient({
@@ -38,6 +38,7 @@ export async function createServices(): Promise<Services> {
   const apiFor = (session: ActiveSession) =>
     new ApiClient({
       baseUrl: config.apiUrl,
+      onReachability: (reachable) => { if (session.isActive()) onReachability(reachable); },
       sessionSignal: session.signal,
       getAccessToken: (options) => sessions.accessToken(session, options),
     });

@@ -105,6 +105,7 @@ export default function Quiz() {
   if (!loaded && failure) {
     const reasonText = {
       offline: t('readerFailOffline'),
+      service: t('readerFailService'),
       not_found: t('readerFailNotFound'),
       session: t('readerFailSession'),
       invalid: t('readerFailInvalid'),

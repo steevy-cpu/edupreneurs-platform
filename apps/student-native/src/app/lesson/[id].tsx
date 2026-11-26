@@ -163,6 +163,7 @@ export default function LessonReader() {
   if (lesson === null && failure) {
     const reasonText = {
       offline: t('readerFailOffline'),
+      service: t('readerFailService'),
       not_found: t('readerFailNotFound'),
       session: t('readerFailSession'),
       invalid: t('readerFailInvalid'),
@@ -227,7 +228,11 @@ export default function LessonReader() {
     if (!app.api || downloadState === 'busy') return;
     setDownloadState('busy');
     try {
-      await downloadForOffline(app.api, app.services.content, lesson.lessonId, lesson.locale, app.services.env);
+      const result = await downloadForOffline(app.api, app.services.content, lesson.lessonId, lesson.locale, app.services.env);
+      if (result.outcome === 'superseded') {
+        setDownloadState('idle');
+        return;
+      }
       setDownloadState('done'); // set only after the local transaction committed
       if (lesson.source === 'downloaded') setAttempt((n) => n + 1); // an update: reload the new revision
     } catch {

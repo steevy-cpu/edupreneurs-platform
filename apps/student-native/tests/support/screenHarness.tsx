@@ -118,7 +118,7 @@ export interface FakeApp {
   needsReauth: boolean;
   locale: Locale;
   t: ReturnType<typeof translator>;
-  sync: { phase: 'idle' | 'syncing' | 'waiting_to_retry'; summary: SyncSummary; lastReport: SyncReport | null };
+  sync: { serviceReachable?: boolean | null; phase: 'idle' | 'syncing' | 'waiting_to_retry'; summary: SyncSummary; lastReport: SyncReport | null };
   /** Null = signed out of the network. Tests that read online install a fake with `getLesson`. */
   api: { getLesson(lessonId: string, locale: Locale): Promise<LessonResponse> } | null;
   calls: string[];
