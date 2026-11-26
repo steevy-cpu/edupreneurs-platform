@@ -209,6 +209,9 @@ export default function Home() {
       {reauth}
 
       <HeroCard>
+        <AppText variant="label" color="textOnHeroSecondary">
+          {t('homeLessonHeading')}
+        </AppText>
         {context ? (
           <AppText variant="caption" color="textOnHeroSecondary">
             {context.subjectLabel} · {context.gradeCode} · {t('lessonNumber', { number: context.lessonNumber })}

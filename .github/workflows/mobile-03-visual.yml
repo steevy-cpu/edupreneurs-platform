@@ -1,0 +1,155 @@
+name: Mobile-03 Android visual evidence
+
+# A pull-request run exercises the workflow before it is on the default branch.
+# workflow_dispatch is also available once GitHub registers the workflow there.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/mobile-03-visual.yml'
+      - 'apps/student-native/**'
+      - 'docs/design/mobile-03/**'
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: ${{ matrix.build }} — API 24
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        build: [baseline, candidate]
+    env:
+      EDU_MOBILE_TEST_API_PORT: '28001'
+      EXPO_PUBLIC_FF_ONBOARDING: '0'
+      EXPO_PUBLIC_FF_TOUR: '0'
+      EXPO_PUBLIC_FF_ONBOARDING_SYNC: '0'
+      EXPO_PUBLIC_FF_DAILY_WORD: '0'
+      EXPO_PUBLIC_FF_REWARDS: '0'
+      EXPO_PUBLIC_FF_LEADERBOARD_REVIEW: '0'
+      EXPO_PUBLIC_DESIGN_PREVIEW: '0'
+    steps:
+      - name: Checkout the capture harness at the candidate commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: harness
+      - name: Checkout the exact source to build
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.build == 'baseline' && '4abb2e241c9909aee7c191d05b70307f851eb154' || (github.event.pull_request.head.sha || github.sha) }}
+          path: source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: astral-sh/setup-uv@v5
+      - name: Install pinned project dependencies and create a disposable stack
+        working-directory: source
+        run: |
+          set -euo pipefail
+          python3 -c 'from pathlib import Path; import os; p=Path("supabase/config.toml"); s=p.read_text().replace("project_id = \"mon-edupreneur\"", "project_id = \"mobile03-ci-"+os.environ["GITHUB_RUN_ID"]+"-"+os.environ["GITHUB_RUN_ATTEMPT"]+"\""); p.write_text(s)'
+          npm ci --no-fund --no-audit
+          uv sync --frozen
+          make start > "$RUNNER_TEMP/mobile03-stack.log" 2>&1
+          uv run python scripts/local_stack.py env
+          uv run python scripts/local_stack.py provision
+          uv run python scripts/mobile_env.py ios-sim
+          cd apps/student-native
+          npm ci --no-fund --no-audit
+          npm run typecheck
+          npx tsc --noEmit -p tests
+      - name: Run the hardened full mobile suite
+        working-directory: source/apps/student-native
+        run: npx jest --runInBand
+      - name: Generate a clean Android release build
+        working-directory: source/apps/student-native
+        env:
+          NODE_ENV: production
+        run: |
+          set -euo pipefail
+          npx expo prebuild --platform android --no-install
+          cd android
+          ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --console=plain
+      - name: Install Maestro
+        run: |
+          set -euo pipefail
+          export MAESTRO_VERSION=2.12.1
+          curl -fsSL https://get.maestro.mobile.dev | bash
+          "$HOME/.maestro/bin/maestro" --version
+          mkdir -p source/.tools
+          ln -s "$HOME/.maestro" source/.tools/maestro
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run real native flows on a disposable API 24 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          BUILD_KIND: ${{ matrix.build }}
+        with:
+          api-level: 24
+          target: default
+          arch: x86_64
+          ram-size: 1024M
+          force-avd-creation: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          disable-animations: true
+          script: bash "$GITHUB_WORKSPACE/harness/apps/student-native/scripts/mobile03-hosted-capture.sh" "$GITHUB_WORKSPACE/source" "$GITHUB_WORKSPACE/evidence" "$BUILD_KIND"
+      - name: Upload capture evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile03-${{ matrix.build }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            evidence/capture-manifest.json
+            evidence/commit.txt
+            evidence/build.txt
+            evidence/apk-bytes.txt
+            evidence/cold-start-*.txt
+            evidence/meminfo.txt
+            evidence/api.txt
+            evidence/size.txt
+            evidence/density.txt
+            evidence/runs/*/result.txt
+            evidence/runs/*/run.*/shots/*.png
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Stop this runner's isolated stack
+        if: always()
+        working-directory: source
+        run: npx --no-install supabase stop --no-backup
+
+  compare:
+    name: Pair verified captures
+    needs: capture
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mobile03-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence
+      - name: Create contact sheets from matching successful captures
+        run: |
+          set -euo pipefail
+          python3 -m pip install 'Pillow==11.3.0'
+          python3 docs/design/mobile-03/make-comparisons.py \
+            "evidence/mobile03-baseline-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            "evidence/mobile03-candidate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            comparisons
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile03-comparisons-${{ github.run_id }}-${{ github.run_attempt }}
+          path: comparisons/
+          if-no-files-found: error
+          retention-days: 30
