@@ -11,6 +11,7 @@ import subprocess
 import tomllib
 from pathlib import Path
 from urllib.parse import urlsplit
+from urllib.request import getproxies_environment
 
 from local_stack import ROOT, read_env_file
 
@@ -81,6 +82,12 @@ def layout() -> tuple[str, int, int]:
 
 
 def validate_urls(env: dict[str, str], api: int, db: int) -> None:
+    proxies = getproxies_environment()
+    excluded = {part.strip() for part in proxies.get("no", "").split(",")}
+    if any(proxies.get(k) for k in ("http", "all")) and not excluded.intersection(
+        {"*", "127.0.0.1"}
+    ):
+        raise ValueError("loopback must bypass HTTP proxies for synthetic Auth tests")
     if env.get("EDU_ENVIRONMENT") not in {"local", "test"}:
         raise ValueError("unexpected .env environment")
     expected = {

@@ -112,6 +112,8 @@ You do **not** need a Supabase account, a cloud project, or any secret from anyo
 ### First-time setup
 
 ```bash
+# In a fresh checkout dedicated to disposable tests:
+uv run python scripts/disposable.py configure
 make setup
 ```
 
@@ -167,7 +169,7 @@ Details: `docs/ARCHITECTURE.md` and `docs/SECURITY.md`.
 ## Safety rules for this repository
 
 - **Local only.** Never run `supabase link`, `supabase db push`, or `supabase db reset --remote` from here.
-- `make db-reset` only ever targets the local Docker database.
+- `make db-reset` requires this checkout’s verified disposable Docker database. See the [staging and restore runbook](docs/infra/staging-00/runbook.md).
 - Never commit `.env` or `supabase/signing_keys.json` (both are git-ignored).
 - All data is synthetic. Do not load real student data into a development database.
 - The earlier web proof of concept (built on Lovable) is a separate project: nothing here connects to it.

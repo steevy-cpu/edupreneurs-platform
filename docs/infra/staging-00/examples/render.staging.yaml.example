@@ -4,7 +4,7 @@ services:
     name: edupreneurs-staging-api
     runtime: python
     region: virginia
-    plan: starter
+    plan: 0.5c-512mb
     numInstances: 1
     autoDeployTrigger: "off"
     buildCommand: uv sync --locked --no-dev

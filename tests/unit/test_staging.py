@@ -81,3 +81,35 @@ def test_release_history_and_private_log_args() -> None:
         "uvicorn.error", logging.ERROR, "", 1, "untrusted %s", ("private",), None
     )
     assert EventFormatter().format(record) == '{"level": "ERROR", "event": "service_event"}'
+
+
+def test_disposable_identity_and_bindings_fail_before_db_access(tmp_path, monkeypatch):
+    import disposable
+
+    original = disposable.CONFIG.read_text()
+    # Use an in-memory copy of the unconfigured layout, independent of the developer's ports.
+    config = tmp_path / "config.toml"
+    config.write_text(
+        'project_id="mon-edupreneur"\n[api]\nport=54321\n[db]\nport=54322\n'
+        "shadow_port=54320\n[studio]\nport=54323\n"
+    )
+    monkeypatch.setattr(disposable, "CONFIG", config)
+    with pytest.raises(ValueError, match="disposable project"):
+        disposable.layout()
+    config.write_text(original.replace('project_id = "', 'project_id = "another-'))
+    with pytest.raises(ValueError, match="disposable project"):
+        disposable.layout()
+    monkeypatch.setattr(disposable, "layout", lambda: ("edu-test-synthetic", 32501, 32502))
+    monkeypatch.setattr(disposable, "ROOT", tmp_path)
+    monkeypatch.delenv("DOCKER_CONTEXT", raising=False)
+    monkeypatch.setenv("DOCKER_HOST", "tcp://elsewhere.invalid:2376")
+    with pytest.raises(ValueError, match="local Docker socket"):
+        disposable.verify()
+    monkeypatch.setenv("DOCKER_HOST", "unix:///var/run/docker.sock")
+    monkeypatch.setattr(
+        disposable.subprocess,
+        "check_output",
+        lambda *a, **kw: '{"5432/tcp":[{"HostPort":"54322"}]}',
+    )
+    with pytest.raises(ValueError, match="binding"):
+        disposable.verify()

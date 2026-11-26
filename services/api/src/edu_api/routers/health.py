@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import text
 
-from edu_api.db.staging import SECURITY_SQL
+from edu_api.db.staging import assert_database
 from edu_api.deps import Db
 
 logger = logging.getLogger("edu_api.health")
@@ -42,12 +42,7 @@ async def ready(db: Db, request: Request) -> JSONResponse:
     try:
         async with asyncio.timeout(3), db.transaction(None, read_only=True) as conn:
             if request.app.state.settings.environment == "staging":
-                checks = (await conn.execute(text(SECURITY_SQL))).one()
-                if (
-                    not all(checks)
-                    or await conn.scalar(text("SELECT current_user")) != "edu_api_login"
-                ):
-                    raise ValueError("database staging invariants failed")
+                await assert_database(conn)
             else:
                 await conn.execute(text("SELECT 1"))
     except Exception as exc:  # readiness must never raise: report "not ready" instead

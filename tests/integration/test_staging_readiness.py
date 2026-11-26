@@ -1,9 +1,8 @@
 """Run the hosted /ready policy through the real least-privilege login on a disposable DB."""
 
 import httpx
+import pytest
 from fastapi import FastAPI
-
-from edu_api.db.staging import SECURITY_SQL
 
 
 async def test_staging_readiness_policy(
@@ -13,9 +12,11 @@ async def test_staging_readiness_policy(
     monkeypatch.setattr(app.state.settings, "environment", "staging")
     assert (await client.get("/ready")).status_code == 200
     # Deterministic degraded dependency without modifying a shared catalog or its ACLs.
-    monkeypatch.setattr("edu_api.routers.health.SECURITY_SQL", "SELECT false")
+    monkeypatch.setattr("edu_api.db.staging.SECURITY_SQL", "SELECT false")
     response = await client.get("/ready")
     assert response.status_code == 503
     assert response.json()["checks"] == {"database": "unavailable"}
     assert (await client.get("/health")).status_code == 200
-    assert "temp_revoked" in SECURITY_SQL
+    with pytest.raises(ValueError, match="invariants"):
+        async with app.router.lifespan_context(app):
+            pytest.fail("unsafe staging startup was accepted")

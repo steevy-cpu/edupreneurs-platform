@@ -1,7 +1,11 @@
 """Staging policy is checked by the serving process, independently of deployment tooling."""
 
+import re
 from pathlib import Path
 from urllib.parse import urlsplit
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncConnection
 
 from edu_api.config import Settings
 
@@ -29,8 +33,6 @@ def validate_hosted_dsn(value: str, project: str, role: str, scheme: str) -> Non
 
 
 def validate_runtime(settings: Settings) -> None:
-    import re
-
     if settings.environment == "production":
         raise ValueError("production has no approved deployment profile")
     if settings.environment in {"local", "test"}:
@@ -65,3 +67,9 @@ def validate_runtime(settings: Settings) -> None:
     validate_hosted_dsn(
         settings.database_url.get_secret_value(), project, "edu_api_login", "postgresql+asyncpg"
     )
+
+
+async def assert_database(conn: AsyncConnection) -> None:
+    checks = (await conn.execute(text(SECURITY_SQL))).one()
+    if not all(checks) or await conn.scalar(text("SELECT current_user")) != "edu_api_login":
+        raise ValueError("database staging invariants failed")

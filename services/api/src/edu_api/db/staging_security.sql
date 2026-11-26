@@ -42,4 +42,13 @@ SELECT
      (NOT coalesce(proconfig @> ARRAY['search_path=""'], false) OR
       (prosecdef AND pg_get_userbyid(proowner) <> 'postgres') OR
       has_function_privilege('anon',oid,'EXECUTE') OR
-      has_function_privilege('authenticated',oid,'EXECUTE'))) AS functions
+      has_function_privilege('authenticated',oid,'EXECUTE'))) AS functions,
+  NOT EXISTS (
+      SELECT FROM app_tables t JOIN pg_attribute a ON a.attrelid = t.oid
+      WHERE a.attnum > 0 AND NOT a.attisdropped AND (
+        has_column_privilege('edu_api_login', t.oid, a.attnum, 'UPDATE,REFERENCES') OR
+        (has_column_privilege('edu_api_login', t.oid, a.attnum, 'INSERT') AND
+         (t.relname, a.attname) <> ('learner_profiles','user_id'))))
+    AND has_column_privilege('edu_api_login','app.learner_profiles','user_id','INSERT')
+    AS column_writes,
+    current_setting('server_version_num')::int / 10000 = 17 AS pg_major
