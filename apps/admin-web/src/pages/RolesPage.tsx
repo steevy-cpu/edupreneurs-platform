@@ -83,7 +83,7 @@ export function RolesPage() {
         <TableWrap label="Sections visibles par rôle">
           <table className="data matrix">
             <caption>Section × rôle</caption>
-            <thead><tr><th scope="col">Section</th>{ROLES.map((r) => <th key={r} scope="col" className={focus(r)}>{ROLE_INFO[r].label}</th>)}<th scope="col">Base de la dérivation</th></tr></thead>
+            <thead><tr><th scope="col">Section</th>{ROLES.map((r) => <th key={r} scope="col" className={focus(r)}>{ROLE_INFO[r].label}{ROLE_INFO[r].state === 'proposed' && ' (proposé)'}</th>)}<th scope="col">Base de la dérivation</th></tr></thead>
             <tbody>
               {MODULES.map((m) => (
                 <tr key={m.id}>
@@ -112,7 +112,7 @@ export function RolesPage() {
             </li>
           ))}
         </ul>
-        <p className="muted small">Ces règles sont appliquées <strong>côté serveur, en SQL</strong>, pas dans l’interface. Ce prototype les reproduit seulement pour les montrer.</p>
+        <p className="muted small">Cet aperçu simule ces règles. Avant toute connexion réelle, chaque règle devra être vérifiée côté serveur, y compris les contrôles encore proposés.</p>
       </section>
     </>
   );

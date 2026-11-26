@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { StatusBadge } from '../components/StatusBadge';
 import { Badge, Notice, TableWrap } from '../components/ui';
 import { canPublish, lessonTitle, type Revision } from '../domain/editorial';
+import { levelFor } from '../domain/roles';
 import { fmtDateTime, fmtNumber } from '../i18n/format';
 import { useRolePreview } from '../state/RolePreview';
 import { useEditorial } from '../state/Services';
@@ -14,6 +15,8 @@ function estimateBytes(revs: Revision[]): number {
 export function PublicationPage() {
   const { state } = useEditorial();
   const { persona } = useRolePreview();
+  const audit = levelFor(persona.roles, 'audit.read');
+  const receipts = state.receipts.filter(r => audit === 'yes' || (audit === 'limited' && r.actorId === persona.id));
   const ready = state.revisions.filter((r) => r.status === 'approved');
   const live = state.revisions.filter((r) => r.status === 'published');
   const withdrawn = state.revisions.filter((r) => r.status === 'withdrawn');
@@ -54,8 +57,8 @@ export function PublicationPage() {
       </section>
       <section className="card" aria-labelledby="p-log">
         <h2 id="p-log">Reçus d’audit de cette session (synthétiques)</h2>
-        {state.receipts.length === 0 ? <p className="empty">Aucune action pour l’instant.</p> : (
-          <ol className="history">{state.receipts.map((r) => <li key={r.id}><code>{r.id}</code> {fmtDateTime(r.at)} · {r.actor} · {r.action} · {r.target}{r.reason ? ` — ${r.reason}` : ''}</li>)}</ol>
+        {receipts.length === 0 ? <p className="empty">Aucune action pour l’instant.</p> : (
+          <ol className="history">{receipts.map((r) => <li key={r.id}><code>{r.id}</code> {fmtDateTime(r.at)} · {r.actor} · {r.action} · {r.target}{r.reason ? ` — ${r.reason}` : ''}</li>)}</ol>
         )}
         <p className="small muted">Un vrai journal d’audit est écrit par le serveur, jamais par le navigateur.</p>
       </section>

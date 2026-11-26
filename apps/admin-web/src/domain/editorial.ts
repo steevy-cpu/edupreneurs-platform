@@ -46,6 +46,7 @@ export interface Receipt {
   id: string;
   action: string;
   target: string;
+  actorId: string;
   actor: string;
   at: string;
   reason?: string;
@@ -63,7 +64,7 @@ export type Command =
   | { type: 'add_source'; revisionId: string; source: Omit<SourceRef, 'id'> }
   | { type: 'set_rights'; revisionId: string; sourceId: string; rights: RightsStatus }
   | { type: 'remove_source'; revisionId: string; sourceId: string }
-  | { type: 'submit'; revisionId: string }
+  | { type: 'submit'; revisionId: string; note?: string }
   | { type: 'review'; revisionId: string; decision: 'approve' | 'changes'; comment: string }
   | { type: 'publish'; revisionId: string; reason: string }
   | { type: 'rollback'; lessonId: string; reason: string }
@@ -132,10 +133,21 @@ export function canEditDraft(p: Persona, r: Revision): Affordance {
   if (r.authorId !== p.id) return no('Seul l’auteur modifie son brouillon.');
   return yes;
 }
+function translationError(r: Revision): string | undefined {
+  if (validateBlocks(r.blocks.fr).length) return 'Le texte français contient des erreurs de validation.';
+  if (r.blocks.ht !== undefined && validateBlocks(r.blocks.ht).length) return 'Le texte créole contient des erreurs de validation.';
+}
+
+export function rollbackTarget(s: EditorialState, current: Revision) {
+  if (current.status !== 'published') return undefined;
+  return revisionsOfLesson(s, current.lessonId).find(r => r.status === 'superseded' && r.number < current.number);
+}
+
 export function canSubmit(p: Persona, r: Revision): Affordance {
   const base = canEditDraft(p, r);
   if (!base.allowed) return base;
-  if (validateBlocks(r.blocks.fr).length > 0) return no('Le texte français contient des erreurs de validation.');
+  const error = translationError(r);
+  if (error) return no(error);
   if (!sourcesReady(r)) return no('Sources et droits confirmés requis avant soumission.');
   return yes;
 }
@@ -164,7 +176,7 @@ export function canCreateRevision(p: Persona, s: EditorialState, lessonId: strin
 }
 
 function receipt(s: EditorialState, action: string, target: string, actor: Persona, now: Date, reason?: string): Receipt {
-  return { id: `SYN-${String(s.receipts.length + 1).padStart(4, '0')}`, action, target, actor: actor.name, at: now.toISOString(), reason };
+  return { id: `SYN-${String(s.receipts.length + 1).padStart(4, '0')}`, action, target, actorId: actor.id, actor: actor.name, at: now.toISOString(), reason };
 }
 
 /** Pure reducer: returns the next state and the result. The input state is never mutated. */
@@ -178,10 +190,11 @@ export function apply(state: EditorialState, cmd: Command, actor: Persona, now: 
   const hist = (r: Revision, action: string, reason?: string): Revision => ({ ...r, history: [...r.history, { at: now.toISOString(), actor: actor.name, action, reason }] });
 
   if (cmd.type === 'create_revision') {
+    if (!state.courses.some(c => c.units.some(u => u.lessons.some(l => l.id === cmd.lessonId)))) return bad('not_found', 'Leçon introuvable.');
     const aff = canCreateRevision(actor, state, cmd.lessonId);
     if (!aff.allowed) return bad(actor.roles.includes('editor') ? 'revision_open' : 'forbidden_role', aff.reason!);
     const prev = revisionsOfLesson(state, cmd.lessonId);
-    const base = prev.find((r) => r.status === 'published') ?? prev[0];
+    const base = prev[0]?.status === 'changes_requested' ? prev[0] : headlineRevision(state, cmd.lessonId);
     const rev: Revision = {
       id: `rev-${cmd.lessonId}-${(prev[0]?.number ?? 0) + 1}`,
       lessonId: cmd.lessonId,
@@ -204,8 +217,9 @@ export function apply(state: EditorialState, cmd: Command, actor: Persona, now: 
     if (!cmd.reason.trim()) return bad('reason_required', 'Un motif est obligatoire.');
     const all = revisionsOfLesson(state, cmd.lessonId);
     const current = all.find((r) => r.status === 'published');
-    const target = all.find((r) => r.status === 'superseded');
+    const target = current && rollbackTarget(state, current);
     if (!current || !target) return bad('nothing_to_rollback', 'Aucune version antérieure à rétablir.');
+    if (target.authorId === actor.id) return bad('own_revision', 'L’auteur ne peut pas republier sa propre révision.');
     const rev = state.revisions.map((r) =>
       r.id === current.id ? hist({ ...r, status: 'superseded' }, 'Annulée (retour arrière)', cmd.reason)
         : r.id === target.id ? hist({ ...r, status: 'published' }, 'Rétablie (retour arrière)', cmd.reason) : r);
@@ -226,8 +240,11 @@ export function apply(state: EditorialState, cmd: Command, actor: Persona, now: 
     case 'remove_source': {
       const a = canEditDraft(actor, r);
       if (!a.allowed) return bad(!actor.roles.includes('editor') ? 'forbidden_role' : r.status !== 'draft' ? 'wrong_status' : 'not_author', a.reason!);
+      if (cmd.type !== 'add_source' && !r.sources.some(s => s.id === cmd.sourceId)) return bad('not_found', 'Source introuvable.');
+      let next = r.sources.length + 1;
+      while (r.sources.some(s => s.id === `src-${next}-${r.id}`)) next++;
       const f = (x: Revision): Revision =>
-        cmd.type === 'add_source' ? { ...x, sources: [...x.sources, { ...cmd.source, id: `src-${x.sources.length + 1}-${x.id}` }] }
+        cmd.type === 'add_source' ? { ...x, sources: [...x.sources, { ...cmd.source, id: `src-${next}-${x.id}` }] }
           : cmd.type === 'set_rights' ? { ...x, sources: x.sources.map((s) => (s.id === cmd.sourceId ? { ...s, rights: cmd.rights } : s)) }
             : { ...x, sources: x.sources.filter((s) => s.id !== cmd.sourceId) };
       return ok(update(r.id, f), receipt(state, cmd.type, r.id, actor, now), r.id);
@@ -235,10 +252,10 @@ export function apply(state: EditorialState, cmd: Command, actor: Persona, now: 
     case 'submit': {
       const a = canSubmit(actor, r);
       if (!a.allowed) {
-        const code: Failure = !actor.roles.includes('editor') ? 'forbidden_role' : r.status !== 'draft' ? 'wrong_status' : r.authorId !== actor.id ? 'not_author' : validateBlocks(r.blocks.fr).length ? 'validation_failed' : 'sources_incomplete';
+        const code: Failure = !actor.roles.includes('editor') ? 'forbidden_role' : r.status !== 'draft' ? 'wrong_status' : r.authorId !== actor.id ? 'not_author' : translationError(r) ? 'validation_failed' : 'sources_incomplete';
         return bad(code, a.reason!);
       }
-      return ok(update(r.id, (x) => hist({ ...x, status: 'in_review' }, 'Soumise à la relecture')), receipt(state, 'submit', r.id, actor, now), r.id);
+      return ok(update(r.id, (x) => hist({ ...x, status: 'in_review' }, 'Soumise à la relecture', cmd.note?.trim() || undefined)), receipt(state, 'submit', r.id, actor, now, cmd.note?.trim() || undefined), r.id);
     }
     case 'review': {
       const a = canReview(actor, r);

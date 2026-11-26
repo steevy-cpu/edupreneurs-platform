@@ -1,0 +1,50 @@
+name: Admin web
+on:
+  pull_request:
+    paths:
+      - 'apps/admin-web/**'
+      - 'docs/architecture/admin-00/**'
+      - 'docs/reviews/admin-01/browser.mjs'
+      - '.github/workflows/admin-web.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'apps/admin-web/**'
+      - 'docs/architecture/admin-00/**'
+      - 'docs/reviews/admin-01/browser.mjs'
+      - '.github/workflows/admin-web.yml'
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: apps/admin-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/admin-web/package-lock.json
+      - run: npm ci
+      - run: npm run verify
+      - name: Inspect production pages in Chrome
+        env:
+          PLAYWRIGHT_CORE: ${{ runner.temp }}/admin-tools/node_modules/playwright-core
+          ADMIN_EVIDENCE: ${{ runner.temp }}/admin-evidence
+        run: |
+          npm install --prefix "$RUNNER_TEMP/admin-tools" --no-save --ignore-scripts --no-audit --no-fund playwright-core@1.56.1
+          ./node_modules/.bin/vite preview > "$RUNNER_TEMP/admin-preview.log" 2>&1 &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+          curl --retry 10 --retry-connrefused --retry-delay 1 --fail --silent http://127.0.0.1:4174/ > /dev/null
+          node ../../docs/reviews/admin-01/browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: admin-browser-review
+          path: ${{ runner.temp }}/admin-evidence
+          if-no-files-found: ignore

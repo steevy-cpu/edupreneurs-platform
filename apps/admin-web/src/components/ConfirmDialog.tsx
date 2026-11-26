@@ -24,6 +24,7 @@ export function ConfirmDialog({ title, object, reasonLabel, reasonRequired, conf
   const [reason, setReason] = useState('');
   const [result, setResult] = useState<Result | null>(null);
   const box = useRef<HTMLDivElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
   const opener = useRef<Element | null>(document.activeElement);
   const titleId = useId();
   const fieldId = useId();
@@ -31,8 +32,13 @@ export function ConfirmDialog({ title, object, reasonLabel, reasonRequired, conf
   useEffect(() => {
     const el = opener.current as HTMLElement | null;
     box.current?.querySelector<HTMLElement>('textarea, button')?.focus();
-    return () => el?.focus?.();
+    return () => {
+      if (el?.isConnected && !el.matches(':disabled')) el.focus();
+      else document.getElementById('page-title')?.focus();
+    };
   }, []);
+
+  useEffect(() => { if (result?.ok) closeButton.current?.focus(); }, [result]);
 
   const onKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') { e.stopPropagation(); onClose(); return; }
@@ -59,7 +65,7 @@ export function ConfirmDialog({ title, object, reasonLabel, reasonRequired, conf
           <>
             <Notice title="Terminé (synthétique).">Aucune donnée n’a été écrite : seul l’état en mémoire de cette page a changé, et il disparaît au rechargement.</Notice>
             <p className="receipt">Reçu d’audit synthétique {result.receipt.id}<br />{result.receipt.action} · {result.receipt.target}<br />par {result.receipt.actor}{result.receipt.reason ? ` · motif : ${result.receipt.reason}` : ''}</p>
-            <div className="row"><button type="button" className="btn primary" onClick={onClose}>Fermer</button></div>
+            <div className="row"><button type="button" className="btn primary" ref={closeButton} onClick={onClose}>Fermer</button></div>
           </>
         ) : (
           <>

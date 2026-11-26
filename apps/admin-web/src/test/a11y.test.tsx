@@ -17,8 +17,8 @@ describe('accessibility (axe-core on rendered pages)', () => {
     ['metric catalog', '/indicateurs', 'Catalogue des 21 indicateurs'],
     ['content catalogue', '/contenu', 'Contenu éducatif'],
     ['revision editor', '/contenu/revision/rev-l-ax-b-1', 'Résoudre ax + b = c · v1'],
-    ['review queue', '/contenu/relecture', 'Contenu éducatif'],
-    ['publication', '/contenu/publication', 'Contenu éducatif'],
+    ['review queue', '/contenu/relecture', 'File de relecture'],
+    ['publication', '/contenu/publication', 'Publication'],
     ['roles matrix', '/roles', 'Rôles et permissions'],
     ['placeholder', '/jude-ia', 'Jude IA'],
   ];
