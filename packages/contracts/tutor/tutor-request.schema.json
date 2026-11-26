@@ -1,0 +1,149 @@
+{
+  "$defs": {
+    "TutorIntent": {
+      "enum": [
+        "explain_concept",
+        "ask_question",
+        "hint",
+        "explain_answer",
+        "another_example",
+        "simplify"
+      ],
+      "title": "TutorIntent",
+      "type": "string"
+    }
+  },
+  "$id": "https://contracts.mon-edupreneur.local/tutor/tutor-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One stateless tutoring request about one lesson.",
+  "properties": {
+    "focus_block_key": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Block the learner is looking at, if any.",
+      "title": "Focus Block Key"
+    },
+    "idempotency_key": {
+      "description": "Client-generated id of this request. A repeat is never charged twice.",
+      "format": "uuid",
+      "title": "Idempotency Key",
+      "type": "string"
+    },
+    "intent": {
+      "$ref": "#/$defs/TutorIntent"
+    },
+    "lesson_id": {
+      "format": "uuid",
+      "title": "Lesson Id",
+      "type": "string"
+    },
+    "lesson_revision_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The immutable revision the learner is reading. When given, Jude answers only from exactly that revision.",
+      "title": "Lesson Revision Id"
+    },
+    "locale": {
+      "description": "Language of the lesson content being read.",
+      "enum": [
+        "fr",
+        "ht"
+      ],
+      "title": "Locale",
+      "type": "string"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "maxLength": 600,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The student's own words. Never stored, never logged.",
+      "title": "Message"
+    },
+    "question_key": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z0-9_-]{1,80}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Practice question this request is about, if any.",
+      "title": "Question Key"
+    },
+    "response_locale": {
+      "anyOf": [
+        {
+          "enum": [
+            "fr",
+            "ht"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Language Jude answers in. Defaults to `locale`.",
+      "title": "Response Locale"
+    },
+    "selected_choice_id": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9_-]{1,64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The learner's answer, for `explain_answer`.",
+      "title": "Selected Choice Id"
+    },
+    "support_level": {
+      "default": 1,
+      "description": "How much help was already given for the same difficulty (1 = first ask). Kept by the client: the server stores no conversation.",
+      "maximum": 4,
+      "minimum": 1,
+      "title": "Support Level",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "idempotency_key",
+    "lesson_id",
+    "locale",
+    "intent"
+  ],
+  "title": "Jude request (tutor contract v1)",
+  "type": "object"
+}

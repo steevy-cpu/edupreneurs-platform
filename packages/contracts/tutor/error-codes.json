@@ -1,0 +1,116 @@
+{
+  "description": "Stable error codes of the tutor, in the API's standard error shape.",
+  "errors": [
+    {
+      "code": "tutor_unavailable",
+      "http_status": 503,
+      "message": "Jude is unavailable right now. Lessons and practice still work.",
+      "retry_after_s": null
+    },
+    {
+      "code": "tutor_disabled",
+      "http_status": 503,
+      "message": "Jude is not enabled.",
+      "retry_after_s": null
+    },
+    {
+      "code": "tutor_paused",
+      "http_status": 503,
+      "message": "Jude is paused. Lessons and practice still work.",
+      "retry_after_s": 300
+    },
+    {
+      "code": "tutor_consent_required",
+      "http_status": 403,
+      "message": "Jude needs recorded consent before it can be used.",
+      "retry_after_s": null
+    },
+    {
+      "code": "tutor_not_entitled",
+      "http_status": 403,
+      "message": "This account may not use Jude.",
+      "retry_after_s": null
+    },
+    {
+      "code": "tutor_lesson_unavailable",
+      "http_status": 404,
+      "message": "No published lesson with this id and locale.",
+      "retry_after_s": null
+    },
+    {
+      "code": "tutor_lesson_revision_not_current",
+      "http_status": 409,
+      "message": "This lesson has a newer published revision. Refresh the lesson and ask again.",
+      "retry_after_s": null
+    },
+    {
+      "code": "tutor_invalid_request",
+      "http_status": 422,
+      "message": "The request does not match this lesson.",
+      "retry_after_s": null
+    },
+    {
+      "code": "tutor_daily_limit_reached",
+      "http_status": 429,
+      "message": "Today's Jude allowance is used up. It resets tomorrow.",
+      "retry_after_s": null
+    },
+    {
+      "code": "tutor_monthly_limit_reached",
+      "http_status": 429,
+      "message": "This month's Jude allowance is used up.",
+      "retry_after_s": null
+    },
+    {
+      "code": "tutor_budget_exhausted",
+      "http_status": 503,
+      "message": "Jude has reached its spending ceiling for this period.",
+      "retry_after_s": 3600
+    },
+    {
+      "code": "tutor_too_many_requests",
+      "http_status": 429,
+      "message": "Wait for the previous answer before asking again.",
+      "retry_after_s": 5
+    },
+    {
+      "code": "tutor_busy",
+      "http_status": 503,
+      "message": "Jude is busy. Try again in a moment.",
+      "retry_after_s": 10
+    },
+    {
+      "code": "tutor_duplicate_request",
+      "http_status": 409,
+      "message": "This request was already answered. It was not charged again.",
+      "retry_after_s": null
+    },
+    {
+      "code": "tutor_request_in_progress",
+      "http_status": 409,
+      "message": "This request is still being answered.",
+      "retry_after_s": 5
+    },
+    {
+      "code": "tutor_provider_timeout",
+      "http_status": 504,
+      "message": "Jude took too long to answer. Try again.",
+      "retry_after_s": 10
+    },
+    {
+      "code": "tutor_provider_unavailable",
+      "http_status": 503,
+      "message": "Jude cannot answer right now. Try again later.",
+      "retry_after_s": 30
+    },
+    {
+      "code": "tutor_invalid_model_output",
+      "http_status": 502,
+      "message": "Jude could not produce a reliable answer. Try again.",
+      "retry_after_s": null
+    }
+  ],
+  "prompt_versions": [
+    "jude-tutor.v1"
+  ]
+}

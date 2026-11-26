@@ -1,0 +1,224 @@
+{
+  "$defs": {
+    "Grounding": {
+      "enum": [
+        "lesson",
+        "general",
+        "none"
+      ],
+      "title": "Grounding",
+      "type": "string"
+    },
+    "LessonReference": {
+      "description": "A stable pointer to approved content. Only the server creates these.",
+      "properties": {
+        "key": {
+          "description": "Block key, or question key when kind is `question`.",
+          "title": "Key",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "block",
+            "question"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "lesson_id": {
+          "format": "uuid",
+          "title": "Lesson Id",
+          "type": "string"
+        },
+        "lesson_revision_id": {
+          "format": "uuid",
+          "title": "Lesson Revision Id",
+          "type": "string"
+        },
+        "locale": {
+          "enum": [
+            "fr",
+            "ht"
+          ],
+          "title": "Locale",
+          "type": "string"
+        }
+      },
+      "required": [
+        "lesson_id",
+        "lesson_revision_id",
+        "locale",
+        "kind",
+        "key"
+      ],
+      "title": "LessonReference",
+      "type": "object"
+    },
+    "NextAction": {
+      "enum": [
+        "none",
+        "reread_passage",
+        "review_example",
+        "try_practice_question",
+        "ask_follow_up",
+        "rephrase_question",
+        "talk_to_trusted_adult"
+      ],
+      "title": "NextAction",
+      "type": "string"
+    },
+    "Notice": {
+      "enum": [
+        "general_knowledge_beyond_lesson",
+        "personal_info_removed",
+        "question_not_found_in_lesson",
+        "instruction_manipulation",
+        "inappropriate_request",
+        "controlled_assessment",
+        "safety_concern"
+      ],
+      "title": "Notice",
+      "type": "string"
+    },
+    "ResponseSource": {
+      "enum": [
+        "model",
+        "reviewed_template"
+      ],
+      "title": "ResponseSource",
+      "type": "string"
+    },
+    "ResponseStatus": {
+      "enum": [
+        "answered",
+        "insufficient_context",
+        "declined",
+        "safety_support"
+      ],
+      "title": "ResponseStatus",
+      "type": "string"
+    }
+  },
+  "$id": "https://contracts.mon-edupreneur.local/tutor/tutor-response.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "answer_was_correct": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "For `explain_answer`: decided by the server from the reviewed answer key, never by the model.",
+      "title": "Answer Was Correct"
+    },
+    "check_question": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "A short question so the learner can check understanding.",
+      "title": "Check Question"
+    },
+    "explanation": {
+      "title": "Explanation",
+      "type": "string"
+    },
+    "grounding": {
+      "$ref": "#/$defs/Grounding"
+    },
+    "hint": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hint"
+    },
+    "language": {
+      "enum": [
+        "fr",
+        "ht"
+      ],
+      "title": "Language",
+      "type": "string"
+    },
+    "lesson_revision_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Lesson Revision Id"
+    },
+    "next_action": {
+      "$ref": "#/$defs/NextAction",
+      "default": "none"
+    },
+    "notices": {
+      "items": {
+        "$ref": "#/$defs/Notice"
+      },
+      "title": "Notices",
+      "type": "array"
+    },
+    "prompt_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Prompt Version"
+    },
+    "references": {
+      "items": {
+        "$ref": "#/$defs/LessonReference"
+      },
+      "title": "References",
+      "type": "array"
+    },
+    "request_id": {
+      "description": "Echo of the idempotency key.",
+      "format": "uuid",
+      "title": "Request Id",
+      "type": "string"
+    },
+    "source": {
+      "$ref": "#/$defs/ResponseSource"
+    },
+    "status": {
+      "$ref": "#/$defs/ResponseStatus"
+    }
+  },
+  "required": [
+    "request_id",
+    "status",
+    "source",
+    "grounding",
+    "language",
+    "explanation"
+  ],
+  "title": "Jude response (tutor contract v1)",
+  "type": "object"
+}
