@@ -77,7 +77,7 @@ Settlement is idempotent: settling or releasing twice changes nothing.
 | Claim | Evidence |
 |---|---|
 | The accounting rules are right | `tests/unit/tutor/test_budget.py` on the in-memory store. **Single process; proves the rules, not database atomicity.** |
-| The global ceiling holds under real concurrent transactions | `tests/tutor_pg`: 60 learners reserve simultaneously against a ceiling that fits 11 → exactly 11 admitted, 49 refused, `reserved = 11 × estimate`. Run on PostgreSQL 16; CI runs it on the project's PostgreSQL 17. |
+| The global ceiling holds under real concurrent transactions | `tests/tutor_pg`: 60 learners reserve simultaneously against a ceiling that fits 11 → exactly 11 admitted, 49 refused, `reserved = 11 × estimate`. Passed on PostgreSQL 16 locally and on the project's PostgreSQL 17 in CI. |
 | Books stay exact under interleaved reserve/settle | 120 concurrent workers over 15 learners: global spent = sum of ledger rows; every learner counter equals its rows; nothing left reserved |
 | One request sent 25 times at once is admitted once | 1 reserved, 24 `in_progress` |
 | Per-learner concurrency under a burst | 20 simultaneous → exactly the limit admitted |

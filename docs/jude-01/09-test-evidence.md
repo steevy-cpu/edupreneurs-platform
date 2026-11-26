@@ -15,6 +15,7 @@ Run on 2026-11-26, branch `feature/jude-01-grounded-tutor`, macOS, Python 3.13.
 | Tutor unit tests | `uv run pytest tests/unit/tutor` | **321 passed** |
 | Budget on real PostgreSQL | `JUDE_TEST_ADMIN_DATABASE_URL=… uv run pytest tests/tutor_pg` | **23 passed** (see below) |
 | Mock demonstration | `uv run python -m edu_api.tutor.demo` | runs offline; transcript below |
+| **CI on the pull request** (GitHub Actions, the project's full local Supabase stack, PostgreSQL 17) | `uv run pytest` after lint, types and pgTAP | **498 passed, 0 skipped** — run [45874035622](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45874035622). Includes the 6 lesson-source tests under real row-level security and the 23 PostgreSQL budget tests. pgTAP database tests and the mobile suite (69 tests) also passed, before and after. |
 
 Tutor unit tests by file: `test_service` 87 · `test_safety` 56 · `test_prompts`
 54 · `test_gateway_and_providers` 34 · `test_validation` 29 · `test_budget` 21 ·
@@ -30,6 +31,12 @@ Tutor unit tests by file: `test_service` 87 · `test_safety` 56 · `test_prompts
   *non-superuser* admin and a real `edu_api_login` login role, which is how the
   project's Supabase PostgreSQL is set up (its `postgres` role is not a superuser).
 - Each session creates its own database, applies the proposal, and drops it.
+- **CI.** The first CI run of this branch **failed**: the API login role has
+  `CONNECTION LIMIT 40` on the real stack and the test engine asked for up to 50
+  connections. The test pool was reduced to 12 (still twelve genuinely
+  concurrent transactions) and the local CI-like mode now sets the same limit.
+  The second run passed. Worth knowing for Jude-02: the ledger shares the
+  application's connection budget.
 
 ## Acceptance tests requested → where they are
 
@@ -58,8 +65,7 @@ Tutor unit tests by file: `test_service` 87 · `test_safety` 56 · `test_prompts
 
 | Item | Why | Consequence |
 |---|---|---|
-| `tests/integration/test_tutor_lesson_source.py` (6 tests: `SqlLessonSource` under the real row-level security) | It needs the full local Supabase stack. The only one on this machine is shared with the other agents, and the repository's integration fixtures truncate learning tables on it, so it was **not run locally**. | It runs in CI on the pull request. Until that run is green, RLS-backed lesson reading is verified only by reading the SQL (it is the same query as `GET /v1/lessons/{id}`) and by the in-memory double. See the PR for the CI result. |
-| `tests/tutor_pg` on the project's PostgreSQL 17 image | Run locally on PostgreSQL 16 only | Also runs in CI |
+| Running the lesson-source integration tests **on this machine** | They need the full local Supabase stack. The only one here is shared with the other agents, and the repository's integration fixtures truncate learning tables on it, so they were not run locally. | **Verified in CI instead** (6 passed, run 45874035622), against the real seeded content and the real row-level security policies. |
 | Any real model: answer quality, staying in Creole, obeying support levels, resisting injection | No live call is authorised | Unknown. First task of Jude-02 |
 | The OpenAI-compatible adapter against a real endpoint | Same | Request/response mapping tested against an in-memory transport only; real-world quirks (streaming flags, provider-specific fields, usage reporting) unverified |
 | Semantic-embedding retrieval | No embedding model authorised | Not compared; only lexical rankers measured |
