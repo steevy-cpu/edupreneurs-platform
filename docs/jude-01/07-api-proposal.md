@@ -48,7 +48,7 @@ Unknown fields are rejected (there is deliberately no learner field).
 |---|---|
 | `request_id` | Echo of `idempotency_key` |
 | `status` | `answered` · `insufficient_context` · `declined` · `safety_support` |
-| `source` | `model` (validated model text) or `reviewed_template` (fixed text written by people; no model was called or its text was discarded) |
+| `source` | `model` (validated model text) or `fixed_template` (fixed text shipped with the server, **not professionally reviewed**; no model was called or its text was discarded) |
 | `grounding` | `lesson` · `general` · `none` |
 | `language` | `fr` \| `ht` |
 | `explanation`, `hint`, `check_question` | Student-facing text |
@@ -59,7 +59,7 @@ Unknown fields are rejected (there is deliberately no learner field).
 | `lesson_revision_id`, `prompt_version` | Traceability |
 
 All four statuses are `200`: they are answers the app shows. The app should
-render `source: reviewed_template` plainly (not as "Jude says") and must show
+render `source: fixed_template` plainly (not as "Jude says") and must show
 the `general_knowledge_beyond_lesson` notice when present.
 
 ### Errors

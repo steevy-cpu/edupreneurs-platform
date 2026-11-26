@@ -37,7 +37,7 @@ Jude-02 stops after step 2.
 | Risk | Mitigation in place | Still open |
 |---|---|---|
 | A real model ignores instructions embedded as data | Trust boundary; output validation; canary | Rate unknown until step 1 |
-| A child in distress is missed by the screen | Model told to flag; reviewed message | Needs step 3 and step 8 |
+| A child in distress is missed by the screen | Model told to flag; fixed message (unreviewed) | Needs step 3 and step 8 |
 | Cost runaway | Worst-case reservation, global ceiling, kill switch, bounded calls | Provider-side spend cap should also be set (belt and braces) |
 | Creole quality is poor on the chosen model | Language check on output | Step 1 measures it; may decide the provider |
 | Lexical retrieval misses paraphrases | "Not in this lesson" reply instead of a guess | Measured only on synthetic questions |

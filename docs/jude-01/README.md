@@ -36,7 +36,7 @@ to the application, to any AI provider, or to any learner.
 | Deterministic mock provider | **Built, tested** | `providers/mock.py` |
 | OpenRouter / OpenAI-compatible adapter | **Built, tested against an in-memory transport only; never run against a real API** | `providers/openai_compatible.py` |
 | Output validation and citation mapping | **Built, tested** | `validation.py` |
-| Safeguarding screen and reviewed fixed messages | **Built as a deterministic baseline, tested**; not sufficient alone for launch | `safety.py` |
+| Safeguarding screen and fixed messages | **Built as a deterministic baseline, tested. Not reviewed by a safeguarding professional or native speakers**; a student-facing route cannot be built until that is recorded | `safety.py` |
 | Budget: reserve / settle / expire, limits, kill switch, idempotency | **Built, tested** in memory and **on real PostgreSQL** (throwaway databases; 16 locally, 17 in CI) | `budget.py`, `pg_store.py`, `sql/tutor_schema.sql` |
 | Usage-ledger schema as a migration | **Designed only** — SQL is implementation-ready but not a migration | [08](08-database-proposal.md) |
 | Consent, entitlement, erasure, retention, audit | **Interfaces built, deny-by-default**; real implementations blocked on unmerged work | `governance.py` |
@@ -58,6 +58,7 @@ to the application, to any AI provider, or to any learner.
 9. [Test evidence](09-test-evidence.md)
 10. [Open decisions](10-open-decisions.md)
 11. [Jude-02 roadmap](11-jude-02-roadmap.md)
+12. [Security corrections after the independent review (J-01 … J-09)](12-security-corrections.md)
 
 ## Audit of the repository this was built on
 

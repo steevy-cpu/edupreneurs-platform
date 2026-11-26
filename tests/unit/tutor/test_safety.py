@@ -63,7 +63,7 @@ INAPPROPRIATE = [
 
 
 @pytest.mark.parametrize("message", SAFETY_CONCERNS)
-def test_possible_danger_is_routed_to_the_reviewed_support_message(message: str) -> None:
+def test_possible_danger_is_routed_to_the_fixed_support_message(message: str) -> None:
     result = screen_student_message(message)
     assert result.action is ScreenAction.SAFETY_SUPPORT
     assert result.text is None  # nothing of the message is passed on

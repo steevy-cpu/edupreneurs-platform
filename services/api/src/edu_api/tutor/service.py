@@ -2,19 +2,27 @@
 
     request
       -> enabled?                      (master switch)
-      -> safety screen                 (a child in distress gets the reviewed message
-                                        even when everything else is refused; no data
-                                        leaves the server for it)
+      -> safety screen                 (a message the phrase list recognises gets the
+                                        fixed supportive text even when everything
+                                        else is refused; no data leaves the server
+                                        for it. The list and the text are NOT yet
+                                        professionally reviewed.)
       -> kill switch -> consent -> entitlement
-      -> manipulation / inappropriate  (reviewed message, no model call)
+      -> manipulation / inappropriate  (fixed message, no model call)
       -> approved lesson, as the learner (row-level security decides)
       -> retrieve relevant passages    (none -> "not in this lesson", no model call)
       -> build prompt                  (trusted system message + untrusted DATA)
-      -> reserve worst-case cost       (atomic; refuses before any provider call)
+      -> reserve the assumed worst case (atomic; refuses before any provider call)
+      -> authorise each provider call  (kill switch + hold re-checked every time)
       -> provider via gateway          (timeout, bounded retries, explicit fallback)
       -> validate output               (shape, language, citations, safety)
       -> settle real cost              (exactly once, also on failure or cancellation)
       -> cited answer
+
+ACCOUNTING RULE: a hold is given back only when no provider call that could be
+billed was made. A call whose answer was thrown away — rejected, or lost to a
+fault in this server — is still charged: at its reported usage when there is
+one, at the bound when there is not.
 
 PRIVACY: this module never logs, stores or returns to anyone else the student's
 message or the model's text. Log lines carry codes, counts and durations only.
@@ -28,7 +36,7 @@ import time
 import uuid
 from dataclasses import dataclass
 
-from edu_api.tutor.budget import Reservation, UsageOutcome, UsageStore
+from edu_api.tutor.budget import AttemptCharge, Reservation, UsageOutcome, UsageStore
 from edu_api.tutor.config import TutorSettings
 from edu_api.tutor.content import ApprovedLesson, LessonSource
 from edu_api.tutor.errors import (
@@ -44,6 +52,7 @@ from edu_api.tutor.errors import (
 )
 from edu_api.tutor.gateway import Attempt, ModelGateway, Route
 from edu_api.tutor.governance import ConsentGate, ConsentState, EntitlementGate
+from edu_api.tutor.metering import AttemptBound, InputBound
 from edu_api.tutor.prompts import PromptTemplate, RenderedPrompt, StudentTurn
 from edu_api.tutor.providers.base import ModelRequest, ModelResult
 from edu_api.tutor.retrieval import LessonRetriever, RetrievalQuery, RetrievedContext
@@ -57,7 +66,6 @@ from edu_api.tutor.safety import (
     safety_support_message,
     screen_student_message,
 )
-from edu_api.tutor.text import estimate_tokens
 from edu_api.tutor.types import (
     Grounding,
     Locale,
@@ -79,6 +87,8 @@ _REVEAL_EXPLANATION_FROM_LEVEL = 3
 _FAILURE_ERRORS: dict[str, type[TutorError]] = {
     "timeout": ProviderTimeout,
     "output_rejected": InvalidModelOutput,
+    # A fault in this server's own check: the generic "unavailable".
+    "validation_failed": TutorError,
 }
 
 
@@ -92,11 +102,14 @@ class TutorDependencies:
     usage: UsageStore
     consent: ConsentGate
     entitlements: EntitlementGate
+    input_bound: InputBound
 
 
 class TutorService:
     def __init__(self, deps: TutorDependencies) -> None:
         self._d = deps
+        #: Clean-up of holds whose admission was cancelled. Ids only, no text.
+        self._background: set[asyncio.Task[None]] = set()
 
     # ------------------------------------------------------------------------------
     async def availability(self, learner_id: uuid.UUID) -> TutorAvailability:
@@ -133,9 +146,12 @@ class TutorService:
             # Log the TYPE only — an exception message could carry request text.
             logger.error("tutor request failed unexpectedly: %s", type(exc).__name__)
             self._log(TutorError.code, started)
-            raise TutorError() from None
-        self._log(response.status.value, started)
-        return response
+        else:
+            self._log(response.status.value, started)
+            return response
+        # Raised OUTSIDE the handler, so the error handed to the caller does not
+        # carry the original exception and, through its traceback, the prompt.
+        raise TutorError()
 
     # ------------------------------------------------------------------------------
     async def _check_access(self, learner_id: uuid.UUID) -> None:
@@ -299,13 +315,14 @@ class TutorService:
     ) -> ValidatedAnswer:
         settings = self._d.settings
         gateway = self._d.gateway
-        input_estimate = sum(estimate_tokens(m.content) for m in prompt.messages)
-        reservation = await self._d.usage.reserve(
-            learner_id=learner_id,
-            request_key=request.idempotency_key,
-            estimate_micro=gateway.worst_case_micro(
-                input_tokens=input_estimate, max_output_tokens=settings.max_output_tokens
-            ),
+        usage = self._d.usage
+        # The most ONE call is assumed to bill; the hold is that, for every permitted call.
+        bound = AttemptBound(
+            input_tokens=self._d.input_bound.tokens(prompt.messages),
+            output_tokens=settings.max_output_tokens,
+        )
+        reservation = await self._reserve(
+            learner_id, request.idempotency_key, gateway.worst_case_micro(bound)
         )
 
         def build(route: Route) -> ModelRequest:
@@ -325,11 +342,14 @@ class TutorService:
                 allow_general=settings.allow_general_answers,
             )
 
+        async def authorize() -> None:
+            await usage.authorize_dispatch(reservation)
+
         attempts: list[Attempt] = []
         outcome_code = TutorError.code
         succeeded = False
         try:
-            result = await gateway.run(build, parse, attempts)
+            result = await gateway.run(build, parse, attempts, authorize=authorize, bound=bound)
             if result.value is not None:
                 succeeded = True
                 outcome_code = "answered"
@@ -337,6 +357,9 @@ class TutorService:
             error = _FAILURE_ERRORS.get(result.failure or "", ProviderUnavailable)
             outcome_code = error.code
             raise error(result.failure)
+        except TutorError as exc:
+            outcome_code = exc.code
+            raise
         except asyncio.CancelledError:
             outcome_code = "cancelled"
             raise
@@ -344,10 +367,10 @@ class TutorService:
             # Shielded: the cost of what already happened is recorded even if the
             # client went away and this task is being cancelled.
             await asyncio.shield(
-                self._settle(
+                self._finalize(
                     reservation,
                     attempts,
-                    input_estimate=input_estimate,
+                    bound=bound,
                     outcome=outcome_code,
                     succeeded=succeeded,
                     prompt_version=prompt.version,
@@ -355,51 +378,109 @@ class TutorService:
                 )
             )
 
-    async def _settle(
+    async def _reserve(
+        self, learner_id: uuid.UUID, request_key: uuid.UUID, estimate_micro: int
+    ) -> Reservation:
+        """Take the hold. If the caller goes away meanwhile, give it straight back.
+
+        Without this a cancelled request could leave a hold nobody knows about,
+        which would then expire and be charged in full although nothing was sent.
+        """
+        admission = asyncio.ensure_future(
+            self._d.usage.reserve(
+                learner_id=learner_id, request_key=request_key, estimate_micro=estimate_micro
+            )
+        )
+        try:
+            return await asyncio.shield(admission)
+        except asyncio.CancelledError:
+            cleanup = asyncio.ensure_future(self._release_orphan(admission))
+            self._background.add(cleanup)
+            cleanup.add_done_callback(self._background.discard)
+            raise
+
+    async def _release_orphan(self, admission: asyncio.Future[Reservation]) -> None:
+        try:
+            reservation = await admission
+        except BaseException:
+            return  # the hold was refused or never made: nothing to give back
+        try:
+            await self._d.usage.release(reservation, outcome="cancelled", refused_attempts=0)
+        except Exception as exc:
+            # The hold stays and expires at its full amount: the safe direction.
+            logger.error("tutor orphan hold not released: %s", type(exc).__name__)
+
+    async def _finalize(
         self,
         reservation: Reservation,
         attempts: list[Attempt],
         *,
-        input_estimate: int,
+        bound: AttemptBound,
         outcome: str,
         succeeded: bool,
         prompt_version: str,
         lesson: ApprovedLesson,
     ) -> None:
-        max_output = self._d.settings.max_output_tokens
-        spent = input_tokens = output_tokens = 0
+        """Settle or release ONE reservation, exactly once, from the attempt list.
+
+        * a call that reported usage is charged that usage at its own price;
+        * a call that may have been billed without figures is charged the bound;
+        * only when NO call could have been billed is the hold given back.
+        """
+        charges: list[AttemptCharge] = []
         for attempt in attempts:
-            if attempt.usage is not None:
-                spent += attempt.price.cost_micro(attempt.usage)
-                input_tokens += attempt.usage.input_tokens
-                output_tokens += attempt.usage.output_tokens
-            elif attempt.usage_unknown:
-                # No figures, but the provider may have billed: charge the worst case.
-                spent += self._d.gateway.attempt_worst_case_micro(
-                    attempt, input_tokens=input_estimate, max_output_tokens=max_output
+            if not attempt.billable:
+                continue
+            metered = attempt.usage is not None
+            usage = attempt.usage if attempt.usage is not None else bound.as_usage()
+            charges.append(
+                AttemptCharge(
+                    provider=attempt.provider,
+                    model=attempt.model,
+                    price_version=attempt.price.price_version,
+                    outcome=attempt.outcome,
+                    metered=metered,
+                    input_tokens=usage.input_tokens,
+                    output_tokens=usage.output_tokens,
+                    cost_micro=attempt.price.cost_micro(usage),
+                    over_bound=attempt.over_bound,
                 )
-        if not succeeded and spent == 0:
-            # Provably nothing was spent (no call went out, or every call was refused
-            # before any work): give the hold back, so the same request may be retried.
-            await self._d.usage.release(reservation, outcome=outcome)
+            )
+        if not charges:
+            # Every dispatched call (if any) was refused by the provider before it did
+            # any work. The store cross-checks that count against its own.
+            released = await self._d.usage.release(
+                reservation,
+                outcome=outcome,
+                refused_attempts=sum(1 for a in attempts if a.refused_by_provider),
+            )
+            if released != "released":
+                logger.warning("tutor hold not released: result=%s", released)
             return
-        last = attempts[-1]
-        await self._d.usage.settle(
+        last = charges[-1]
+        violations = sum(1 for c in charges if c.over_bound)
+        settled = await self._d.usage.settle(
             reservation,
             UsageOutcome(
-                spent_micro=spent,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-                attempts=len(attempts),
+                spent_micro=sum(c.cost_micro for c in charges),
+                input_tokens=sum(c.input_tokens for c in charges if c.metered),
+                output_tokens=sum(c.output_tokens for c in charges if c.metered),
+                attempts=sum(1 for a in attempts if a.dispatched),
                 outcome=outcome,
                 counts_as_request=succeeded,
                 provider=last.provider,
                 model=last.model,
-                price_version=last.price.price_version,
+                price_version=last.price_version,
                 prompt_version=prompt_version,
                 lesson_revision_id=lesson.revision_id,
+                unmetered_attempts=sum(1 for c in charges if not c.metered),
+                bound_violations=violations,
+                charges=tuple(charges),
             ),
         )
+        if settled != "settled" or violations:
+            # Codes and counts only.
+            logger.warning("tutor settlement result=%s bound_violations=%d", settled, violations)
 
     def _fixed(
         self,
@@ -412,7 +493,7 @@ class TutorService:
         return TutorResponse(
             request_id=request.idempotency_key,
             status=status,
-            source=ResponseSource.REVIEWED_TEMPLATE,
+            source=ResponseSource.FIXED_TEMPLATE,
             grounding=Grounding.NONE,
             language=request.answer_locale,
             explanation=message.text,

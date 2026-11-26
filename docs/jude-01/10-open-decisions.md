@@ -45,3 +45,10 @@ denies, disables or uses a labelled placeholder.
 | Content format v2 | #7 (draft) | Formulas, tables, images in context |
 | Mobile learning integration | #25 (draft) | Any UI |
 | Admin console | Admin-00 merged as design only | AD-9 Jude console, metric M19 |
+
+## Added by the security corrections
+
+Nine further safety, legal and spending decisions (S-1 … S-9) are listed in
+[12](12-security-corrections.md#decisions-still-open-safety-and-legal). S-1 — professional and
+native-speaker review of the safety phrases and fixed replies — blocks any
+student-facing route in code.

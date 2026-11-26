@@ -66,12 +66,3 @@ def tokenize(text: str) -> list[str]:
             continue
         tokens.append(stem(word))
     return tokens
-
-
-def estimate_tokens(text: str) -> int:
-    """A deliberately HIGH estimate of model tokens, used only to reserve budget.
-
-    One token per three UTF-8 bytes over-counts French and Creole prose for
-    every common tokenizer. Settlement uses the provider's reported usage.
-    """
-    return (len(text.encode("utf-8")) + 2) // 3

@@ -83,7 +83,7 @@
     "ResponseSource": {
       "enum": [
         "model",
-        "reviewed_template"
+        "fixed_template"
       ],
       "title": "ResponseSource",
       "type": "string"

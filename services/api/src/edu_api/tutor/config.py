@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from edu_api.tutor.budget import BudgetPolicy, ModelPrice
+from edu_api.tutor.metering import InputBound
 from edu_api.tutor.prompts import DEFAULT_PROMPT_VERSION
 from edu_api.tutor.providers.mock import MOCK_MODEL
 
@@ -64,10 +65,28 @@ class TutorSettings(BaseSettings):
     allow_costlier_fallback: bool = False
     provider_base_url: str | None = None
     provider_api_key: SecretStr | None = None
+    #: The spending limit, in micro-USD per month, that the OWNER has set on the
+    #: provider's side for this API key. The server cannot verify it; stating it
+    #: is the owner attesting that such a limit exists. A live provider is not
+    #: built without it, because this server's ledger alone cannot bound what a
+    #: third party bills (see ``edu_api.tutor.metering``).
+    provider_side_monthly_limit_micro: int | None = Field(default=None, gt=0)
     request_timeout_s: float = Field(default=20.0, gt=0, le=120)
     max_attempts: int = Field(default=2, ge=1, le=4)
     max_output_tokens: int = Field(default=500, ge=50, le=2000)
     temperature: float = Field(default=0.2, ge=0, le=1)
+
+    # --- reservation bound (see edu_api.tutor.metering) ------------------------------------
+    #: Tokens assumed per message, and per call, on top of one token per UTF-8 byte.
+    #: Must cover the chat framing of every configured model.
+    input_framing_tokens_per_message: int = Field(default=16, ge=0, le=1024)
+    input_framing_tokens_per_request: int = Field(default=64, ge=0, le=8192)
+
+    # --- safeguarding -----------------------------------------------------------------------
+    #: The owner attests that the safety phrases and fixed replies were reviewed by a
+    #: child-safeguarding professional and by native French and Haitian Creole
+    #: speakers. False (the default) blocks any student-facing router.
+    safeguarding_review_completed: bool = False
 
     # --- prompt and retrieval ---------------------------------------------------------
     prompt_version: str = DEFAULT_PROMPT_VERSION
@@ -107,6 +126,12 @@ class TutorSettings(BaseSettings):
 
     def price_for(self, model: str) -> ModelPrice:
         return next(p for p in self.prices if p.model == model).to_price()
+
+    def input_bound(self) -> InputBound:
+        return InputBound(
+            tokens_per_message=self.input_framing_tokens_per_message,
+            tokens_per_request=self.input_framing_tokens_per_request,
+        )
 
     def budget_policy(self) -> BudgetPolicy:
         return BudgetPolicy(

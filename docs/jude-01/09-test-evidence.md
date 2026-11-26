@@ -1,5 +1,9 @@
 # 9. Test evidence
 
+> The figures below are those of the original Jude-01 commit `b11b780`. The
+> results after the security corrections are in
+> [12](12-security-corrections.md).
+
 Run on 2026-11-26, branch `feature/jude-01-grounded-tutor`, macOS, Python 3.13.
 
 ## Commands and results
@@ -47,7 +51,7 @@ Tutor unit tests by file: `test_service` 87 · `test_safety` 56 · `test_prompts
 | Wrong-learner access denial | `::test_a_lesson_another_learner_may_read_is_refused_to_this_one`, `::test_the_request_cannot_name_a_learner`, `::test_usage_is_accounted_to_the_caller_only`; `test_router.py::test_a_body_naming_another_learner_is_rejected`; PG `test_one_learner_cannot_settle_or_release_anothers_reservation`, `test_the_api_role_cannot_read_or_write_any_tutor_table` |
 | French/Creole locale selection | `::test_creole_lesson_is_answered_in_creole_with_creole_references`, `::test_french_lesson_can_be_explained_in_creole`, `::test_fixed_messages_follow_the_answer_language`, `::test_an_unsupported_locale_is_rejected_by_the_contract` |
 | Correct reference attribution | `::test_question_about_the_lesson_gets_a_cited_grounded_answer`, `::test_references_point_only_at_passages_that_were_actually_supplied`; `test_validation.py::test_valid_answer_gets_real_references_for_the_ids_it_cited` |
-| Missing-context behaviour | `::test_a_question_the_lesson_does_not_cover_gets_a_limitation_not_an_answer`, `::test_model_saying_it_lacks_context_becomes_the_reviewed_limitation`; `test_retrieval.py::test_unrelated_question_retrieves_nothing` |
+| Missing-context behaviour | `::test_a_question_the_lesson_does_not_cover_gets_a_limitation_not_an_answer`, `::test_model_saying_it_lacks_context_becomes_the_fixed_limitation`; `test_retrieval.py::test_unrelated_question_retrieves_nothing` |
 | Hallucinated references | `test_validation.py::test_a_reference_the_server_did_not_issue_is_rejected[5 cases]`, `::test_a_real_looking_lesson_id_is_not_accepted_as_a_reference`; `test_service.py::test_an_invented_reference_is_never_shown_and_is_retried` |
 | Unrelated retrieved passages | `test_retrieval.py::test_only_passages_of_the_requested_lesson_are_ever_returned`, `::test_unrelated_question_stays_unanswered_even_with_a_block_in_focus` |
 | Prompt injection | in content: `test_prompts.py::test_system_message_depends_only_on_closed_choices_never_on_content`, `::test_untrusted_text_is_confined_to_one_escaped_json_document`; `test_service.py::test_instructions_hidden_in_lesson_text_stay_in_the_data_message`, `::test_a_model_that_obeys_injected_text_is_caught_before_the_student_sees_it`; from the student: `::test_a_student_trying_to_change_the_rules_gets_a_fixed_reply_and_no_model_call` |
@@ -95,13 +99,13 @@ cites    : question 'q-addition' of revision c1000000-0000-4000-8000-0000000000f
 
 === A question the lesson does not cover (no model call, nothing invented)
 student  : Qui a gagné la Coupe du monde de football en 1998 ?
-status   : insufficient_context | source=reviewed_template | grounding=none | language=fr
+status   : insufficient_context | source=fixed_template | grounding=none | language=fr
 
 === An attempt to change Jude's rules (no model call)
-status   : declined | source=reviewed_template | grounding=none | language=fr
+status   : declined | source=fixed_template | grounding=none | language=fr
 
-=== A message suggesting the student is in danger (reviewed message, no model call)
-status   : safety_support | source=reviewed_template | grounding=none | language=ht
+=== A message suggesting the student is in danger (fixed message, no model call)
+status   : safety_support | source=fixed_template | grounding=none | language=ht
 
 === Over the daily allowance (refused before any provider call)
 error    : tutor_daily_limit_reached (HTTP 429) — Today's Jude allowance is used up. It resets tomorrow.

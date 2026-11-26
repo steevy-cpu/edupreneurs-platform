@@ -138,6 +138,14 @@ class InvalidModelOutput(TutorError):
     message = "Jude could not produce a reliable answer. Try again."
 
 
+class ReservationLost(TutorError):
+    """The budget hold of this request is no longer active (expired or erased).
+
+    No further provider call may start for it. Reported to the client as the
+    generic "unavailable": it is an internal condition, not a new API code.
+    """
+
+
 class TutorConfigurationError(Exception):
     """Raised while WIRING the tutor (never per request): the configuration is unsafe."""
 

@@ -9,6 +9,17 @@ demonstrate the plumbing, not tutoring quality.
 ``script`` makes it misbehave on purpose, one entry per call, to test the
 failure paths (timeouts, garbage output, invented citations, obeying an
 injected instruction ...).
+
+PRIVACY: this class keeps NOTHING from a request after ``complete`` returns —
+only how many calls it has served. It is the provider the factory builds by
+default, so a long-lived service must not accumulate student text in it. A
+test that needs to look at what was sent injects its own recording spy
+(``tests/unit/tutor/spies.py``); there is none in this package.
+
+METERING: the usage it reports comes from its own crude tokenizer model
+(``mock_token_count`` plus framing), which is deliberately NOT the bound the
+service reserves with (``edu_api.tutor.metering``). The two are independent,
+so a test can tell a hold that is too small from one that is large enough.
 """
 
 from __future__ import annotations
@@ -27,9 +38,22 @@ from edu_api.tutor.providers.base import (
     ProviderUnavailableError,
     TokenUsage,
 )
-from edu_api.tutor.text import estimate_tokens
 
 MOCK_MODEL = "mock/jude-deterministic-v1"
+
+#: Framing the mock "bills" on top of the message text, like a chat template would.
+MOCK_FRAMING_TOKENS_PER_MESSAGE = 4
+MOCK_FRAMING_TOKENS_PER_REQUEST = 3
+
+
+def mock_token_count(text: str) -> int:
+    """The mock model's tokenizer: one token per three UTF-8 bytes, rounded up.
+
+    Roughly right for French and Creole prose. It is a property of the MOCK,
+    used to produce a plausible invoice; nothing reserves budget with it.
+    """
+    return (len(text.encode("utf-8")) + 2) // 3
+
 
 Behaviour = Literal[
     "ok",
@@ -81,15 +105,24 @@ class DeterministicMockProvider:
     script: Sequence[Behaviour] = ()
     #: Behaviour once the script is used up.
     default: Behaviour = "ok"
-    calls: list[ModelRequest] = field(default_factory=list)
+    #: Number of calls served so far. The only thing remembered between calls.
+    call_count: int = 0
     #: When set, every call waits for it first (to hold requests "in flight" in tests).
     gate: asyncio.Event | None = None
     #: Set as soon as the first call arrives (lets a test wait for "in flight").
     started: asyncio.Event = field(default_factory=asyncio.Event)
 
+    @property
+    def calls(self) -> Sequence[object]:
+        """The indices of the calls served: ``len(provider.calls)`` is the call count.
+
+        Indices only. The requests themselves are not kept.
+        """
+        return range(self.call_count)
+
     async def complete(self, request: ModelRequest) -> ModelResult:
-        index = len(self.calls)
-        self.calls.append(request)
+        index = self.call_count
+        self.call_count += 1
         self.started.set()
         behaviour: Behaviour = self.script[index] if index < len(self.script) else self.default
         if self.gate is not None:
@@ -104,8 +137,12 @@ class DeterministicMockProvider:
             raise ProviderAuthError()
         text = self._write(request, behaviour)
         usage = TokenUsage(
-            input_tokens=sum(estimate_tokens(m.content) for m in request.messages),
-            output_tokens=min(estimate_tokens(text), request.max_output_tokens),
+            input_tokens=MOCK_FRAMING_TOKENS_PER_REQUEST
+            + sum(
+                MOCK_FRAMING_TOKENS_PER_MESSAGE + mock_token_count(m.content)
+                for m in request.messages
+            ),
+            output_tokens=min(mock_token_count(text), request.max_output_tokens),
         )
         return ModelResult(text=text, usage=usage, provider=self.name, model=request.model)
 

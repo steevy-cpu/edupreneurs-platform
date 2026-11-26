@@ -8,19 +8,24 @@
 | Area | Rule | Mechanism | Tested |
 |---|---|---|---|
 | Age-appropriate help | School learning only, suitable for a child | System prompt §3; output check for unsuitable content | structure only |
-| Personal information | Jude never asks for it; contact details a student types are removed before retrieval and before any provider call | `redact_contact_details`; notice `personal_info_removed` | yes |
-| Unsafe or unsuitable requests | Fixed reviewed refusal, no model call | `screen_student_message` → `declined` | yes |
-| Manipulating instructions | Fixed reviewed reply, no model call; lesson text can never reach an instruction position; leaked prompt is rejected | screen + trust boundary + canary | yes |
+| Personal information | Jude never asks for it. Removed before retrieval and before any provider call: e-mail addresses, links, phone numbers, and a name or home place given in an explicit self-introduction. **Nothing else** — see the limits below | `minimise_personal_details`; notice `personal_info_removed` | yes, with the misses pinned |
+| Unsafe or unsuitable requests | Fixed refusal, no model call | `screen_student_message` → `declined` | yes |
+| Manipulating instructions | Fixed reply, no model call; lesson text can never reach an instruction position; leaked prompt is rejected | screen + trust boundary + canary | yes |
 | Sensitive personal disclosures | See "Immediate safety concerns" | | yes |
-| Requests unrelated to education | Nothing relevant in the lesson → reviewed "not in this lesson" reply, no model call | retrieval threshold | yes |
+| Requests unrelated to education | Nothing relevant in the lesson → fixed "not in this lesson" reply, no model call | retrieval threshold | yes |
 | Controlled-exam answers | No hints, no answer explanations, no question context in a controlled assessment | `assessment_mode` on the lesson; fixed reply | yes |
 | Other learners' data | Never read; the request cannot name a learner | token subject + RLS + no learner field | yes |
 
 ### Immediate safety concerns
 
 If a message suggests the student may be in danger, hurt, abused or thinking of
-self-harm, Jude does **not** tutor and does **not** call a model. It returns a
-fixed message written by people (French and Haitian Creole) that:
+self-harm **in wording the phrase list recognises**, Jude does **not** tutor and
+does **not** call a model. It returns a fixed message (French and Haitian
+Creole). **Neither the phrase list nor the message has been reviewed by a
+child-safeguarding professional or a native speaker**
+(`safety.TEMPLATES_REVIEW_STATUS = "unreviewed"`), and no student-facing route
+can be built until the owner records that review
+(`build_student_facing_router`). The message:
 
 - thanks the student and says they should not stay alone with it;
 - tells them to talk now to a trusted adult — a parent, a teacher, a relative;
@@ -37,7 +42,7 @@ Whether a safeguarding escalation path should exist is an open owner decision.
 
 If the screen misses a message and the model itself flags it
 (`status: safety_support`), the model's wording is discarded and the same
-reviewed message is shown.
+fixed message is shown.
 
 ### Avoiding excessive refusal
 
@@ -51,9 +56,18 @@ numbers.
 
 ### Honest limits of the screen
 
-- It is a short list of unambiguous phrases in three languages. It will miss
-  indirect, misspelled or unusual wording, and all of it needs review by native
-  Haitian Creole speakers and by a child-safeguarding professional.
+- It is a short list of phrases in three languages. It will miss indirect,
+  misspelled or unusual wording — six realistic misses are pinned as expected
+  failures in `test_security_corrections.py` — and all of it needs review by
+  native Haitian Creole speakers and by a child-safeguarding professional.
+- A sentence in quotation marks that is explicitly attributed to a text or a
+  character is treated as a literature question. That exemption is narrow, and
+  it can be wrong in both directions.
+- **Personal details:** removal is pattern matching, not name recognition. A
+  name outside a self-introduction, a nickname, a school, a teacher's or
+  relative's name, or a description that identifies the child is sent as
+  written. Whether such text may go to a third-party model at all is an open
+  legal decision ([12](12-security-corrections.md), S-4).
 - It is not a classifier and has not been evaluated on real messages (there are
   none, by design).
 - The Creole fixed messages were written for this milestone and have **not**

@@ -51,7 +51,7 @@ approved lesson ─▶ passages (one per block) ─▶ Ranker ─▶ relevant to
    digit 5 is not enough.
 4. **Nothing relevant → no answer.** If the learner asked something in their own
    words and no passage is relevant, retrieval returns nothing and the service
-   replies with the reviewed "not in this lesson" message **without calling a
+   replies with the fixed "not in this lesson" message **without calling a
    model**. A block in focus does not rescue an unrelated question.
 5. **Explicit pointers are always context.** The block in focus and the named
    practice question are included; each chosen passage brings its section heading.

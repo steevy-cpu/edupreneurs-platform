@@ -37,9 +37,10 @@ class ResponseStatus(StrEnum):
     ANSWERED = "answered"
     #: The lesson does not contain enough verified material; nothing was invented.
     INSUFFICIENT_CONTEXT = "insufficient_context"
-    #: A fixed, reviewed message: the request is outside what Jude does.
+    #: A fixed message: the request is outside what Jude does.
     DECLINED = "declined"
-    #: A fixed, reviewed supportive message pointing to a trusted adult.
+    #: A fixed supportive message pointing to a trusted adult. Its wording has not
+    #: been professionally reviewed (``safety.TEMPLATES_REVIEW_STATUS``).
     SAFETY_SUPPORT = "safety_support"
 
 
@@ -65,8 +66,9 @@ class NextAction(StrEnum):
 class ResponseSource(StrEnum):
     #: Text written by the model, validated by the server.
     MODEL = "model"
-    #: Fixed text written and reviewed by people; no model was called.
-    REVIEWED_TEMPLATE = "reviewed_template"
+    #: Fixed text shipped with the server; no model was called. The name says
+    #: nothing about review: see ``safety.TEMPLATES_REVIEW_STATUS``.
+    FIXED_TEMPLATE = "fixed_template"
 
 
 class Notice(StrEnum):
