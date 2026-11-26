@@ -138,6 +138,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     if (!services) return;
     engineRef.current = null;
+    services.lessonCache.clear();
     setSession(null);
     setNeedsReauth(false);
     setSummary(EMPTY_SUMMARY);

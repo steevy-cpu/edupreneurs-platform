@@ -178,12 +178,26 @@ export function StepStrip({ steps, current }: { steps: string[]; current: number
   );
 }
 
-export function LessonHeader({ subject, title, meta, offline }: { subject?: string; title: string; meta: string; offline?: string }) {
+export function LessonHeader({
+  subject,
+  title,
+  meta,
+  offline,
+  online,
+}: {
+  subject?: string;
+  title: string;
+  meta: string;
+  offline?: string;
+  /** Shown for a lesson read online and not downloaded. */
+  online?: string;
+}) {
   return (
     <View style={{ gap: space.sm }}>
       <View style={styles.wrapRow}>
         {subject ? <Pill label={subject} tone="action" /> : null}
         {offline ? <Pill label={offline} tone="success" icon="check" /> : null}
+        {online ? <Pill label={online} tone="neutral" /> : null}
       </View>
       <AppText variant="display" accessibilityRole="header">
         {title}

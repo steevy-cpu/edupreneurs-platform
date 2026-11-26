@@ -206,35 +206,47 @@ export default function Learn() {
               {unit.lessons.map((lesson, index) => {
                 const busy = saving === lesson.lessonId;
                 const needsDownload = lesson.saved === null || lesson.updateAvailable;
+                const readOnlineNow = () => router.push(`/lesson/${lesson.lessonId}?mode=online`);
                 return (
                   <View key={lesson.lessonId}>
                     <PathNode
                       index={index}
                       kind={t('lessonNumber', { number: lesson.number })}
                       title={lesson.title}
-                      state={lesson.state}
+                      state={lesson.state === 'unavailable' ? 'available' : lesson.state}
                       first={index === 0}
                       last={index === unit.lessons.length - 1}
                       detail={
                         lesson.saved === null
-                          ? t('lessonNotSaved')
+                          ? t('lessonOnlineOnly')
                           : lesson.updateAvailable
                             ? `${t('lessonSaved')} · ${t('lessonUpdateAvailable')}`
                             : t('lessonSaved')
                       }
-                      onPress={lesson.saved ? () => router.push(`/lesson/${lesson.lessonId}`) : undefined}
+                      onPress={lesson.saved ? () => router.push(`/lesson/${lesson.lessonId}`) : readOnlineNow}
                       action={
                         needsDownload ? (
-                          <Button
-                            variant={lesson.saved ? 'secondary' : 'primary'}
-                            icon="download"
-                            busy={busy}
-                            disabled={saving !== null && !busy}
-                            label={busy ? t('lessonSaving') : lesson.saved ? t('lessonUpdate') : t('download')}
-                            accessibilityHint={lesson.title}
-                            testID={`download-${lesson.number}`}
-                            onPress={() => void save(lesson)}
-                          />
+                          <View style={{ gap: space.sm }}>
+                            {lesson.saved === null ? (
+                              <Button
+                                icon="play"
+                                label={t('readNow')}
+                                accessibilityHint={lesson.title}
+                                testID={`read-${lesson.number}`}
+                                onPress={readOnlineNow}
+                              />
+                            ) : null}
+                            <Button
+                              variant="secondary"
+                              icon="download"
+                              busy={busy}
+                              disabled={saving !== null && !busy}
+                              label={busy ? t('lessonSaving') : lesson.saved ? t('lessonUpdate') : t('download')}
+                              accessibilityHint={lesson.title}
+                              testID={`download-${lesson.number}`}
+                              onPress={() => void save(lesson)}
+                            />
+                          </View>
                         ) : undefined
                       }
                     />
