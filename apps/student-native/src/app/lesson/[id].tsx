@@ -3,8 +3,8 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { completeLesson } from '../../core/learning/actions';
-import { downloadForOffline, getDownloaded, openLesson, OpenResult, ReadableLesson } from '../../core/learning/contentAccess';
-import { findLessonContext, LessonContext, PREF_LAST_LESSON } from '../../core/learning/overview';
+import { downloadForOffline, getDownloaded, LessonFreshness, lessonFreshness, openLesson, OpenResult, ReadableLesson } from '../../core/learning/contentAccess';
+import { findLessonContext, LessonContext, PREF_LAST_LESSON, shortDate } from '../../core/learning/overview';
 import { AppText, Button, Card, LessonHeader, LoadingState, MessageState, Notice, SectionHeader, space, useDesign } from '../../design';
 import { perfSinceTap } from '../../ui/perf';
 import { DetailScreen } from '../../ui/shell';
@@ -80,6 +80,7 @@ export default function LessonReader() {
   const [lesson, setLesson] = useState<ReadableLesson | null | undefined>(undefined);
   const [failure, setFailure] = useState<Extract<OpenResult, { kind: 'unavailable' }> | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [freshness, setFreshness] = useState<LessonFreshness | null>(null);
   const [downloadState, setDownloadState] = useState<'idle' | 'busy' | 'done' | 'failed'>('idle');
   const [context, setContext] = useState<LessonContext | null>(null);
   const [completed, setCompleted] = useState(false);
@@ -111,14 +112,30 @@ export default function LessonReader() {
         const progress = await session.account.lessonProgress(id);
         const cached = await app.services.content.getCatalog(locale);
         if (!live) return;
+        let fresh: LessonFreshness | null = null;
+        if (saved?.source === 'downloaded') {
+          const info = await app.services.content.getLessonInfo(id, locale);
+          if (info) fresh = lessonFreshness(info, cached);
+        }
         setLesson(saved);
+        setFreshness(fresh);
         setFailure(unavailable);
         setDownloadState('idle');
         setContext(findLessonContext(cached?.catalog ?? null, id));
         setCompleted(Boolean(progress?.completed));
         // Remember where this student was, for "Continue learning" (account-scoped preference).
-        // Only a downloaded lesson: the Home card must never point at something that is not on the phone.
-        if (saved?.source === 'downloaded' && session.isActive()) await session.account.setPreference(PREF_LAST_LESSON, id);
+        // Any lesson the student actually opened, downloaded or online: Home offers it with the right label.
+        if (saved && session.isActive()) {
+          await session.account.setPreference(PREF_LAST_LESSON, id);
+          await session.account.touchLessonRef({
+            lessonId: saved.lessonId,
+            locale: saved.locale,
+            title: saved.title,
+            revisionId: saved.revisionId,
+            revision: saved.revision,
+            at: app.services.env.now().toISOString(),
+          });
+        }
       })().catch(() => live && setLesson((current) => current ?? null));
       return () => {
         live = false;
@@ -212,6 +229,7 @@ export default function LessonReader() {
     try {
       await downloadForOffline(app.api, app.services.content, lesson.lessonId, lesson.locale, app.services.env);
       setDownloadState('done'); // set only after the local transaction committed
+      if (lesson.source === 'downloaded') setAttempt((n) => n + 1); // an update: reload the new revision
     } catch {
       setDownloadState('failed'); // nothing was saved; the lesson on screen is unchanged
     }
@@ -235,6 +253,34 @@ export default function LessonReader() {
         offline={isOnlineOnly ? undefined : t('availableOffline')}
         online={isOnlineOnly ? t('readerOnlineBadge') : undefined}
       />
+      {lesson.source === 'downloaded' && freshness ? (
+        <View style={{ gap: space.sm }}>
+          {freshness.state === 'not_listed' ? (
+            <Notice tone="info">{t('readerNotListedNotice', { date: shortDate(freshness.verifiedAt) })}</Notice>
+          ) : freshness.state === 'withdrawn_confirmed' ? (
+            <Notice tone="info">{t('readerGoneNotice')}</Notice>
+          ) : freshness.state === 'update_available' ? (
+            <>
+              <Notice tone="info">{t('lessonUpdateAvailable')}</Notice>
+              {app.api ? (
+                <Button
+                  variant="secondary"
+                  icon="download"
+                  busy={downloadState === 'busy'}
+                  label={downloadState === 'busy' ? t('readerDownloading') : t('lessonUpdate')}
+                  onPress={() => void download()}
+                />
+              ) : null}
+              {downloadState === 'failed' ? <Notice tone="danger">{t('lessonSaveFailed')}</Notice> : null}
+            </>
+          ) : null}
+          <AppText variant="caption" color="textSecondary">
+            {freshness.state === 'unverified' || freshness.verifiedAt === null
+              ? t('readerUnverified')
+              : t('readerVerifiedOn', { date: shortDate(freshness.verifiedAt) })}
+          </AppText>
+        </View>
+      ) : null}
       {(lesson.blocks as Block[]).map((block, index) => (
         <BlockView key={typeof block.key === 'string' ? block.key : index} block={block} exampleLabel={t('workedExample')} />
       ))}

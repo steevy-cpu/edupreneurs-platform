@@ -7,8 +7,9 @@
  * no placeholder numbers. If a value is unknown it is absent, not invented.
  */
 import type { CatalogResponse, Locale } from '../api/types';
-import type { AccountStore, SyncState } from '../db/accountStore';
+import type { AccountStore, LessonRef, SyncState } from '../db/accountStore';
 import type { ContentStore, SavedLessonInfo } from '../db/contentStore';
+import { LessonFreshness, lessonFreshness } from './contentAccess';
 
 export const PREF_GRADE = 'grade_code';
 export const PREF_SUBJECT = 'subject_slug';
@@ -21,8 +22,10 @@ export interface LessonStanding {
   title: string;
   revision: number;
   revisionId: string;
-  /** Questions of the saved revision that this app version can present. */
-  questionCount: number;
+  /** `downloaded`: a copy is on this phone. `online`: only a reference is kept; the lesson must be fetched to open it. */
+  availability: 'downloaded' | 'online';
+  /** Questions of the saved revision that this app version can present. Null for an online-only lesson: it is not known without fetching it. */
+  questionCount: number | null;
   /** How many of those have at least one recorded answer. */
   answered: number;
   /** Last answer correct (server verdict when known, otherwise the provisional local one). */
@@ -60,6 +63,7 @@ export async function lessonStanding(content: ContentStore, account: AccountStor
   }
   return {
     lessonId: info.lessonId,
+    availability: 'downloaded',
     title: info.title,
     revision: info.revision,
     revisionId: info.revisionId,
@@ -74,6 +78,54 @@ export async function lessonStanding(content: ContentStore, account: AccountStor
   };
 }
 
+/**
+ * Standing of a lesson that is NOT on this phone, from the student's own records only (question progress,
+ * completion). It cannot know how many questions the lesson has, so `questionCount` is null — never a guess.
+ */
+export async function refStanding(account: AccountStore, ref: LessonRef): Promise<LessonStanding> {
+  const progress = await account.questionProgress(ref.lessonId);
+  const completion = await account.lessonProgress(ref.lessonId);
+  let correct = 0;
+  let waiting = 0;
+  let refused = 0;
+  const missedQuestionIds: string[] = [];
+  for (const record of progress.values()) {
+    if (record.lastIsCorrect === true) correct += 1;
+    if (record.lastIsCorrect === false) missedQuestionIds.push(record.questionRevisionId);
+    if (record.lastSyncState === 'pending') waiting += 1;
+    if (record.lastSyncState === 'needs_attention') refused += 1;
+  }
+  return {
+    lessonId: ref.lessonId,
+    availability: 'online',
+    title: ref.title,
+    revision: ref.revision,
+    revisionId: ref.revisionId,
+    questionCount: null,
+    answered: progress.size,
+    correct,
+    missedQuestionIds,
+    waiting,
+    refused,
+    completed: Boolean(completion?.completed),
+    completionState: completion?.completed ? completion.syncState : null,
+  };
+}
+
+/**
+ * Everything this student has studied in this language: downloaded lessons first, then lessons only
+ * opened online (most recent first). A lesson whose download was removed stays here, as an online lesson.
+ */
+export async function learningStandings(content: ContentStore, account: AccountStore, locale: Locale): Promise<LessonStanding[]> {
+  const downloaded = await savedLessonStandings(content, account, locale);
+  const have = new Set(downloaded.map((lesson) => lesson.lessonId));
+  const online: LessonStanding[] = [];
+  for (const ref of await account.listLessonRefs(locale)) {
+    if (!have.has(ref.lessonId)) online.push(await refStanding(account, ref));
+  }
+  return [...downloaded, ...online];
+}
+
 /** Every lesson saved on this phone in this language, with the student's standing. */
 export async function savedLessonStandings(content: ContentStore, account: AccountStore, locale: Locale): Promise<LessonStanding[]> {
   const out: LessonStanding[] = [];
@@ -85,7 +137,10 @@ export async function savedLessonStandings(content: ContentStore, account: Accou
 }
 
 export interface LearnerTotals {
+  /** Lessons with a copy on this phone. */
   lessonsSaved: number;
+  /** Lessons studied from any source (downloaded or online). */
+  lessonsStudied: number;
   lessonsCompleted: number;
   questionsAnswered: number;
   questionsCorrect: number;
@@ -95,7 +150,8 @@ export interface LearnerTotals {
 
 export function totalsOf(standings: LessonStanding[]): LearnerTotals {
   return {
-    lessonsSaved: standings.length,
+    lessonsSaved: standings.filter((lesson) => lesson.availability === 'downloaded').length,
+    lessonsStudied: standings.length,
     lessonsCompleted: standings.filter((lesson) => lesson.completed).length,
     questionsAnswered: standings.reduce((sum, lesson) => sum + lesson.answered, 0),
     questionsCorrect: standings.reduce((sum, lesson) => sum + lesson.correct, 0),
@@ -105,9 +161,9 @@ export function totalsOf(standings: LessonStanding[]): LearnerTotals {
 }
 
 /**
- * The lesson offered by "Continue learning": the one opened last if it is still
- * saved, otherwise the first saved lesson not yet finished, otherwise the first
- * saved lesson. Null when nothing is saved — the card is then not shown at all.
+ * The lesson offered by "Continue learning": the one opened last if this student still has a
+ * record of it (downloaded or online), otherwise the first lesson not yet finished, otherwise the
+ * first. Null when the student has studied nothing — the card is then not shown at all.
  */
 export function pickContinueLesson(standings: LessonStanding[], lastLessonId: string | null): LessonStanding | null {
   if (standings.length === 0) return null;
@@ -156,6 +212,8 @@ export interface PathLesson {
   completed: boolean;
   /** A newer revision is published than the one saved here. */
   updateAvailable: boolean;
+  /** Where the saved copy stands relative to the last catalog this phone fetched; null when nothing is saved. */
+  freshness: LessonFreshness | null;
   state: PathLessonState;
 }
 
@@ -233,6 +291,7 @@ export async function loadPath(
           saved: copy,
           completed,
           updateAvailable: copy !== null && copy.revisionId !== lesson.revision_id,
+          freshness: copy ? lessonFreshness(copy, cached) : null,
           state,
         });
       }
@@ -270,4 +329,12 @@ export function syncDisplayOf(summary: { pending: number; needsAttention: number
     return lastOutcome === 'offline' || lastOutcome === 'error' || lastOutcome === 'auth_required' ? 'failed' : 'pending';
   if (summary.needsAttention > 0) return 'attention';
   return 'synced';
+}
+
+/** dd/mm/yyyy in the phone's own time zone, for "verified on …". Empty for an unparseable value. */
+export function shortDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  const two = (n: number) => String(n).padStart(2, '0');
+  return `${two(date.getDate())}/${two(date.getMonth() + 1)}/${date.getFullYear()}`;
 }

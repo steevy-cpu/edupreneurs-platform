@@ -251,7 +251,7 @@ describe('download for offline study', () => {
       courses: [{ units: [{ lessons: [{ id: LESSON, revision_id: revisionId }] }] }],
     });
     await d.content.saveCatalog(catalog(REV1) as any, '2026-11-26T10:00:00Z');
-    expect(await checkForUpdates(d.content, LESSON, 'fr')).toBe('up_to_date');
+    expect(await checkForUpdates(d.content, LESSON, 'fr')).toBe('current');
     await d.content.saveCatalog(catalog(REV2) as any, '2026-11-26T10:00:00Z');
     expect(await checkForUpdates(d.content, LESSON, 'fr')).toBe('update_available');
     await d.close();

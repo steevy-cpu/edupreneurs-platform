@@ -2,8 +2,9 @@ import { Redirect, useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
-import { refreshCatalog, saveLessonOffline } from '../core/learning/actions';
-import { loadPath, PathLesson, PathView, PREF_GRADE, PREF_SUBJECT } from '../core/learning/overview';
+import { refreshCatalog } from '../core/learning/actions';
+import { downloadForOffline } from '../core/learning/contentAccess';
+import { loadPath, PathLesson, PathView, PREF_GRADE, PREF_SUBJECT, shortDate } from '../core/learning/overview';
 import {
   AppText,
   Button,
@@ -93,7 +94,7 @@ export default function Learn() {
     setSaving(lesson.lessonId);
     setFailed(null);
     try {
-      await saveLessonOffline(app.api, app.services.content, lesson.lessonId, app.locale, app.services.env);
+      await downloadForOffline(app.api, app.services.content, lesson.lessonId, app.locale, app.services.env);
     } catch {
       // The previously saved copy (if any) was not touched.
       setFailed({ lessonId: lesson.lessonId, hadCopy: lesson.saved !== null });
@@ -219,9 +220,13 @@ export default function Learn() {
                       detail={
                         lesson.saved === null
                           ? t('lessonOnlineOnly')
-                          : lesson.updateAvailable
-                            ? `${t('lessonSaved')} · ${t('lessonUpdateAvailable')}`
-                            : t('lessonSaved')
+                          : lesson.freshness?.state === 'withdrawn_confirmed'
+                            ? t('lessonGone')
+                            : lesson.freshness?.state === 'not_listed'
+                              ? t('lessonNotListed', { date: shortDate(lesson.freshness.verifiedAt) })
+                              : lesson.updateAvailable
+                                ? `${t('lessonSaved')} · ${t('lessonUpdateAvailable')}`
+                                : t('lessonSaved')
                       }
                       onPress={lesson.saved ? () => router.push(`/lesson/${lesson.lessonId}`) : readOnlineNow}
                       action={

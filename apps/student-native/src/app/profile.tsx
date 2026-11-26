@@ -6,7 +6,7 @@ import type { AttentionItem } from '../core/db/accountStore';
 import { FLAGS } from '../core/experience/flags';
 import { startTour, TOUR_STEPS } from '../core/experience/tour';
 import { wasUnreachable } from '../core/sync/engine';
-import { LessonStanding, PREF_GRADE, PREF_SUBJECT, savedLessonStandings, syncDisplayOf, totalsOf } from '../core/learning/overview';
+import { LessonStanding, PREF_GRADE, PREF_SUBJECT, learningStandings, syncDisplayOf, totalsOf } from '../core/learning/overview';
 import { AppText, Button, Card, Chip, ListRow, LoadingState, Notice, Pill, SectionHeader, space, SyncStatusCard, useLayout } from '../design';
 import { RewardsCard } from '../ui/experience/Rewards';
 import { useRemote } from '../ui/remote';
@@ -57,7 +57,7 @@ export default function Profile() {
       let live = true;
       (async () => {
         const { content } = app.services;
-        const standings = await savedLessonStandings(content, session.account, locale);
+        const standings = await learningStandings(content, session.account, locale);
         const attention = await session.account.attentionItems();
         const grade = await session.account.getPreference(PREF_GRADE);
         const subject = await session.account.getPreference(PREF_SUBJECT);
@@ -122,13 +122,17 @@ export default function Profile() {
         {view !== null && view.standings.length > 0 ? (
           <>
             <View style={styles.stats}>
-              <Stat value={`${totals.lessonsCompleted}/${totals.lessonsSaved}`} label={t('lessonsCompleted')} />
+              <Stat value={`${totals.lessonsCompleted}/${totals.lessonsStudied}`} label={t('lessonsCompleted')} />
               <Stat value={`${totals.questionsCorrect}/${totals.questionsAnswered}`} label={t('correctAnswers')} />
             </View>
             {view.standings.map((lesson) => (
               <Card key={lesson.lessonId}>
                 <AppText variant="bodyStrong">{lesson.title}</AppText>
-                <AppText>{t('progressAnswered', { answered: lesson.answered, total: lesson.questionCount })}</AppText>
+                <AppText>
+                  {lesson.questionCount === null
+                    ? t('progressAnsweredOnline', { answered: lesson.answered })
+                    : t('progressAnswered', { answered: lesson.answered, total: lesson.questionCount })}
+                </AppText>
                 <AppText>{t('progressCorrect', { correct: lesson.correct })}</AppText>
                 <View style={styles.pills}>
                   {lesson.completed ? <Pill tone="success" icon="check" label={t('lessonCompleted')} /> : null}

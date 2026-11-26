@@ -2,7 +2,8 @@ import { ApiClient } from '../api/client';
 import { isTransient } from '../api/errors';
 import type { LessonResponse, Locale } from '../api/types';
 import { validateLessonSnapshot } from '../api/validate';
-import { ContentStore, SavedLesson } from '../db/contentStore';
+import type { AccountStore } from '../db/accountStore';
+import { ContentStore, SavedLesson, SavedLessonInfo } from '../db/contentStore';
 import { saveLessonOffline, SaveLessonResult } from './actions';
 
 /**
@@ -22,9 +23,11 @@ import { saveLessonOffline, SaveLessonResult } from './actions';
 export type LessonSource = 'online' | 'downloaded';
 
 /** What the reader and quiz need. `savedAt` is null for a lesson that is not downloaded. */
-export type ReadableLesson = Omit<SavedLesson, 'savedAt'> & {
+export type ReadableLesson = Omit<SavedLesson, 'savedAt' | 'serverGoneAt'> & {
   source: LessonSource;
   savedAt: string | null;
+  /** Downloaded lessons only: when the server last said it is no longer published. */
+  serverGoneAt?: string | null;
 };
 
 function fromSnapshot(snapshot: LessonResponse, source: LessonSource, savedAt: string | null): ReadableLesson {
@@ -157,57 +160,117 @@ export async function openLesson(
     if (!deps.api) throw Object.assign(new Error('no session'), { kind: 'auth_required' });
     return { kind: 'ready', lesson: await readOnline(deps.api, deps.cache, lessonId, locale) };
   } catch (error) {
-    return {
-      kind: 'unavailable',
-      reason: reasonOf(error),
-      downloaded: await getDownloaded(deps.content, lessonId, locale),
-    };
+    const downloaded = await getDownloaded(deps.content, lessonId, locale);
+    if (downloaded && isNotPublished(error)) await deps.content.markServerGone(lessonId, locale, new Date().toISOString());
+    return { kind: 'unavailable', reason: reasonOf(error), downloaded };
   }
 }
 
 /**
  * Explicit download for offline study (the existing, tested path): download completely →
  * validate → replace in one transaction. A failure leaves any previous copy untouched.
+ * If the server says the lesson is not published (404) the saved copy is kept and marked
+ * "server gone", so the app can say so truthfully; it is never deleted.
  */
-export function downloadForOffline(
+export async function downloadForOffline(
   api: Pick<ApiClient, 'getLesson'>,
   content: ContentStore,
   lessonId: string,
   locale: Locale,
   env: { now: () => Date },
 ): Promise<SaveLessonResult> {
-  return saveLessonOffline(api, content, lessonId, locale, env);
+  try {
+    return await saveLessonOffline(api, content, lessonId, locale, env);
+  } catch (error) {
+    if (isNotPublished(error)) await content.markServerGone(lessonId, locale, env.now().toISOString());
+    throw error;
+  }
+}
+
+/** The server's answer for "unknown, draft, rejected, withdrawn or unpublished": one identical 404. */
+export function isNotPublished(error: unknown): boolean {
+  return (error as { status?: number | null } | null)?.status === 404;
 }
 
 /**
  * Remove the downloaded copy of a lesson (and its saved questions). This touches only the
  * shared public content database: the student's answers, completions and pending sync
  * operations live in the account database and are not reachable from here.
+ * With `account`, a minimal reference (public title and revision) is kept first, so the
+ * lesson stays visible on Home and Review as an online lesson.
  */
-export function removeDownloaded(content: ContentStore, lessonId: string, locale: Locale): Promise<boolean> {
-  return content.deleteLesson(lessonId, locale);
-}
-
-export type UpdateStatus = 'not_downloaded' | 'up_to_date' | 'update_available';
-
-/**
- * Compare the downloaded revision with the revision the catalog currently lists.
- * Reads only local data (the cached catalog); the catalog refresh is a separate step.
- */
-export async function checkForUpdates(
+export async function removeDownloaded(
   content: ContentStore,
   lessonId: string,
   locale: Locale,
-): Promise<UpdateStatus> {
-  const saved = await content.getLessonInfo(lessonId, locale);
-  if (!saved) return 'not_downloaded';
-  const cached = await content.getCatalog(locale);
-  if (!cached) return 'up_to_date';
-  for (const course of cached.catalog.courses) {
-    for (const unit of course.units) {
-      const listed = unit.lessons.find((lesson) => lesson.id === lessonId);
-      if (listed) return listed.revision_id === saved.revisionId ? 'up_to_date' : 'update_available';
+  options: { account?: AccountStore; now?: () => Date } = {},
+): Promise<boolean> {
+  const info = await content.getLessonInfo(lessonId, locale);
+  if (!info) return false;
+  if (options.account) {
+    await options.account.touchLessonRef({
+      lessonId,
+      locale,
+      title: info.title,
+      revisionId: info.revisionId,
+      revision: info.revision,
+      at: (options.now ?? (() => new Date()))().toISOString(),
+    });
+  }
+  return content.deleteLesson(lessonId, locale);
+}
+
+/**
+ * Where a downloaded lesson stands relative to the server, as far as THIS PHONE can know.
+ *
+ *  unverified            no successful catalog fetch has happened on this phone
+ *  current               the last successful catalog listed this same revision
+ *  update_available      the last successful catalog listed a different revision
+ *  not_listed            the last successful catalog did not list it: withdrawn, or not published in
+ *                        this language — the catalog does not say which, and takedowns are not distinguishable
+ *  withdrawn_confirmed   the server itself answered "not published" for this lesson, after the last
+ *                        catalog that listed it
+ *
+ * `verifiedAt` is the time of the catalog this is based on. A phone with no connection cannot learn
+ * that something was withdrawn after that time; callers must show `verifiedAt`, never claim "up to date".
+ */
+export type LessonFreshness =
+  | { state: 'unverified' }
+  | { state: 'current' | 'update_available' | 'not_listed'; verifiedAt: string }
+  | { state: 'withdrawn_confirmed'; verifiedAt: string | null; at: string };
+
+export function lessonFreshness(
+  saved: Pick<SavedLessonInfo, 'lessonId' | 'revisionId' | 'serverGoneAt'>,
+  cached: { catalog: CatalogLike; fetchedAt: string } | null,
+): LessonFreshness {
+  let listedRevision: string | null = null;
+  if (cached) {
+    for (const course of cached.catalog.courses) {
+      for (const unit of course.units) {
+        const hit = unit.lessons.find((lesson) => lesson.id === saved.lessonId);
+        if (hit) listedRevision = hit.revision_id;
+      }
     }
   }
-  return 'up_to_date';
+  // A server "gone" answer counts only if no LATER catalog lists the lesson again (it may have been re-published).
+  if (saved.serverGoneAt && !(cached && listedRevision !== null && cached.fetchedAt > saved.serverGoneAt)) {
+    return { state: 'withdrawn_confirmed', verifiedAt: cached?.fetchedAt ?? null, at: saved.serverGoneAt };
+  }
+  if (!cached) return { state: 'unverified' };
+  if (listedRevision === null) return { state: 'not_listed', verifiedAt: cached.fetchedAt };
+  return {
+    state: listedRevision === saved.revisionId ? 'current' : 'update_available',
+    verifiedAt: cached.fetchedAt,
+  };
+}
+
+type CatalogLike = { courses: { units: { lessons: { id: string; revision_id: string }[] }[] }[] };
+
+export type UpdateStatus = 'not_downloaded' | LessonFreshness['state'];
+
+/** Freshness of a lesson from local data only (cached catalog + what the server last said). */
+export async function checkForUpdates(content: ContentStore, lessonId: string, locale: Locale): Promise<UpdateStatus> {
+  const saved = await content.getLessonInfo(lessonId, locale);
+  if (!saved) return 'not_downloaded';
+  return lessonFreshness(saved, await content.getCatalog(locale)).state;
 }

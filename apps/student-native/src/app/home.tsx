@@ -13,7 +13,7 @@ import {
   LessonStanding,
   pickContinueLesson,
   PREF_LAST_LESSON,
-  savedLessonStandings,
+  learningStandings,
   totalsOf,
 } from '../core/learning/overview';
 import { AppText, Button, HeroCard, Icon, ListRow, LoadingState, MessageState, Notice, ProgressBar, SectionHeader, space } from '../design';
@@ -58,7 +58,7 @@ export default function Home() {
           if (live && session.isActive()) setOnboardingDue(true);
           return;
         }
-        const standings = await savedLessonStandings(content, session.account, locale);
+        const standings = await learningStandings(content, session.account, locale);
         const lastLessonId = await session.account.getPreference(PREF_LAST_LESSON);
         const cached = await content.getCatalog(locale);
         const tour = FLAGS.tour ? await session.account.experience.getTour() : EMPTY_TOUR;
@@ -195,7 +195,14 @@ export default function Home() {
     );
   }
 
-  const progressLabel = t('homeContinueProgress', { answered: next.answered, total: next.questionCount });
+  const nextOnline = next.availability === 'online';
+  const questionTotal = next.questionCount ?? 0;
+  const progressLabel =
+    next.questionCount === null
+      ? t('progressAnsweredOnline', { answered: next.answered })
+      : t('homeContinueProgress', { answered: next.answered, total: next.questionCount });
+  const downloadedList = view.standings.filter((lesson) => lesson.availability === 'downloaded');
+  const onlineList = view.standings.filter((lesson) => lesson.availability === 'online');
   return (
     <TabScreen tab="home">
       {greeting}
@@ -210,29 +217,35 @@ export default function Home() {
         <AppText variant="title" color="textOnHero">
           {next.title}
         </AppText>
-        {next.questionCount > 0 ? (
+        {questionTotal > 0 || (nextOnline && next.answered > 0) ? (
           <>
-            <ProgressBar value={next.answered / next.questionCount} onHero label={progressLabel} />
+            {questionTotal > 0 ? <ProgressBar value={next.answered / questionTotal} onHero label={progressLabel} /> : null}
             <AppText variant="caption" color="textOnHeroSecondary">
               {progressLabel}
               {next.completed ? ` · ${t('lessonCompleted')}` : ''}
             </AppText>
           </>
         ) : null}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
-          <Icon name="check" color="#8FE3CF" size={16} />
-          <AppText variant="caption" color="textOnHeroSecondary" style={{ flex: 1 }}>
-            {t('availableOffline')}
+        {nextOnline ? (
+          <AppText variant="caption" color="textOnHeroSecondary">
+            {t('readerOnlineBadge')} · {t('continueOnlineHint')}
           </AppText>
-        </View>
+        ) : (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+            <Icon name="check" color="#8FE3CF" size={16} />
+            <AppText variant="caption" color="textOnHeroSecondary" style={{ flex: 1 }}>
+              {t('availableOffline')}
+            </AppText>
+          </View>
+        )}
         <Button
-          label={t('continueLesson')}
+          label={nextOnline ? t('continueOnline') : t('continueLesson')}
           variant="onHero"
           icon="play"
           testID="home-continue"
           onPress={() => {
             perfTap();
-            router.push(`/lesson/${next.lessonId}`);
+            router.push(`/lesson/${next.lessonId}${nextOnline ? '?mode=online' : ''}`);
           }}
         />
       </HeroCard>
@@ -254,18 +267,35 @@ export default function Home() {
         />
       </View>
 
-      <View style={{ gap: space.sm }}>
-        <SectionHeader title={t('downloadedLessons')} />
-        {view.standings.map((lesson) => (
-          <ListRow
-            key={lesson.lessonId}
-            icon="download"
-            title={lesson.title}
-            subtitle={lesson.completed ? `${t('availableOffline')} · ${t('lessonCompleted')}` : t('availableOffline')}
-            onPress={() => router.push(`/lesson/${lesson.lessonId}`)}
-          />
-        ))}
-      </View>
+      {downloadedList.length > 0 ? (
+        <View style={{ gap: space.sm }}>
+          <SectionHeader title={t('downloadedLessons')} />
+          {downloadedList.map((lesson) => (
+            <ListRow
+              key={lesson.lessonId}
+              icon="download"
+              title={lesson.title}
+              subtitle={lesson.completed ? `${t('availableOffline')} · ${t('lessonCompleted')}` : t('availableOffline')}
+              onPress={() => router.push(`/lesson/${lesson.lessonId}`)}
+            />
+          ))}
+        </View>
+      ) : null}
+
+      {onlineList.length > 0 ? (
+        <View style={{ gap: space.sm }}>
+          <SectionHeader title={t('homeOnlineLessons')} />
+          {onlineList.map((lesson) => (
+            <ListRow
+              key={lesson.lessonId}
+              icon="play"
+              title={lesson.title}
+              subtitle={lesson.completed ? `${t('readerOnlineBadge')} · ${t('lessonCompleted')}` : t('readerOnlineBadge')}
+              onPress={() => router.push(`/lesson/${lesson.lessonId}?mode=online`)}
+            />
+          ))}
+        </View>
+      ) : null}
 
       {tourInvite}
     </TabScreen>

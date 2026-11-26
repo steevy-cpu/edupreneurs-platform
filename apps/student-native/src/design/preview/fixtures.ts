@@ -126,6 +126,7 @@ export function lesson(locale: DesignLocale): SavedLesson {
     revision: 1,
     title: c.lessonTitle,
     savedAt: '2026-11-22T14:00:00.000Z',
+    serverGoneAt: null,
     blocks: [
       { key: 'intro', type: 'paragraph', text: c.intro },
       { key: 'regle', type: 'paragraph', text: c.rule },

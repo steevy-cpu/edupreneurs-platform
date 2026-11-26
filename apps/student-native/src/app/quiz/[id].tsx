@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import type { PracticeQuestion } from '../../core/api/types';
 import { answerQuestion, choicesOf, correctChoiceOf, textOf } from '../../core/learning/actions';
 import { getDownloaded, openLesson, ReadableLesson } from '../../core/learning/contentAccess';
+import type { OpenResult } from '../../core/learning/contentAccess';
 import {
   AnswerOption,
   AppText,
@@ -42,6 +43,8 @@ export default function Quiz() {
   const router = useRouter();
   const { id, only, mode } = useLocalSearchParams<{ id: string; only?: string; mode?: string }>();
   const [loaded, setLoaded] = useState<Loaded | null | undefined>(undefined);
+  const [failure, setFailure] = useState<Extract<OpenResult, { kind: 'unavailable' }>['reason'] | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -66,6 +69,8 @@ export default function Quiz() {
           'online',
         );
         lesson = result.kind === 'ready' ? result.lesson : result.kind === 'unavailable' ? result.downloaded : null;
+        if (result.kind === 'unavailable' && !result.downloaded && live) setFailure(result.reason);
+        else if (live) setFailure(null);
       } else {
         lesson = await getDownloaded(app.services.content, id, locale);
       }
@@ -85,7 +90,7 @@ export default function Quiz() {
       live = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, locale, id, only, mode]);
+  }, [session, locale, id, only, mode, attempt]);
 
   if (!app) return <Redirect href="/sign-in" />;
   const { t } = app;
@@ -94,6 +99,31 @@ export default function Quiz() {
     return (
       <DetailScreen title={t('quizTitle')}>
         <LoadingState label={t('loading')} />
+      </DetailScreen>
+    );
+  }
+  if (!loaded && failure) {
+    const reasonText = {
+      offline: t('readerFailOffline'),
+      not_found: t('readerFailNotFound'),
+      session: t('readerFailSession'),
+      invalid: t('readerFailInvalid'),
+    }[failure];
+    return (
+      <DetailScreen title={t('quizTitle')}>
+        <MessageState
+          tone="danger"
+          title={t('readerOnlineTitle')}
+          body={reasonText}
+          actionLabel={failure === 'not_found' ? t('back') : t('readerRetry')}
+          onAction={() => {
+            if (failure === 'not_found') router.canGoBack() ? router.back() : router.replace('/learn');
+            else {
+              setLoaded(undefined);
+              setAttempt((n) => n + 1);
+            }
+          }}
+        />
       </DetailScreen>
     );
   }

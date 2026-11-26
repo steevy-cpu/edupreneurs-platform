@@ -1,7 +1,7 @@
 import { ApiClient } from '../api/client';
 import type { Locale, PracticeQuestion } from '../api/types';
 import { validateLessonSnapshot } from '../api/validate';
-import { AccountStore } from '../db/accountStore';
+import { AccountStore, LessonRef } from '../db/accountStore';
 import { ContentStore, SavedLessonInfo } from '../db/contentStore';
 
 export interface Environment {
@@ -29,6 +29,15 @@ export function textOf(value: Record<string, unknown>): string {
   return typeof value.text === 'string' ? value.text : '';
 }
 
+/** What an answer or completion needs to know about its lesson. Title/locale/revision, when present, are kept as a minimal reference. */
+export type LessonIdentity = Pick<SavedLessonInfo, 'lessonId' | 'revisionId'> &
+  Partial<Pick<SavedLessonInfo, 'locale' | 'title' | 'revision'>>;
+
+function refOf(lesson: LessonIdentity, at: string): LessonRef | undefined {
+  if (!lesson.locale || !lesson.title || typeof lesson.revision !== 'number') return undefined;
+  return { lessonId: lesson.lessonId, locale: lesson.locale, title: lesson.title, revisionId: lesson.revisionId, revision: lesson.revision, at };
+}
+
 export interface AnswerReceipt {
   opId: string;
   /** Provisional verdict from the downloaded answer key. The server re-scores on sync. */
@@ -41,7 +50,7 @@ export interface AnswerReceipt {
  */
 export async function answerQuestion(
   account: AccountStore,
-  lesson: Pick<SavedLessonInfo, 'lessonId' | 'revisionId'>,
+  lesson: LessonIdentity,
   question: PracticeQuestion,
   choiceId: string,
   env: Environment,
@@ -60,6 +69,7 @@ export async function answerQuestion(
     choiceId,
     localIsCorrect: isCorrect,
     recordedAt: env.now().toISOString(),
+    ref: refOf(lesson, env.now().toISOString()),
   });
   return { opId, isCorrect };
 }
@@ -67,7 +77,7 @@ export async function answerQuestion(
 /** Mark the saved revision of a lesson as finished. False if it already was. */
 export function completeLesson(
   account: AccountStore,
-  lesson: Pick<SavedLessonInfo, 'lessonId' | 'revisionId'>,
+  lesson: LessonIdentity,
   env: Environment,
 ): Promise<boolean> {
   return account.recordLessonCompleted({
@@ -75,6 +85,7 @@ export function completeLesson(
     lessonId: lesson.lessonId,
     lessonRevisionId: lesson.revisionId,
     recordedAt: env.now().toISOString(),
+    ref: refOf(lesson, env.now().toISOString()),
   });
 }
 

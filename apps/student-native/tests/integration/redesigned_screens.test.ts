@@ -42,6 +42,7 @@ test('new student: nothing saved means no Continue card, an empty path and zero 
   expect(pickContinueLesson(standings, null)).toBeNull();
   expect(totalsOf(standings)).toEqual({
     lessonsSaved: 0,
+    lessonsStudied: 0,
     lessonsCompleted: 0,
     questionsAnswered: 0,
     questionsCorrect: 0,

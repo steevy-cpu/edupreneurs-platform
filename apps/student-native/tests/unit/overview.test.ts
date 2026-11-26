@@ -7,6 +7,7 @@ function standing(lessonId: string, completed: boolean): LessonStanding {
     title: lessonId,
     revision: 1,
     revisionId: `${lessonId}-r1`,
+    availability: 'downloaded',
     questionCount: 5,
     answered: 0,
     correct: 0,

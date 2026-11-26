@@ -42,6 +42,12 @@ const MIGRATIONS: Migration[] = [
        )`,
     ],
   },
+  {
+    // The moment the server answered "no such published lesson" for a lesson saved on this phone.
+    // Cleared by the next successful download. Additive: one nullable column, no existing row changes.
+    version: 2,
+    statements: [`ALTER TABLE saved_lessons ADD COLUMN server_gone_at TEXT`],
+  },
 ];
 
 export interface SavedLessonInfo {
@@ -51,6 +57,8 @@ export interface SavedLessonInfo {
   revision: number;
   title: string;
   savedAt: string;
+  /** When the server last said this lesson is no longer published; null if it never did. */
+  serverGoneAt: string | null;
 }
 
 export interface SavedLesson extends SavedLessonInfo {
@@ -66,6 +74,7 @@ interface LessonRow {
   title: string;
   blocks_json: string;
   saved_at: string;
+  server_gone_at: string | null;
 }
 
 interface QuestionRow {
@@ -87,6 +96,7 @@ function toInfo(row: LessonRow): SavedLessonInfo {
     revision: row.revision,
     title: row.title,
     savedAt: row.saved_at,
+    serverGoneAt: row.server_gone_at ?? null,
   };
 }
 
@@ -168,6 +178,15 @@ export class ContentStore {
       await tx.run('DELETE FROM saved_lessons WHERE lesson_id = ? AND locale = ?', [lessonId, locale]);
       return true;
     });
+  }
+
+  /** Record that the server said this saved lesson is no longer published. The copy and the student's work are kept. */
+  async markServerGone(lessonId: string, locale: Locale, at: string): Promise<void> {
+    await this.db.run('UPDATE saved_lessons SET server_gone_at = ? WHERE lesson_id = ? AND locale = ?', [
+      at,
+      lessonId,
+      locale,
+    ]);
   }
 
   async getLessonInfo(lessonId: string, locale: Locale): Promise<SavedLessonInfo | null> {

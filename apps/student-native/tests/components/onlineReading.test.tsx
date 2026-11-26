@@ -58,7 +58,7 @@ async function signIn(locale: Locale = 'fr') {
 }
 
 describe('read online', () => {
-  test('shows the lesson as online-only, saves nothing, and does not become "continue learning"', async () => {
+  test('shows the lesson as online-only, saves nothing, and is remembered as an online lesson', async () => {
     const app = await signIn();
     navigation.params = { id: OTHER_LESSON_ID, mode: 'online' };
     const screen = await phone.render(<LessonReader />);
@@ -68,7 +68,9 @@ describe('read online', () => {
     expect(screen.labels()).toContain('Télécharger pour étudier hors ligne');
 
     expect(await phone.content.listSavedLessons('fr')).toEqual([]);
-    expect(await app.session.account.getPreference(PREF_LAST_LESSON)).toBeNull();
+    // Remembered for Home/Review as an ONLINE lesson: a minimal reference, not the lesson.
+    expect(await app.session.account.getPreference(PREF_LAST_LESSON)).toBe(OTHER_LESSON_ID);
+    expect((await app.session.account.listLessonRefs('fr')).map((r) => r.lessonId)).toEqual([OTHER_LESSON_ID]);
 
     await screen.press('Faire les exercices');
     expect(navigation.calls).toContain(`push /quiz/${OTHER_LESSON_ID}?mode=online`);
