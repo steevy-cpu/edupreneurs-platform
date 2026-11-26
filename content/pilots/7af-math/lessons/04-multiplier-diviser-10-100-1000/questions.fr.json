@@ -1,0 +1,167 @@
+[
+  {
+    "question_key": "fois-100",
+    "position": 1,
+    "prompt": {
+      "text": "Calcule : 35 × 100"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "350"
+        },
+        {
+          "id": "b",
+          "text": "3 500"
+        },
+        {
+          "id": "c",
+          "text": "35 000"
+        },
+        {
+          "id": "d",
+          "text": "135"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "Multiplier par 100, c'est ajouter deux zéros : 35 × 100 = 3 500."
+    }
+  },
+  {
+    "question_key": "divise-10",
+    "position": 2,
+    "prompt": {
+      "text": "Calcule : 6 200 ÷ 10"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "62"
+        },
+        {
+          "id": "b",
+          "text": "620"
+        },
+        {
+          "id": "c",
+          "text": "6 200"
+        },
+        {
+          "id": "d",
+          "text": "62 000"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "Diviser par 10, c'est enlever un zéro : 6 200 ÷ 10 = 620."
+    }
+  },
+  {
+    "question_key": "convertir-km",
+    "position": 3,
+    "prompt": {
+      "text": "Combien de mètres y a-t-il dans 8 km ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "80 m"
+        },
+        {
+          "id": "b",
+          "text": "800 m"
+        },
+        {
+          "id": "c",
+          "text": "8 000 m"
+        },
+        {
+          "id": "d",
+          "text": "80 000 m"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "c"
+    },
+    "explanation": {
+      "text": "1 km = 1 000 m, donc 8 km = 8 × 1 000 = 8 000 m."
+    }
+  },
+  {
+    "question_key": "paquets-de-feuilles",
+    "position": 4,
+    "prompt": {
+      "text": "Un paquet contient 100 feuilles. Combien de feuilles y a-t-il dans 24 paquets ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "240"
+        },
+        {
+          "id": "b",
+          "text": "2 400"
+        },
+        {
+          "id": "c",
+          "text": "24 000"
+        },
+        {
+          "id": "d",
+          "text": "124"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "24 × 100 = 2 400 feuilles."
+    }
+  },
+  {
+    "question_key": "divise-1000",
+    "position": 5,
+    "prompt": {
+      "text": "Calcule : 48 000 ÷ 1 000"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "480"
+        },
+        {
+          "id": "b",
+          "text": "48"
+        },
+        {
+          "id": "c",
+          "text": "4 800"
+        },
+        {
+          "id": "d",
+          "text": "8"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "Diviser par 1 000, c'est enlever trois zéros : 48 000 ÷ 1 000 = 48."
+    }
+  }
+]

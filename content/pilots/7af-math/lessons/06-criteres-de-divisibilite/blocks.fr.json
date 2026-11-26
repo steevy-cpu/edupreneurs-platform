@@ -1,0 +1,66 @@
+[
+  {
+    "key": "objectifs",
+    "type": "paragraph",
+    "text": "À la fin de cette leçon, tu sauras utiliser les critères de divisibilité par 2, 3, 4, 5, 9 et 10 pour savoir, sans faire la division, si un nombre se partage sans reste."
+  },
+  {
+    "key": "intro",
+    "type": "paragraph",
+    "text": "Une directrice a 135 cahiers. Peut-elle les répartir en 9 paquets égaux, sans cahier en trop ? On peut le savoir sans faire la division : il existe des critères de divisibilité."
+  },
+  {
+    "key": "criteres-titre",
+    "type": "heading",
+    "text": "Les critères de divisibilité"
+  },
+  {
+    "key": "criteres-2-5-10",
+    "type": "paragraph",
+    "text": "Un nombre est divisible par 2 si son dernier chiffre est 0, 2, 4, 6 ou 8. Il est divisible par 5 si son dernier chiffre est 0 ou 5. Il est divisible par 10 si son dernier chiffre est 0."
+  },
+  {
+    "key": "criteres-3-9",
+    "type": "paragraph",
+    "text": "Un nombre est divisible par 3 si la somme de ses chiffres est divisible par 3. Il est divisible par 9 si la somme de ses chiffres est divisible par 9."
+  },
+  {
+    "key": "critere-4",
+    "type": "paragraph",
+    "text": "Un nombre est divisible par 4 si le nombre formé par ses deux derniers chiffres est divisible par 4, ou si ces deux chiffres sont 00."
+  },
+  {
+    "key": "exemple-612",
+    "type": "example",
+    "title": "Étudier le nombre 612",
+    "steps": [
+      "Dernier chiffre : 2, donc 612 est divisible par 2. Il n'est pas divisible par 5 ni par 10.",
+      "Somme des chiffres : 6 + 1 + 2 = 9. Comme 9 est divisible par 3 et par 9, 612 est divisible par 3 et par 9.",
+      "Deux derniers chiffres : 12. Comme 12 est divisible par 4, 612 est divisible par 4.",
+      "Vérification : 612 ÷ 9 = 68 et 612 ÷ 4 = 153."
+    ]
+  },
+  {
+    "key": "exemple-745",
+    "type": "example",
+    "title": "Étudier le nombre 745",
+    "steps": [
+      "Dernier chiffre : 5, donc 745 est divisible par 5. Il n'est pas divisible par 2 ni par 10.",
+      "Somme des chiffres : 7 + 4 + 5 = 16. Comme 16 n'est pas divisible par 3, 745 n'est pas divisible par 3, ni par 9.",
+      "Deux derniers chiffres : 45. Comme 45 n'est pas divisible par 4, 745 n'est pas divisible par 4.",
+      "Vérification : 745 ÷ 5 = 149."
+    ]
+  },
+  {
+    "key": "piege",
+    "type": "callout",
+    "tone": "warning",
+    "text": "Attention : pour 3 et pour 9, on additionne tous les chiffres, pas seulement les derniers. Un nombre divisible par 3 n'est pas toujours divisible par 9 : 12 est divisible par 3, mais pas par 9."
+  },
+  {
+    "key": "retenir",
+    "type": "callout",
+    "tone": "remember",
+    "text": "Dernier chiffre : critères de 2, 5 et 10. Deux derniers chiffres : critère de 4. Somme des chiffres : critères de 3 et de 9."
+  }
+]

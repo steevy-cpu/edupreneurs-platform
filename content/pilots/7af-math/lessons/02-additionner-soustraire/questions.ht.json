@@ -1,0 +1,167 @@
+[
+  {
+    "question_key": "addition-posee",
+    "position": 1,
+    "prompt": {
+      "text": "Kalkile: 456 + 378"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "824"
+        },
+        {
+          "id": "b",
+          "text": "834"
+        },
+        {
+          "id": "c",
+          "text": "744"
+        },
+        {
+          "id": "d",
+          "text": "934"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "Inite: 6 + 8 = 14, nou ekri 4 epi nou retni 1. Dizèn: 5 + 7 + 1 = 13, nou ekri 3 epi nou retni 1. Santèn: 4 + 3 + 1 = 8. Rezilta: 834."
+    }
+  },
+  {
+    "question_key": "soustraction-posee",
+    "position": 2,
+    "prompt": {
+      "text": "Kalkile: 702 − 345"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "457"
+        },
+        {
+          "id": "b",
+          "text": "367"
+        },
+        {
+          "id": "c",
+          "text": "357"
+        },
+        {
+          "id": "d",
+          "text": "443"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "c"
+    },
+    "explanation": {
+      "text": "Nou verifye ak adisyon: 357 + 345 = 702. Donk 702 − 345 = 357."
+    }
+  },
+  {
+    "question_key": "probleme-camion",
+    "position": 3,
+    "prompt": {
+      "text": "Yon kamyon pote 1 250 kg mayi. Li dechaje 480 kg. Konbyen kilogram ki rete nan kamyon an ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "730 kg"
+        },
+        {
+          "id": "b",
+          "text": "770 kg"
+        },
+        {
+          "id": "c",
+          "text": "1 730 kg"
+        },
+        {
+          "id": "d",
+          "text": "870 kg"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "Nou soustrè: 1 250 − 480 = 770. Li rete 770 kg."
+    }
+  },
+  {
+    "question_key": "calcul-mental",
+    "position": 4,
+    "prompt": {
+      "text": "Kalkile nan tèt ou: 99 + 36"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "125"
+        },
+        {
+          "id": "b",
+          "text": "135"
+        },
+        {
+          "id": "c",
+          "text": "145"
+        },
+        {
+          "id": "d",
+          "text": "136"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "99 + 36 = 100 + 36 − 1 = 136 − 1 = 135."
+    }
+  },
+  {
+    "question_key": "verifier-soustraction",
+    "position": 5,
+    "prompt": {
+      "text": "Ki egalite ki pèmèt verifye ke 540 − 260 = 280 ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "280 + 260 = 540"
+        },
+        {
+          "id": "b",
+          "text": "280 − 260 = 540"
+        },
+        {
+          "id": "c",
+          "text": "540 + 260 = 280"
+        },
+        {
+          "id": "d",
+          "text": "260 − 280 = 540"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "a"
+    },
+    "explanation": {
+      "text": "Pou verifye yon soustraksyon, nou adisyone diferans lan ak ti nonb la: 280 + 260 = 540."
+    }
+  }
+]

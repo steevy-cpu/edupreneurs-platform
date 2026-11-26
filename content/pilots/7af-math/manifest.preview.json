@@ -1,0 +1,258 @@
+{
+  "entries": [
+    {
+      "bytes": 23653,
+      "path": "pilot.json",
+      "role": "descriptor",
+      "sha256": "eec72d251436a8b175ba01cca474b88555790bca89573e04b5402b71b037b11e"
+    },
+    {
+      "bytes": 2839,
+      "lesson_id": "a54081a5-abcb-54a5-a278-56f21f45f4cc",
+      "locale": "fr",
+      "path": "lessons/01-lire-ecrire-comparer-entiers/blocks.fr.json",
+      "role": "blocks",
+      "sha256": "e5b8d440e5327d371e30cb9fe4ec33da8e73162c94ee2df61a1ae6be2d5b2554"
+    },
+    {
+      "bytes": 2521,
+      "lesson_id": "a54081a5-abcb-54a5-a278-56f21f45f4cc",
+      "locale": "ht",
+      "path": "lessons/01-lire-ecrire-comparer-entiers/blocks.ht.json",
+      "role": "blocks",
+      "sha256": "396e72fed26cc58e0b558d0a8bd8811e3b6f9d579342878ae20bc431d3804bf7"
+    },
+    {
+      "bytes": 3397,
+      "lesson_id": "a54081a5-abcb-54a5-a278-56f21f45f4cc",
+      "locale": "fr",
+      "path": "lessons/01-lire-ecrire-comparer-entiers/questions.fr.json",
+      "role": "questions",
+      "sha256": "8ec3fb064a315156a70793c1ef03762c6bb5248cb9596787f74b6d8407653f89"
+    },
+    {
+      "bytes": 3277,
+      "lesson_id": "a54081a5-abcb-54a5-a278-56f21f45f4cc",
+      "locale": "ht",
+      "path": "lessons/01-lire-ecrire-comparer-entiers/questions.ht.json",
+      "role": "questions",
+      "sha256": "f6e6abfc53e8c8259f460d4467ab0895ec252bfe5f76eaf67548b4ee2343a167"
+    },
+    {
+      "bytes": 1622,
+      "lesson_id": "a54081a5-abcb-54a5-a278-56f21f45f4cc",
+      "locale": "all",
+      "path": "lessons/01-lire-ecrire-comparer-entiers/verification.json",
+      "role": "verification",
+      "sha256": "ff41470e751491b942f5e7743dd25242a711d89f9d6d1760601461ad737143b4"
+    },
+    {
+      "bytes": 3011,
+      "lesson_id": "d3c1f476-2dcf-5c1f-8ac0-7a0c553eb19c",
+      "locale": "fr",
+      "path": "lessons/02-additionner-soustraire/blocks.fr.json",
+      "role": "blocks",
+      "sha256": "cdd85086c6308a1d32ba5b4ecbd64a4443bb9d3b1468c8b06dca10f6c6f52eb0"
+    },
+    {
+      "bytes": 2743,
+      "lesson_id": "d3c1f476-2dcf-5c1f-8ac0-7a0c553eb19c",
+      "locale": "ht",
+      "path": "lessons/02-additionner-soustraire/blocks.ht.json",
+      "role": "blocks",
+      "sha256": "06a26d6286678da341e00c0e68ff9bc4ea3bb3cfcc7bd0fff3b9e12b37aaab38"
+    },
+    {
+      "bytes": 3382,
+      "lesson_id": "d3c1f476-2dcf-5c1f-8ac0-7a0c553eb19c",
+      "locale": "fr",
+      "path": "lessons/02-additionner-soustraire/questions.fr.json",
+      "role": "questions",
+      "sha256": "fc272454f7b2e3ee92944f76e8f1511c7850e5e473a2cc3c5819612611595650"
+    },
+    {
+      "bytes": 3311,
+      "lesson_id": "d3c1f476-2dcf-5c1f-8ac0-7a0c553eb19c",
+      "locale": "ht",
+      "path": "lessons/02-additionner-soustraire/questions.ht.json",
+      "role": "questions",
+      "sha256": "05105b91f5b31b4fccbba37ecbba478ff516a81f648717ff8510afe5ef1500e3"
+    },
+    {
+      "bytes": 2440,
+      "lesson_id": "d3c1f476-2dcf-5c1f-8ac0-7a0c553eb19c",
+      "locale": "all",
+      "path": "lessons/02-additionner-soustraire/verification.json",
+      "role": "verification",
+      "sha256": "f68863e12d78c507a760a19f848d8ce747eab2378c14e5c56566418721db94c6"
+    },
+    {
+      "bytes": 2707,
+      "lesson_id": "fd4d8565-c927-5c27-a14e-ab50e6a6fed7",
+      "locale": "fr",
+      "path": "lessons/03-multiplier-diviser/blocks.fr.json",
+      "role": "blocks",
+      "sha256": "8a300f48c88121532de9fc42878a73b6d089ea97c7fd066e8dc598f8f1ca086a"
+    },
+    {
+      "bytes": 2507,
+      "lesson_id": "fd4d8565-c927-5c27-a14e-ab50e6a6fed7",
+      "locale": "ht",
+      "path": "lessons/03-multiplier-diviser/blocks.ht.json",
+      "role": "blocks",
+      "sha256": "248be9199076941345323536545add87ccb515564f08f68aea24ad25cc1c2adb"
+    },
+    {
+      "bytes": 3222,
+      "lesson_id": "fd4d8565-c927-5c27-a14e-ab50e6a6fed7",
+      "locale": "fr",
+      "path": "lessons/03-multiplier-diviser/questions.fr.json",
+      "role": "questions",
+      "sha256": "a1a105ab6e75af6118991f0fc0aa00acc12fe3304bfbe784baacd5a520261caa"
+    },
+    {
+      "bytes": 3166,
+      "lesson_id": "fd4d8565-c927-5c27-a14e-ab50e6a6fed7",
+      "locale": "ht",
+      "path": "lessons/03-multiplier-diviser/questions.ht.json",
+      "role": "questions",
+      "sha256": "429196952fb119fc4a030888d40714f3665375e0de0ac33e609057da5525bb21"
+    },
+    {
+      "bytes": 2575,
+      "lesson_id": "fd4d8565-c927-5c27-a14e-ab50e6a6fed7",
+      "locale": "all",
+      "path": "lessons/03-multiplier-diviser/verification.json",
+      "role": "verification",
+      "sha256": "e46bb747fb9517e70ef2d0b72e9ee27a7d580e8a85a04c0ebec7fe9d39d79ea6"
+    },
+    {
+      "bytes": 2550,
+      "lesson_id": "72358982-dc5b-57db-baa8-76e2378074a8",
+      "locale": "fr",
+      "path": "lessons/04-multiplier-diviser-10-100-1000/blocks.fr.json",
+      "role": "blocks",
+      "sha256": "c6cdbee9bbb27d6a54df4397902fd24ad7489d26fd743b246796e0ce686e9b64"
+    },
+    {
+      "bytes": 2369,
+      "lesson_id": "72358982-dc5b-57db-baa8-76e2378074a8",
+      "locale": "ht",
+      "path": "lessons/04-multiplier-diviser-10-100-1000/blocks.ht.json",
+      "role": "blocks",
+      "sha256": "da43bb32652b62a539378f9f04bb206d2d91b497c9ffbf50127c7abd7b104397"
+    },
+    {
+      "bytes": 3131,
+      "lesson_id": "72358982-dc5b-57db-baa8-76e2378074a8",
+      "locale": "fr",
+      "path": "lessons/04-multiplier-diviser-10-100-1000/questions.fr.json",
+      "role": "questions",
+      "sha256": "d0a6f018a1c78190deda2cdf18a5778f0ed02c73c533586592ef318ade295926"
+    },
+    {
+      "bytes": 3066,
+      "lesson_id": "72358982-dc5b-57db-baa8-76e2378074a8",
+      "locale": "ht",
+      "path": "lessons/04-multiplier-diviser-10-100-1000/questions.ht.json",
+      "role": "questions",
+      "sha256": "4bed862ef01b21a6c7b4d6410ac90fc28be6857f87a6066794d0950ee9568499"
+    },
+    {
+      "bytes": 2364,
+      "lesson_id": "72358982-dc5b-57db-baa8-76e2378074a8",
+      "locale": "all",
+      "path": "lessons/04-multiplier-diviser-10-100-1000/verification.json",
+      "role": "verification",
+      "sha256": "38b8e85170ec9ff4099ede008ac6ffce80b1aa56fc3120490d4c5064967a735f"
+    },
+    {
+      "bytes": 2751,
+      "lesson_id": "73f7960b-c811-555d-89f1-4a3e59dfe9f8",
+      "locale": "fr",
+      "path": "lessons/05-multiples-diviseurs/blocks.fr.json",
+      "role": "blocks",
+      "sha256": "1d93eacc08ecc097bcddc6ba04ed6d27d7aab4d7c2f02b7849fb67cf9fcc68fd"
+    },
+    {
+      "bytes": 2400,
+      "lesson_id": "73f7960b-c811-555d-89f1-4a3e59dfe9f8",
+      "locale": "ht",
+      "path": "lessons/05-multiples-diviseurs/blocks.ht.json",
+      "role": "blocks",
+      "sha256": "7315007da27547cec1eee20306a7ec936aaf18652c8ae55d4456c0e6db76b963"
+    },
+    {
+      "bytes": 3515,
+      "lesson_id": "73f7960b-c811-555d-89f1-4a3e59dfe9f8",
+      "locale": "fr",
+      "path": "lessons/05-multiples-diviseurs/questions.fr.json",
+      "role": "questions",
+      "sha256": "63656de0c99caa8ee672257a1eaee885505e3f08d00821d4965a531e9010a1dd"
+    },
+    {
+      "bytes": 3378,
+      "lesson_id": "73f7960b-c811-555d-89f1-4a3e59dfe9f8",
+      "locale": "ht",
+      "path": "lessons/05-multiples-diviseurs/questions.ht.json",
+      "role": "questions",
+      "sha256": "9d882df98d0473b66131020c097d9f82903afa8bb97ab103e130acbbbbcd1a92"
+    },
+    {
+      "bytes": 2080,
+      "lesson_id": "73f7960b-c811-555d-89f1-4a3e59dfe9f8",
+      "locale": "all",
+      "path": "lessons/05-multiples-diviseurs/verification.json",
+      "role": "verification",
+      "sha256": "1f6fcb088cfa58659da5c04146b3882d887125d7c86b6758827a2aba01c96dc1"
+    },
+    {
+      "bytes": 2776,
+      "lesson_id": "e2b13eab-dcaa-5712-a3a5-b9c9686086dc",
+      "locale": "fr",
+      "path": "lessons/06-criteres-de-divisibilite/blocks.fr.json",
+      "role": "blocks",
+      "sha256": "f01a8328f44a11fd2558a9eece891888ef0f771c3398a879e1e4d0ea9b78e58a"
+    },
+    {
+      "bytes": 2349,
+      "lesson_id": "e2b13eab-dcaa-5712-a3a5-b9c9686086dc",
+      "locale": "ht",
+      "path": "lessons/06-criteres-de-divisibilite/blocks.ht.json",
+      "role": "blocks",
+      "sha256": "d7933ff2e6ad666a4c292001c790a0410b7d52d48e608e2faa5a8ff72cb354a6"
+    },
+    {
+      "bytes": 3904,
+      "lesson_id": "e2b13eab-dcaa-5712-a3a5-b9c9686086dc",
+      "locale": "fr",
+      "path": "lessons/06-criteres-de-divisibilite/questions.fr.json",
+      "role": "questions",
+      "sha256": "e3f473098b28ae69d68390439f1689e2fc4af335883a71ef347b324eea95fcd2"
+    },
+    {
+      "bytes": 3651,
+      "lesson_id": "e2b13eab-dcaa-5712-a3a5-b9c9686086dc",
+      "locale": "ht",
+      "path": "lessons/06-criteres-de-divisibilite/questions.ht.json",
+      "role": "questions",
+      "sha256": "59d7cbcdc1facbad60b2bd8135ac709fa3759f4fc361ef51c5409b6ba6f2c460"
+    },
+    {
+      "bytes": 2633,
+      "lesson_id": "e2b13eab-dcaa-5712-a3a5-b9c9686086dc",
+      "locale": "all",
+      "path": "lessons/06-criteres-de-divisibilite/verification.json",
+      "role": "verification",
+      "sha256": "89324872fb6b45ee27d92fa2ef4dacbf5ae5fe3f78dcc3270d4d1c47fd8564a7"
+    }
+  ],
+  "manifest_sha256": "1230af78a56cc6337ec1c631b3ef4fcd49acba7b6e9e502f5a3c69c7e58687e2",
+  "manifest_version": "pilot-preview-0",
+  "pilot_id": "7af-math-pilot",
+  "purpose": "Integrity preview for reviewers. NOT a production pack format; never served to the app.",
+  "totals": {
+    "bytes": 109290,
+    "files": 31
+  }
+}

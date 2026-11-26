@@ -1,0 +1,9 @@
+# Local overrides for the content-pilot tool; inherits the repository's rule set.
+extend = "../../pyproject.toml"
+line-length = 160
+
+[lint.per-file-ignores]
+"authoring/**" = ["E501", "RUF001", "RUF003"]   # long French/Creole strings, typographic characters
+"content_pilot/review.py" = ["E501", "RUF001"]
+"content_pilot/checks.py" = ["E501"]
+"tests/**" = ["S101", "S307", "E501", "RUF001", "RUF002", "RUF003", "B023", "PT"]

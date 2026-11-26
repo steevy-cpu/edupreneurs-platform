@@ -1,0 +1,79 @@
+[
+  {
+    "key": "objectifs",
+    "type": "paragraph",
+    "text": "Lè leson sa a fini, w ap konn li ak ekri yon nonb antye jouk 999 999, di ki valè chak chif genyen, epi konpare de nonb."
+  },
+  {
+    "key": "intro",
+    "type": "paragraph",
+    "text": "Yon estad ka resevwa 2 450 moun. Yon lòt estad resevwa 1 980. Ki sa ki pi gwo ? Pou reponn, fò nou konn li ak konpare nonb."
+  },
+  {
+    "key": "valeur-titre",
+    "type": "heading",
+    "text": "Chak chif gen yon valè dapre plas li"
+  },
+  {
+    "key": "valeur",
+    "type": "paragraph",
+    "text": "Nan yon nonb, yon chif vo plis oswa mwens dapre plas li. Depi sou bò dwat rive sou bò gòch, nou jwenn inite yo, dizèn yo, santèn yo, apresa milye yo. Nan 4 305, chif 4 la nan plas milye yo: li vo 4 000. Chif 3 la vo 300. Chif 0 la montre pa gen okenn dizèn."
+  },
+  {
+    "key": "exemple-decomposition",
+    "type": "example",
+    "title": "Dekonpoze 4 305",
+    "steps": [
+      "4 305 = 4 000 + 300 + 0 + 5",
+      "4 milye, 3 santèn, 0 dizèn ak 5 inite",
+      "Nou li: kat mil twa san senk"
+    ]
+  },
+  {
+    "key": "lire",
+    "type": "paragraph",
+    "text": "Pou li yon gwo nonb, nou koupe l an tranch twa chif, nou kòmanse sou bò dwat. 12 480 li « douz mil kat san katrevenn »."
+  },
+  {
+    "key": "comparer-titre",
+    "type": "heading",
+    "text": "Konpare de nonb"
+  },
+  {
+    "key": "comparer",
+    "type": "paragraph",
+    "text": "Pou konpare de nonb, nou konte chif yo anvan: nonb ki gen plis chif la se pi gwo a. Si yo gen menm kantite chif, nou konpare chif yo de gòch pou dwat epi nou kanpe nan premye chif ki pa menm lan."
+  },
+  {
+    "key": "exemple-comparer-1",
+    "type": "example",
+    "title": "Konpare 2 450 ak 1 980",
+    "steps": [
+      "De nonb yo gen 4 chif chak.",
+      "Nou konpare milye yo: 2 ak 1.",
+      "2 pi gwo pase 1, donk 2 450 > 1 980."
+    ]
+  },
+  {
+    "key": "exemple-comparer-2",
+    "type": "example",
+    "title": "Konpare 7 382 ak 7 391",
+    "steps": [
+      "De nonb yo gen 4 chif chak, menm chif milye (7) ak menm chif santèn (3).",
+      "Chif dizèn yo: 8 ak 9. Kòm 8 < 9, nou konkli:",
+      "7 382 < 7 391"
+    ]
+  },
+  {
+    "key": "piege",
+    "type": "callout",
+    "tone": "warning",
+    "text": "Atansyon: pa konpare sèlman dènye chif la. Nonb 1 999 pi piti pase 2 000, menmsi 9 pi gwo pase 0."
+  },
+  {
+    "key": "retenir",
+    "type": "callout",
+    "tone": "remember",
+    "text": "Siy < oswa > louvri bò nonb ki pi gwo a: 3 < 5 epi 5 > 3."
+  }
+]

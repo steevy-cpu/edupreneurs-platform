@@ -1,0 +1,66 @@
+[
+  {
+    "key": "objectifs",
+    "type": "paragraph",
+    "text": "Lè leson sa a fini, w ap konn sèvi ak kritè divizibilite pa 2, 3, 4, 5, 9 ak 10 pou konnen, san fè divizyon an, si yon nonb ka pataje san gen rès."
+  },
+  {
+    "key": "intro",
+    "type": "paragraph",
+    "text": "Yon direktris gen 135 kaye. Èske li ka separe yo an 9 pake egal, san kaye ki rete ? Nou ka konnen sa san fè divizyon an: gen kritè divizibilite."
+  },
+  {
+    "key": "criteres-titre",
+    "type": "heading",
+    "text": "Kritè divizibilite yo"
+  },
+  {
+    "key": "criteres-2-5-10",
+    "type": "paragraph",
+    "text": "Yon nonb divizib pa 2 si dènye chif li se 0, 2, 4, 6 oswa 8. Li divizib pa 5 si dènye chif li se 0 oswa 5. Li divizib pa 10 si dènye chif li se 0."
+  },
+  {
+    "key": "criteres-3-9",
+    "type": "paragraph",
+    "text": "Yon nonb divizib pa 3 si som chif li yo divizib pa 3. Li divizib pa 9 si som chif li yo divizib pa 9."
+  },
+  {
+    "key": "critere-4",
+    "type": "paragraph",
+    "text": "Yon nonb divizib pa 4 si nonb ki fòme ak de dènye chif li yo divizib pa 4, oswa si de chif sa yo se 00."
+  },
+  {
+    "key": "exemple-612",
+    "type": "example",
+    "title": "Etidye nonb 612",
+    "steps": [
+      "Dènye chif: 2, donk 612 divizib pa 2. Li pa divizib pa 5 ni pa 10.",
+      "Som chif yo: 6 + 1 + 2 = 9. Kòm 9 divizib pa 3 ak pa 9, 612 divizib pa 3 ak pa 9.",
+      "De dènye chif yo: 12. Kòm 12 divizib pa 4, 612 divizib pa 4.",
+      "Verifikasyon: 612 ÷ 9 = 68 ak 612 ÷ 4 = 153."
+    ]
+  },
+  {
+    "key": "exemple-745",
+    "type": "example",
+    "title": "Etidye nonb 745",
+    "steps": [
+      "Dènye chif: 5, donk 745 divizib pa 5. Li pa divizib pa 2 ni pa 10.",
+      "Som chif yo: 7 + 4 + 5 = 16. Kòm 16 pa divizib pa 3, 745 pa divizib pa 3, ni pa 9.",
+      "De dènye chif yo: 45. Kòm 45 pa divizib pa 4, 745 pa divizib pa 4.",
+      "Verifikasyon: 745 ÷ 5 = 149."
+    ]
+  },
+  {
+    "key": "piege",
+    "type": "callout",
+    "tone": "warning",
+    "text": "Atansyon: pou 3 ak pou 9, nou adisyone tout chif yo, pa sèlman dènye yo. Yon nonb ki divizib pa 3 pa toujou divizib pa 9: 12 divizib pa 3, men pa pa 9."
+  },
+  {
+    "key": "retenir",
+    "type": "callout",
+    "tone": "remember",
+    "text": "Dènye chif: kritè 2, 5 ak 10. De dènye chif: kritè 4. Som chif yo: kritè 3 ak 9."
+  }
+]

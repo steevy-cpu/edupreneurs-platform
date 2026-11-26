@@ -1,0 +1,80 @@
+[
+  {
+    "key": "objectifs",
+    "type": "paragraph",
+    "text": "Lè leson sa a fini, w ap konn miltipliye yon nonb pa yon nonb ki gen yon sèl chif, fè yon divizyon ki gen rès, epi verifye rezilta w."
+  },
+  {
+    "key": "intro",
+    "type": "paragraph",
+    "text": "Yon machann ranje 12 mango nan chak panye. Li gen 6 panye. Konbyen mango li genyen an total ? Nou kalkile 6 × 12."
+  },
+  {
+    "key": "sens-fois",
+    "type": "paragraph",
+    "text": "Miltipliye, se adisyone menm nonb la plizyè fwa: 6 × 12, se 12 + 12 + 12 + 12 + 12 + 12. Rezilta a rele pwodui. Nou genyen tan lè nou konn tab miltiplikasyon yo byen."
+  },
+  {
+    "key": "exemple-multiplication",
+    "type": "example",
+    "title": "Kalkile 6 × 12",
+    "steps": [
+      "Inite: 6 × 2 = 12. Nou ekri 2 epi nou retni 1.",
+      "Dizèn: 6 × 1 = 6, answit 6 + 1 = 7.",
+      "6 × 12 = 72"
+    ]
+  },
+  {
+    "key": "division-titre",
+    "type": "heading",
+    "text": "Divize"
+  },
+  {
+    "key": "division",
+    "type": "paragraph",
+    "text": "Divize, se pataje an pati egal oswa chèche konbyen fwa yon nonb nan yon lòt. Nan 17 ÷ 5, nonb 17 la se dividand lan, 5 la se divizè a, epi rezilta a se kosyan an. Pafwa gen yon bagay ki rete: se rès la."
+  },
+  {
+    "key": "exemple-division-1",
+    "type": "example",
+    "title": "Kalkile 17 ÷ 5",
+    "steps": [
+      "Nan 17, konbyen fwa 5 ? 3 fwa, paske 5 × 3 = 15.",
+      "Li rete 17 − 15 = 2.",
+      "17 = 5 × 3 + 2: kosyan an se 3 epi rès la se 2."
+    ]
+  },
+  {
+    "key": "reste",
+    "type": "paragraph",
+    "text": "Rès la toujou pi piti pase divizè a. Si rès la se 0, divizyon an egzat."
+  },
+  {
+    "key": "exemple-division-2",
+    "type": "example",
+    "title": "Pataje 85 kreyon nan 4 bwat",
+    "steps": [
+      "4 × 20 = 80, epi li rete 85 − 80 = 5 kreyon.",
+      "Nan 5, gen ankò 1 fwa 4: 4 × 1 = 4, epi li rete 1.",
+      "Chak bwat resevwa 20 + 1 = 21 kreyon epi li rete 1 kreyon: 85 = 4 × 21 + 1."
+    ]
+  },
+  {
+    "key": "verification",
+    "type": "callout",
+    "tone": "tip",
+    "text": "Verifye yon divizyon: divizè × kosyan + rès dwe bay dividand lan."
+  },
+  {
+    "key": "piege",
+    "type": "callout",
+    "tone": "warning",
+    "text": "Atansyon: nou pa ka divize pa 0."
+  },
+  {
+    "key": "retenir",
+    "type": "callout",
+    "tone": "remember",
+    "text": "Pwodui: rezilta yon miltiplikasyon. Kosyan: rezilta yon divizyon. Dividand = divizè × kosyan + rès, ak yon rès ki pi piti pase divizè a."
+  }
+]

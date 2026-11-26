@@ -1,0 +1,167 @@
+[
+  {
+    "question_key": "valeur-du-chiffre",
+    "position": 1,
+    "prompt": {
+      "text": "Dans le nombre 5 723, quelle est la valeur du chiffre 7 ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "7"
+        },
+        {
+          "id": "b",
+          "text": "70"
+        },
+        {
+          "id": "c",
+          "text": "700"
+        },
+        {
+          "id": "d",
+          "text": "7 000"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "c"
+    },
+    "explanation": {
+      "text": "Le 7 est à la place des centaines : il vaut 7 × 100 = 700."
+    }
+  },
+  {
+    "question_key": "ecrire-en-chiffres",
+    "position": 2,
+    "prompt": {
+      "text": "Comment écrit-on « trente-deux mille cinq cent six » en chiffres ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "32 056"
+        },
+        {
+          "id": "b",
+          "text": "32 506"
+        },
+        {
+          "id": "c",
+          "text": "3 256"
+        },
+        {
+          "id": "d",
+          "text": "32 560"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "32 milliers et 506 unités : 32 506."
+    }
+  },
+  {
+    "question_key": "comparer-deux-nombres",
+    "position": 3,
+    "prompt": {
+      "text": "Compare 6 054 et 6 540. Quelle réponse est juste ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "6 054 < 6 540"
+        },
+        {
+          "id": "b",
+          "text": "6 054 > 6 540"
+        },
+        {
+          "id": "c",
+          "text": "6 054 = 6 540"
+        },
+        {
+          "id": "d",
+          "text": "On ne peut pas savoir"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "a"
+    },
+    "explanation": {
+      "text": "Les deux nombres ont 4 chiffres et le même chiffre des milliers (6). Aux centaines, 0 < 5. Donc 6 054 < 6 540."
+    }
+  },
+  {
+    "question_key": "plus-grand-nombre",
+    "position": 4,
+    "prompt": {
+      "text": "Quel est le plus grand de ces nombres : 9 870, 10 002, 9 999, 987 ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "9 870"
+        },
+        {
+          "id": "b",
+          "text": "10 002"
+        },
+        {
+          "id": "c",
+          "text": "9 999"
+        },
+        {
+          "id": "d",
+          "text": "987"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "10 002 a 5 chiffres, les autres en ont 4 ou moins : c'est le plus grand."
+    }
+  },
+  {
+    "question_key": "chiffre-des-centaines",
+    "position": 5,
+    "prompt": {
+      "text": "Quel est le chiffre des centaines dans 3 480 ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "3"
+        },
+        {
+          "id": "b",
+          "text": "4"
+        },
+        {
+          "id": "c",
+          "text": "8"
+        },
+        {
+          "id": "d",
+          "text": "0"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "3 480 = 3 milliers + 4 centaines + 8 dizaines. Le chiffre des centaines est 4."
+    }
+  }
+]

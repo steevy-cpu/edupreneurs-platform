@@ -1,0 +1,167 @@
+[
+  {
+    "question_key": "addition-posee",
+    "position": 1,
+    "prompt": {
+      "text": "Calcule : 456 + 378"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "824"
+        },
+        {
+          "id": "b",
+          "text": "834"
+        },
+        {
+          "id": "c",
+          "text": "744"
+        },
+        {
+          "id": "d",
+          "text": "934"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "Unités : 6 + 8 = 14, on écrit 4 et on retient 1. Dizaines : 5 + 7 + 1 = 13, on écrit 3 et on retient 1. Centaines : 4 + 3 + 1 = 8. Résultat : 834."
+    }
+  },
+  {
+    "question_key": "soustraction-posee",
+    "position": 2,
+    "prompt": {
+      "text": "Calcule : 702 − 345"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "457"
+        },
+        {
+          "id": "b",
+          "text": "367"
+        },
+        {
+          "id": "c",
+          "text": "357"
+        },
+        {
+          "id": "d",
+          "text": "443"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "c"
+    },
+    "explanation": {
+      "text": "On vérifie avec l'addition : 357 + 345 = 702. Donc 702 − 345 = 357."
+    }
+  },
+  {
+    "question_key": "probleme-camion",
+    "position": 3,
+    "prompt": {
+      "text": "Un camion transporte 1 250 kg de maïs. Il en décharge 480 kg. Combien de kilogrammes reste-t-il dans le camion ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "730 kg"
+        },
+        {
+          "id": "b",
+          "text": "770 kg"
+        },
+        {
+          "id": "c",
+          "text": "1 730 kg"
+        },
+        {
+          "id": "d",
+          "text": "870 kg"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "On soustrait : 1 250 − 480 = 770. Il reste 770 kg."
+    }
+  },
+  {
+    "question_key": "calcul-mental",
+    "position": 4,
+    "prompt": {
+      "text": "Calcule dans ta tête : 99 + 36"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "125"
+        },
+        {
+          "id": "b",
+          "text": "135"
+        },
+        {
+          "id": "c",
+          "text": "145"
+        },
+        {
+          "id": "d",
+          "text": "136"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "99 + 36 = 100 + 36 − 1 = 136 − 1 = 135."
+    }
+  },
+  {
+    "question_key": "verifier-soustraction",
+    "position": 5,
+    "prompt": {
+      "text": "Quelle égalité permet de vérifier que 540 − 260 = 280 ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "280 + 260 = 540"
+        },
+        {
+          "id": "b",
+          "text": "280 − 260 = 540"
+        },
+        {
+          "id": "c",
+          "text": "540 + 260 = 280"
+        },
+        {
+          "id": "d",
+          "text": "260 − 280 = 540"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "a"
+    },
+    "explanation": {
+      "text": "Pour vérifier une soustraction, on additionne la différence et le petit nombre : 280 + 260 = 540."
+    }
+  }
+]

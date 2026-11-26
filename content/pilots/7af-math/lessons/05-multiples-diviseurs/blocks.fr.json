@@ -1,0 +1,74 @@
+[
+  {
+    "key": "objectifs",
+    "type": "paragraph",
+    "text": "À la fin de cette leçon, tu sauras reconnaître un multiple d'un nombre, trouver les diviseurs d'un petit nombre et dire quand une division tombe juste."
+  },
+  {
+    "key": "intro",
+    "type": "paragraph",
+    "text": "Un commerçant veut ranger 12 bouteilles en rangées égales, sans bouteille en trop. Il peut faire 1 rangée de 12, 2 rangées de 6, 3 rangées de 4, 4 rangées de 3, 6 rangées de 2 ou 12 rangées de 1. Les nombres 1, 2, 3, 4, 6 et 12 sont les diviseurs de 12."
+  },
+  {
+    "key": "multiples-titre",
+    "type": "heading",
+    "text": "Les multiples"
+  },
+  {
+    "key": "multiples",
+    "type": "paragraph",
+    "text": "Les multiples d'un nombre sont les résultats de sa table de multiplication. Les multiples de 4 sont 4, 8, 12, 16, 20, et ainsi de suite : on n'arrive jamais au dernier."
+  },
+  {
+    "key": "exemple-multiples",
+    "type": "example",
+    "title": "Reconnaître un multiple de 7",
+    "steps": [
+      "On cherche si 28 est dans la table de 7.",
+      "7 × 4 = 28, donc 28 est un multiple de 7.",
+      "On dit aussi que 7 est un diviseur de 28 et que 28 est divisible par 7."
+    ]
+  },
+  {
+    "key": "diviseurs-titre",
+    "type": "heading",
+    "text": "Les diviseurs"
+  },
+  {
+    "key": "diviseurs",
+    "type": "paragraph",
+    "text": "Un nombre b est un diviseur d'un nombre a quand la division de a par b tombe juste, c'est-à-dire quand le reste est 0. On dit alors que a est divisible par b, ou que a est un multiple de b."
+  },
+  {
+    "key": "exemple-diviseurs",
+    "type": "example",
+    "title": "Trouver tous les diviseurs de 12",
+    "steps": [
+      "12 ÷ 1 = 12, reste 0 : 1 est un diviseur.",
+      "12 ÷ 2 = 6, reste 0 : 2 est un diviseur.",
+      "12 ÷ 3 = 4, reste 0 : 3 est un diviseur.",
+      "12 ÷ 4 = 3, reste 0 : 4 est un diviseur.",
+      "12 ÷ 5 = 2, reste 2 : 5 n'est pas un diviseur.",
+      "12 ÷ 6 = 2, reste 0 : 6 est un diviseur, et 12 ÷ 12 = 1 : 12 aussi.",
+      "Diviseurs de 12 : 1, 2, 3, 4, 6, 12"
+    ]
+  },
+  {
+    "key": "astuce",
+    "type": "callout",
+    "tone": "tip",
+    "text": "Pour trouver les diviseurs, cherche les couples de nombres dont le produit est le nombre : 12 = 1 × 12 = 2 × 6 = 3 × 4."
+  },
+  {
+    "key": "piege",
+    "type": "callout",
+    "tone": "warning",
+    "text": "Attention : 1 et le nombre lui-même sont toujours des diviseurs. Un diviseur d'un nombre non nul n'est jamais plus grand que ce nombre."
+  },
+  {
+    "key": "retenir",
+    "type": "callout",
+    "tone": "remember",
+    "text": "b est un diviseur de a, a est un multiple de b et a est divisible par b : trois façons de dire que la division de a par b a un reste égal à 0."
+  }
+]
