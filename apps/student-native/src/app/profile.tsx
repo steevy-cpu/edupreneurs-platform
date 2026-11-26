@@ -3,8 +3,13 @@ import React, { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import type { AttentionItem } from '../core/db/accountStore';
+import { FLAGS } from '../core/experience/flags';
+import { startTour, TOUR_STEPS } from '../core/experience/tour';
+import { wasUnreachable } from '../core/sync/engine';
 import { LessonStanding, PREF_GRADE, PREF_SUBJECT, savedLessonStandings, syncDisplayOf, totalsOf } from '../core/learning/overview';
-import { AppText, Button, Card, Chip, LoadingState, Notice, Pill, SectionHeader, space, SyncStatusCard, useLayout } from '../design';
+import { AppText, Button, Card, Chip, ListRow, LoadingState, Notice, Pill, SectionHeader, space, SyncStatusCard, useLayout } from '../design';
+import { RewardsCard } from '../ui/experience/Rewards';
+import { useRemote } from '../ui/remote';
 import { TabScreen, useSignOut } from '../ui/shell';
 import { useSignedIn } from '../ui/useSession';
 
@@ -37,6 +42,7 @@ function Stat({ value, label }: { value: string; label: string }) {
 export default function Profile() {
   const app = useSignedIn();
   const router = useRouter();
+  const remote = useRemote();
   const { leaving, confirmSignOut } = useSignOut();
   const [view, setView] = useState<ProfileView | null>(null);
   const session = app?.session;
@@ -76,7 +82,7 @@ export default function Profile() {
   const display = syncDisplayOf(summary, busy ? null : (lastReport?.outcome ?? null));
   const notes: string[] = [];
   if (needsReauth) notes.push(t('syncAuthRequired'));
-  else if (!busy && lastReport?.outcome === 'offline') notes.push(t('syncOffline'));
+  else if (!busy && wasUnreachable(lastReport)) notes.push(t('syncOffline'));
   const details: string[] = [];
   if (!busy && lastReport?.outcome === 'error') details.push(t('syncError', { code: lastReport.errorCode ?? '?' }));
   for (const item of view?.attention ?? []) details.push(t('attentionExplain', { code: item.problemCode }));
@@ -141,6 +147,19 @@ export default function Profile() {
         ) : null}
       </View>
 
+      {FLAGS.rewards ? (
+        <RewardsCard
+          t={t}
+          locale={app.locale}
+          account={app.session.account}
+          remote={remote}
+          pendingActions={summary.pending}
+          syncedAt={summary.lastSyncAt}
+          now={app.services.env.now}
+          isActive={() => app.session.isActive()}
+        />
+      ) : null}
+
       <SyncStatusCard
         state={display}
         pendingCount={summary.pending}
@@ -159,6 +178,30 @@ export default function Profile() {
           <Chip label="Kreyòl" selected={app.locale === 'ht'} onPress={() => void setLocale('ht')} />
         </ScrollView>
       </View>
+
+      {FLAGS.tour ? (
+        <ListRow
+          icon="hint"
+          tone="accent"
+          title={t('tourReplay')}
+          subtitle={t('tourReplayHint', { count: TOUR_STEPS.length })}
+          onPress={() => {
+            void startTour(app.session.account, app.services.env.now(), { replay: true })
+              .catch(() => undefined)
+              .then(() => router.push('/tour'));
+          }}
+        />
+      ) : null}
+
+      {FLAGS.leaderboardReview ? (
+        <ListRow
+          icon="review"
+          tone="highlight"
+          title={t('lbProfileEntry')}
+          subtitle={t('lbProfileEntryHint')}
+          onPress={() => router.push('/leaderboard')}
+        />
+      ) : null}
 
       <View style={{ gap: space.sm }}>
         <SectionHeader title={t('profileAccount')} />

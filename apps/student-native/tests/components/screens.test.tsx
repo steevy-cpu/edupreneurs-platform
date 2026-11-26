@@ -316,6 +316,15 @@ describe('Profil', () => {
     }
   });
 
+  test('"Serveur injoignable" only when the server could not be reached; a server that answered 503 is not that', async () => {
+    const app = await phone.signIn('student.a');
+    const base = { confirmed: 0, needsAttention: 0, pulled: 0 };
+    app.sync.lastReport = { ...base, outcome: 'offline', errorCode: 'unreachable' };
+    expect((await phone.render(<Profile />)).text()).toContain('Serveur injoignable.');
+    app.sync.lastReport = { ...base, outcome: 'offline', errorCode: 'dependency_unavailable', serverAnswered: true };
+    expect((await phone.render(<Profile />)).text()).not.toContain('Serveur injoignable.');
+  });
+
   test('it is a profile, not only a progress page: account, progress, sync, language, sign-out', async () => {
     const app = await phone.signIn('student.a');
     const lesson = await saveLesson();

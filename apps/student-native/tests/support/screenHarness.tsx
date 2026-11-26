@@ -252,6 +252,20 @@ export class Screen {
     return this.renderer.root.findAll((node) => (node.type as unknown) === 'Pressable');
   }
 
+  /** Pressables inside the scrolling area of the screen (ScreenFrame's ScrollView), in reading order. */
+  scrollContent(): ReactTestInstance[] {
+    const scrolls = this.renderer.root.findAll((node) => (node.type as unknown) === 'ScrollView');
+    return scrolls.flatMap((scroll) => scroll.findAll((node) => (node.type as unknown) === 'Pressable'));
+  }
+
+  /** Labels of the pressables that are NOT in the scrolling area: the pinned footer (and the top bar). */
+  footerButtons(): string[] {
+    const inside = new Set(this.scrollContent());
+    return this.pressables()
+      .filter((node) => !inside.has(node) && node.props.accessibilityRole === 'button' && node.props.accessibilityLabel !== 'Retour')
+      .map((node) => String(node.props.accessibilityLabel));
+  }
+
   /** Accessible names of everything that can be pressed (what a screen reader would announce). */
   labels(): string[] {
     return this.pressables().map((node) => String(node.props.accessibilityLabel ?? ''));

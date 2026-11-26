@@ -13,6 +13,16 @@ export interface SyncReport {
   /** Changes applied from the server feed. */
   pulled: number;
   errorCode: string | null;
+  /**
+   * True when the run ended `offline` although the server DID answer (an error reply such as 503 from
+   * the API itself). Such a run is retried like an offline one, but must not be shown as "no connection".
+   */
+  serverAnswered?: boolean;
+}
+
+/** The last run could not reach the server at all (no reply, timeout, proxy/portal page). */
+export function wasUnreachable(report: SyncReport | null | undefined): boolean {
+  return report?.outcome === 'offline' && report.serverAnswered !== true;
 }
 
 export type SyncPhase = 'idle' | 'syncing' | 'waiting_to_retry';
@@ -113,6 +123,8 @@ export class SyncEngine {
         report.outcome = 'auth_required';
       } else if (isTransient(error)) {
         report.outcome = 'offline';
+        // A 5xx whose body is the API's own error JSON proves the server is reachable; a bare gateway error does not.
+        report.serverAnswered = error instanceof ApiError && error.kind === 'server' && error.code !== 'bad_gateway';
       } else {
         report.outcome = 'error';
       }

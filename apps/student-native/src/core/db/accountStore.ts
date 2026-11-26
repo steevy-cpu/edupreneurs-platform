@@ -1,4 +1,6 @@
 import type { ChangeItem, OperationResult, SyncOperation } from '../api/types';
+import { EXPERIENCE_MIGRATIONS } from '../experience/schema';
+import { ExperienceStore } from '../experience/store';
 import { migrate, Migration, SqlDatabase, SqlExecutor } from './driver';
 
 /**
@@ -13,6 +15,10 @@ import { migrate, Migration, SqlDatabase, SqlExecutor } from './driver';
  *   lesson_progress    lesson completion (local intent + server confirmation)
  *   outbox             operations not yet confirmed by the server, in the order they happened
  *   meta               account id, pull cursor, last sync time, preferences
+ *
+ * Versions 2+ add the learner-experience tables (onboarding, tour, …). They are
+ * defined in ../experience/schema.ts, are additive only, and never touch the
+ * tables above.
  */
 const MIGRATIONS: Migration[] = [
   {
@@ -73,6 +79,7 @@ const MIGRATIONS: Migration[] = [
       `CREATE INDEX outbox_by_state ON outbox (state, seq)`,
     ],
   },
+  ...EXPERIENCE_MIGRATIONS,
 ];
 
 export type SyncState = 'pending' | 'synced' | 'needs_attention';
@@ -151,10 +158,15 @@ function str(value: unknown): string | null {
 }
 
 export class AccountStore {
+  /** This account's onboarding / tour / cached extras. Same file, same isolation as the learning data. */
+  readonly experience: ExperienceStore;
+
   private constructor(
     private readonly db: SqlDatabase,
     readonly accountId: string,
-  ) {}
+  ) {
+    this.experience = new ExperienceStore(db);
+  }
 
   /**
    * Opens the store and binds it to `accountId`. If the file already belongs

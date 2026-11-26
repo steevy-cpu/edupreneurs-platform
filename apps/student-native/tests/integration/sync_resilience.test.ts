@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { ApiClient } from '../../src/core/api/client';
 import { ApiError } from '../../src/core/api/errors';
 import type { ActiveSession } from '../../src/core/auth/session';
+import { wasUnreachable } from '../../src/core/sync/engine';
 import { answerQuestion, completeLesson, saveLessonOffline } from '../../src/core/learning/actions';
 import { API_URL, credentials, Device, resetServerLearningState, RunningApp, SEED, serverFeed } from '../support/device';
 
@@ -123,6 +124,25 @@ test('server errors (503 / 500) are retried; a recovering server is picked up wi
   expect(run).toMatchObject({ outcome: 'ok', confirmed: 1 });
   expect(device.sleeps).toHaveLength(2);
   expect(await serverFeed('student_a')).toHaveLength(1);
+});
+
+test('a server that keeps answering 503 is retried but is not reported as unreachable; a dead port is', async () => {
+  await answer([0]);
+  const original = device.network.fetch;
+  const failing = async (url: string, init?: RequestInit) =>
+    url.includes('/v1/sync/push')
+      ? new Response(JSON.stringify({ error: { code: 'dependency_unavailable', message: 'x' } }), { status: 503 })
+      : original(url, init);
+  const api = new ApiClient({
+    baseUrl: device.apiUrl, fetchImpl: failing, getAccessToken: (o) => app.sessions.accessToken(session, o) });
+  const answered = await device.engine(app.sessions, session, { api, maxAttempts: 2 }).run();
+  expect(answered).toMatchObject({ outcome: 'offline', errorCode: 'dependency_unavailable', serverAnswered: true });
+  expect(wasUnreachable(answered)).toBe(false);
+
+  device.apiUrl = 'http://127.0.0.1:9';
+  const dead = await device.engine(app.sessions, session, { maxAttempts: 2 }).run();
+  expect(dead).toMatchObject({ outcome: 'offline', errorCode: 'unreachable', serverAnswered: false });
+  expect(wasUnreachable(dead)).toBe(true);
 });
 
 test('permanently rejected operations are flagged once, never resent, and do not block later work', async () => {
