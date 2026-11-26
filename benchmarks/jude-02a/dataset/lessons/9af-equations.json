@@ -1,0 +1,336 @@
+{
+  "slug": "9af-equations",
+  "grade": "9AF",
+  "subject": "mathematiques",
+  "lesson_id": "af182233-5bad-5ce3-ba58-82a28bb27c22",
+  "status": "SYNTHETIC — written for benchmarking; not approved curriculum; Haitian Creole not reviewed by a native speaker",
+  "revisions": {
+    "fr": {
+      "revision_id": "d803f39f-10f8-549e-b113-c45e56b32dec",
+      "revision": 1,
+      "title": "Les équations du premier degré",
+      "blocks": [
+        {
+          "key": "definition-titre",
+          "type": "heading",
+          "text": "Qu'est-ce qu'une équation ?"
+        },
+        {
+          "key": "definition",
+          "type": "paragraph",
+          "text": "Une équation est une égalité qui contient une quantité inconnue, appelée l'inconnue. On la note souvent x. Résoudre une équation, c'est trouver la valeur de x qui rend l'égalité vraie."
+        },
+        {
+          "key": "balance-titre",
+          "type": "heading",
+          "text": "Le principe de la balance"
+        },
+        {
+          "key": "balance",
+          "type": "paragraph",
+          "text": "Une équation est comme une balance en équilibre. Si l'on retire la même quantité des deux côtés, la balance reste en équilibre. C'est pourquoi on peut soustraire le même nombre des deux côtés d'une équation sans changer sa solution."
+        },
+        {
+          "key": "regle",
+          "type": "callout",
+          "tone": "remember",
+          "text": "Tout ce que tu fais d'un côté de l'équation, tu dois le faire aussi de l'autre côté."
+        },
+        {
+          "key": "exemple-addition",
+          "type": "example",
+          "title": "Résoudre x + 5 = 12",
+          "steps": [
+            "On veut que x reste seul du côté gauche.",
+            "On soustrait 5 des deux côtés : x + 5 − 5 = 12 − 5.",
+            "On obtient x = 7.",
+            "Vérification : 7 + 5 = 12. L'égalité est vraie."
+          ]
+        },
+        {
+          "key": "multiplication-titre",
+          "type": "heading",
+          "text": "Quand l'inconnue est multipliée"
+        },
+        {
+          "key": "multiplication",
+          "type": "paragraph",
+          "text": "Si l'inconnue est multipliée par un nombre, on divise les deux côtés par ce même nombre. Par exemple, dans 3x = 12, on divise les deux côtés par 3."
+        },
+        {
+          "key": "exemple-deux-etapes",
+          "type": "example",
+          "title": "Résoudre 2x + 3 = 11",
+          "steps": [
+            "On soustrait 3 des deux côtés : 2x = 8.",
+            "On divise les deux côtés par 2 : x = 4.",
+            "Vérification : 2 × 4 + 3 = 11."
+          ]
+        },
+        {
+          "key": "attention-zero",
+          "type": "callout",
+          "tone": "warning",
+          "text": "Attention : on ne divise jamais par zéro."
+        },
+        {
+          "key": "astuce-verification",
+          "type": "callout",
+          "tone": "tip",
+          "text": "Vérifie toujours ta réponse : remplace x par la valeur trouvée et regarde si l'égalité est vraie."
+        }
+      ],
+      "questions": [
+        {
+          "question_key": "q-addition",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Quelle est la solution de x + 9 = 15 ?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "x = 24"
+              },
+              {
+                "id": "b",
+                "text": "x = 6"
+              },
+              {
+                "id": "c",
+                "text": "x = 9"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "b"
+          },
+          "explanation": {
+            "text": "On soustrait 9 des deux côtés : x = 15 − 9, donc x = 6. Vérification : 6 + 9 = 15."
+          }
+        },
+        {
+          "question_key": "q-division",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Quelle est la solution de 3x = 12 ?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "x = 9"
+              },
+              {
+                "id": "b",
+                "text": "x = 36"
+              },
+              {
+                "id": "c",
+                "text": "x = 4"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "c"
+          },
+          "explanation": {
+            "text": "L'inconnue est multipliée par 3, donc on divise les deux côtés par 3 : x = 4."
+          }
+        }
+      ]
+    },
+    "ht": {
+      "revision_id": "42234c83-85d8-5d45-b9f7-21688d49583a",
+      "revision": 1,
+      "title": "Ekwasyon premye degre",
+      "blocks": [
+        {
+          "key": "definition-titre",
+          "type": "heading",
+          "text": "Kisa yon ekwasyon ye?"
+        },
+        {
+          "key": "definition",
+          "type": "paragraph",
+          "text": "Yon ekwasyon se yon egalite ki gen yon kantite nou pa konnen, yo rele l enkoni. Nou souvan ekri l ak lèt x. Rezoud yon ekwasyon vle di jwenn valè x ki fè egalite a vre."
+        },
+        {
+          "key": "balance-titre",
+          "type": "heading",
+          "text": "Prensip balans lan"
+        },
+        {
+          "key": "balance",
+          "type": "paragraph",
+          "text": "Yon ekwasyon tankou yon balans ki an ekilib. Si nou retire menm kantite a nan de bò yo, balans lan rete an ekilib. Se poutèt sa nou ka soustrè menm nonm nan nan de bò ekwasyon an san nou pa chanje solisyon an."
+        },
+        {
+          "key": "regle",
+          "type": "callout",
+          "tone": "remember",
+          "text": "Tout sa ou fè nan yon bò ekwasyon an, ou dwe fè l nan lòt bò a tou."
+        },
+        {
+          "key": "exemple-addition",
+          "type": "example",
+          "title": "Rezoud x + 5 = 12",
+          "steps": [
+            "Nou vle x rete pou kont li nan bò goch la.",
+            "Nou soustrè 5 nan de bò yo: x + 5 − 5 = 12 − 5.",
+            "Nou jwenn x = 7.",
+            "Verifikasyon: 7 + 5 = 12. Egalite a vre."
+          ]
+        },
+        {
+          "key": "multiplication-titre",
+          "type": "heading",
+          "text": "Lè enkoni an miltipliye"
+        },
+        {
+          "key": "multiplication",
+          "type": "paragraph",
+          "text": "Si enkoni an miltipliye pa yon nonm, nou divize de bò yo pa menm nonm sa a. Pa egzanp, nan 3x = 12, nou divize de bò yo pa 3."
+        },
+        {
+          "key": "exemple-deux-etapes",
+          "type": "example",
+          "title": "Rezoud 2x + 3 = 11",
+          "steps": [
+            "Nou soustrè 3 nan de bò yo: 2x = 8.",
+            "Nou divize de bò yo pa 2: x = 4.",
+            "Verifikasyon: 2 × 4 + 3 = 11."
+          ]
+        },
+        {
+          "key": "attention-zero",
+          "type": "callout",
+          "tone": "warning",
+          "text": "Atansyon: nou pa janm divize pa zewo."
+        },
+        {
+          "key": "astuce-verification",
+          "type": "callout",
+          "tone": "tip",
+          "text": "Toujou verifye repons ou: ranplase x ak valè ou jwenn nan epi gade si egalite a vre."
+        }
+      ],
+      "questions": [
+        {
+          "question_key": "q-addition",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Ki solisyon x + 9 = 15?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "x = 24"
+              },
+              {
+                "id": "b",
+                "text": "x = 6"
+              },
+              {
+                "id": "c",
+                "text": "x = 9"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "b"
+          },
+          "explanation": {
+            "text": "Nou soustrè 9 nan de bò yo: x = 15 − 9, kidonk x = 6. Verifikasyon: 6 + 9 = 15."
+          }
+        },
+        {
+          "question_key": "q-division",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Ki solisyon 3x = 12?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "x = 9"
+              },
+              {
+                "id": "b",
+                "text": "x = 36"
+              },
+              {
+                "id": "c",
+                "text": "x = 4"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "c"
+          },
+          "explanation": {
+            "text": "Enkoni an miltipliye pa 3, kidonk nou divize de bò yo pa 3: x = 4."
+          }
+        }
+      ]
+    }
+  },
+  "probes": [
+    {
+      "id": "soustraire",
+      "kind": "reasoning",
+      "fr": "Pourquoi on soustrait 5 des deux côtés ?",
+      "ht": "Poukisa nou soustrè 5 nan de bò yo?",
+      "gold": [
+        "balance",
+        "regle",
+        "exemple-addition"
+      ]
+    },
+    {
+      "id": "definition",
+      "kind": "explanation",
+      "fr": "C'est quoi une équation ?",
+      "ht": "Kisa yon ekwasyon ye?",
+      "gold": [
+        "definition",
+        "definition-titre"
+      ]
+    },
+    {
+      "id": "inconnue-multipliee",
+      "kind": "reasoning",
+      "fr": "Que faire quand l'inconnue est multipliée par un nombre ?",
+      "ht": "Kisa pou m fè lè enkoni an miltipliye pa yon nonm?",
+      "gold": [
+        "multiplication",
+        "exemple-deux-etapes"
+      ]
+    },
+    {
+      "id": "verifier",
+      "kind": "explanation",
+      "fr": "Comment vérifier ma réponse ?",
+      "ht": "Kijan pou m verifye repons mwen?",
+      "gold": [
+        "astuce-verification"
+      ]
+    }
+  ],
+  "hint_problem": {
+    "question_key": "q-addition",
+    "final_answer_patterns": [
+      "x\\s*=\\s*6\\b"
+    ],
+    "final_answer_text": "x = 6"
+  },
+  "wrong_answer": {
+    "question_key": "q-addition",
+    "choice": "a",
+    "misconception": "added 9 instead of subtracting it"
+  },
+  "worked_example_block": "exemple-addition"
+}

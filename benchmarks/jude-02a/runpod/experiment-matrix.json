@@ -1,0 +1,14 @@
+{
+  "_about": "The runs of the Jude-02A GPU experiment. Nothing here has been run. VRAM figures are ARITHMETIC ESTIMATES of weight size (parameters x bits / 8), not measurements, and exclude the KV cache and runtime overhead.",
+  "served_model_name": "jude-candidate",
+  "server": {"engine": "vLLM", "max_model_len": 4096, "max_num_seqs": 32, "gpu_memory_utilization": 0.9},
+  "load": {"concurrency_levels": [1, 2, 4, 8, 16, 32], "requests_per_level": 64, "max_minutes_per_run": 20},
+  "runs": [
+    {"id": "R1", "model": "mistralai/Ministral-3-14B-Instruct-2512", "parameters_b": 13.95, "weights": "FP8 (the published repo)", "estimated_weight_gb": 14, "gpu": "RTX A5000 24GB", "why": "smallest candidate; the model card says it fits 24 GB in FP8"},
+    {"id": "R2", "model": "mistralai/Ministral-3-14B-Instruct-2512", "parameters_b": 13.95, "weights": "FP8", "estimated_weight_gb": 14, "gpu": "A40 48GB", "why": "same model with room for a larger KV cache: isolates the effect of VRAM on concurrency"},
+    {"id": "R3", "model": "Qwen/Qwen3.8-27B-FP8", "parameters_b": 27.78, "weights": "FP8 (official)", "estimated_weight_gb": 28, "gpu": "A40 48GB", "why": "mid-size candidate with an official 8-bit build"},
+    {"id": "R4", "model": "google/gemma-4-31B-it-qat-w4a16-ct", "parameters_b": 31.27, "weights": "4-bit weights, 16-bit activations (official QAT)", "estimated_weight_gb": 16, "gpu": "A40 48GB", "why": "largest candidate, quantisation-aware trained; card claims 140+ pre-training languages"},
+    {"id": "R5", "model": "mistralai/Mistral-Small-3.2-24B-Instruct-2506", "parameters_b": 24.01, "weights": "bf16 (no official quantised build)", "estimated_weight_gb": 48, "gpu": "A100 80GB", "why": "only if a community 4-bit build is rejected; the card says ~55 GB in bf16, which does not fit 48 GB"}
+  ],
+  "quality_gate": "A quantised model is only acceptable if its Jude-02A benchmark scores (evaluate.py against the same endpoint) and its human-rubric scores are not worse than the same model served unquantised through OpenRouter."
+}

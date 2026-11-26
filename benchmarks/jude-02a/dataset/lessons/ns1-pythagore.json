@@ -1,0 +1,305 @@
+{
+  "slug": "ns1-pythagore",
+  "grade": "NS1",
+  "subject": "mathematiques",
+  "lesson_id": "9ec3694e-11a5-5466-a6c6-f1f2f000f323",
+  "status": "SYNTHETIC — written for benchmarking; not approved curriculum; Haitian Creole not reviewed by a native speaker",
+  "revisions": {
+    "fr": {
+      "revision_id": "72fb8192-90ae-5d7d-bd57-50e662abc3da",
+      "revision": 1,
+      "title": "Le théorème de Pythagore",
+      "blocks": [
+        {
+          "key": "triangle-titre",
+          "type": "heading",
+          "text": "Le triangle rectangle"
+        },
+        {
+          "key": "triangle",
+          "type": "paragraph",
+          "text": "Un triangle rectangle a un angle droit. Le côté en face de l'angle droit s'appelle l'hypoténuse : c'est le plus long côté."
+        },
+        {
+          "key": "theoreme-titre",
+          "type": "heading",
+          "text": "L'énoncé du théorème"
+        },
+        {
+          "key": "theoreme",
+          "type": "paragraph",
+          "text": "Dans un triangle rectangle, le carré de l'hypoténuse est égal à la somme des carrés des deux autres côtés. Si l'hypoténuse mesure c et les autres côtés a et b, alors c² = a² + b²."
+        },
+        {
+          "key": "exemple-hypotenuse",
+          "type": "example",
+          "title": "Calculer l'hypoténuse quand a = 3 cm et b = 4 cm",
+          "steps": [
+            "c² = 3² + 4² = 9 + 16 = 25.",
+            "c est la racine carrée de 25.",
+            "c = 5 cm."
+          ]
+        },
+        {
+          "key": "cote-titre",
+          "type": "heading",
+          "text": "Calculer un côté de l'angle droit"
+        },
+        {
+          "key": "cote",
+          "type": "paragraph",
+          "text": "Pour trouver un côté de l'angle droit, on soustrait : a² = c² − b². Ensuite on prend la racine carrée."
+        },
+        {
+          "key": "exemple-cote",
+          "type": "example",
+          "title": "Calculer a quand c = 13 cm et b = 12 cm",
+          "steps": [
+            "a² = 13² − 12² = 169 − 144 = 25.",
+            "a = 5 cm."
+          ]
+        },
+        {
+          "key": "attention",
+          "type": "callout",
+          "tone": "warning",
+          "text": "Attention : le théorème de Pythagore ne s'applique qu'aux triangles rectangles."
+        }
+      ],
+      "questions": [
+        {
+          "question_key": "q-hypotenuse",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Un triangle rectangle a des côtés de l'angle droit de 6 cm et 8 cm. Combien mesure l'hypoténuse ?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "10 cm"
+              },
+              {
+                "id": "b",
+                "text": "14 cm"
+              },
+              {
+                "id": "c",
+                "text": "100 cm"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "a"
+          },
+          "explanation": {
+            "text": "c² = 6² + 8² = 36 + 64 = 100, donc c = 10 cm."
+          }
+        },
+        {
+          "question_key": "q-cote",
+          "kind": "mcq",
+          "prompt": {
+            "text": "L'hypoténuse mesure 10 cm et un côté 6 cm. Combien mesure l'autre côté ?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "4 cm"
+              },
+              {
+                "id": "b",
+                "text": "8 cm"
+              },
+              {
+                "id": "c",
+                "text": "16 cm"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "b"
+          },
+          "explanation": {
+            "text": "a² = 10² − 6² = 100 − 36 = 64, donc a = 8 cm."
+          }
+        }
+      ]
+    },
+    "ht": {
+      "revision_id": "a02a3f3a-0f22-560a-ab81-8a1b6acbdb44",
+      "revision": 1,
+      "title": "Teyorèm Pitagò",
+      "blocks": [
+        {
+          "key": "triangle-titre",
+          "type": "heading",
+          "text": "Triyang rektang lan"
+        },
+        {
+          "key": "triangle",
+          "type": "paragraph",
+          "text": "Yon triyang rektang gen yon ang dwat. Kote ki anfas ang dwat la rele ipoteniz: se kote ki pi long lan."
+        },
+        {
+          "key": "theoreme-titre",
+          "type": "heading",
+          "text": "Sa teyorèm nan di"
+        },
+        {
+          "key": "theoreme",
+          "type": "paragraph",
+          "text": "Nan yon triyang rektang, kare ipoteniz la egal ak sòm kare de lòt kote yo. Si ipoteniz la mezire c epi lòt kote yo mezire a ak b, alò c² = a² + b²."
+        },
+        {
+          "key": "exemple-hypotenuse",
+          "type": "example",
+          "title": "Kalkile ipoteniz la lè a = 3 cm ak b = 4 cm",
+          "steps": [
+            "c² = 3² + 4² = 9 + 16 = 25.",
+            "c se rasin kare 25.",
+            "c = 5 cm."
+          ]
+        },
+        {
+          "key": "cote-titre",
+          "type": "heading",
+          "text": "Kalkile yon kote ang dwat la"
+        },
+        {
+          "key": "cote",
+          "type": "paragraph",
+          "text": "Pou jwenn yon kote ang dwat la, nou soustrè: a² = c² − b². Apre sa, nou pran rasin kare a."
+        },
+        {
+          "key": "exemple-cote",
+          "type": "example",
+          "title": "Kalkile a lè c = 13 cm ak b = 12 cm",
+          "steps": [
+            "a² = 13² − 12² = 169 − 144 = 25.",
+            "a = 5 cm."
+          ]
+        },
+        {
+          "key": "attention",
+          "type": "callout",
+          "tone": "warning",
+          "text": "Atansyon: teyorèm Pitagò a mache sèlman pou triyang rektang."
+        }
+      ],
+      "questions": [
+        {
+          "question_key": "q-hypotenuse",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Yon triyang rektang gen kote ang dwat ki mezire 6 cm ak 8 cm. Konbyen ipoteniz la mezire?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "10 cm"
+              },
+              {
+                "id": "b",
+                "text": "14 cm"
+              },
+              {
+                "id": "c",
+                "text": "100 cm"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "a"
+          },
+          "explanation": {
+            "text": "c² = 6² + 8² = 36 + 64 = 100, kidonk c = 10 cm."
+          }
+        },
+        {
+          "question_key": "q-cote",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Ipoteniz la mezire 10 cm epi yon kote mezire 6 cm. Konbyen lòt kote a mezire?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "4 cm"
+              },
+              {
+                "id": "b",
+                "text": "8 cm"
+              },
+              {
+                "id": "c",
+                "text": "16 cm"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "b"
+          },
+          "explanation": {
+            "text": "a² = 10² − 6² = 100 − 36 = 64, kidonk a = 8 cm."
+          }
+        }
+      ]
+    }
+  },
+  "probes": [
+    {
+      "id": "hypotenuse",
+      "kind": "explanation",
+      "fr": "C'est quoi l'hypoténuse ?",
+      "ht": "Kisa ipoteniz la ye?",
+      "gold": [
+        "triangle"
+      ]
+    },
+    {
+      "id": "enonce",
+      "kind": "explanation",
+      "fr": "Que dit le théorème de Pythagore ?",
+      "ht": "Kisa teyorèm Pitagò a di?",
+      "gold": [
+        "theoreme"
+      ]
+    },
+    {
+      "id": "cote-angle-droit",
+      "kind": "reasoning",
+      "fr": "Comment calculer un côté de l'angle droit ?",
+      "ht": "Kijan pou m kalkile yon kote ang dwat la?",
+      "gold": [
+        "cote",
+        "exemple-cote"
+      ]
+    },
+    {
+      "id": "tous-les-triangles",
+      "kind": "reasoning",
+      "fr": "Est-ce que le théorème marche pour tous les triangles ?",
+      "ht": "Èske teyorèm nan mache pou tout triyang?",
+      "gold": [
+        "attention"
+      ]
+    }
+  ],
+  "hint_problem": {
+    "question_key": "q-hypotenuse",
+    "final_answer_patterns": [
+      "\\b10\\s*cm\\b"
+    ],
+    "final_answer_text": "10 cm"
+  },
+  "wrong_answer": {
+    "question_key": "q-hypotenuse",
+    "choice": "b",
+    "misconception": "added the two sides instead of their squares"
+  },
+  "worked_example_block": "exemple-hypotenuse"
+}

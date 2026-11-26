@@ -1,0 +1,22 @@
+{
+  "_about": "Inputs to the cost comparison that are NOT published prices. Every number here is an ASSUMPTION chosen for Jude-02A; change them freely and re-run `evaluate.py cost`. GPU performance must be replaced by measurements from the Runpod experiment before any hosting decision.",
+  "gpu": "A40",
+  "serverless_idle_timeout_s": 5,
+  "serverless_packing_efficiency": 0.7,
+  "openrouter_models": [
+    "mistralai/mistral-small-3.2-24b-instruct",
+    "anthropic/claude-haiku-5.5",
+    "google/gemma-4-31b-it",
+    "openai/gpt-5.4-mini"
+  ],
+  "workloads": [
+    {"name": "Pilot — 200 learners, 5 questions a day", "requests_per_day": 1000, "input_tokens": 1800, "output_tokens": 250, "active_hours_per_day": 10, "peak_factor": 3, "retry_overhead": 0.05},
+    {"name": "Growth — 5,000 learners, 4 questions a day", "requests_per_day": 20000, "input_tokens": 1800, "output_tokens": 250, "active_hours_per_day": 12, "peak_factor": 3, "retry_overhead": 0.05},
+    {"name": "Scale — 30,000 learners, 3 questions a day", "requests_per_day": 90000, "input_tokens": 1800, "output_tokens": 250, "active_hours_per_day": 14, "peak_factor": 4, "retry_overhead": 0.05}
+  ],
+  "gpu_performance_assumptions": [
+    {"label": "pessimistic", "time_to_first_token_s": 1.0, "output_tokens_per_s": 15, "concurrent_streams": 4, "cold_start_s": 180},
+    {"label": "middle", "time_to_first_token_s": 0.5, "output_tokens_per_s": 30, "concurrent_streams": 12, "cold_start_s": 90},
+    {"label": "optimistic", "time_to_first_token_s": 0.3, "output_tokens_per_s": 50, "concurrent_streams": 32, "cold_start_s": 40}
+  ]
+}
