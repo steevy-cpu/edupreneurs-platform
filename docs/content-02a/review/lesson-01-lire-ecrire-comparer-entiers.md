@@ -272,7 +272,17 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 | Q4 `plus-grand-nombre` |  |  |  |  |
 | Q5 `chiffre-des-centaines` |  |  |  |  |
 
-## 7. Décision pour cette leçon
+## 7. Calculs : ce que l'outil a vérifié et ce qu'il n'a PAS interprété
+
+L'outil a recalculé exactement **18** égalités ou comparaisons chiffrées écrites dans les textes, énoncés et explications (français et créole). Les réponses proposées aux élèves sont contrôlées par un autre mécanisme (fiche de vérification de la leçon).
+**4** relation(s) n'ont **pas** été interprétées par l'outil : **vérifiez-les à la main**.
+
+- `fr/blocs/11/text` — relation sans nombres des deux côtés (signe cité, formule) : « Le signe < ou > s'ouvre du côté du plus grand nombre : 3 < 5 et 5 > 3. »
+- `fr/chiffre-des-centaines/explanation/text` — formule ou décomposition écrite avec des mots : « 3 480 = 3 milliers + 4 centaines + 8 dizaines. »
+- `ht/blocs/11/text` — relation sans nombres des deux côtés (signe cité, formule) : « Siy < oswa > louvri bò nonb ki pi gwo a: 3 < 5 epi 5 > 3. »
+- `ht/chiffre-des-centaines/explanation/text` — formule ou décomposition écrite avec des mots : « 3 480 = 3 milye + 4 santèn + 8 dizèn. »
+
+## 8. Décision pour cette leçon
 
 | Langue | Décision (Approuver / Approuver avec corrections / Rejeter) | Nom | Rôle (enseignant de mathématiques / locuteur natif) | Date | Signature |
 |---|---|---|---|---|---|

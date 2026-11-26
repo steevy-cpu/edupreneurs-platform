@@ -256,7 +256,12 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 | Q4 `affirmation-vraie` |  |  |  |  |
 | Q5 `cahiers-en-paquets` |  |  |  |  |
 
-## 7. Décision pour cette leçon
+## 7. Calculs : ce que l'outil a vérifié et ce qu'il n'a PAS interprété
+
+L'outil a recalculé exactement **20** égalités ou comparaisons chiffrées écrites dans les textes, énoncés et explications (français et créole). Les réponses proposées aux élèves sont contrôlées par un autre mécanisme (fiche de vérification de la leçon).
+Aucune relation n'a été laissée de côté dans cette leçon.
+
+## 8. Décision pour cette leçon
 
 | Langue | Décision (Approuver / Approuver avec corrections / Rejeter) | Nom | Rôle (enseignant de mathématiques / locuteur natif) | Date | Signature |
 |---|---|---|---|---|---|

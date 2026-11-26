@@ -17,7 +17,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
-from .mathcheck import MathError, statements, value_of
+from .mathcheck import MathError, analyze, statements, value_of
 from .model import (
     DEFAULT_LIMITS,
     LOCALES,
@@ -94,10 +94,28 @@ def _scan_math(text: Any, where: str) -> list[Finding]:
     """Every arithmetic statement the learner reads must be TRUE (exact arithmetic, see mathcheck.py)."""
     if not isinstance(text, str):
         return []
-    found, problems = statements(text)
-    out = [Finding("math_false", where, f"the displayed statement {st.text!r} is false ({st.detail})") for st in found if not st.holds]
-    out += [Finding("math_unparsed", where, f"arithmetic that cannot be interpreted: {p}") for p in problems]
+    result = analyze(text)
+    out = [Finding("math_false", where, f"the displayed statement {st.text!r} is false ({st.detail})") for st in result.statements if not st.holds]
+    out += [Finding("math_unparsed", where, f"arithmetic that cannot be interpreted: {p}") for p in result.problems]
+    if result.limit_reached:
+        out.append(Finding("math_limit", where, "the statement limit was reached: later calculations in this text were not verified"))
     return out
+
+
+def math_coverage(obj: Any, where: str) -> tuple[int, list[tuple[str, str, str]]]:
+    """(verified statements, [(where, kind, text) the tool deliberately did not interpret]) for learner-visible prose."""
+    checked = 0
+    skipped: list[tuple[str, str, str]] = []
+    for path, text in _strings(obj):
+        if _NON_PROSE.search(path):
+            continue
+        result = analyze(text)
+        checked += len(result.statements)
+        for item in result.skipped:
+            entry = (f"{where}{path}", item.kind, item.text)
+            if entry not in skipped:
+                skipped.append(entry)
+    return checked, skipped
 
 
 def _math_in(obj: Any, where: str) -> list[Finding]:
@@ -219,6 +237,24 @@ def validate(root: Path, *, repo_root: Path | None = None, forbid_approvals: boo
     return findings
 
 
+# Findings after which the semantic passes must not run: they read fields that the contracts say may be absent or mistyped.
+_STRUCTURAL = frozenset(
+    {
+        "blocks_schema",
+        "questions_schema",
+        "question_schema",
+        "malformed_answer",
+        "duplicate_choice_id",
+        "file_unreadable",
+        "json_invalid",
+        "json_duplicate_member",
+        "file_missing",
+        "file_too_large",
+        "file_unsafe",
+    }
+)
+
+
 def _validate_lesson(
     root: Path,
     lesson: dict[str, Any],
@@ -316,7 +352,18 @@ def _validate_lesson(
     if verification is not _FAILED:
         schema_errors = [Finding("verification_schema", f"{w}:verification:{_path(e)}", e.message) for e in verif_v.iter_errors(verification)]
         out += schema_errors
-        if not schema_errors:
+        malformed = [f for f in out if f.severity == "error" and f.where.startswith(w) and f.code in _STRUCTURAL]
+        if malformed:
+            first = malformed[0]
+            out.append(
+                Finding(
+                    "verification_skipped",
+                    f"{w}:verification",
+                    f"semantic verification was not run because the content is malformed (first: {first.code} @ {first.where})",
+                    "warning",
+                )
+            )
+        elif not schema_errors:
             out += _verify_math(w, verification, loaded, lim)
 
     # -- size budget
@@ -381,6 +428,12 @@ def _duplicate_finding(where: str, pairs: list[tuple[str, str, str]]) -> list[Fi
     ]
 
 
+def _choice_list(spec: Any) -> list[dict[str, Any]]:
+    """The choice objects of a response spec; anything malformed yields fewer (or no) choices, never an exception."""
+    raw = spec.get("choices") if isinstance(spec, dict) else None
+    return [c for c in raw if isinstance(c, dict)] if isinstance(raw, list) else []
+
+
 def _validate_questions(w: str, loc: str, questions: Any, mcq_v: Draft202012Validator) -> list[Finding]:
     out: list[Finding] = []
     where = f"{w}:questions.{loc}"
@@ -409,7 +462,7 @@ def _validate_questions(w: str, loc: str, questions: Any, mcq_v: Draft202012Vali
         for err in mcq_v.iter_errors(contract):
             out.append(Finding("question_schema", f"{qw}:{_path(err)}", err.message))
         spec = q.get("response_spec")
-        chs = [c for c in (spec.get("choices", []) if isinstance(spec, dict) else []) if isinstance(c, dict)]
+        chs = _choice_list(spec)
         ids = [c.get("id") for c in chs]
         texts = [_plain(str(c.get("text", ""))).lower() for c in chs]
         if len(set(ids)) != len(ids):
@@ -432,7 +485,7 @@ def _compare_questions(w: str, fr: list[Any], ht: list[Any]) -> list[Finding]:
 
     def choices(q: dict[str, Any]) -> list[dict[str, Any]]:
         spec = q.get("response_spec")
-        return [c for c in (spec.get("choices", []) if isinstance(spec, dict) else []) if isinstance(c, dict)]
+        return _choice_list(spec)
 
     for a, b in zip(fr, ht, strict=True):
         qk = a.get("question_key")
@@ -549,7 +602,8 @@ def _verify_value(qw: str, spec: dict[str, Any], q: dict[str, Any], choices: dic
         if not shown or shown[0] != v:
             out.append(Finding("choice_text_mismatch", f"{qw}/{cid}", f"choice shows {shown[:1] or 'no number'} but its verified value is {v}"))
     if isinstance(computed, int) and not isinstance(computed, bool):
-        expl = q.get("explanation", {}).get("text", "")
+        explanation = q.get("explanation")
+        expl = explanation.get("text", "") if isinstance(explanation, dict) and isinstance(explanation.get("text"), str) else ""
         if computed not in set(number_sequence(expl)):
             out.append(Finding("explanation_missing_answer", qw, f"the explanation never states the verified answer {computed}"))
     if spec.get("operands_in_proof") and isinstance(spec.get("compute"), str):
@@ -614,7 +668,7 @@ def _verify_math(w: str, ver: dict[str, Any], loaded: dict[str, dict[str, Any]],
             if q is None:
                 out.append(Finding("verification_orphan", qw, "verification entry has no matching question"))
                 continue
-            spec_choices = q.get("response_spec", {}).get("choices", []) if isinstance(q.get("response_spec"), dict) else []
+            spec_choices = _choice_list(q.get("response_spec"))
             choices = {c["id"]: c for c in spec_choices if isinstance(c, dict) and "id" in c}
             ak = q.get("answer_key")
             correct = ak.get("correct_choice_id") if isinstance(ak, dict) else None

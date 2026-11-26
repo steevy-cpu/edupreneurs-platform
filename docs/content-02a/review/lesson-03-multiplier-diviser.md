@@ -272,7 +272,17 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 | Q4 `reste-division` |  |  |  |  |
 | Q5 `egalite-division` |  |  |  |  |
 
-## 7. Décision pour cette leçon
+## 7. Calculs : ce que l'outil a vérifié et ce qu'il n'a PAS interprété
+
+L'outil a recalculé exactement **44** égalités ou comparaisons chiffrées écrites dans les textes, énoncés et explications (français et créole). Les réponses proposées aux élèves sont contrôlées par un autre mécanisme (fiche de vérification de la leçon).
+**4** relation(s) n'ont **pas** été interprétées par l'outil : **vérifiez-les à la main**.
+
+- `fr/blocs/11/text` — formule ou décomposition écrite avec des mots : « Dividende = diviseur × quotient + reste, avec un reste plus petit que le diviseur. »
+- `fr/egalite-division/explanation/text` — formule ou décomposition écrite avec des mots : « Dividende = diviseur × quotient + reste : 4 × 7 + 1 = 29. »
+- `ht/blocs/11/text` — formule ou décomposition écrite avec des mots : « Dividand = divizè × kosyan + rès, ak yon rès ki pi piti pase divizè a. »
+- `ht/egalite-division/explanation/text` — formule ou décomposition écrite avec des mots : « Dividand = divizè × kosyan + rès: 4 × 7 + 1 = 29. »
+
+## 8. Décision pour cette leçon
 
 | Langue | Décision (Approuver / Approuver avec corrections / Rejeter) | Nom | Rôle (enseignant de mathématiques / locuteur natif) | Date | Signature |
 |---|---|---|---|---|---|

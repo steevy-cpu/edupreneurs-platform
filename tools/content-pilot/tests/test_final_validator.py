@@ -92,8 +92,8 @@ def test_euclidean_division_with_a_remainder_is_a_distinct_supported_form(text):
 
 def test_euclidean_form_does_not_excuse_other_shapes():
     for text in ("10 ÷ 3 + 1 = 4, reste 0", "10 × 3 = 29, reste 1", "10 ÷ 3 ≤ 3, reste 1"):
-        found, _ = statements(text)
-        assert not all(s.holds for s in found), text
+        found, problems = statements(text)
+        assert problems or not all(s.holds for s in found), text  # reported, or judged false: never judged true
 
 
 @pytest.mark.parametrize(
@@ -161,7 +161,8 @@ def test_value_of_is_exact_not_floating_point():
 def test_the_number_of_statements_per_text_is_bounded():
     text = " ; ".join("1 + 1 = 2" for _ in range(2000))
     found, problems = statements(text)
-    assert len(found) + len(problems) <= 400
+    assert len(found) <= 400
+    assert any("NOT checked" in p for p in problems)  # reaching the cap is reported, not silent
 
 
 # ================================================================ displayed mathematics is verified in the lessons
