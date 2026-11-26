@@ -122,3 +122,39 @@ async def test_client_cancelled_during_settlement_keeps_its_single_charge(monkey
     records = harness.usage.records()
     assert len(records) == 1 and records[0].status == "settled"
     assert records[0].attempts == 1 and records[0].spent_micro > 0
+
+
+def test_live_capable_dependency_needs_the_authorization_gate():
+    from edu_api.tutor.errors import TutorConfigurationError
+
+    harness = build_harness()
+    with pytest.raises(TutorConfigurationError):
+        build_tutor_service(
+            harness.settings,
+            lessons=harness.lessons,
+            usage=harness.usage,
+            consent=harness.consent,
+            entitlements=harness.entitlements,
+            provider=OpenAICompatibleProvider(
+                httpx.AsyncClient(transport=httpx.MockTransport(lambda _: httpx.Response(503)))
+            ),
+        )
+
+
+async def test_injected_http_client_must_match_approved_https_origin():
+    from pydantic import SecretStr
+
+    from edu_api.tutor.errors import TutorConfigurationError
+
+    settings = make_settings(
+        provider="openai_compatible",
+        live_provider_calls_authorized=True,
+        provider_base_url="https://approved.invalid",
+        provider_api_key=SecretStr("synthetic"),
+    )
+    async with httpx.AsyncClient(
+        base_url="http://different.invalid",
+        transport=httpx.MockTransport(lambda _: httpx.Response(503)),
+    ) as client:
+        with pytest.raises(TutorConfigurationError):
+            build_provider(settings, http_client=client)

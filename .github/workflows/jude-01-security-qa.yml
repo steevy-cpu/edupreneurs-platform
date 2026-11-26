@@ -1,7 +1,6 @@
 name: Independent Jude-01 security checks
 on:
-  push:
-    branches: [qa/jude-01-security]
+  pull_request:
     paths:
       - '.github/workflows/jude-01-security-qa.yml'
       - 'tests/**/test_independent*.py'
@@ -9,6 +8,7 @@ permissions:
   contents: read
 jobs:
   audit:
+    if: github.head_ref == 'qa/jude-01-security' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -16,6 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
       - name: Verify tested source and isolate project
