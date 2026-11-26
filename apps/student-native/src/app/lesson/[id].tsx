@@ -1,54 +1,79 @@
-import { Redirect, Stack, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View } from 'react-native';
 
 import type { SavedLesson } from '../../core/db/contentStore';
 import { completeLesson } from '../../core/learning/actions';
-import { Banner, Body, Button, colors, Loading, Screen, Title } from '../../ui/components';
+import { findLessonContext, LessonContext, PREF_LAST_LESSON } from '../../core/learning/overview';
+import { AppText, Button, Card, LessonHeader, LoadingState, MessageState, SectionHeader, space, useDesign } from '../../design';
+import { perfSinceTap } from '../../ui/perf';
+import { DetailScreen } from '../../ui/shell';
 import { useSignedIn } from '../../ui/useSession';
 
 type Block = Record<string, unknown>;
 
-function BlockView({ block }: { block: Block }) {
+/**
+ * Draws one content block. Only the block types the lesson schema has today
+ * are styled; an unknown type falls back to its text rather than disappearing.
+ */
+function BlockView({ block, exampleLabel }: { block: Block; exampleLabel: string }) {
+  const { colors } = useDesign();
   const text = typeof block.text === 'string' ? block.text : '';
   switch (block.type) {
     case 'heading':
-      return (
-        <Text style={styles.heading} accessibilityRole="header">
-          {text}
-        </Text>
-      );
+      return <SectionHeader title={text} />;
     case 'paragraph':
-      return <Body>{text}</Body>;
+      return <AppText>{text}</AppText>;
     case 'example': {
       const steps = Array.isArray(block.steps) ? (block.steps as unknown[]) : [];
       return (
-        <View style={styles.example}>
-          {typeof block.title === 'string' ? <Body style={{ fontWeight: '700' }}>{block.title}</Body> : null}
+        <Card>
+          <AppText variant="caption" color="actionText">
+            {exampleLabel}
+          </AppText>
+          {typeof block.title === 'string' ? <AppText variant="maths">{block.title}</AppText> : null}
           {steps.map((step, index) => (
-            <Body key={index}>{String(step)}</Body>
+            <View key={index} style={{ flexDirection: 'row', gap: space.sm }}>
+              <View
+                style={{
+                  width: 26,
+                  height: 26,
+                  borderRadius: 13,
+                  backgroundColor: colors.actionSoft,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <AppText variant="caption" color="actionText" maxFontSizeMultiplier={1.2}>
+                  {index + 1}
+                </AppText>
+              </View>
+              <AppText style={{ flex: 1 }}>{String(step)}</AppText>
+            </View>
           ))}
-        </View>
+        </Card>
       );
     }
     case 'callout':
       return (
-        <View style={styles.callout}>
-          <Body>{text}</Body>
-        </View>
+        <Card tone="highlightSoft">
+          <AppText variant="bodyStrong">{text}</AppText>
+        </Card>
       );
     default:
-      // A block type this app version does not know: show its text rather than nothing.
-      return text ? <Body>{text}</Body> : null;
+      return text ? <AppText>{text}</AppText> : null;
   }
 }
 
+/** Lesson reader. Reads SQLite only: it works with no connection at all. */
 export default function LessonReader() {
   const app = useSignedIn();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [lesson, setLesson] = useState<SavedLesson | null | undefined>(undefined);
+  const [context, setContext] = useState<LessonContext | null>(null);
   const [completed, setCompleted] = useState(false);
+  const [marking, setMarking] = useState(false);
   const session = app?.session;
   const locale = app?.locale;
 
@@ -60,10 +85,14 @@ export default function LessonReader() {
         // SQLite only: this screen never waits for the network.
         const saved = await app.services.content.getLesson(id, locale);
         const progress = await session.account.lessonProgress(id);
+        const cached = await app.services.content.getCatalog(locale);
         if (!live) return;
         setLesson(saved);
+        setContext(findLessonContext(cached?.catalog ?? null, id));
         setCompleted(Boolean(progress?.completed));
-      })().catch(() => live && setLesson(null));
+        // Remember where this student was, for "Continue learning" (account-scoped preference).
+        if (saved && session.isActive()) await session.account.setPreference(PREF_LAST_LESSON, id);
+      })().catch(() => live && setLesson((current) => current ?? null));
       return () => {
         live = false;
       };
@@ -71,61 +100,73 @@ export default function LessonReader() {
     }, [session, locale, id]),
   );
 
+  // Measurement builds only (see ui/perf.ts): runs after the lesson content has been committed.
+  const shown = Boolean(lesson);
+  useEffect(() => {
+    if (shown) perfSinceTap('lesson_open_ms');
+  }, [shown]);
+
   if (!app) return <Redirect href="/sign-in" />;
   const { t } = app;
 
   if (lesson === undefined) {
     return (
-      <Screen>
-        <Loading label={t('loading')} />
-      </Screen>
+      <DetailScreen>
+        <LoadingState label={t('loading')} />
+      </DetailScreen>
     );
   }
   if (lesson === null) {
     return (
-      <Screen>
-        <Banner>{t('readerNotSaved')}</Banner>
-        <Button label={t('lessonsTitle')} onPress={() => router.replace('/lessons')} />
-      </Screen>
+      <DetailScreen>
+        <MessageState
+          title={t('lessonNotSaved')}
+          body={t('readerNotSaved')}
+          actionLabel={t('lessonsTitle')}
+          onAction={() => router.replace('/learn')}
+        />
+      </DetailScreen>
     );
   }
 
   const markDone = async () => {
-    await completeLesson(app.session.account, lesson, app.services.env); // saved locally first
-    setCompleted(true);
-    await app.refreshSummary();
-    void app.syncNow();
+    setMarking(true);
+    try {
+      await completeLesson(app.session.account, lesson, app.services.env); // saved locally first
+      setCompleted(true);
+      await app.refreshSummary();
+      void app.syncNow();
+    } finally {
+      setMarking(false);
+    }
   };
 
+  const version = t('readerRevision', { revision: lesson.revision });
   return (
-    <Screen>
-      <Stack.Screen options={{ title: lesson.title }} />
-      <Title>{lesson.title}</Title>
-      <Body muted>{t('readerRevision', { revision: lesson.revision })}</Body>
+    <DetailScreen
+      action={
+        lesson.questions.length > 0 ? (
+          <Button label={t('readerPractice')} icon="play" onPress={() => router.push(`/quiz/${lesson.lessonId}`)} />
+        ) : undefined
+      }
+    >
+      <LessonHeader
+        subject={context ? `${context.subjectLabel} · ${context.gradeCode}` : undefined}
+        title={lesson.title}
+        meta={context ? `${context.unitTitle} · ${version}` : version}
+        offline={t('availableOffline')}
+      />
       {(lesson.blocks as Block[]).map((block, index) => (
-        <BlockView key={typeof block.key === 'string' ? block.key : index} block={block} />
+        <BlockView key={typeof block.key === 'string' ? block.key : index} block={block} exampleLabel={t('workedExample')} />
       ))}
-      {lesson.questions.length > 0 ? (
-        <Button label={t('readerPractice')} onPress={() => router.push(`/quiz/${lesson.lessonId}`)} />
-      ) : null}
       <Button
         variant="secondary"
+        icon={completed ? 'check' : undefined}
         disabled={completed}
+        busy={marking}
         label={completed ? t('readerDone') : t('readerMarkDone')}
         onPress={() => void markDone()}
       />
-    </Screen>
+    </DetailScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  heading: { fontSize: 20, fontWeight: '700', color: colors.text, marginTop: 8 },
-  example: {
-    backgroundColor: colors.surface,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.primary,
-    padding: 12,
-    gap: 4,
-  },
-  callout: { backgroundColor: colors.warnSurface, borderRadius: 10, padding: 12 },
-});

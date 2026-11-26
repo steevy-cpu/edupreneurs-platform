@@ -1,42 +1,56 @@
-# Signed in, backend reachable: switch the interface to Haitian Creole, save and
-# read the Creole lesson, then switch back to French.
+# Signed in, backend reachable: switch the interface to Haitian Creole from Profil,
+# download and read the Creole lesson, then switch back to French.
 appId: ht.edupreneur.student.dev
 ---
 - stopApp
 - launchApp:
     clearState: false
+# Language-neutral start: the app may already be in either language.
 - extendedWaitUntil:
-    visible: "Mes leçons"
+    visible:
+      id: "tab-profile"
     timeout: 90000
+- tapOn:
+    id: "tab-profile"
+- extendedWaitUntil:
+    visible: "student.a@edupreneur.test"
+    timeout: 20000
 - scrollUntilVisible:
     element: "Kreyòl"
     direction: DOWN
 - tapOn: "Kreyòl"
-- scrollUntilVisible:
-    element: "Leson mwen yo"
-    direction: UP
-- assertVisible: "Chwazi klas mwen ak matyè mwen"
-- takeScreenshot: shots/30-home-kreyol
-- tapOn: "Leson mwen yo"
-- extendedWaitUntil:
-    visible: "Anrejistre pou etidye san Entènèt|Ouvri"
-    timeout: 30000
+- assertVisible: "Pwofil"
+- assertVisible: "Aprann"
+- takeScreenshot: shots/30-profile-kreyol
 - tapOn:
-    text: "Anrejistre pou etidye san Entènèt"
+    id: "tab-learn"
+- extendedWaitUntil:
+    visible: "Ekwasyon premye degre"
+    timeout: 30000
+- scrollUntilVisible:
+    element: ".*Rezoud yon ekwasyon senp.*"
+    direction: DOWN
+    visibilityPercentage: 60
+# The Creole copy is a separate download; skip if it is already on the phone.
+- scrollUntilVisible:
+    element:
+      id: "download-1"
+    direction: DOWN
+    timeout: 6000
+    optional: true
+- tapOn:
+    id: "download-1"
     optional: true
 - extendedWaitUntil:
-    visible: "Ouvri"
+    visible: ".*Rezoud yon ekwasyon senp.*Anrejistre sou telefòn sa a.*"
     timeout: 30000
-- takeScreenshot: shots/31-lessons-kreyol
-- tapOn: "Ouvri"
+- takeScreenshot: shots/31-path-kreyol
+- tapOn: ".*Rezoud yon ekwasyon senp.*Anrejistre sou telefòn sa a.*"
 - extendedWaitUntil:
-    visible: "Rezoud yon ekwasyon senp"
+    visible: "Règ balans lan"
     timeout: 15000
-- assertVisible: "Règ balans lan"
+- assertVisible: "Rezoud yon ekwasyon senp"
 - takeScreenshot: shots/32-reader-kreyol
-- scrollUntilVisible:
-    element: "Fè egzèsis yo"
-    direction: DOWN
 - tapOn: "Fè egzèsis yo"
 - extendedWaitUntil:
     visible: "Kesyon 1 sou 5"
@@ -47,12 +61,13 @@ appId: ht.edupreneur.student.dev
 - launchApp:
     clearState: false
 - extendedWaitUntil:
-    visible: "Leson mwen yo"
+    visible: "Bonjou student.a"
     timeout: 90000
+- takeScreenshot: shots/34-home-kreyol
+- tapOn:
+    id: "tab-profile"
 - scrollUntilVisible:
     element: "Français"
     direction: DOWN
 - tapOn: "Français"
-- scrollUntilVisible:
-    element: "Mes leçons"
-    direction: UP
+- assertVisible: "Profil"

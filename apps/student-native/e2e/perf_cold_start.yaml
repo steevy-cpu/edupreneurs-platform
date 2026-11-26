@@ -5,5 +5,5 @@ appId: ht.edupreneur.student.dev
 - launchApp:
     clearState: false
 - extendedWaitUntil:
-    visible: "Mes leçons"
+    visible: "Bonjour student.*"
     timeout: 60000
