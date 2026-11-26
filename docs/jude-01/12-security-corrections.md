@@ -21,11 +21,22 @@ no live learner. No model, no OpenRouter traffic, no Runpod, no spend.
 |---|---:|---:|
 | Independent unit / privacy / provider cases (11) | 1 passed, 10 failed | **11 passed** |
 | Independent PostgreSQL accounting cases (6) | 3 passed, 3 failed | **6 passed** |
-| Independent signed-session and withdrawal cases (2, need the Auth stack) | 2 passed | see CI results below |
+| Independent signed-session and withdrawal cases (2, need the Auth stack) | 2 passed | **2 passed** (CI) |
 | Existing Jude-01 unit + PostgreSQL tests | 415 passed | 415 kept; 4 rewritten because they asserted the defect (listed below) |
 | New security regressions, unit (`test_security_corrections.py`) | — | 192 passed, 12 expected failures that pin documented limits |
 | New security regressions, real PostgreSQL (`test_security_corrections_postgres.py`) | — | 33 passed |
 | `ruff check`, `ruff format --check`, `mypy` (strict), OpenAPI and contract freshness | clean | clean |
+
+**CI on the pull request** (GitHub Actions, the project's full local Supabase
+stack, PostgreSQL 17), on commit `f5e8d8e`, run
+[45902739590](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45902739590):
+lint, format, strict types and contract freshness passed; unit tests **595
+passed, 12 expected failures**; the full run — unit, PostgreSQL ledger, and API
+integration under real row-level security, all 19 independent cases included —
+**742 passed, 0 failed, 0 skipped, 12 expected failures**; pgTAP and the mobile
+suite (69 tests) passed. Locally (throwaway `postgres:16-alpine`, removed
+afterwards; the shared Supabase stack was not touched): unit + PostgreSQL 657
+passed, 12 expected failures, and the PostgreSQL suite three times in a row.
 
 "Before" was reproduced locally on the pinned commit with the reviewer's files
 added and nothing else changed: 13 failed, 4 passed, the same 13 the review lists.
