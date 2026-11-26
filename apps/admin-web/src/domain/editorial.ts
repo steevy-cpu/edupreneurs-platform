@@ -64,7 +64,7 @@ export type Command =
   | { type: 'add_source'; revisionId: string; source: Omit<SourceRef, 'id'> }
   | { type: 'set_rights'; revisionId: string; sourceId: string; rights: RightsStatus }
   | { type: 'remove_source'; revisionId: string; sourceId: string }
-  | { type: 'submit'; revisionId: string }
+  | { type: 'submit'; revisionId: string; note?: string }
   | { type: 'review'; revisionId: string; decision: 'approve' | 'changes'; comment: string }
   | { type: 'publish'; revisionId: string; reason: string }
   | { type: 'rollback'; lessonId: string; reason: string }
@@ -255,7 +255,7 @@ export function apply(state: EditorialState, cmd: Command, actor: Persona, now: 
         const code: Failure = !actor.roles.includes('editor') ? 'forbidden_role' : r.status !== 'draft' ? 'wrong_status' : r.authorId !== actor.id ? 'not_author' : translationError(r) ? 'validation_failed' : 'sources_incomplete';
         return bad(code, a.reason!);
       }
-      return ok(update(r.id, (x) => hist({ ...x, status: 'in_review' }, 'Soumise à la relecture')), receipt(state, 'submit', r.id, actor, now), r.id);
+      return ok(update(r.id, (x) => hist({ ...x, status: 'in_review' }, 'Soumise à la relecture', cmd.note?.trim() || undefined)), receipt(state, 'submit', r.id, actor, now, cmd.note?.trim() || undefined), r.id);
     }
     case 'review': {
       const a = canReview(actor, r);

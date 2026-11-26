@@ -46,11 +46,20 @@ jobs:
         if: always()
         run: |
           cd "$RUNNER_TEMP/admin-evidence"
-          for shot in *.jpg; do
-            printf 'REVIEW_FRAME %s ' "$shot"
-            convert "$shot" -thumbnail '520x500>' -quality 55 jpeg:- | base64 -w0
-            echo
-          done
+          python -m pip install -q --target "$RUNNER_TEMP/review-pil" pillow==11.3.0
+          PYTHONPATH="$RUNNER_TEMP/review-pil" python - <<'PYTHON'
+          from PIL import Image
+          from pathlib import Path
+          import base64, io
+          for shot in sorted(Path('.').glob('*.jpg')):
+              im = Image.open(shot)
+              im.thumbnail((680, 620))
+              buf = io.BytesIO()
+              im.save(buf, 'JPEG', quality=68)
+              data = base64.b64encode(buf.getvalue()).decode()
+              for i in range(0, len(data), 3000):
+                  print('REVIEW_FRAME', shot.name, data[i:i+3000])
+          PYTHON
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -1,3 +1,4 @@
+import userEvent from '@testing-library/user-event';
 import { render, screen } from '@testing-library/react';
 import { expect, it } from 'vitest';
 import { Heatmap } from '../components/Heatmap';
@@ -18,7 +19,9 @@ it('keeps a supplied invalid translation in draft, while allowing an absent tran
   const r = s.revisions.find(r => r.id === 'rev-l-comparer-2')!;
   r.status = 'draft';
   const submit: Command = { type: 'submit', revisionId: r.id };
-  expect(apply(s, submit, anne, clock).result.ok).toBe(true);
+  const submitted = apply(s, { ...submit, note: 'Vérifier le titre.' }, anne, clock);
+  expect(submitted.result).toMatchObject({ ok: true, receipt: { reason: 'Vérifier le titre.' } });
+  expect(submitted.state.revisions.find(v => v.id === r.id)?.history.at(-1)?.reason).toBe('Vérifier le titre.');
   r.blocks.ht = [];
   expect(apply(s, submit, anne, clock).result).toMatchObject({ok:false, code:'validation_failed'});
 });
@@ -80,4 +83,19 @@ it('keeps rights records distinct after removing and re-adding a source', () => 
   state = apply(state, { type: 'remove_source', revisionId, sourceId: sources()[0]!.id }, anne, clock).state;
   state = apply(state, add, anne, clock).state;
   expect(new Set(sources().map(s => s.id)).size).toBe(sources().length);
+});
+
+it('saves only a changed language and resets the visible draft buffer', async () => {
+  const user = userEvent.setup();
+  renderApp('/contenu/revision/rev-l-ax-b-1', anne.id);
+  const first = () => screen.getByRole('textbox', { name: 'Texte du bloc 1' });
+  const original = (first() as HTMLInputElement).value;
+  await user.clear(first());
+  await user.type(first(), 'Nouveau titre');
+  await user.click(screen.getByRole('button', { name: 'Kreyòl' }));
+  expect(screen.getByRole('button', { name: /Enregistrer le brouillon/ })).toBeDisabled();
+  await user.click(screen.getByRole('button', { name: 'Français' }));
+  expect(first()).toHaveValue('Nouveau titre');
+  await user.click(screen.getByRole('button', { name: /Réinitialiser les données/ }));
+  expect(first()).toHaveValue(original);
 });

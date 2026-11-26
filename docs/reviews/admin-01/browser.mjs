@@ -36,7 +36,7 @@ try {
       await target.scrollIntoViewIfNeeded();
       await page.screenshot({ path: path.join(out, name + '-' + width + '.jpg'), type: 'jpeg', quality: 70 });
       await page.evaluate(axe);
-      const issues = await page.evaluate(async () => (await window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a','wcag2aa','wcag21aa'] } })).violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.map(n => n.target).slice(0,6) })));
+      const issues = await page.evaluate(async () => (await window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a','wcag2aa','wcag21a','wcag21aa'] } })).violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.map(n => n.target).slice(0,6) })));
       results.push({ name, width, issues });
       check(name + '-' + width + ' browser axe', issues.length === 0);
     }

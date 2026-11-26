@@ -59,7 +59,7 @@ function RevisionView({ rev }: { rev: Revision }) {
 
   const run = (a: Action, reason: string): Result => {
     switch (a) {
-      case 'submit': return store.dispatch({ type: 'submit', revisionId: rev.id }, persona);
+      case 'submit': return store.dispatch({ type: 'submit', revisionId: rev.id, note: reason }, persona);
       case 'approve': return store.dispatch({ type: 'review', revisionId: rev.id, decision: 'approve', comment: reason }, persona);
       case 'changes': return store.dispatch({ type: 'review', revisionId: rev.id, decision: 'changes', comment: reason }, persona);
       case 'publish': return store.dispatch({ type: 'publish', revisionId: rev.id, reason }, persona);

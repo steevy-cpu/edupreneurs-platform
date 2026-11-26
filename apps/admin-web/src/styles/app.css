@@ -130,7 +130,7 @@ table.data .num { text-align: right; font-variant-numeric: tabular-nums; }
 .heat td, .heat th { text-align: center; padding: .4rem .5rem; }
 .heat td.h0 { background: #EAF6F6; } .heat td.h1 { background: #BFE3E3; } .heat td.h2 { background: #7FC2C2; } .heat td.h3 { background: #207575; color: #fff; } .heat td.h4 { background: #066464; color: #fff; }
 .heat td.suppressed { background: repeating-linear-gradient(135deg, #fff, #fff 5px, #EEF1F6 5px, #EEF1F6 10px); color: #4B5870; font-size: .8rem; }
-.heat td small { display: block; opacity: .85; font-size: .72rem; }
+.heat td small { display: block; font-size: .72rem; }
 .coverage { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: .35rem; list-style: none; margin: 0; padding: 0; }
 .coverage li { border: 1px solid var(--border); border-radius: 6px; text-align: center; padding: .3rem .1rem; font-size: .78rem; }
 .coverage li.yes { background: #E3F4EC; color: #14663F; } .coverage li.no { background: #FBE4E4; color: #8F1D1D; }
