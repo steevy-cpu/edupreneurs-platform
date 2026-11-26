@@ -1,4 +1,4 @@
-name: Clean Android release bundle verification
+name: Android incremental and default clean release comparison
 on:
   push:
     branches: [verify/mobile-learning-clean-bundle-54321c1]
@@ -41,12 +41,23 @@ jobs:
           bundle=$(find app/build/generated/assets -name index.android.bundle -type f)
           test -f "$bundle"
           cp "$bundle" "$RUNNER_TEMP/flags-on.bundle"
-      - name: Assemble and inspect clean flags-off APK
+      - name: Check incremental flags-off output before cleaning
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          cd android
+          ./gradlew :app:createBundleReleaseJsAndAssets -PreactNativeArchitectures=x86_64 --max-workers=2
+          bundle=$(find app/build/generated/assets -name index.android.bundle -type f)
+          if cmp -s "$bundle" "$RUNNER_TEMP/flags-on.bundle"; then
+            echo "Incremental flags-off invocation reused flags-on bytes"
+          else
+            echo "Incremental flags-off invocation produced different bytes"
+          fi
+      - name: Assemble APK using default Gradle caching after clean
         run: |
           export JAVA_HOME="$JAVA_HOME_17_X64"
           cd android
           ./gradlew clean --max-workers=2
-          ./gradlew :app:assembleRelease --no-build-cache -PreactNativeArchitectures=x86_64 --max-workers=2
+          ./gradlew :app:assembleRelease -PreactNativeArchitectures=x86_64 --max-workers=2
           apk=app/build/outputs/apk/release/app-release.apk
           unzip -p "$apk" assets/index.android.bundle > "$RUNNER_TEMP/flags-off.bundle"
           test -s "$RUNNER_TEMP/flags-off.bundle"
