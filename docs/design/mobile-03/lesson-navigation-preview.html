@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edupreneurs — proposition de navigation d’une leçon</title>
+<style>
+/* Mirrors the current light semantic tokens in apps/student-native/src/design/tokens.ts. */
+:root{--canvas:#f4f7f5;--surface:#fff;--sunken:#e6edea;--hero:#142337;--text:#142337;--muted:#4f5f70;--border:#dce6e2;--action:#087e7e;--on-action:#fff;--action-soft:#e3f2ef;--accent-soft:#eee9fc;--highlight-soft:#fff1d6;--accent:#7c3aed;--highlight:#ff9f00;--highlight-text:#7a4b00}
+*{box-sizing:border-box} body{margin:0;background:#e6edea;color:var(--text);font:16px/1.5 system-ui,-apple-system,sans-serif} main{max-width:1070px;margin:auto;padding:32px 20px 56px} h1{font-size:clamp(26px,4vw,38px);line-height:1.15;margin:0 0 12px} .intro{max-width:740px;color:var(--muted);margin:0 0 26px} .notice{max-width:780px;background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--action);border-radius:16px;padding:16px;margin-bottom:28px} .frames{display:flex;align-items:flex-start;gap:28px;flex-wrap:wrap} figure{margin:0;max-width:100%} figcaption{font-weight:750;margin-bottom:10px} .phone{width:320px;max-width:100%;background:var(--canvas);border:1px solid var(--border);border-radius:22px;overflow:hidden} .top{background:var(--surface);padding:15px 16px;border-bottom:1px solid var(--border);font-weight:750} .back{color:var(--action);margin-right:10px} .body{padding:16px;display:grid;gap:16px} .tag{display:inline-block;background:var(--highlight-soft);color:var(--highlight-text);border-radius:999px;padding:5px 10px;font-size:13px;font-weight:700} h2{font-size:25px;line-height:1.2;margin:8px 0 4px} .meta{color:var(--muted);font-size:13px;margin:0}.index{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:12px} .index-title{font-weight:750;font-size:15px;margin:0 0 10px}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px}.tab{min-height:48px;border:1px solid #6f857d;border-radius:16px;padding:10px 9px;display:flex;align-items:center;font-size:14px;line-height:1.2;font-weight:700;overflow-wrap:anywhere}.tab.active{background:var(--action);color:var(--on-action);border-color:var(--action)}.tab.future{background:var(--sunken);border-color:var(--border);color:var(--muted)}.key{color:var(--muted);font-size:12px;margin:10px 0 0}.card{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:20px;padding:16px}.card h3{font-size:18px;line-height:1.3;margin:0 0 8px}.card p{margin:0;color:var(--muted)}.examples{background:var(--highlight-soft);border-radius:16px;padding:12px}.examples strong{display:block}.footer{background:var(--hero);color:white;padding:13px 16px;font-size:13px}.footer strong{display:block}.footnote{color:var(--muted);font-size:14px;max-width:760px;margin-top:22px}.large .tabs{grid-template-columns:1fr}.large .tab{font-size:20px;line-height:1.35;padding:12px;min-height:56px}.large .index-title{font-size:21px}.large h2{font-size:30px}.large .meta{font-size:17px}.large .card h3{font-size:24px}.large .card p{font-size:20px;line-height:1.45}.inventory{font-size:12px;color:var(--muted);margin:0 0 10px}
+</style>
+</head>
+<body><main>
+<h1>Une leçon, sept repères</h1>
+<p class="intro">Proposition de navigation adaptée à 320 dp, dans l’identité Edupreneurs. Les leçons restent accessibles depuis Accueil et Apprendre ; Réviser et Profil conservent leur place.</p>
+<div class="notice"><strong>Maquette statique, sans contrôles actifs.</strong> Les sept rubriques ci-dessous documentent l’architecture souhaitée. Les rubriques grisées n’indiquent pas une fonctionnalité disponible : leur contenu et leur prise en charge restent à définir. Dans l’application, seules les sections réellement prises en charge seront proposées.</div>
+<div class="frames">
+<figure><figcaption>Français · index ouvert · 320 dp</figcaption><div class="phone" aria-label="Maquette statique en français">
+<div class="top"><span class="back" aria-hidden="true">‹</span>Leçon</div>
+<div class="body"><div><span class="tag">Mathématiques · 9AF</span><h2>Une leçon</h2><p class="meta">Exemple de présentation</p></div>
+<div class="index"><p class="index-title">Sections de la leçon</p><p class="inventory">Inventaire de conception · section active en teal</p><div class="tabs">
+<div class="tab active">Introduction · actuelle</div><div class="tab">Contenu &amp; Exemples</div><div class="tab future">Points Clés</div><div class="tab future">Studygram</div><div class="tab future">Activités</div><div class="tab">Quiz</div><div class="tab future">Mes notes</div>
+</div><p class="key">Grisé : section réservée au futur, sans action dans cette maquette.</p></div>
+<div class="card"><h3>Introduction</h3><p>Le contenu réel de la leçon apparaît ici, sans résumé inventé.</p></div>
+</div><div class="footer"><strong>Dans l’application</strong>Accueil · Apprendre · Réviser · Profil</div></div></figure>
+<figure><figcaption>Kreyòl · gwo tèks · lis an kolòn</figcaption><div class="phone large" lang="ht" aria-label="Maquette statique en créole avec grands caractères">
+<div class="top"><span class="back" aria-hidden="true">‹</span>Leson</div>
+<div class="body"><div><span class="tag">Matematik · 9AF</span><h2>Yon leson</h2><p class="meta">Egzanp prezantasyon</p></div>
+<div class="index"><p class="index-title">Seksyon leson an</p><div class="tabs"><div class="tab active">Entwodiksyon · kounye a</div><div class="tab">Kontni ak egzanp</div><div class="tab future">Pwen kle</div><div class="tab future">Studygram</div><div class="tab future">Aktivite</div><div class="tab">Kwiz</div><div class="tab future">Nòt mwen</div></div></div>
+<div class="card"><h3>Entwodiksyon</h3><p>Kontni reyèl leson an parèt isit la.</p></div></div><div class="footer"><strong>Nan aplikasyon an</strong>Akèy · Aprann · Revize · Pwofil</div></div></figure>
+</div><p class="footnote">La barre des quatre destinations est représentée ici comme contexte de l’application : l’écran de leçon existant est une vue de détail avec retour, sans barre d’onglets. La deuxième vue illustre le passage en une colonne ; elle ne constitue pas un test de taille de police système. Traductions à faire relire par un éducateur créolophone.</p>
+</main></body></html>
