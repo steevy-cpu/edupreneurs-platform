@@ -39,7 +39,7 @@ if __name__ == "__main__":
     if os.environ.get("EDU_ENVIRONMENT") != args.environment:
         parser.error("explicit environment must match EDU_ENVIRONMENT")
     try:
-        settings = Settings(_env_file=None)  # type: ignore[call-arg]
+        settings = Settings(_env_file=None)
         validate_runtime(settings)
         port = int(os.environ["PORT"])
         if not 1 <= port <= 65535:

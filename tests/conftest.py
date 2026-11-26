@@ -59,7 +59,7 @@ def local_env() -> dict[str, str]:
             "(or `make start && make db-reset`). Integration tests are never silently skipped.",
             pytrace=False,
         )
-    verify(check_env=True)
+    verify(env=env)
     return env
 
 

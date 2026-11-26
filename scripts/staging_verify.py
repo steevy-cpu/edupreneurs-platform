@@ -12,10 +12,10 @@ import subprocess
 
 import asyncpg
 
-from disposable import ROOT, verify
+from disposable import verify
 from edu_api.config import Settings
 from edu_api.db.staging import SECURITY_SQL, validate_hosted_dsn, validate_runtime
-from local_stack import read_env_file
+from local_stack import ROOT, read_env_file
 
 MANIFEST = ROOT / "docs/infra/staging-00/migrations.sha256"
 
@@ -44,7 +44,7 @@ async def audit(environment: str, *, plan: bool = False) -> None:
     else:
         if os.environ.get("EDU_ENVIRONMENT") != "staging":
             raise ValueError("explicit staging environment required")
-        settings = Settings(_env_file=None)  # type: ignore[call-arg]
+        settings = Settings(_env_file=None)
         validate_runtime(settings)
         url = os.environ["STAGING_AUDIT_DATABASE_URL"]
         login = "edu_staging_auditor"

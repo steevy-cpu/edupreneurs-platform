@@ -106,10 +106,21 @@ def validate_urls(env: dict[str, str], api: int, db: int) -> None:
             raise ValueError(f"{key} does not match the disposable stack")
 
 
-def verify(*, check_env: bool = False) -> str:
+def verify(*, check_env: bool = False, env: dict[str, str] | None = None) -> str:
     project, api, db = layout()
-    if check_env:
-        validate_urls(read_env_file(), api, db)
+    if check_env or env is not None or (ROOT / ".env").exists():
+        validate_urls(read_env_file() if env is None else env, api, db)
+    elif any(
+        os.getenv(k)
+        for k in (
+            "EDU_DATABASE_URL",
+            "EDU_AUTH_ISSUER",
+            "EDU_AUTH_JWKS_URL",
+            "LOCAL_ADMIN_DATABASE_URL",
+            "LOCAL_SUPABASE_URL",
+        )
+    ):
+        raise ValueError("unexpected endpoint overrides in an unconfigured worktree")
     socket = os.environ.get("DOCKER_HOST")
     if not socket or os.getenv("DOCKER_CONTEXT"):
         socket = subprocess.check_output(

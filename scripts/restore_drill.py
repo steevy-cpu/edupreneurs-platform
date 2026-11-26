@@ -10,8 +10,9 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from disposable import ROOT, verify
+from disposable import verify
 from edu_api.db.staging import SECURITY_SQL
+from local_stack import ROOT
 from staging_verify import versions
 
 

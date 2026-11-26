@@ -33,5 +33,13 @@ SELECT
   NOT EXISTS (SELECT FROM app_tables WHERE has_table_privilege(
     'edu_api_login', oid, 'INSERT,UPDATE,DELETE,TRUNCATE,TRIGGER,REFERENCES')) AND
     NOT EXISTS (SELECT FROM app_tables WHERE relname IN
-      ('staff_roles','content_sources','editorial_reviews','audit_events','background_jobs')
-      AND has_any_column_privilege('edu_api_login', oid, 'SELECT')) AS private_tables
+      ('staff_roles','content_sources','lesson_revision_sources','editorial_reviews','audit_events','background_jobs')
+      AND has_any_column_privilege('edu_api_login', oid, 'SELECT')) AS private_tables,
+  (SELECT array_agg(proname::text ORDER BY proname) = ARRAY['current_actor_id','sync_apply_operation']
+   FROM pg_proc WHERE pronamespace = 'app'::regnamespace AND
+   has_function_privilege('edu_api_login',oid,'EXECUTE')) AND
+   NOT EXISTS (SELECT FROM pg_proc WHERE pronamespace = 'app'::regnamespace AND
+     (NOT coalesce(proconfig @> ARRAY['search_path=""'], false) OR
+      (prosecdef AND pg_get_userbyid(proowner) <> 'postgres') OR
+      has_function_privilege('anon',oid,'EXECUTE') OR
+      has_function_privilege('authenticated',oid,'EXECUTE'))) AS functions
