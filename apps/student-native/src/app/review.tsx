@@ -82,7 +82,7 @@ export default function Review() {
         const online = lesson.availability === 'online';
         const mode = online ? '&mode=online' : '';
         return (
-          <Card key={lesson.lessonId}>
+          <Card key={lesson.lessonId} tone="accentSoft">
             <AppText variant="heading" accessibilityRole="header">
               {lesson.title}
             </AppText>

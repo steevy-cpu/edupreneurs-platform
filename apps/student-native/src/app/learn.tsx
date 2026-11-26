@@ -202,10 +202,10 @@ export default function Learn() {
               </AppText>
               {unit.lessons.length > 0 ? (
                 <>
-                  <ProgressBar value={unit.completedCount / unit.lessons.length} label={progress} />
                   <AppText variant="caption" color="textSecondary">
                     {progress}
                   </AppText>
+                  <ProgressBar value={unit.completedCount / unit.lessons.length} label={progress} />
                 </>
               ) : null}
             </Card>

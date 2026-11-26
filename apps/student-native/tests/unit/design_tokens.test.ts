@@ -21,6 +21,7 @@ const PAIRS: [keyof ColorScheme, keyof ColorScheme, number][] = [
   ['accentText', 'accentSoft', 4.5],
   ['accentText', 'surface', 4.5],
   ['text', 'accentSoft', 4.5],
+  ['textSecondary', 'accentSoft', 4.5],
   ['onHighlight', 'highlight', 4.5],
   ['highlightText', 'highlightSoft', 4.5],
   ['success', 'successSoft', 4.5],

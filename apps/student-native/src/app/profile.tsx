@@ -102,14 +102,14 @@ export default function Profile() {
       </AppText>
 
       <Card>
-        <AppText variant="label" color="textSecondary">
-          {t('profileEmail')}
-        </AppText>
-        <AppText variant="bodyStrong">{app.session.email}</AppText>
-        <AppText variant="label" color="textSecondary">
-          {t('selectTitle')}
-        </AppText>
-        <AppText variant="bodyStrong">{view?.selection ?? (view?.grade ? (view.gradeListed ? t('profileGradeOnly', { grade: view.grade }) : view.grade) : t('homeNoSelection'))}</AppText>
+        <View style={{ gap: space.xs }}>
+          <AppText variant="label" color="textSecondary">{t('profileEmail')}</AppText>
+          <AppText variant="bodyStrong">{app.session.email}</AppText>
+        </View>
+        <View style={{ gap: space.xs, marginTop: space.sm }}>
+          <AppText variant="label" color="textSecondary">{t('selectTitle')}</AppText>
+          <AppText variant="bodyStrong">{view?.selection ?? (view?.grade ? (view.gradeListed ? t('profileGradeOnly', { grade: view.grade }) : view.grade) : t('homeNoSelection'))}</AppText>
+        </View>
         <Button variant="secondary" label={t('homeChoose')} onPress={() => router.replace('/learn')} />
       </Card>
 

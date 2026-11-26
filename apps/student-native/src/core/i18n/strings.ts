@@ -126,6 +126,7 @@ const fr = {
   online: 'Connecté',
   offline: 'Hors ligne',
   continueLesson: 'Continuer ma leçon',
+  homeLessonHeading: 'Ta leçon',
   // online-only continuity and freshness (Content-Delivery)
   continueOnline: 'Continuer en ligne',
   continueOnlineHint: 'Cette leçon se lit en ligne. Télécharge-la pour l’avoir sans connexion.',
@@ -409,6 +410,7 @@ const ht: Record<StringKey, string> = {
   online: 'Konekte',
   offline: 'San entènèt',
   continueLesson: 'Kontinye leson an',
+  homeLessonHeading: 'Leson ou',
   // online-only continuity and freshness (Content-Delivery) — DRAFT Creole: needs educator review
   continueOnline: 'Kontinye sou entènèt',
   continueOnlineHint: 'Leson sa a li sou entènèt. Telechaje li pou jwenn li san koneksyon.',
