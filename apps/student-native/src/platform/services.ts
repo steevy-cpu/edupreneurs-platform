@@ -5,6 +5,7 @@ import { SupabaseAuthClient } from '../core/auth/authClient';
 import { ActiveSession, SessionManager } from '../core/auth/session';
 import { ContentStore } from '../core/db/contentStore';
 import type { Environment } from '../core/learning/actions';
+import { SessionLessonCache } from '../core/learning/contentAccess';
 import { SyncEngine, SyncPhase } from '../core/sync/engine';
 import { loadConfig } from './config';
 import { openExpoDatabase } from './expoSqlite';
@@ -14,6 +15,8 @@ export interface Services {
   sessions: SessionManager;
   content: ContentStore;
   env: Environment;
+  /** Lessons read online during this run. Memory only; not a download. */
+  lessonCache: SessionLessonCache;
   apiFor(session: ActiveSession): ApiClient;
   engineFor(session: ActiveSession, onPhase: (phase: SyncPhase) => void): SyncEngine;
 }
@@ -43,6 +46,7 @@ export async function createServices(): Promise<Services> {
     sessions,
     content,
     env,
+    lessonCache: new SessionLessonCache(),
     apiFor,
     engineFor: (session, onPhase) =>
       new SyncEngine({

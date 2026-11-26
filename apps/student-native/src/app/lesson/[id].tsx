@@ -2,10 +2,10 @@ import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-
 import React, { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 
-import type { SavedLesson } from '../../core/db/contentStore';
 import { completeLesson } from '../../core/learning/actions';
+import { downloadForOffline, getDownloaded, openLesson, OpenResult, ReadableLesson } from '../../core/learning/contentAccess';
 import { findLessonContext, LessonContext, PREF_LAST_LESSON } from '../../core/learning/overview';
-import { AppText, Button, Card, LessonHeader, LoadingState, MessageState, SectionHeader, space, useDesign } from '../../design';
+import { AppText, Button, Card, LessonHeader, LoadingState, MessageState, Notice, SectionHeader, space, useDesign } from '../../design';
 import { perfSinceTap } from '../../ui/perf';
 import { DetailScreen } from '../../ui/shell';
 import { useSignedIn } from '../../ui/useSession';
@@ -65,12 +65,22 @@ function BlockView({ block, exampleLabel }: { block: Block; exampleLabel: string
   }
 }
 
-/** Lesson reader. Reads SQLite only: it works with no connection at all. */
+/**
+ * Lesson reader. One screen for both modes:
+ *   no `mode`        — the downloaded copy, from SQLite only: works with no connection at all
+ *   `?mode=online`   — the lesson is read through the API and kept in memory; nothing is downloaded
+ *                      unless the student presses "Télécharger"
+ * The student's own work (answers, completion) is written to the account database either way.
+ */
 export default function LessonReader() {
   const app = useSignedIn();
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const [lesson, setLesson] = useState<SavedLesson | null | undefined>(undefined);
+  const { id, mode } = useLocalSearchParams<{ id: string; mode?: string }>();
+  const online = mode === 'online';
+  const [lesson, setLesson] = useState<ReadableLesson | null | undefined>(undefined);
+  const [failure, setFailure] = useState<Extract<OpenResult, { kind: 'unavailable' }> | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [downloadState, setDownloadState] = useState<'idle' | 'busy' | 'done' | 'failed'>('idle');
   const [context, setContext] = useState<LessonContext | null>(null);
   const [completed, setCompleted] = useState(false);
   const [marking, setMarking] = useState(false);
@@ -82,22 +92,39 @@ export default function LessonReader() {
       if (!app || !session || !locale || !id) return;
       let live = true;
       (async () => {
-        // SQLite only: this screen never waits for the network.
-        const saved = await app.services.content.getLesson(id, locale);
+        let saved: ReadableLesson | null;
+        let unavailable: Extract<OpenResult, { kind: 'unavailable' }> | null = null;
+        if (online) {
+          // Explicit online reading: the network is used here, and only because the student asked.
+          const result = await openLesson(
+            { api: app.api, content: app.services.content, cache: app.services.lessonCache },
+            id,
+            locale,
+            'online',
+          );
+          saved = result.kind === 'ready' ? result.lesson : null;
+          unavailable = result.kind === 'unavailable' ? result : null;
+        } else {
+          // SQLite only: the downloaded reader never waits for the network.
+          saved = await getDownloaded(app.services.content, id, locale);
+        }
         const progress = await session.account.lessonProgress(id);
         const cached = await app.services.content.getCatalog(locale);
         if (!live) return;
         setLesson(saved);
+        setFailure(unavailable);
+        setDownloadState('idle');
         setContext(findLessonContext(cached?.catalog ?? null, id));
         setCompleted(Boolean(progress?.completed));
         // Remember where this student was, for "Continue learning" (account-scoped preference).
-        if (saved && session.isActive()) await session.account.setPreference(PREF_LAST_LESSON, id);
+        // Only a downloaded lesson: the Home card must never point at something that is not on the phone.
+        if (saved?.source === 'downloaded' && session.isActive()) await session.account.setPreference(PREF_LAST_LESSON, id);
       })().catch(() => live && setLesson((current) => current ?? null));
       return () => {
         live = false;
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [session, locale, id]),
+    }, [session, locale, id, online, attempt]),
   );
 
   // Measurement builds only (see ui/perf.ts): runs after the lesson content has been committed.
@@ -113,6 +140,41 @@ export default function LessonReader() {
     return (
       <DetailScreen>
         <LoadingState label={t('loading')} />
+      </DetailScreen>
+    );
+  }
+  if (lesson === null && failure) {
+    const reasonText = {
+      offline: t('readerFailOffline'),
+      not_found: t('readerFailNotFound'),
+      session: t('readerFailSession'),
+      invalid: t('readerFailInvalid'),
+    }[failure.reason];
+    return (
+      <DetailScreen
+        action={
+          failure.downloaded ? (
+            <Button
+              variant="secondary"
+              label={t('readerUseSaved')}
+              onPress={() => router.replace(`/lesson/${failure.downloaded?.lessonId}`)}
+            />
+          ) : undefined
+        }
+      >
+        <MessageState
+          tone="danger"
+          title={t('readerOnlineTitle')}
+          body={reasonText}
+          actionLabel={failure.reason === 'not_found' ? t('lessonsTitle') : t('readerRetry')}
+          onAction={() => {
+            if (failure.reason === 'not_found') router.replace('/learn');
+            else {
+              setLesson(undefined);
+              setAttempt((n) => n + 1);
+            }
+          }}
+        />
       </DetailScreen>
     );
   }
@@ -142,11 +204,27 @@ export default function LessonReader() {
   };
 
   const version = t('readerRevision', { revision: lesson.revision });
+  const isOnlineOnly = lesson.source === 'online' && downloadState !== 'done';
+
+  const download = async () => {
+    if (!app.api || downloadState === 'busy') return;
+    setDownloadState('busy');
+    try {
+      await downloadForOffline(app.api, app.services.content, lesson.lessonId, lesson.locale, app.services.env);
+      setDownloadState('done'); // set only after the local transaction committed
+    } catch {
+      setDownloadState('failed'); // nothing was saved; the lesson on screen is unchanged
+    }
+  };
   return (
     <DetailScreen
       action={
         lesson.questions.length > 0 ? (
-          <Button label={t('readerPractice')} icon="play" onPress={() => router.push(`/quiz/${lesson.lessonId}`)} />
+          <Button
+            label={t('readerPractice')}
+            icon="play"
+            onPress={() => router.push(`/quiz/${lesson.lessonId}${isOnlineOnly ? '?mode=online' : ''}`)}
+          />
         ) : undefined
       }
     >
@@ -154,11 +232,25 @@ export default function LessonReader() {
         subject={context ? `${context.subjectLabel} · ${context.gradeCode}` : undefined}
         title={lesson.title}
         meta={context ? `${context.unitTitle} · ${version}` : version}
-        offline={t('availableOffline')}
+        offline={isOnlineOnly ? undefined : t('availableOffline')}
+        online={isOnlineOnly ? t('readerOnlineBadge') : undefined}
       />
       {(lesson.blocks as Block[]).map((block, index) => (
         <BlockView key={typeof block.key === 'string' ? block.key : index} block={block} exampleLabel={t('workedExample')} />
       ))}
+      {isOnlineOnly ? (
+        <View style={{ gap: space.sm }}>
+          <Button
+            variant="secondary"
+            icon="download"
+            busy={downloadState === 'busy'}
+            label={downloadState === 'busy' ? t('readerDownloading') : t('readerDownload')}
+            testID="download-this-lesson"
+            onPress={() => void download()}
+          />
+          {downloadState === 'failed' ? <Notice tone="danger">{t('lessonSaveFailedFirst')}</Notice> : null}
+        </View>
+      ) : null}
       <Button
         variant="secondary"
         icon={completed ? 'check' : undefined}
