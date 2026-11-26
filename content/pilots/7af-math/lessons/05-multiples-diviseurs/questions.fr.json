@@ -41,12 +41,12 @@
     "response_spec": {
       "choices": [
         {
-          "id": "a",
-          "text": "1, 2, 5, 10"
-        },
-        {
           "id": "b",
           "text": "1, 2, 3, 5, 10"
+        },
+        {
+          "id": "a",
+          "text": "1, 2, 5, 10"
         },
         {
           "id": "c",
@@ -62,32 +62,32 @@
       "correct_choice_id": "a"
     },
     "explanation": {
-      "text": "10 ÷ 1 = 10, 10 ÷ 2 = 5, 10 ÷ 5 = 2 et 10 ÷ 10 = 1 tombent juste. 3 n'est pas un diviseur de 10 : 10 ÷ 3 = 3, reste 1."
+      "text": "10 ÷ 1 = 10, 10 ÷ 2 = 5, 10 ÷ 5 = 2 et 10 ÷ 10 = 1 tombent juste. 3 n'est pas un diviseur de 10 : 10 = 3 × 3 + 1, il reste 1."
     }
   },
   {
     "question_key": "divisible-par-8",
     "position": 3,
     "prompt": {
-      "text": "Le nombre 24 est-il divisible par 8 ?"
+      "text": "Laquelle de ces phrases montre que 24 est divisible par 8 ?"
     },
     "response_spec": {
       "choices": [
         {
-          "id": "a",
-          "text": "Oui, car 8 × 3 = 24"
-        },
-        {
           "id": "b",
-          "text": "Non, car il reste 8"
+          "text": "Il reste 8 quand on divise 24 par 8"
         },
         {
           "id": "c",
-          "text": "Non, car 24 est plus grand que 8"
+          "text": "24 est plus grand que 8, donc 24 n'est pas divisible par 8"
         },
         {
           "id": "d",
-          "text": "Oui, car 24 + 8 = 32"
+          "text": "24 + 8 = 32, donc 24 est divisible par 8"
+        },
+        {
+          "id": "a",
+          "text": "8 × 3 = 24, donc la division de 24 par 8 tombe juste"
         }
       ]
     },
@@ -95,7 +95,7 @@
       "correct_choice_id": "a"
     },
     "explanation": {
-      "text": "8 × 3 = 24, donc 24 ÷ 8 = 3 et le reste est 0 : 24 est divisible par 8."
+      "text": "8 × 3 = 24, donc 24 ÷ 8 = 3 et le reste est 0 : 24 est divisible par 8. Une addition (24 + 8) ou une comparaison de grandeur ne montre pas qu'une division tombe juste."
     }
   },
   {
@@ -107,12 +107,12 @@
     "response_spec": {
       "choices": [
         {
-          "id": "a",
-          "text": "1"
-        },
-        {
           "id": "b",
           "text": "2"
+        },
+        {
+          "id": "a",
+          "text": "1"
         },
         {
           "id": "c",
@@ -148,12 +148,12 @@
           "text": "3"
         },
         {
-          "id": "c",
-          "text": "4"
-        },
-        {
           "id": "d",
           "text": "6"
+        },
+        {
+          "id": "c",
+          "text": "4"
         }
       ]
     },
@@ -161,7 +161,7 @@
       "correct_choice_id": "c"
     },
     "explanation": {
-      "text": "18 ÷ 4 = 4, reste 2 : la division ne tombe pas juste. Avec 2, 3 ou 6 livres par rangée, il ne reste rien."
+      "text": "18 = 4 × 4 + 2 : il reste 2, donc la division ne tombe pas juste. Avec 2, 3 ou 6 livres par rangée, il ne reste rien."
     }
   }
 ]

@@ -76,7 +76,7 @@
     "key": "piege",
     "type": "callout",
     "tone": "warning",
-    "text": "Atansyon: ak nonb antye natirèl, nou toujou wete ti nonb la nan gwo nonb la. 275 − 623 pa posib."
+    "text": "Atansyon: lòd la enpòtan nan yon soustraksyon. Nou kenbe lòd yo ekri a: 623 − 275 ka kalkile, men 275 − 623 pa gen rezilta nan nonb antye natirèl yo, paske 275 pi piti pase 623. Si de nonb yo egal, diferans lan se 0."
   },
   {
     "key": "retenir",

@@ -17,10 +17,10 @@
 - Konpare ak ranje nonb antye ak siy yo <, > ak =.
 
 ## 2. Lien avec les programmes officiels (à vérifier par vous)
-- **S1** — correspondance PARTIELLE — p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « Lire, écrire et représenter les nombres entiers naturels » ; « Classer (situer, ordonner, comparer) les nombres entiers naturels »  
+- **S1** — correspondance PARTIELLE — p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : sous-objectifs sur la lecture, l'écriture et la représentation des entiers naturels, puis sur leur classement (situer, ordonner, comparer)  
   *Remarque :* Entiers naturels seulement : fractions et décimaux de ces mêmes items ne sont pas traités ici. Pas de demi-droite graduée (le format v1 n'a pas d'image).
-- **S2** — correspondance directe — PDF p. 9 (janvier, semaine 3), Algèbre 2.6.1 « Comparer et ordonner des entiers naturels »  
-  *Remarque :* Programme à compétences minimales 2019-2020 : mesure temporaire, ne remplace pas les programmes de 1989.
+- **S2** — correspondance PARTIELLE — PDF p. 9 (janvier, semaine 3), code 2.6.1 : comparaison et rangement des entiers naturels  
+  *Remarque :* Couvre la comparaison et l'ordre ; la lecture et l'écriture des nombres jusqu'à 999 999 vont plus loin. Programme à compétences minimales 2019-2020 : mesure temporaire, ne remplace pas les programmes de 1989.
 
 Registre complet des sources et de leurs limites : `docs/content-02a/01-source-register.md`. L'alignement n'est **pas** déclaré officiel : c'est à vous de le confirmer ou de le corriger.
 
@@ -105,9 +105,9 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 **Q2 · `ecrire-en-chiffres`** — Comment écrit-on « trente-deux mille cinq cent six » en chiffres ?
 
 - **A.** 32 056
-- **B.** 32 506  ← **réponse attendue**
-- **C.** 3 256
-- **D.** 32 560
+- **B.** 3 256
+- **C.** 32 560
+- **D.** 32 506  ← **réponse attendue**
 
 *Explication fournie :* 32 milliers et 506 unités : 32 506.
 
@@ -132,9 +132,9 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 **Q5 · `chiffre-des-centaines`** — Quel est le chiffre des centaines dans 3 480 ?
 
 - **A.** 3
-- **B.** 4  ← **réponse attendue**
-- **C.** 8
-- **D.** 0
+- **B.** 8
+- **C.** 0
+- **D.** 4  ← **réponse attendue**
 
 *Explication fournie :* 3 480 = 3 milliers + 4 centaines + 8 dizaines. Le chiffre des centaines est 4.
 
@@ -229,9 +229,9 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 **Q2 · `ecrire-en-chiffres`** — Ki jan nou ekri « trant-de mil senk san sis » ak chif ?
 
 - **A.** 32 056
-- **B.** 32 506  ← **réponse attendue**
-- **C.** 3 256
-- **D.** 32 560
+- **B.** 3 256
+- **C.** 32 560
+- **D.** 32 506  ← **réponse attendue**
 
 *Explication fournie :* 32 milye ak 506 inite: 32 506.
 
@@ -256,9 +256,9 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 **Q5 · `chiffre-des-centaines`** — Ki chif santèn yo nan 3 480 ?
 
 - **A.** 3
-- **B.** 4  ← **réponse attendue**
-- **C.** 8
-- **D.** 0
+- **B.** 8
+- **C.** 0
+- **D.** 4  ← **réponse attendue**
 
 *Explication fournie :* 3 480 = 3 milye + 4 santèn + 8 dizèn. Chif santèn yo se 4.
 

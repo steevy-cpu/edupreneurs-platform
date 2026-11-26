@@ -10,7 +10,7 @@
 | 3 | **Record approvals** in `pilot.json` (`approvals`, `decision_ref`) — the validator then accepts `approved` | Signed sheets |
 | 4 | **Programme questions** answered: is S1 final? 2027-28 calendar for maths? 8e vs 7e for priority of operations/powers? licence to cite official wording? | MENFP / owner |
 | 5 | **Extend coverage** to the S1 items left out (fractions, decimals, equivalent fractions, fraction of a quantity): ~6 more lessons, same skeleton, same tool | Steps 1-4 for the style; new teacher review |
-| 6 | **Tool extensions**: other grades/subjects (generalise `PILOT_ID`), free-response contract if approved, rights model for third-party material, optional JSON-schema for `verification.json` | Content contract decisions |
+| 6 | **Tool extensions**: other grades/subjects (generalise `PILOT_ID`), free-response contract if approved, rights model for third-party material (the JSON schema for `verification.json` now exists) | Content contract decisions |
 | 7 | **Delivery integration (separate work, not here)**: map approved lessons to `app.lesson_revisions` / `app.question_revisions` through the existing editorial flow (reviewer ≠ author, sources and rights recorded), with Admin-01’s workflow as the editor UI; pack format and signing per Content-Delivery-00 doc 4 | Backend/editorial milestones; **never** by direct seed or database write |
 | 8 | **Learner testing**: a few students on old Android phones offline; measure time and errors; compare with the author’s difficulty estimate | Physical-device access, consent |
 

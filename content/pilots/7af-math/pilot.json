@@ -27,7 +27,7 @@
       "retrieved": "2026-11-26",
       "rights_status": "all_rights_reserved_reference_only",
       "verification": "read_in_full_for_relevant_part",
-      "notes": "PDF de 60 pages hébergé par un éditeur (page de téléchargement : editions-jpl.com/programmes-officiels-menfp-3e-cycle-fondamental), pas par le MENFP. Lu : sommaire, partie « Domaine des mathématiques » et unités « Nombres et calculs » (7e-9e année, p. imprimées 38-42). INCERTAIN : (a) l'hébergement par un tiers ne prouve pas que ce soit la version finale validée ; le préambule du PDF dit encore « Introduction politique à réaliser quand les programmes seront validés » ; (b) aucune page du MENFP lui-même n'a été trouvée ; (c) aucun texte n'est reproduit dans ce dépôt, seulement des références de lieu."
+      "notes": "PDF de 60 pages hébergé par un éditeur (page de téléchargement : editions-jpl.com/programmes-officiels-menfp-3e-cycle-fondamental), pas par le MENFP. Lu : sommaire, partie « Domaine des mathématiques » et unités « Nombres et calculs » (7e-9e année, p. imprimées 38-42). INCERTAIN : (a) le PDF se déclare « version définitive » datée du 28 juillet 2024 (p. 2 du PDF), mais sa page de préambule (p. 3) contient encore une consigne de rédaction inachevée qui annonce une validation à venir ; (b) l'hébergement par un éditeur tiers ne prouve pas l'adoption : aucun acte d'adoption signé du MENFP rattaché à cette version exacte n'a été trouvé, et aucune page du MENFP lui-même n'a été trouvée ; (c) aucun texte n'est reproduit dans ce dépôt, seulement des références de lieu et des paraphrases. Vérifié dans le PDF (corrections après QA indépendante) : p. 2-3 et p. 39-42 du PDF."
     },
     {
       "id": "S2",
@@ -38,7 +38,7 @@
       "retrieved": "2026-11-26",
       "rights_status": "unknown_reference_only",
       "verification": "read_in_full_for_relevant_part",
-      "notes": "PDF de 82 pages (copie hébergée par haiti-now.org). Mathématiques : p. 4-15 du PDF. Le texte lui-même précise qu'il s'agit d'une mesure pour 2019-2020 qui « ne peut en aucun cas être substitué[e] aux objectifs globaux prévus dans les programmes officiels valides depuis mars 1989 ». INCERTAIN : statut actuel (probablement dépassé par S1), droits non indiqués, copie tierce. Utilisé seulement pour repérer des recoupements ; aucun texte reproduit."
+      "notes": "PDF de 82 pages (copie hébergée par haiti-now.org). Mathématiques : p. 4-15 du PDF. Le texte précise lui-même qu'il s'agit d'une mesure limitée à l'année 2019-2020, qui ne remplace pas les objectifs globaux des programmes officiels valides depuis mars 1989. Un contrôle indépendant (PR #34) signale que ce programme couvre aussi les fractions (p. 13-14 du PDF), ce que le registre sous-estimait ; non revérifié par l'auteur des corrections. INCERTAIN : statut actuel (probablement dépassé par S1), droits non indiqués, copie tierce. Utilisé seulement pour repérer des recoupements ; aucun texte reproduit."
     },
     {
       "id": "S3",
@@ -109,15 +109,15 @@
       "curriculum_refs": [
         {
           "source": "S1",
-          "locator": "p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « Lire, écrire et représenter les nombres entiers naturels » ; « Classer (situer, ordonner, comparer) les nombres entiers naturels »",
+          "locator": "p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : sous-objectifs sur la lecture, l'écriture et la représentation des entiers naturels, puis sur leur classement (situer, ordonner, comparer)",
           "relation": "partial",
           "note": "Entiers naturels seulement : fractions et décimaux de ces mêmes items ne sont pas traités ici. Pas de demi-droite graduée (le format v1 n'a pas d'image)."
         },
         {
           "source": "S2",
-          "locator": "PDF p. 9 (janvier, semaine 3), Algèbre 2.6.1 « Comparer et ordonner des entiers naturels »",
-          "relation": "direct",
-          "note": "Programme à compétences minimales 2019-2020 : mesure temporaire, ne remplace pas les programmes de 1989."
+          "locator": "PDF p. 9 (janvier, semaine 3), code 2.6.1 : comparaison et rangement des entiers naturels",
+          "relation": "partial",
+          "note": "Couvre la comparaison et l'ordre ; la lecture et l'écriture des nombres jusqu'à 999 999 vont plus loin. Programme à compétences minimales 2019-2020 : mesure temporaire, ne remplace pas les programmes de 1989."
         }
       ],
       "provenance": {
@@ -185,13 +185,13 @@
       "curriculum_refs": [
         {
           "source": "S1",
-          "locator": "p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « Donner un sens aux opérations sur les nombres » ; « Savoir effectuer des opérations (addition, soustraction, multiplication et division) sous les trois formes de calcul (mental, à la main et instrumentée) »",
+          "locator": "p. imprimée 38 (PDF p. 39), 7e année, unité « Nombres et calculs » : sous-objectifs sur le sens des opérations, puis sur leur exécution en calcul mental, à la main et instrumenté",
           "relation": "partial",
           "note": "Calcul mental et à la main seulement ; le calcul instrumenté (calculatrice) n'est pas traité."
         },
         {
           "source": "S2",
-          "locator": "PDF p. 6 (décembre, semaine 3), Algèbre 2.1.1 « Calculer mentalement et par écrit des sommes, produits, différences, quotients d'entiers naturels »",
+          "locator": "PDF p. 6 (décembre, semaine 3), code Algèbre 2.1.1 : calcul mental et écrit de sommes, différences, produits et quotients d'entiers naturels",
           "relation": "direct",
           "note": "Programme à compétences minimales 2019-2020."
         }
@@ -261,13 +261,13 @@
       "curriculum_refs": [
         {
           "source": "S1",
-          "locator": "p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « Savoir effectuer des opérations (addition, soustraction, multiplication et division) » ; « Quotient, multiples et diviseurs de nombres entiers »",
+          "locator": "p. imprimée 38 (PDF p. 39), 7e année, unité « Nombres et calculs » : sous-objectifs sur l'exécution des quatre opérations, puis sur le quotient, les multiples et les diviseurs d'entiers",
           "relation": "partial",
           "note": "Multiplication par un nombre à un chiffre et division avec reste sur de petits nombres seulement ; division posée par un diviseur à plusieurs chiffres non traitée."
         },
         {
           "source": "S2",
-          "locator": "PDF p. 6 (décembre, semaine 3), Algèbre 2.1.1 « … sommes, produits, différences, quotients d'entiers naturels »",
+          "locator": "PDF p. 6 (décembre, semaine 3), code Algèbre 2.1.1 : calcul de sommes, différences, produits et quotients d'entiers naturels",
           "relation": "direct",
           "note": "Programme à compétences minimales 2019-2020."
         }
@@ -337,13 +337,13 @@
       "curriculum_refs": [
         {
           "source": "S1",
-          "locator": "p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « Multiplier ou diviser un nombre décimal par 10 ; 100 ; 1 000 ; 0,1 ; 0,01 ; 0,001 »",
+          "locator": "p. imprimée 38 (PDF p. 39), 7e année, unité « Nombres et calculs » : sous-objectif sur la multiplication et la division d'un nombre décimal par des puissances de 10 (et par 0,1 ; 0,01 ; 0,001)",
           "relation": "partial",
           "note": "Seulement les entiers naturels : la multiplication et la division de nombres décimaux (et par 0,1 ; 0,01 ; 0,001) sont renvoyées à Content-02B."
         },
         {
           "source": "S2",
-          "locator": "PDF p. 6 (décembre, semaine 3), Mesures 1.1.2 « Passer d'une unité de mesure à une autre »",
+          "locator": "PDF p. 6 (décembre, semaine 3), code Mesures 1.1.2 : passage d'une unité de mesure à une autre",
           "relation": "context",
           "note": "Aucun item de ce programme ne traite directement de ×10/×100/×1 000 ; le lien se fait par les conversions d'unités."
         }
@@ -401,27 +401,27 @@
       "objectives": {
         "fr": [
           "Reconnaître un multiple d'un nombre avec sa table de multiplication.",
-          "Trouver tous les diviseurs d'un petit nombre.",
+          "Trouver tous les diviseurs d'un petit nombre entier positif.",
           "Dire quand une division tombe juste (reste égal à 0)."
         ],
         "ht": [
           "Rekonèt yon miltip yon nonb ak tab miltiplikasyon li.",
-          "Jwenn tout divizè yon ti nonb.",
+          "Jwenn tout divizè yon ti nonb antye pozitif.",
           "Di ki lè yon divizyon egzat (rès la egal ak 0)."
         ]
       },
       "curriculum_refs": [
         {
           "source": "S1",
-          "locator": "p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « Quotient, multiples et diviseurs de nombres entiers »",
+          "locator": "p. imprimée 38 (PDF p. 39), 7e année, unité « Nombres et calculs » : sous-objectif sur le quotient, les multiples et les diviseurs d'entiers",
           "relation": "direct",
           "note": "Limité aux petits nombres ; nombres premiers, PGCD et PPCM relèvent de la 9e année dans ce programme et ne sont pas traités."
         },
         {
           "source": "S2",
-          "locator": "PDF p. 9 (janvier, semaine 3), Algèbre 2.5 « Divisibilité par 2, 3, 4, 5, 9, 10, 11 »",
+          "locator": "PDF p. 9 (janvier, semaine 3), code Algèbre 2.5 : critères de divisibilité par 2, 3, 4, 5, 9, 10 et 11",
           "relation": "context",
-          "note": "Les notions de multiple et de diviseur sont le préalable des critères de divisibilité (leçon 6)."
+          "note": "Appui de contexte seulement : ce programme ne demande pas expressément de dresser la liste de tous les diviseurs. Multiples et diviseurs sont le préalable des critères de divisibilité (leçon 6)."
         }
       ],
       "provenance": {
@@ -489,13 +489,13 @@
       "curriculum_refs": [
         {
           "source": "S1",
-          "locator": "p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « critères de divisibilité par 2, 3, 4, 5, 9, 10 »",
+          "locator": "p. imprimée 38 (PDF p. 39), 7e année, unité « Nombres et calculs » : sous-objectif sur les critères de divisibilité par 2, 3, 4, 5, 9 et 10",
           "relation": "direct",
           "note": "Couvre exactement la liste 2, 3, 4, 5, 9, 10 de ce programme."
         },
         {
           "source": "S2",
-          "locator": "PDF p. 9 (janvier, semaine 3), Algèbre 2.5.1 « Appliquer les critères de divisibilité par : 2, 3, 4, 5, 9, 10, 11 »",
+          "locator": "PDF p. 9 (janvier, semaine 3), code Algèbre 2.5.1 : application des critères de divisibilité par 2, 3, 4, 5, 9, 10 et 11",
           "relation": "partial",
           "note": "Le critère de 11, présent seulement dans ce programme de 2019, n'est pas traité."
         }

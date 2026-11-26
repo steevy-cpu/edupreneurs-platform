@@ -17,9 +17,9 @@
 - Verifye yon soustraksyon ak yon adisyon.
 
 ## 2. Lien avec les programmes officiels (à vérifier par vous)
-- **S1** — correspondance PARTIELLE — p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « Donner un sens aux opérations sur les nombres » ; « Savoir effectuer des opérations (addition, soustraction, multiplication et division) sous les trois formes de calcul (mental, à la main et instrumentée) »  
+- **S1** — correspondance PARTIELLE — p. imprimée 38 (PDF p. 39), 7e année, unité « Nombres et calculs » : sous-objectifs sur le sens des opérations, puis sur leur exécution en calcul mental, à la main et instrumenté  
   *Remarque :* Calcul mental et à la main seulement ; le calcul instrumenté (calculatrice) n'est pas traité.
-- **S2** — correspondance directe — PDF p. 6 (décembre, semaine 3), Algèbre 2.1.1 « Calculer mentalement et par écrit des sommes, produits, différences, quotients d'entiers naturels »  
+- **S2** — correspondance directe — PDF p. 6 (décembre, semaine 3), code Algèbre 2.1.1 : calcul mental et écrit de sommes, différences, produits et quotients d'entiers naturels  
   *Remarque :* Programme à compétences minimales 2019-2020.
 
 Registre complet des sources et de leurs limites : `docs/content-02a/01-source-register.md`. L'alignement n'est **pas** déclaré officiel : c'est à vous de le confirmer ou de le corriger.
@@ -73,7 +73,7 @@ Pour calculer vite, on peut s'appuyer sur un nombre rond. Pour 98 + 47, on part 
 
 **B11 · `verification`** — **Astuce** : Vérifie une soustraction avec une addition : si 623 − 275 = 348, alors 348 + 275 doit donner 623.
 
-**B12 · `piege`** — **Attention** : Attention : avec des entiers naturels, on enlève toujours le petit nombre au grand nombre. 275 − 623 n'est pas possible.
+**B12 · `piege`** — **Attention** : Attention : l'ordre compte dans une soustraction. On garde l'ordre écrit : 623 − 275 se calcule, mais 275 − 623 n'a pas de résultat parmi les entiers naturels, car 275 est plus petit que 623. Si les deux nombres sont égaux, la différence est 0.
 
 **B13 · `retenir`** — **À retenir** : Somme : résultat d'une addition. Différence : résultat d'une soustraction. L'addition et la soustraction sont des opérations contraires.
 
@@ -100,8 +100,8 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 
 **Q1 · `addition-posee`** — Calcule : 456 + 378
 
-- **A.** 824
-- **B.** 834  ← **réponse attendue**
+- **A.** 834  ← **réponse attendue**
+- **B.** 824
 - **C.** 744
 - **D.** 934
 
@@ -119,9 +119,9 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 **Q3 · `probleme-camion`** — Un camion transporte 1 250 kg de maïs. Il en décharge 480 kg. Combien de kilogrammes reste-t-il dans le camion ?
 
 - **A.** 730 kg
-- **B.** 770 kg  ← **réponse attendue**
-- **C.** 1 730 kg
-- **D.** 870 kg
+- **B.** 1 730 kg
+- **C.** 870 kg
+- **D.** 770 kg  ← **réponse attendue**
 
 *Explication fournie :* On soustrait : 1 250 − 480 = 770. Il reste 770 kg.
 
@@ -136,9 +136,9 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 
 **Q5 · `verifier-soustraction`** — Quelle égalité permet de vérifier que 540 − 260 = 280 ?
 
-- **A.** 280 + 260 = 540  ← **réponse attendue**
-- **B.** 280 − 260 = 540
-- **C.** 540 + 260 = 280
+- **A.** 280 − 260 = 540
+- **B.** 540 + 260 = 280
+- **C.** 280 + 260 = 540  ← **réponse attendue**
 - **D.** 260 − 280 = 540
 
 *Explication fournie :* Pour vérifier une soustraction, on additionne la différence et le petit nombre : 280 + 260 = 540.
@@ -202,7 +202,7 @@ Pou kalkile vit, nou ka ponye sou yon nonb won. Pou 98 + 47, nou pati de 100, pa
 
 **B11 · `verification`** — **Astuce** : Verifye yon soustraksyon ak yon adisyon: si 623 − 275 = 348, alò 348 + 275 dwe bay 623.
 
-**B12 · `piege`** — **Attention** : Atansyon: ak nonb antye natirèl, nou toujou wete ti nonb la nan gwo nonb la. 275 − 623 pa posib.
+**B12 · `piege`** — **Attention** : Atansyon: lòd la enpòtan nan yon soustraksyon. Nou kenbe lòd yo ekri a: 623 − 275 ka kalkile, men 275 − 623 pa gen rezilta nan nonb antye natirèl yo, paske 275 pi piti pase 623. Si de nonb yo egal, diferans lan se 0.
 
 **B13 · `retenir`** — **À retenir** : Som: rezilta yon adisyon. Diferans: rezilta yon soustraksyon. Adisyon ak soustraksyon se operasyon ki kontrè.
 
@@ -229,8 +229,8 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 
 **Q1 · `addition-posee`** — Kalkile: 456 + 378
 
-- **A.** 824
-- **B.** 834  ← **réponse attendue**
+- **A.** 834  ← **réponse attendue**
+- **B.** 824
 - **C.** 744
 - **D.** 934
 
@@ -248,9 +248,9 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 **Q3 · `probleme-camion`** — Yon kamyon pote 1 250 kg mayi. Li dechaje 480 kg. Konbyen kilogram ki rete nan kamyon an ?
 
 - **A.** 730 kg
-- **B.** 770 kg  ← **réponse attendue**
-- **C.** 1 730 kg
-- **D.** 870 kg
+- **B.** 1 730 kg
+- **C.** 870 kg
+- **D.** 770 kg  ← **réponse attendue**
 
 *Explication fournie :* Nou soustrè: 1 250 − 480 = 770. Li rete 770 kg.
 
@@ -265,9 +265,9 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 
 **Q5 · `verifier-soustraction`** — Ki egalite ki pèmèt verifye ke 540 − 260 = 280 ?
 
-- **A.** 280 + 260 = 540  ← **réponse attendue**
-- **B.** 280 − 260 = 540
-- **C.** 540 + 260 = 280
+- **A.** 280 − 260 = 540
+- **B.** 540 + 260 = 280
+- **C.** 280 + 260 = 540  ← **réponse attendue**
 - **D.** 260 − 280 = 540
 
 *Explication fournie :* Pou verifye yon soustraksyon, nou adisyone diferans lan ak ti nonb la: 280 + 260 = 540.

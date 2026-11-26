@@ -20,15 +20,15 @@ LESSON = Lesson(
     refs=[
         {
             "source": "S1",
-            "locator": f"{S1} : « Lire, écrire et représenter les nombres entiers naturels » ; « Classer (situer, ordonner, comparer) les nombres entiers naturels »",
+            "locator": f"{S1} : sous-objectifs sur la lecture, l'écriture et la représentation des entiers naturels, puis sur leur classement (situer, ordonner, comparer)",
             "relation": "partial",
             "note": "Entiers naturels seulement : fractions et décimaux de ces mêmes items ne sont pas traités ici. Pas de demi-droite graduée (le format v1 n'a pas d'image).",
         },
         {
             "source": "S2",
-            "locator": "PDF p. 9 (janvier, semaine 3), Algèbre 2.6.1 « Comparer et ordonner des entiers naturels »",
-            "relation": "direct",
-            "note": "Programme à compétences minimales 2019-2020 : mesure temporaire, ne remplace pas les programmes de 1989.",
+            "locator": "PDF p. 9 (janvier, semaine 3), code 2.6.1 : comparaison et rangement des entiers naturels",
+            "relation": "partial",
+            "note": "Couvre la comparaison et l'ordre ; la lecture et l'écriture des nombres jusqu'à 999 999 vont plus loin. Programme à compétences minimales 2019-2020 : mesure temporaire, ne remplace pas les programmes de 1989.",
         },
     ],
     blocks={
@@ -124,6 +124,7 @@ LESSON = Lesson(
             "valeur-du-chiffre",
             "value",
             "c",
+            place=3,
             compute="5723 // 100 % 10 * 100",
             prompt={"fr": "Dans le nombre 5 723, quelle est la valeur du chiffre 7 ?", "ht": "Nan nonb 5 723 lan, ki valè chif 7 la ?"},
             choices=[C(7), C(70), C(700), C(7000)],
@@ -133,6 +134,7 @@ LESSON = Lesson(
             "ecrire-en-chiffres",
             "value",
             "b",
+            place=4,
             compute="32 * 1000 + 506",
             prompt={
                 "fr": "Comment écrit-on « trente-deux mille cinq cent six » en chiffres ?",
@@ -145,6 +147,7 @@ LESSON = Lesson(
             "comparer-deux-nombres",
             "truth",
             "a",
+            place=1,
             prompt={"fr": "Compare 6 054 et 6 540. Quelle réponse est juste ?", "ht": "Konpare 6 054 ak 6 540. Ki repons ki bon ?"},
             choices=[
                 C(expr="6054 < 6540", fr="6 054 < 6 540", ht="6 054 < 6 540"),
@@ -161,6 +164,7 @@ LESSON = Lesson(
             "plus-grand-nombre",
             "value",
             "b",
+            place=2,
             compute="max(9870, 10002, 9999, 987)",
             prompt={
                 "fr": "Quel est le plus grand de ces nombres : 9 870, 10 002, 9 999, 987 ?",
@@ -176,6 +180,7 @@ LESSON = Lesson(
             "chiffre-des-centaines",
             "value",
             "b",
+            place=4,
             compute="3480 // 100 % 10",
             prompt={"fr": "Quel est le chiffre des centaines dans 3 480 ?", "ht": "Ki chif santèn yo nan 3 480 ?"},
             choices=[C(3), C(4), C(8), C(0)],

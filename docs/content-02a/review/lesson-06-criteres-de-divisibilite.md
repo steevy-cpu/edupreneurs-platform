@@ -17,9 +17,9 @@
 - Verifye yon konklizyon ak yon divizyon.
 
 ## 2. Lien avec les programmes officiels (à vérifier par vous)
-- **S1** — correspondance directe — p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « critères de divisibilité par 2, 3, 4, 5, 9, 10 »  
+- **S1** — correspondance directe — p. imprimée 38 (PDF p. 39), 7e année, unité « Nombres et calculs » : sous-objectif sur les critères de divisibilité par 2, 3, 4, 5, 9 et 10  
   *Remarque :* Couvre exactement la liste 2, 3, 4, 5, 9, 10 de ce programme.
-- **S2** — correspondance PARTIELLE — PDF p. 9 (janvier, semaine 3), Algèbre 2.5.1 « Appliquer les critères de divisibilité par : 2, 3, 4, 5, 9, 10, 11 »  
+- **S2** — correspondance PARTIELLE — PDF p. 9 (janvier, semaine 3), code Algèbre 2.5.1 : application des critères de divisibilité par 2, 3, 4, 5, 9, 10 et 11  
   *Remarque :* Le critère de 11, présent seulement dans ce programme de 2019, n'est pas traité.
 
 Registre complet des sources et de leurs limites : `docs/content-02a/01-source-register.md`. L'alignement n'est **pas** déclaré officiel : c'est à vous de le confirmer ou de le corriger.
@@ -87,8 +87,8 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 
 **Q1 · `divisible-par-5-pas-10`** — Lequel de ces nombres est divisible par 5, mais pas par 10 ?
 
-- **A.** 3 210
-- **B.** 3 215  ← **réponse attendue**
+- **A.** 3 215  ← **réponse attendue**
+- **B.** 3 210
 - **C.** 3 216
 - **D.** 3 217
 
@@ -106,29 +106,29 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 **Q3 · `divisible-par-9`** — Lequel de ces nombres est divisible par 9 ?
 
 - **A.** 4 321
-- **B.** 4 325
-- **C.** 4 329  ← **réponse attendue**
+- **B.** 4 329  ← **réponse attendue**
+- **C.** 4 325
 - **D.** 4 328
 
 *Explication fournie :* 4 + 3 + 2 + 9 = 18 et 18 est divisible par 9. Les autres sommes sont 10, 14 et 17 : elles ne sont pas divisibles par 9.
 
 **Q4 · `affirmation-vraie`** — Laquelle de ces affirmations est vraie ?
 
-- **A.** 1 236 est divisible par 5
-- **B.** 1 236 est divisible par 9
-- **C.** 1 236 est divisible par 2, par 3 et par 4  ← **réponse attendue**
-- **D.** 1 236 est divisible par 10
+- **A.** 1 236 est divisible par 2, par 5 et par 9
+- **B.** 1 236 est divisible par 3, par 4 et par 9
+- **C.** 1 236 est divisible par 4, par 5 et par 10
+- **D.** 1 236 est divisible par 2, par 3 et par 4  ← **réponse attendue**
 
 *Explication fournie :* Le dernier chiffre est 6 : divisible par 2. 1 + 2 + 3 + 6 = 12 : divisible par 3, mais pas par 9. 36 est divisible par 4. Le nombre ne finit ni par 0 ni par 5.
 
-**Q5 · `cahiers-en-paquets`** — Une directrice a 135 cahiers. Peut-elle les répartir en 9 paquets égaux, sans cahier en trop ?
+**Q5 · `cahiers-en-paquets`** — Une enseignante a 126 cahiers à répartir en 9 paquets égaux, sans cahier en trop. Laquelle de ces raisons permet de conclure que c'est possible ?
 
-- **A.** Oui, car la somme des chiffres 1 + 3 + 5 = 9 est divisible par 9  ← **réponse attendue**
-- **B.** Non, car 135 est un nombre impair
-- **C.** Non, car 135 ne finit pas par 0
-- **D.** Oui, car 135 est divisible par 2
+- **A.** La somme des chiffres 1 + 2 + 6 = 9 est divisible par 9  ← **réponse attendue**
+- **B.** 126 est un nombre pair
+- **C.** 126 finit par 6
+- **D.** 126 est plus grand que 9
 
-*Explication fournie :* 1 + 3 + 5 = 9, donc 135 est divisible par 9 : 135 ÷ 9 = 15. Chaque paquet contient 15 cahiers.
+*Explication fournie :* 1 + 2 + 6 = 9 et 9 est divisible par 9, donc 126 est divisible par 9 : 126 ÷ 9 = 14. Chaque paquet contient 14 cahiers. Être pair, finir par 6 ou être plus grand que 9 ne suffit pas : 16 finit par 6 et n'est pas divisible par 9.
 
 ### Décisions sur les exercices (français)
 
@@ -203,8 +203,8 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 
 **Q1 · `divisible-par-5-pas-10`** — Ki nan nonb sa yo ki divizib pa 5, men pa pa 10 ?
 
-- **A.** 3 210
-- **B.** 3 215  ← **réponse attendue**
+- **A.** 3 215  ← **réponse attendue**
+- **B.** 3 210
 - **C.** 3 216
 - **D.** 3 217
 
@@ -222,29 +222,29 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 **Q3 · `divisible-par-9`** — Ki nan nonb sa yo ki divizib pa 9 ?
 
 - **A.** 4 321
-- **B.** 4 325
-- **C.** 4 329  ← **réponse attendue**
+- **B.** 4 329  ← **réponse attendue**
+- **C.** 4 325
 - **D.** 4 328
 
 *Explication fournie :* 4 + 3 + 2 + 9 = 18 epi 18 divizib pa 9. Lòt som yo se 10, 14 ak 17: yo pa divizib pa 9.
 
 **Q4 · `affirmation-vraie`** — Ki nan afimasyon sa yo ki vre ?
 
-- **A.** 1 236 divizib pa 5
-- **B.** 1 236 divizib pa 9
-- **C.** 1 236 divizib pa 2, pa 3 ak pa 4  ← **réponse attendue**
-- **D.** 1 236 divizib pa 10
+- **A.** 1 236 divizib pa 2, pa 5 ak pa 9
+- **B.** 1 236 divizib pa 3, pa 4 ak pa 9
+- **C.** 1 236 divizib pa 4, pa 5 ak pa 10
+- **D.** 1 236 divizib pa 2, pa 3 ak pa 4  ← **réponse attendue**
 
 *Explication fournie :* Dènye chif la se 6: divizib pa 2. 1 + 2 + 3 + 6 = 12: divizib pa 3, men pa pa 9. 36 divizib pa 4. Nonb lan pa fini ni ak 0 ni ak 5.
 
-**Q5 · `cahiers-en-paquets`** — Yon direktris gen 135 kaye. Èske li ka separe yo an 9 pake egal, san kaye ki rete ?
+**Q5 · `cahiers-en-paquets`** — Yon enseyan gen 126 kaye pou separe an 9 pake egal, san kaye ki rete. Ki rezon ki pèmèt konkli ke sa posib ?
 
-- **A.** Wi, paske som chif yo 1 + 3 + 5 = 9 divizib pa 9  ← **réponse attendue**
-- **B.** Non, paske 135 se yon nonb enpè
-- **C.** Non, paske 135 pa fini ak 0
-- **D.** Wi, paske 135 divizib pa 2
+- **A.** Som chif yo 1 + 2 + 6 = 9 divizib pa 9  ← **réponse attendue**
+- **B.** 126 se yon nonb pè
+- **C.** 126 fini ak 6
+- **D.** 126 pi gwo pase 9
 
-*Explication fournie :* 1 + 3 + 5 = 9, donk 135 divizib pa 9: 135 ÷ 9 = 15. Chak pake gen 15 kaye.
+*Explication fournie :* 1 + 2 + 6 = 9 epi 9 divizib pa 9, donk 126 divizib pa 9: 126 ÷ 9 = 14. Chak pake gen 14 kaye. Yon nonb ki pè, ki fini ak 6 oswa ki pi gwo pase 9 pa sifi: 16 fini ak 6 epi li pa divizib pa 9.
 
 ### Décisions sur les exercices (créole haïtien)
 

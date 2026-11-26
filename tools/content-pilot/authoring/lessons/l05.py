@@ -7,27 +7,27 @@ LESSON = Lesson(
     objectives={
         "fr": [
             "Reconnaître un multiple d'un nombre avec sa table de multiplication.",
-            "Trouver tous les diviseurs d'un petit nombre.",
+            "Trouver tous les diviseurs d'un petit nombre entier positif.",
             "Dire quand une division tombe juste (reste égal à 0).",
         ],
         "ht": [
             "Rekonèt yon miltip yon nonb ak tab miltiplikasyon li.",
-            "Jwenn tout divizè yon ti nonb.",
+            "Jwenn tout divizè yon ti nonb antye pozitif.",
             "Di ki lè yon divizyon egzat (rès la egal ak 0).",
         ],
     },
     refs=[
         {
             "source": "S1",
-            "locator": "p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « Quotient, multiples et diviseurs de nombres entiers »",
+            "locator": "p. imprimée 38 (PDF p. 39), 7e année, unité « Nombres et calculs » : sous-objectif sur le quotient, les multiples et les diviseurs d'entiers",
             "relation": "direct",
             "note": "Limité aux petits nombres ; nombres premiers, PGCD et PPCM relèvent de la 9e année dans ce programme et ne sont pas traités.",
         },
         {
             "source": "S2",
-            "locator": "PDF p. 9 (janvier, semaine 3), Algèbre 2.5 « Divisibilité par 2, 3, 4, 5, 9, 10, 11 »",
+            "locator": "PDF p. 9 (janvier, semaine 3), code Algèbre 2.5 : critères de divisibilité par 2, 3, 4, 5, 9, 10 et 11",
             "relation": "context",
-            "note": "Les notions de multiple et de diviseur sont le préalable des critères de divisibilité (leçon 6).",
+            "note": "Appui de contexte seulement : ce programme ne demande pas expressément de dresser la liste de tous les diviseurs. Multiples et diviseurs sont le préalable des critères de divisibilité (leçon 6).",
         },
     ],
     blocks={
@@ -43,7 +43,7 @@ LESSON = Lesson(
             H("multiples-titre", "Les multiples"),
             P(
                 "multiples",
-                "Les multiples d'un nombre sont les résultats de sa table de multiplication. Les multiples de 4 sont 4, 8, 12, 16, 20, et ainsi de suite : on n'arrive jamais au dernier.",
+                "Les multiples d'un nombre sont les résultats de sa table de multiplication. Les multiples de 4 sont 0, 4, 8, 12, 16, 20, et ainsi de suite : on n'arrive jamais au dernier.",
             ),
             EX(
                 "exemple-multiples",
@@ -57,31 +57,33 @@ LESSON = Lesson(
             H("diviseurs-titre", "Les diviseurs"),
             P(
                 "diviseurs",
-                "Un nombre b est un diviseur d'un nombre a quand la division de a par b tombe juste, c'est-à-dire quand le reste est 0. On dit alors que a est divisible par b, ou que a est un multiple de b.",
+                "Dans cette leçon, on divise toujours par un nombre différent de 0. Un nombre b est un diviseur d'un nombre a quand la division de a par b tombe juste, c'est-à-dire quand le reste est 0. On dit alors que a est divisible par b, ou que a est un multiple de b.",
             ),
             EX(
                 "exemple-diviseurs",
                 "Trouver tous les diviseurs de 12",
                 [
-                    "12 ÷ 1 = 12, reste 0 : 1 est un diviseur.",
-                    "12 ÷ 2 = 6, reste 0 : 2 est un diviseur.",
-                    "12 ÷ 3 = 4, reste 0 : 3 est un diviseur.",
-                    "12 ÷ 4 = 3, reste 0 : 4 est un diviseur.",
-                    "12 ÷ 5 = 2, reste 2 : 5 n'est pas un diviseur.",
-                    "12 ÷ 6 = 2, reste 0 : 6 est un diviseur, et 12 ÷ 12 = 1 : 12 aussi.",
+                    "1 × 12 = 12 : 1 et 12 sont des diviseurs de 12.",
+                    "2 × 6 = 12 : 2 et 6 sont des diviseurs.",
+                    "3 × 4 = 12 : 3 et 4 sont des diviseurs.",
+                    "On s'arrête ici : après 3 × 4, les couples se répètent dans l'autre sens. 5 n'est pas un diviseur, car 12 = 5 × 2 + 2 : il reste 2.",
                     "Diviseurs de 12 : 1, 2, 3, 4, 6, 12",
                 ],
             ),
-            CO("astuce", "tip", "Pour trouver les diviseurs, cherche les couples de nombres dont le produit est le nombre : 12 = 1 × 12 = 2 × 6 = 3 × 4."),
+            CO(
+                "astuce",
+                "tip",
+                "Pour savoir si un nombre est un diviseur de 12, fais la division de 12 par ce nombre et regarde le reste : un reste de 0 veut dire que c'est un diviseur.",
+            ),
             CO(
                 "piege",
                 "warning",
-                "Attention : 1 et le nombre lui-même sont toujours des diviseurs. Un diviseur d'un nombre non nul n'est jamais plus grand que ce nombre.",
+                "Attention : pour un nombre positif, 1 et le nombre lui-même sont toujours des diviseurs, et aucun diviseur n'est plus grand que ce nombre. Le cas de 0 est à part : 0 est un multiple de tous les nombres, et on ne l'étudie pas dans cette leçon.",
             ),
             CO(
                 "retenir",
                 "remember",
-                "b est un diviseur de a, a est un multiple de b et a est divisible par b : trois façons de dire que la division de a par b a un reste égal à 0.",
+                "b est un diviseur de a, a est un multiple de b et a est divisible par b : trois façons de dire que la division de a par b (avec b différent de 0) a un reste égal à 0.",
             ),
         ],
         "ht": [
@@ -91,7 +93,7 @@ LESSON = Lesson(
                 "Yon komèsan vle ranje 12 boutèy an ranje egal, san gen boutèy ki rete. Li ka fè 1 ranje 12, 2 ranje 6, 3 ranje 4, 4 ranje 3, 6 ranje 2 oswa 12 ranje 1. Nonb 1, 2, 3, 4, 6 ak 12 yo se divizè 12 yo.",
             ),
             H("multiples-titre", "Miltip yo"),
-            P("multiples", "Miltip yon nonb se rezilta tab miltiplikasyon li. Miltip 4 yo se 4, 8, 12, 16, 20, epi konsa: nou pa janm rive nan dènye a."),
+            P("multiples", "Miltip yon nonb se rezilta tab miltiplikasyon li. Miltip 4 yo se 0, 4, 8, 12, 16, 20, epi konsa: nou pa janm rive nan dènye a."),
             EX(
                 "exemple-multiples",
                 "Rekonèt yon miltip 7",
@@ -100,24 +102,34 @@ LESSON = Lesson(
             H("diviseurs-titre", "Divizè yo"),
             P(
                 "diviseurs",
-                "Yon nonb b se yon divizè yon nonb a lè divizyon a pa b egzat, sa vle di lè rès la se 0. Nou di tou a divizib pa b, oswa a se yon miltip b.",
+                "Nan leson sa a, nou toujou divize pa yon nonb ki pa 0. Yon nonb b se yon divizè yon nonb a lè divizyon a pa b egzat, sa vle di lè rès la se 0. Nou di tou a divizib pa b, oswa a se yon miltip b.",
             ),
             EX(
                 "exemple-diviseurs",
                 "Jwenn tout divizè 12",
                 [
-                    "12 ÷ 1 = 12, rès 0: 1 se yon divizè.",
-                    "12 ÷ 2 = 6, rès 0: 2 se yon divizè.",
-                    "12 ÷ 3 = 4, rès 0: 3 se yon divizè.",
-                    "12 ÷ 4 = 3, rès 0: 4 se yon divizè.",
-                    "12 ÷ 5 = 2, rès 2: 5 pa yon divizè.",
-                    "12 ÷ 6 = 2, rès 0: 6 se yon divizè, epi 12 ÷ 12 = 1: 12 tou.",
+                    "1 × 12 = 12: 1 ak 12 se divizè 12.",
+                    "2 × 6 = 12: 2 ak 6 se divizè.",
+                    "3 × 4 = 12: 3 ak 4 se divizè.",
+                    "Nou sispann isit la: apre 3 × 4, koup yo repete nan lòt sans lan. 5 pa yon divizè, paske 12 = 5 × 2 + 2: li rete 2.",
                     "Divizè 12 yo: 1, 2, 3, 4, 6, 12",
                 ],
             ),
-            CO("astuce", "tip", "Pou jwenn divizè yo, chèche koup nonb ki gen pwodui yo se nonb lan: 12 = 1 × 12 = 2 × 6 = 3 × 4."),
-            CO("piege", "warning", "Atansyon: 1 ak nonb lan menm toujou se divizè. Yon divizè yon nonb ki pa zewo pa janm pi gwo pase nonb sa a."),
-            CO("retenir", "remember", "b se yon divizè a, a se yon miltip b epi a divizib pa b: twa fason pou di divizyon a pa b gen yon rès ki egal ak 0."),
+            CO(
+                "astuce",
+                "tip",
+                "Pou konnen si yon nonb se yon divizè 12, fè divizyon 12 pa nonb sa a epi gade rès la: yon rès ki 0 vle di se yon divizè.",
+            ),
+            CO(
+                "piege",
+                "warning",
+                "Atansyon: pou yon nonb pozitif, 1 ak nonb lan menm toujou se divizè, epi pa gen divizè ki pi gwo pase nonb lan. Ka 0 a apa: 0 se yon miltip tout nonb, epi nou pa etidye li nan leson sa a.",
+            ),
+            CO(
+                "retenir",
+                "remember",
+                "b se yon divizè a, a se yon miltip b epi a divizib pa b: twa fason pou di divizyon a pa b (ak b ki pa 0) gen yon rès ki egal ak 0.",
+            ),
         ],
     },
     examples=[
@@ -125,8 +137,10 @@ LESSON = Lesson(
         ExampleCheck(
             "exemple-diviseurs",
             [
-                {"expr": "12 // 5", "equals": 2, "must_appear": "12÷5=2"},
-                {"expr": "12 % 5", "equals": 2, "must_appear": "2"},
+                {"expr": "1 * 12", "equals": 12, "must_appear": "1×12=12"},
+                {"expr": "2 * 6", "equals": 12, "must_appear": "2×6=12"},
+                {"expr": "3 * 4", "equals": 12, "must_appear": "3×4=12"},
+                {"expr": "5 * 2 + 2", "equals": 12, "must_appear": "12=5×2+2"},
                 {"expr": "[d for d in range(1, 13) if 12 % d == 0]", "equals": [1, 2, 3, 4, 6, 12], "must_appear": "1,2,3,4,6,12"},
             ],
         ),
@@ -136,6 +150,7 @@ LESSON = Lesson(
             "multiple-de-6",
             "truth",
             "c",
+            place=3,
             prompt={"fr": "Lequel de ces nombres est un multiple de 6 ?", "ht": "Ki nan nonb sa yo ki yon miltip 6 ?"},
             choices=[
                 C(expr="16 % 6 == 0", fr="16", ht="16"),
@@ -152,6 +167,7 @@ LESSON = Lesson(
             "diviseurs-de-10",
             "truth",
             "a",
+            place=2,
             prompt={"fr": "Quels sont tous les diviseurs de 10 ?", "ht": "Ki se tout divizè 10 yo ?"},
             choices=[
                 C(expr="[d for d in range(1, 11) if 10 % d == 0] == [1, 2, 5, 10]", fr="1, 2, 5, 10", ht="1, 2, 5, 10"),
@@ -160,30 +176,40 @@ LESSON = Lesson(
                 C(expr="[d for d in range(1, 11) if 10 % d == 0] == [1, 5, 10]", fr="1, 5, 10", ht="1, 5, 10"),
             ],
             explanation={
-                "fr": "10 ÷ 1 = 10, 10 ÷ 2 = 5, 10 ÷ 5 = 2 et 10 ÷ 10 = 1 tombent juste. 3 n'est pas un diviseur de 10 : 10 ÷ 3 = 3, reste 1.",
-                "ht": "10 ÷ 1 = 10, 10 ÷ 2 = 5, 10 ÷ 5 = 2 ak 10 ÷ 10 = 1 egzat. 3 pa yon divizè 10: 10 ÷ 3 = 3, rès 1.",
+                "fr": "10 ÷ 1 = 10, 10 ÷ 2 = 5, 10 ÷ 5 = 2 et 10 ÷ 10 = 1 tombent juste. 3 n'est pas un diviseur de 10 : 10 = 3 × 3 + 1, il reste 1.",
+                "ht": "10 ÷ 1 = 10, 10 ÷ 2 = 5, 10 ÷ 5 = 2 ak 10 ÷ 10 = 1 egzat. 3 pa yon divizè 10: 10 = 3 × 3 + 1, li rete 1.",
             },
         ),
         Q(
             "divisible-par-8",
             "truth",
             "a",
-            prompt={"fr": "Le nombre 24 est-il divisible par 8 ?", "ht": "Èske nonb 24 divizib pa 8 ?"},
+            place=4,
+            prompt={"fr": "Laquelle de ces phrases montre que 24 est divisible par 8 ?", "ht": "Ki fraz ki montre ke 24 divizib pa 8 ?"},
             choices=[
-                C(expr="24 % 8 == 0 and 8 * 3 == 24", fr="Oui, car 8 × 3 = 24", ht="Wi, paske 8 × 3 = 24"),
-                C(expr="24 % 8 == 8", fr="Non, car il reste 8", ht="Non, paske li rete 8"),
-                C(expr="24 % 8 != 0", fr="Non, car 24 est plus grand que 8", ht="Non, paske 24 pi gwo pase 8"),
-                C(expr="24 + 8 == 32 and 24 % 8 != 0", fr="Oui, car 24 + 8 = 32", ht="Wi, paske 24 + 8 = 32"),
+                C(
+                    expr="8 * 3 == 24 and 24 % 8 == 0",
+                    fr="8 × 3 = 24, donc la division de 24 par 8 tombe juste",
+                    ht="8 × 3 = 24, donk divizyon 24 pa 8 egzat",
+                ),
+                C(expr="8 == 24 % 8", fr="Il reste 8 quand on divise 24 par 8", ht="Li rete 8 lè nou divize 24 pa 8"),
+                C(
+                    expr="24 > 8 and 24 % 8 != 0",
+                    fr="24 est plus grand que 8, donc 24 n'est pas divisible par 8",
+                    ht="24 pi gwo pase 8, donk 24 pa divizib pa 8",
+                ),
+                C(expr="24 + 8 == 32 and 24 % 8 != 0", fr="24 + 8 = 32, donc 24 est divisible par 8", ht="24 + 8 = 32, donk 24 divizib pa 8"),
             ],
             explanation={
-                "fr": "8 × 3 = 24, donc 24 ÷ 8 = 3 et le reste est 0 : 24 est divisible par 8.",
-                "ht": "8 × 3 = 24, donk 24 ÷ 8 = 3 epi rès la se 0: 24 divizib pa 8.",
+                "fr": "8 × 3 = 24, donc 24 ÷ 8 = 3 et le reste est 0 : 24 est divisible par 8. Une addition (24 + 8) ou une comparaison de grandeur ne montre pas qu'une division tombe juste.",
+                "ht": "8 × 3 = 24, donk 24 ÷ 8 = 3 epi rès la se 0: 24 divizib pa 8. Yon adisyon (24 + 8) oswa yon konparezon grandè pa montre yon divizyon egzat.",
             },
         ),
         Q(
             "nombre-de-diviseurs-de-7",
             "value",
             "b",
+            place=1,
             compute="len([d for d in range(1, 8) if 7 % d == 0])",
             prompt={"fr": "Combien de diviseurs le nombre 7 a-t-il ?", "ht": "Konbyen divizè nonb 7 genyen ?"},
             choices=[C(1), C(2), C(3), C(7)],
@@ -193,6 +219,7 @@ LESSON = Lesson(
             "rangees-de-livres",
             "value",
             "c",
+            place=4,
             compute="min([n for n in (2, 3, 4, 6) if 18 % n != 0])",
             prompt={
                 "fr": "On veut ranger 18 livres en rangées égales, sans livre en trop. Parmi ces nombres de livres par rangée, lequel est impossible : 2, 3, 4 ou 6 ?",
@@ -200,8 +227,8 @@ LESSON = Lesson(
             },
             choices=[C(2), C(3), C(4), C(6)],
             explanation={
-                "fr": "18 ÷ 4 = 4, reste 2 : la division ne tombe pas juste. Avec 2, 3 ou 6 livres par rangée, il ne reste rien.",
-                "ht": "18 ÷ 4 = 4, rès 2: divizyon an pa egzat. Ak 2, 3 oswa 6 liv pa ranje, pa gen anyen ki rete.",
+                "fr": "18 = 4 × 4 + 2 : il reste 2, donc la division ne tombe pas juste. Avec 2, 3 ou 6 livres par rangée, il ne reste rien.",
+                "ht": "18 = 4 × 4 + 2: li rete 2, donk divizyon an pa egzat. Ak 2, 3 oswa 6 liv pa ranje, pa gen anyen ki rete.",
             },
         ),
     ],

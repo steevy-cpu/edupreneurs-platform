@@ -3,6 +3,12 @@
     "addition-posee": {
       "mode": "value",
       "compute": "456 + 378",
+      "prompt_numbers": [
+        456,
+        378
+      ],
+      "prompt_math": "456 + 378",
+      "operands_in_proof": true,
       "choices": {
         "a": 824,
         "b": 834,
@@ -13,6 +19,12 @@
     "soustraction-posee": {
       "mode": "value",
       "compute": "702 - 345",
+      "prompt_numbers": [
+        702,
+        345
+      ],
+      "prompt_math": "702 − 345",
+      "operands_in_proof": true,
       "choices": {
         "a": 457,
         "b": 367,
@@ -23,6 +35,11 @@
     "probleme-camion": {
       "mode": "value",
       "compute": "1250 - 480",
+      "prompt_numbers": [
+        1250,
+        480
+      ],
+      "operands_in_proof": true,
       "choices": {
         "a": 730,
         "b": 770,
@@ -33,6 +50,12 @@
     "calcul-mental": {
       "mode": "value",
       "compute": "99 + 36",
+      "prompt_numbers": [
+        99,
+        36
+      ],
+      "prompt_math": "99 + 36",
+      "operands_in_proof": true,
       "choices": {
         "a": 125,
         "b": 135,
@@ -42,11 +65,50 @@
     },
     "verifier-soustraction": {
       "mode": "truth",
+      "prompt_numbers": [
+        540,
+        260,
+        280
+      ],
+      "prompt_math": "540 − 260 = 280",
+      "operands_in_proof": true,
       "choices": {
-        "a": "280 + 260 == 540",
-        "b": "280 - 260 == 540",
-        "c": "540 + 260 == 280",
-        "d": "260 - 280 == 540"
+        "a": {
+          "expr": "280 + 260 == 540",
+          "numbers": [
+            280,
+            260,
+            540
+          ],
+          "symbols": "+="
+        },
+        "b": {
+          "expr": "280 - 260 == 540",
+          "numbers": [
+            280,
+            260,
+            540
+          ],
+          "symbols": "−="
+        },
+        "c": {
+          "expr": "540 + 260 == 280",
+          "numbers": [
+            540,
+            260,
+            280
+          ],
+          "symbols": "+="
+        },
+        "d": {
+          "expr": "260 - 280 == 540",
+          "numbers": [
+            260,
+            280,
+            540
+          ],
+          "symbols": "−="
+        }
       }
     }
   },

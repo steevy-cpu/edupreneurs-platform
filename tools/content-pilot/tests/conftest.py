@@ -13,7 +13,9 @@ REPO = find_repo_root(Path(__file__).resolve())
 PILOT = REPO / "content" / "pilots" / "7af-math"
 L1 = "lessons/01-lire-ecrire-comparer-entiers"
 L2 = "lessons/02-additionner-soustraire"
+L3 = "lessons/03-multiplier-diviser"
 L5 = "lessons/05-multiples-diviseurs"
+L6 = "lessons/06-criteres-de-divisibilite"
 
 
 @pytest.fixture()

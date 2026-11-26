@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from . import manifest as mf
 from .checks import summarize, validate
 from .model import find_repo_root
 from .review import build_review_pack
+from .safefs import ContentFileError, ensure_dir_inside, read_regular, write_text_atomic
 
 
 def _default_root() -> Path:
@@ -25,6 +27,18 @@ def _default_root() -> Path:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run a command. A problem with the pilot content is reported and exits with status 2 (never a traceback)."""
+    try:
+        return _main(argv)
+    except ContentFileError as exc:
+        print(f"error [{exc.code}]: {exc.message}", file=sys.stderr)
+        return 2
+    except OSError as exc:
+        print(f"error [file_unsafe]: {exc.strerror or exc}", file=sys.stderr)
+        return 2
+
+
+def _main(argv: list[str] | None) -> int:
     ap = argparse.ArgumentParser(prog="content_pilot", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("command", choices=["validate", "sizes", "manifest", "verify-manifest", "review-pack"])
     ap.add_argument("--root", type=Path, default=None, help="pilot directory (default: content/pilots/7af-math)")
@@ -65,11 +79,11 @@ def main(argv: list[str] | None = None) -> int:
         text = mf.render(mf.build_manifest(root))
         target = root / mf.MANIFEST_NAME
         if a.write:
-            target.write_text(text, encoding="utf-8")
+            write_text_atomic(root, mf.MANIFEST_NAME, text)
             print(f"wrote {target}")
             return 0
         if a.check:
-            if not target.exists() or target.read_text(encoding="utf-8") != text:
+            if not target.exists() or read_regular(target, 1 << 20).decode("utf-8", "replace") != text:
                 print(f"{mf.MANIFEST_NAME} is out of date: run `manifest --write`")
                 return 1
             print(f"{mf.MANIFEST_NAME} is up to date")
@@ -85,15 +99,19 @@ def main(argv: list[str] | None = None) -> int:
         return 1 if problems else 0
 
     # review-pack
-    out_dir = (a.review_dir or find_repo_root(root) / "docs" / "content-02a" / "review").resolve()
-    files = build_review_pack(root)
+    files = build_review_pack(root)  # the descriptor is schema-checked inside, so output names are safe
+    if a.review_dir is not None:
+        out_dir = Path(os.path.abspath(a.review_dir))  # NOT resolved: a link must stay visible so it can be refused
+    elif a.write:
+        out_dir = ensure_dir_inside(find_repo_root(root), "docs/content-02a/review")
+    else:
+        out_dir = find_repo_root(root) / "docs" / "content-02a" / "review"
     stale = []
     for name, text in files.items():
         p = out_dir / name
         if a.write:
-            p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(text, encoding="utf-8")
-        elif a.check and (not p.exists() or p.read_text(encoding="utf-8") != text):
+            write_text_atomic(out_dir, name, text)
+        elif a.check and (not p.exists() or p.is_symlink() or read_regular(p, 1 << 20).decode("utf-8", "replace") != text):
             stale.append(name)
     if a.write:
         print(f"wrote {len(files)} files to {out_dir}")

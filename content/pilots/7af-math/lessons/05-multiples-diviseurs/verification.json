@@ -2,34 +2,147 @@
   "questions": {
     "multiple-de-6": {
       "mode": "truth",
+      "prompt_numbers": [
+        6
+      ],
+      "operands_in_proof": true,
       "choices": {
-        "a": "16 % 6 == 0",
-        "b": "26 % 6 == 0",
-        "c": "36 % 6 == 0",
-        "d": "46 % 6 == 0"
+        "a": {
+          "expr": "16 % 6 == 0",
+          "numbers": [
+            16
+          ],
+          "symbols": ""
+        },
+        "b": {
+          "expr": "26 % 6 == 0",
+          "numbers": [
+            26
+          ],
+          "symbols": ""
+        },
+        "c": {
+          "expr": "36 % 6 == 0",
+          "numbers": [
+            36
+          ],
+          "symbols": ""
+        },
+        "d": {
+          "expr": "46 % 6 == 0",
+          "numbers": [
+            46
+          ],
+          "symbols": ""
+        }
       }
     },
     "diviseurs-de-10": {
       "mode": "truth",
+      "prompt_numbers": [
+        10
+      ],
+      "operands_in_proof": true,
       "choices": {
-        "a": "[d for d in range(1, 11) if 10 % d == 0] == [1, 2, 5, 10]",
-        "b": "[d for d in range(1, 11) if 10 % d == 0] == [1, 2, 3, 5, 10]",
-        "c": "[d for d in range(1, 11) if 10 % d == 0] == [2, 5, 10]",
-        "d": "[d for d in range(1, 11) if 10 % d == 0] == [1, 5, 10]"
+        "a": {
+          "expr": "[d for d in range(1, 11) if 10 % d == 0] == [1, 2, 5, 10]",
+          "numbers": [
+            1,
+            2,
+            5,
+            10
+          ],
+          "symbols": ""
+        },
+        "b": {
+          "expr": "[d for d in range(1, 11) if 10 % d == 0] == [1, 2, 3, 5, 10]",
+          "numbers": [
+            1,
+            2,
+            3,
+            5,
+            10
+          ],
+          "symbols": ""
+        },
+        "c": {
+          "expr": "[d for d in range(1, 11) if 10 % d == 0] == [2, 5, 10]",
+          "numbers": [
+            2,
+            5,
+            10
+          ],
+          "symbols": ""
+        },
+        "d": {
+          "expr": "[d for d in range(1, 11) if 10 % d == 0] == [1, 5, 10]",
+          "numbers": [
+            1,
+            5,
+            10
+          ],
+          "symbols": ""
+        }
       }
     },
     "divisible-par-8": {
       "mode": "truth",
+      "prompt_numbers": [
+        24,
+        8
+      ],
+      "operands_in_proof": true,
       "choices": {
-        "a": "24 % 8 == 0 and 8 * 3 == 24",
-        "b": "24 % 8 == 8",
-        "c": "24 % 8 != 0",
-        "d": "24 + 8 == 32 and 24 % 8 != 0"
+        "a": {
+          "expr": "8 * 3 == 24 and 24 % 8 == 0",
+          "numbers": [
+            8,
+            3,
+            24,
+            24,
+            8
+          ],
+          "symbols": "×="
+        },
+        "b": {
+          "expr": "8 == 24 % 8",
+          "numbers": [
+            8,
+            24,
+            8
+          ],
+          "symbols": ""
+        },
+        "c": {
+          "expr": "24 > 8 and 24 % 8 != 0",
+          "numbers": [
+            24,
+            8,
+            24,
+            8
+          ],
+          "symbols": ""
+        },
+        "d": {
+          "expr": "24 + 8 == 32 and 24 % 8 != 0",
+          "numbers": [
+            24,
+            8,
+            32,
+            24,
+            8
+          ],
+          "symbols": "+="
+        }
       }
     },
     "nombre-de-diviseurs-de-7": {
       "mode": "value",
       "compute": "len([d for d in range(1, 8) if 7 % d == 0])",
+      "prompt_numbers": [
+        7
+      ],
+      "operands_in_proof": true,
       "choices": {
         "a": 1,
         "b": 2,
@@ -40,6 +153,14 @@
     "rangees-de-livres": {
       "mode": "value",
       "compute": "min([n for n in (2, 3, 4, 6) if 18 % n != 0])",
+      "prompt_numbers": [
+        18,
+        2,
+        3,
+        4,
+        6
+      ],
+      "operands_in_proof": true,
       "choices": {
         "a": 2,
         "b": 3,
@@ -68,14 +189,24 @@
       "block": "exemple-diviseurs",
       "checks": [
         {
-          "expr": "12 // 5",
-          "equals": 2,
-          "must_appear": "12÷5=2"
+          "expr": "1 * 12",
+          "equals": 12,
+          "must_appear": "1×12=12"
         },
         {
-          "expr": "12 % 5",
-          "equals": 2,
-          "must_appear": "2"
+          "expr": "2 * 6",
+          "equals": 12,
+          "must_appear": "2×6=12"
+        },
+        {
+          "expr": "3 * 4",
+          "equals": 12,
+          "must_appear": "3×4=12"
+        },
+        {
+          "expr": "5 * 2 + 2",
+          "equals": 12,
+          "must_appear": "12=5×2+2"
         },
         {
           "expr": "[d for d in range(1, 13) if 12 % d == 0]",

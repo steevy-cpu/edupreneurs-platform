@@ -19,13 +19,13 @@ LESSON = Lesson(
     refs=[
         {
             "source": "S1",
-            "locator": "p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « critères de divisibilité par 2, 3, 4, 5, 9, 10 »",
+            "locator": "p. imprimée 38 (PDF p. 39), 7e année, unité « Nombres et calculs » : sous-objectif sur les critères de divisibilité par 2, 3, 4, 5, 9 et 10",
             "relation": "direct",
             "note": "Couvre exactement la liste 2, 3, 4, 5, 9, 10 de ce programme.",
         },
         {
             "source": "S2",
-            "locator": "PDF p. 9 (janvier, semaine 3), Algèbre 2.5.1 « Appliquer les critères de divisibilité par : 2, 3, 4, 5, 9, 10, 11 »",
+            "locator": "PDF p. 9 (janvier, semaine 3), code Algèbre 2.5.1 : application des critères de divisibilité par 2, 3, 4, 5, 9, 10 et 11",
             "relation": "partial",
             "note": "Le critère de 11, présent seulement dans ce programme de 2019, n'est pas traité.",
         },
@@ -155,6 +155,7 @@ LESSON = Lesson(
             "divisible-par-5-pas-10",
             "truth",
             "b",
+            place=1,
             prompt={"fr": "Lequel de ces nombres est divisible par 5, mais pas par 10 ?", "ht": "Ki nan nonb sa yo ki divizib pa 5, men pa pa 10 ?"},
             choices=[
                 C(expr="3210 % 5 == 0 and 3210 % 10 != 0", fr="3 210", ht="3 210"),
@@ -171,6 +172,7 @@ LESSON = Lesson(
             "divisible-par-3",
             "truth",
             "c",
+            place=3,
             prompt={"fr": "Lequel de ces nombres est divisible par 3 ?", "ht": "Ki nan nonb sa yo ki divizib pa 3 ?"},
             choices=[
                 C(expr="125 % 3 == 0", fr="125", ht="125"),
@@ -187,6 +189,7 @@ LESSON = Lesson(
             "divisible-par-9",
             "truth",
             "c",
+            place=2,
             prompt={"fr": "Lequel de ces nombres est divisible par 9 ?", "ht": "Ki nan nonb sa yo ki divizib pa 9 ?"},
             choices=[
                 C(expr="4321 % 9 == 0", fr="4 321", ht="4 321"),
@@ -203,16 +206,29 @@ LESSON = Lesson(
             "affirmation-vraie",
             "truth",
             "c",
+            place=4,
             prompt={"fr": "Laquelle de ces affirmations est vraie ?", "ht": "Ki nan afimasyon sa yo ki vre ?"},
             choices=[
-                C(expr="1236 % 5 == 0", fr="1 236 est divisible par 5", ht="1 236 divizib pa 5"),
-                C(expr="1236 % 9 == 0", fr="1 236 est divisible par 9", ht="1 236 divizib pa 9"),
+                C(
+                    expr="1236 % 2 == 0 and 1236 % 5 == 0 and 1236 % 9 == 0",
+                    fr="1 236 est divisible par 2, par 5 et par 9",
+                    ht="1 236 divizib pa 2, pa 5 ak pa 9",
+                ),
+                C(
+                    expr="1236 % 3 == 0 and 1236 % 4 == 0 and 1236 % 9 == 0",
+                    fr="1 236 est divisible par 3, par 4 et par 9",
+                    ht="1 236 divizib pa 3, pa 4 ak pa 9",
+                ),
                 C(
                     expr="1236 % 2 == 0 and 1236 % 3 == 0 and 1236 % 4 == 0",
                     fr="1 236 est divisible par 2, par 3 et par 4",
                     ht="1 236 divizib pa 2, pa 3 ak pa 4",
                 ),
-                C(expr="1236 % 10 == 0", fr="1 236 est divisible par 10", ht="1 236 divizib pa 10"),
+                C(
+                    expr="1236 % 4 == 0 and 1236 % 5 == 0 and 1236 % 10 == 0",
+                    fr="1 236 est divisible par 4, par 5 et par 10",
+                    ht="1 236 divizib pa 4, pa 5 ak pa 10",
+                ),
             ],
             explanation={
                 "fr": "Le dernier chiffre est 6 : divisible par 2. 1 + 2 + 3 + 6 = 12 : divisible par 3, mais pas par 9. 36 est divisible par 4. Le nombre ne finit ni par 0 ni par 5.",
@@ -223,23 +239,37 @@ LESSON = Lesson(
             "cahiers-en-paquets",
             "truth",
             "a",
+            place=1,
             prompt={
-                "fr": "Une directrice a 135 cahiers. Peut-elle les répartir en 9 paquets égaux, sans cahier en trop ?",
-                "ht": "Yon direktris gen 135 kaye. Èske li ka separe yo an 9 pake egal, san kaye ki rete ?",
+                "fr": "Une enseignante a 126 cahiers à répartir en 9 paquets égaux, sans cahier en trop. Laquelle de ces raisons permet de conclure que c'est possible ?",
+                "ht": "Yon enseyan gen 126 kaye pou separe an 9 pake egal, san kaye ki rete. Ki rezon ki pèmèt konkli ke sa posib ?",
             },
             choices=[
                 C(
-                    expr="135 % 9 == 0 and (1 + 3 + 5) % 9 == 0",
-                    fr="Oui, car la somme des chiffres 1 + 3 + 5 = 9 est divisible par 9",
-                    ht="Wi, paske som chif yo 1 + 3 + 5 = 9 divizib pa 9",
+                    expr="(1 + 2 + 6) % 9 == 0 and 126 % 9 == 0",
+                    fr="La somme des chiffres 1 + 2 + 6 = 9 est divisible par 9",
+                    ht="Som chif yo 1 + 2 + 6 = 9 divizib pa 9",
                 ),
-                C(expr="135 % 9 != 0", fr="Non, car 135 est un nombre impair", ht="Non, paske 135 se yon nonb enpè"),
-                C(expr="135 % 9 != 0 and 135 % 10 != 0", fr="Non, car 135 ne finit pas par 0", ht="Non, paske 135 pa fini ak 0"),
-                C(expr="135 % 2 == 0", fr="Oui, car 135 est divisible par 2", ht="Wi, paske 135 divizib pa 2"),
+                # Each wrong reason is "proved" insufficient: the stated property does not make every such number divisible by 9.
+                C(
+                    expr="126 % 2 == 0 and len([n for n in range(2, 200, 2) if n % 9 != 0]) == 0",
+                    fr="126 est un nombre pair",
+                    ht="126 se yon nonb pè",
+                ),
+                C(
+                    expr="126 % 10 == 6 and len([n for n in range(6, 200, 10) if n % 9 != 0]) == 0",
+                    fr="126 finit par 6",
+                    ht="126 fini ak 6",
+                ),
+                C(
+                    expr="126 > 9 and len([n for n in range(10, 200) if n % 9 != 0]) == 0",
+                    fr="126 est plus grand que 9",
+                    ht="126 pi gwo pase 9",
+                ),
             ],
             explanation={
-                "fr": "1 + 3 + 5 = 9, donc 135 est divisible par 9 : 135 ÷ 9 = 15. Chaque paquet contient 15 cahiers.",
-                "ht": "1 + 3 + 5 = 9, donk 135 divizib pa 9: 135 ÷ 9 = 15. Chak pake gen 15 kaye.",
+                "fr": "1 + 2 + 6 = 9 et 9 est divisible par 9, donc 126 est divisible par 9 : 126 ÷ 9 = 14. Chaque paquet contient 14 cahiers. Être pair, finir par 6 ou être plus grand que 9 ne suffit pas : 16 finit par 6 et n'est pas divisible par 9.",
+                "ht": "1 + 2 + 6 = 9 epi 9 divizib pa 9, donk 126 divizib pa 9: 126 ÷ 9 = 14. Chak pake gen 14 kaye. Yon nonb ki pè, ki fini ak 6 oswa ki pi gwo pase 9 pa sifi: 16 fini ak 6 epi li pa divizib pa 9.",
             },
         ),
     ],

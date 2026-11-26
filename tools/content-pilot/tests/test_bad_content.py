@@ -153,12 +153,12 @@ def test_explanation_that_does_not_state_the_answer(pilot_copy):
 
 
 def test_truth_choice_whose_text_mentions_a_number_its_check_never_uses(pilot_copy):
-    edit_json(pilot_copy, f"{L5}/verification.json", lambda v: v["questions"]["divisible-par-8"]["choices"].update(d="24 % 8 != 0"))
-    assert "choice_text_mismatch" in codes(pilot_copy)
+    edit_json(pilot_copy, f"{L5}/verification.json", lambda v: v["questions"]["divisible-par-8"]["choices"]["d"].update(expr="24 % 8 != 0"))
+    assert "choice_binding" in codes(pilot_copy)
 
 
 def test_two_true_choices_in_a_truth_question(pilot_copy):
-    edit_json(pilot_copy, f"{L5}/verification.json", lambda v: v["questions"]["divisible-par-8"]["choices"].update(b="24 % 8 == 0"))
+    edit_json(pilot_copy, f"{L5}/verification.json", lambda v: v["questions"]["divisible-par-8"]["choices"]["b"].update(expr="24 % 8 == 0"))
     assert "answer_not_unique" in codes(pilot_copy)
 
 
@@ -198,7 +198,7 @@ def test_unsafe_or_broken_verification_expressions_are_refused(pilot_copy):
 def test_verification_mode_and_choice_set_must_match(pilot_copy):
     edit_json(pilot_copy, f"{L2}/verification.json", lambda v: v["questions"]["calcul-mental"].update(mode="guess"))
     assert "verification_schema" in codes(pilot_copy)
-    edit_json(pilot_copy, f"{L2}/verification.json", lambda v: v["questions"]["calcul-mental"].update(mode="value", choices={"a": 1}))
+    edit_json(pilot_copy, f"{L2}/verification.json", lambda v: v["questions"]["calcul-mental"].update(mode="value", choices={"a": 1, "b": 2}))
     assert "verification_choices" in codes(pilot_copy)
 
 
