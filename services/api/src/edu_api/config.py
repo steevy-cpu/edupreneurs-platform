@@ -21,10 +21,17 @@ SUPPORTED_JWT_ALGORITHMS = frozenset({"ES256", "RS256"})
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_prefix="EDU_", env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        env_prefix="EDU_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        hide_input_in_errors=True,
     )
 
     environment: Literal["local", "test", "staging", "production"] = "local"
+
+    staging_project_ref: str | None = None
+    db_ca_file: str | None = None
 
     # --- Database -----------------------------------------------------------
     #: Must log in as ``edu_api_login`` (member of ``edu_api``). Never postgres,

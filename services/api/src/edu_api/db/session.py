@@ -19,6 +19,7 @@ of ``Database.transaction``.
 
 from __future__ import annotations
 
+import ssl
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -45,6 +46,8 @@ def build_engine(settings: Settings) -> AsyncEngine:
             "lock_timeout": str(settings.db_statement_timeout_ms),
         },
     }
+    if settings.environment == "staging":
+        connect_args["ssl"] = ssl.create_default_context(cafile=settings.db_ca_file)
     if settings.db_disable_statement_cache:
         connect_args["statement_cache_size"] = 0
         connect_args["prepared_statement_cache_size"] = 0

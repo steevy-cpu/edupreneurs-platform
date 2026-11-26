@@ -6,6 +6,7 @@ create_app(settings, key_provider=...)      # tests inject settings and signing 
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -17,6 +18,7 @@ from edu_api.auth.jwks import JWKSCache, KeyProvider
 from edu_api.auth.verifier import TokenVerifier
 from edu_api.config import Settings, get_settings
 from edu_api.db.session import Database, build_engine
+from edu_api.db.staging import assert_database, validate_runtime
 from edu_api.errors import install_error_handlers
 from edu_api.middleware import BodyLimitMiddleware, RequestIdMiddleware
 from edu_api.routers import catalog, health, me, sync
@@ -25,7 +27,11 @@ from edu_api.routers import catalog, health, me, sync
 def create_app(
     settings: Settings | None = None, *, key_provider: KeyProvider | None = None
 ) -> FastAPI:
-    settings = settings or get_settings()
+    if settings is None:
+        settings = get_settings()
+        validate_runtime(settings)
+    elif settings.environment in {"staging", "production"}:
+        validate_runtime(settings)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
     jwks_cache: JWKSCache | None = None
@@ -38,15 +44,20 @@ def create_app(
         )
         key_provider = jwks_cache
 
-    # Creating the engine opens no connection; the first request does.
+    # The staging lifespan checks its connection before accepting traffic.
     database = Database(build_engine(settings))
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        yield
-        await database.dispose()
-        if jwks_cache is not None:
-            await jwks_cache.aclose()
+        try:
+            if settings.environment == "staging":
+                async with asyncio.timeout(5), database.transaction(None, read_only=True) as conn:
+                    await assert_database(conn)
+            yield
+        finally:
+            await database.dispose()
+            if jwks_cache is not None:
+                await jwks_cache.aclose()
 
     app = FastAPI(
         title="Mon Edupreneur API",

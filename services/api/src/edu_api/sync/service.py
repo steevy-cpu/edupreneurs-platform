@@ -132,7 +132,7 @@ async def push(
 
     for result in results:
         if result.status == "conflict":
-            logger.warning("sync op_id conflict learner=%s op_id=%s", learner_id, result.op_id)
+            logger.warning("sync operation conflict")
     return PushResponse(results=results, server_version=server_version, canon_version=CANON_VERSION)
 
 

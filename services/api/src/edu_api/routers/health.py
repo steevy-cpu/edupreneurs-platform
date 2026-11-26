@@ -6,11 +6,12 @@ import asyncio
 import logging
 from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import text
 
+from edu_api.db.staging import assert_database
 from edu_api.deps import Db
 
 logger = logging.getLogger("edu_api.health")
@@ -37,10 +38,13 @@ async def health() -> HealthResponse:
     responses={503: {"model": ReadyResponse, "description": "A dependency is unavailable."}},
     summary="Can the service reach its database?",
 )
-async def ready(db: Db) -> JSONResponse:
+async def ready(db: Db, request: Request) -> JSONResponse:
     try:
         async with asyncio.timeout(3), db.transaction(None, read_only=True) as conn:
-            await conn.execute(text("SELECT 1"))
+            if request.app.state.settings.environment == "staging":
+                await assert_database(conn)
+            else:
+                await conn.execute(text("SELECT 1"))
     except Exception as exc:  # readiness must never raise: report "not ready" instead
         logger.warning("readiness check failed: %s", type(exc).__name__)
         body = ReadyResponse(status="not_ready", checks={"database": "unavailable"})

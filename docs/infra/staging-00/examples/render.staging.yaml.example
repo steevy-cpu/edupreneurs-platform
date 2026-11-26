@@ -1,0 +1,29 @@
+# Example only. Importing a Blueprint creates billable resources; review separately.
+services:
+  - type: web
+    name: edupreneurs-staging-api
+    runtime: python
+    region: virginia
+    plan: 0.5c-512mb
+    numInstances: 1
+    autoDeployTrigger: "off"
+    buildCommand: uv sync --locked --no-dev
+    startCommand: .venv/bin/python scripts/staging_service.py --environment staging
+    healthCheckPath: /ready
+    envVars:
+      - key: EDU_ENVIRONMENT
+        value: staging
+      - key: EDU_STAGING_PROJECT_REF
+        sync: false
+      - key: EDU_DATABASE_URL
+        sync: false
+      - key: EDU_AUTH_ISSUER
+        sync: false
+      - key: EDU_AUTH_JWKS_URL
+        sync: false
+      - key: EDU_DB_POOL_SIZE
+        value: "3"
+      - key: EDU_DB_MAX_OVERFLOW
+        value: "1"
+      - key: UV_VERSION
+        value: "0.11.3"
