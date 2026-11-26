@@ -1,0 +1,49 @@
+name: Content pilot
+
+on:
+  pull_request:
+    paths: &content_paths
+      - ".github/workflows/content-pilot.yml"
+      - "tools/content-pilot/**"
+      - "content/pilots/**"
+      - "packages/contracts/content/**"
+      - "docs/content-02a/**"
+      - "pyproject.toml"
+      - "uv.lock"
+  push:
+    branches: [main]
+    paths: *content_paths
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v5
+      - name: Install locked authoring checks
+        run: |
+          uv sync --locked --only-group dev --python 3.12
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
+      - name: Lint and check formatting
+        run: |
+          ruff check tools/content-pilot
+          ruff format --check tools/content-pilot
+      - name: Verify drafts, manifest and review files
+        working-directory: tools/content-pilot
+        run: |
+          python -m content_pilot validate --forbid-approvals
+          python -m content_pilot manifest --check
+          python -m content_pilot verify-manifest
+          python -m content_pilot review-pack --check
+          review_dir=$(mktemp -d "$RUNNER_TEMP/content-pilot.XXXXXXXX")
+          python -m content_pilot review-pack --write --review-dir "$review_dir"
+          diff -qr ../../docs/content-02a/review "$review_dir"
+      - name: Run authoring and independent regression tests
+        working-directory: tools/content-pilot
+        run: python -m pytest -q --runxfail tests
