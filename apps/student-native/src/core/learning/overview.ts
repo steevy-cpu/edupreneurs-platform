@@ -233,6 +233,8 @@ export interface PathView {
   /** Subjects offered for the selected grade. */
   subjects: { slug: string; label: string }[];
   grade: string | null;
+  /** The class the student chose, when the catalog on this phone has no course for it (e.g. 7AF today). */
+  gradeWithoutCourses: string | null;
   subject: string | null;
   units: PathUnit[];
   /** Saved lessons that the selected course does not list; they stay reachable. */
@@ -311,6 +313,7 @@ export async function loadPath(
     grades: [...grades.entries()].map(([code, label]) => ({ code, label })),
     subjects: [...subjects.entries()].map(([slug, label]) => ({ slug, label })),
     grade,
+    gradeWithoutCourses: courses.length > 0 && selection.grade !== null && grade === null ? selection.grade : null,
     subject,
     units,
     otherSaved: saved.filter((lesson) => !listed.has(lesson.lessonId)),

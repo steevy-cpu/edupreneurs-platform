@@ -1,0 +1,10 @@
+# Navigation stage for the scaled-text screenshots (photographed with adb by the caller).
+appId: ht.edupreneur.student.dev
+---
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible:
+      id: "tab-learn"
+    timeout: 90000

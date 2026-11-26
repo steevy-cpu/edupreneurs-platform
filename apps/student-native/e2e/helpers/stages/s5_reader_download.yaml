@@ -1,0 +1,9 @@
+# Navigation stage for the scaled-text screenshots (photographed with adb by the caller).
+appId: ht.edupreneur.student.dev
+---
+- scrollUntilVisible:
+    element:
+      id: "download-this-lesson"
+    direction: DOWN
+    timeout: 60000
+    speed: 60

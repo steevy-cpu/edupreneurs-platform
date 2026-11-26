@@ -314,7 +314,7 @@ export default function Onboarding() {
   }
 
   return (
-    <ScreenFrame top={<TopBar onBack={back} trailing={<OfflinePill />} />} action={action}>
+    <ScreenFrame top={<TopBar onBack={back} trailing={<OfflinePill />} />} action={action} resetScrollKey={record.step}>
       <StepStrip steps={ONBOARDING_STEPS.map((step) => t(STEP_NAME[step]))} current={index} />
       {body}
       {error}

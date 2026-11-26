@@ -9,9 +9,16 @@ import React from 'react';
 
 type AnyProps = Record<string, unknown> & { children?: React.ReactNode };
 
+/** Every `scrollTo` a ScrollView received, so a test can check that a screen returns to its top. */
+export const scrollCalls: { y?: number; animated?: boolean }[] = [];
+
 function host(name: string) {
   const Component = React.forwardRef<unknown, AnyProps>((props, ref) => {
-    React.useImperativeHandle(ref, () => ({ scrollToEnd: () => undefined, focus: () => undefined }));
+    React.useImperativeHandle(ref, () => ({
+      scrollToEnd: () => undefined,
+      scrollTo: (options: { y?: number; animated?: boolean }) => void scrollCalls.push(options),
+      focus: () => undefined,
+    }));
     const style =
       typeof props.style === 'function' ? (props.style as (s: { pressed: boolean }) => unknown)({ pressed: false }) : props.style;
     return React.createElement(name, { ...props, style }, props.children as React.ReactNode);

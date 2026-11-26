@@ -116,4 +116,11 @@ backend unreachable; run 02_offline_quiz; run 03_reopen_offline
 backend reachable;   run 04_reconnect_sync; run 05_switch_accounts
 backend unreachable; run 06_sign_out_with_unsynced_work
 backend reachable;   run 07_sign_in_resumes_sync; run 09_kreyol
+
+# Online reading (Content-Delivery): read without downloading, answer with no connection, restart, reconnect.
+docker exec "$DB_CONTAINER" psql -U postgres -q -c \
+  'TRUNCATE app.practice_attempts, app.sync_receipts, app.account_change_feed, app.lesson_progress, app.account_sync_state' >/dev/null
+backend reachable;   run 10_read_online
+backend unreachable; run 11_online_answers_offline; run 12_online_restart_offline
+backend reachable;   run 13_online_reconnect
 echo "ALL FLOWS PASSED ($PLATFORM). Screenshots: $OUT/shots" | tee -a "$LOG"

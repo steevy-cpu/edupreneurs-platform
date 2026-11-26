@@ -1,0 +1,35 @@
+# Backend UNREACHABLE. Continues from the online quiz (flow 10): five answers, four right.
+appId: ht.edupreneur.student.dev
+---
+- tapOn: "x = 7"
+- tapOn: "Valider"
+- extendedWaitUntil:
+    visible: ".*Réponse enregistrée sur ce téléphone.*"
+    timeout: 15000
+- takeScreenshot: shots/24-online-answer-saved-offline
+- tapOn: "Question suivante"
+- tapOn: "x = 6"
+- tapOn: "Valider"
+- extendedWaitUntil:
+    visible: ".*Réponse enregistrée sur ce téléphone.*"
+    timeout: 15000
+- tapOn: "Question suivante"
+- tapOn: "x = 4"
+- tapOn: "Valider"
+- extendedWaitUntil:
+    visible: ".*Réponse enregistrée sur ce téléphone.*"
+    timeout: 15000
+- tapOn: "Question suivante"
+- tapOn: "x = 13"
+- tapOn: "Valider"
+- extendedWaitUntil:
+    visible: ".*Réponse enregistrée sur ce téléphone.*"
+    timeout: 15000
+- tapOn: "Question suivante"
+- tapOn: "x = 0"
+- tapOn: "Valider"
+- extendedWaitUntil:
+    visible: ".*Réponse enregistrée sur ce téléphone.*"
+    timeout: 15000
+- tapOn: "Voir mon résultat"
+- assertVisible: "Tu as 4 bonne\\(s\\) réponse\\(s\\) sur 5."

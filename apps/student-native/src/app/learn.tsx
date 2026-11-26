@@ -176,7 +176,13 @@ export default function Learn() {
             </ScrollView>
           </>
         ) : null}
-        {!view.grade || !view.subject ? <AppText color="textSecondary">{t('homeNoSelection')}</AppText> : null}
+        {!view.grade && view.gradeWithoutCourses ? (
+          <AppText color="textSecondary">{t('selectGradeNoCourses', { grade: view.gradeWithoutCourses })}</AppText>
+        ) : !view.grade ? (
+          <AppText color="textSecondary">{t('homeNoSelection')}</AppText>
+        ) : !view.subject ? (
+          <AppText color="textSecondary">{t('selectSubjectHint')}</AppText>
+        ) : null}
       </View>
 
       {view.grade && view.subject && view.units.every((unit) => unit.lessons.length === 0) ? (

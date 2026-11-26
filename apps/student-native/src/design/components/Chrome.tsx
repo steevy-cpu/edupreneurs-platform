@@ -136,6 +136,7 @@ export function ScreenFrame({
   maxWidth,
   banner,
   revealEndKey,
+  resetScrollKey,
 }: {
   top: React.ReactNode;
   children: React.ReactNode;
@@ -146,6 +147,8 @@ export function ScreenFrame({
   banner?: React.ReactNode;
   /** When this value changes (and is set), scroll to the end so new content, e.g. answer feedback, is in view. */
   revealEndKey?: string | number | null;
+  /** When this value changes, jump back to the top (e.g. the next step of a wizard opens at its start, not mid-scroll). */
+  resetScrollKey?: string | number | null;
 }) {
   const { colors, reduceMotion } = useDesign();
   const insets = useSafeAreaInsets();
@@ -156,6 +159,10 @@ export function ScreenFrame({
     const timer = setTimeout(() => scroll.current?.scrollToEnd({ animated: !reduceMotion }), 60);
     return () => clearTimeout(timer);
   }, [revealEndKey, reduceMotion]);
+  useEffect(() => {
+    if (resetScrollKey === undefined || resetScrollKey === null) return;
+    scroll.current?.scrollTo({ y: 0, animated: false });
+  }, [resetScrollKey]);
   const { roomy } = useLayout();
   const pinned = action && roomy;
   return (

@@ -9,6 +9,9 @@ import { AppText } from './Text';
 /** A selectable pill (grade, subject, language). Behaves as a radio button. */
 export function Chip({ label, selected, onPress, testID }: { label: string; selected: boolean; onPress: () => void; testID?: string }) {
   const { colors } = useDesign();
+  // A pill shape only suits one line: when the label wraps (long class names, large text) the rounded ends
+  // would cut into the text, so the shape becomes a softly rounded rectangle with some vertical padding.
+  const [wrapped, setWrapped] = React.useState(false);
   return (
     <Pressable
       accessibilityRole="radio"
@@ -18,13 +21,18 @@ export function Chip({ label, selected, onPress, testID }: { label: string; sele
       testID={testID}
       style={[
         styles.chip,
+        wrapped && styles.chipWrapped,
         {
           backgroundColor: selected ? colors.hero : colors.surface,
           borderColor: selected ? colors.hero : colors.borderControl,
         },
       ]}
     >
-      <AppText variant="label" style={{ color: selected ? colors.textOnHero : colors.text }}>
+      <AppText
+        variant="label"
+        onTextLayout={(event) => setWrapped(event.nativeEvent.lines.length > 1)}
+        style={{ color: selected ? colors.textOnHero : colors.text }}
+      >
         {label}
       </AppText>
     </Pressable>
@@ -87,6 +95,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  chipWrapped: { borderRadius: radius.md, paddingVertical: space.sm },
   notice: {
     flexDirection: 'row',
     gap: space.sm,

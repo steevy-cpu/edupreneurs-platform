@@ -47,7 +47,8 @@ appId: ht.edupreneur.student.dev
     element:
       id: "download-1"
     direction: DOWN
-- assertVisible: ".*À télécharger.*"
+- assertVisible: ".*Disponible en ligne.*"
+- assertVisible: "Lire maintenant"
 - takeScreenshot: shots/05-path-not-saved
 - tapOn:
     id: "download-1"

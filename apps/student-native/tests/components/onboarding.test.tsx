@@ -16,6 +16,7 @@ import type { SyncReport } from '../../src/core/sync/engine';
 import { OfflinePill } from '../../src/ui/shell';
 import { FakeRemote, RestartablePhone } from '../support/experienceHarness';
 import { navigation } from '../support/expoRouterMock';
+import { scrollCalls } from '../support/reactNativeMock';
 import { testDevice } from '../support/reactNativeMock';
 import { resetFlags } from '../support/flagsMock';
 import { catalog, LESSON_ID, lessonSnapshot } from '../support/screenHarness';
@@ -108,6 +109,20 @@ describe('who sees the flow', () => {
     expect(lesson.redirect()).toBeNull();
     expect(lesson.has('Résoudre une équation simple')).toBe(true);
     expect(lesson.has('Bienvenue sur Edupreneurs')).toBe(false);
+  });
+});
+
+describe('scroll position between steps', () => {
+  test('every step opens at its top: moving to the next step scrolls back to y = 0', async () => {
+    await phone.signInLive('student.a');
+    const screen = await phone.render(<Onboarding />);
+    scrollCalls.length = 0;
+    await screen.press('Commencer'); // welcome → language
+    expect(scrollCalls.at(-1)).toEqual({ y: 0, animated: false });
+    const afterFirst = scrollCalls.length;
+    await screen.press('Continuer'); // language → class
+    expect(scrollCalls.length).toBeGreaterThan(afterFirst);
+    expect(scrollCalls.at(-1)).toEqual({ y: 0, animated: false });
   });
 });
 

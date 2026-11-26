@@ -228,3 +228,44 @@ describe('updated and withdrawn lessons', () => {
     expect(reader.text()).toContain('Sèvè a di leson sa a retire.');
   });
 });
+
+describe('after choosing only a class (e.g. 7AF)', () => {
+  test('Apprendre asks for the subject specifically, and Profil shows the class', async () => {
+    const app = await signIn();
+    await phone.content.saveCatalog(catalog('fr'), '2026-11-24T10:00:00.000Z');
+    await app.session.account.setPreference(PREF_GRADE, '9AF');
+    const learn = await phone.render(<Learn />);
+    expect(learn.has('Choisis ta matière pour voir les leçons.')).toBe(true);
+    expect(learn.has('Choisis d’abord ta classe et ta matière.')).toBe(false);
+    const profile = await phone.render(<Profile />);
+    expect(profile.text()).toContain('9AF · matière à choisir');
+    expect(profile.text()).not.toContain('Choisis d’abord ta classe et ta matière.');
+  });
+
+  test('a class with no courses on this phone (7AF): says so, instead of asking to choose a class again', async () => {
+    const app = await signIn();
+    await phone.content.saveCatalog(catalog('fr'), '2026-11-24T10:00:00.000Z'); // only 9AF
+    await app.session.account.setPreference(PREF_GRADE, '7AF');
+    const learn = await phone.render(<Learn />);
+    expect(learn.has('Pas encore de cours pour 7AF. Choisis une autre classe, ou connecte-toi pour mettre la liste à jour.')).toBe(true);
+    expect(learn.has('Choisis d’abord ta classe et ta matière.')).toBe(false);
+    const profile = await phone.render(<Profile />);
+    expect(profile.text()).toContain('7AF');
+    expect(profile.text()).not.toContain('7AF · matière à choisir');
+  });
+
+  test('Haitian Creole', async () => {
+    const app = await signIn('ht');
+    await phone.content.saveCatalog(catalog('ht'), '2026-11-24T10:00:00.000Z');
+    await app.session.account.setPreference(PREF_GRADE, '9AF');
+    const learn = await phone.render(<Learn />);
+    expect(learn.has('Chwazi matyè ou pou wè leson yo.')).toBe(true);
+  });
+
+  test('nothing chosen yet keeps the original wording', async () => {
+    await signIn();
+    await phone.content.saveCatalog(catalog('fr'), '2026-11-24T10:00:00.000Z');
+    const learn = await phone.render(<Learn />);
+    expect(learn.has('Choisis d’abord ta classe et ta matière.')).toBe(true);
+  });
+});

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { useDesign } from '../theme';
+import { useDesign, useLayout } from '../theme';
 import { radius, size, space, touch } from '../tokens';
 import { Icon } from './Icon';
 import { Pill } from './Surfaces';
@@ -40,6 +40,9 @@ export function PathNode({
   action?: React.ReactNode;
 }) {
   const { colors, t } = useDesign();
+  // Very large text: the narrow column beside the node cannot hold a button label without breaking words,
+  // so the actions move below the whole row, at full width.
+  const { roomy } = useLayout();
   const stateLabel = {
     completed: t('stateDone'),
     recommended: t('stateRecommended'),
@@ -93,6 +96,7 @@ export function PathNode({
   );
   const label = [kind, title, stateLabel, detail].filter(Boolean).join('. ');
   return (
+    <View>
     <View style={styles.pathRow}>
       <View style={[styles.rail, { marginLeft: offset }]}>
         <View style={[styles.connector, { backgroundColor: first ? 'transparent' : lineColor }]} />
@@ -139,8 +143,10 @@ export function PathNode({
             {text}
           </View>
         )}
-        {action}
+        {roomy ? action : null}
       </View>
+    </View>
+    {!roomy && action ? <View style={styles.pathActionFull}>{action}</View> : null}
     </View>
   );
 }
@@ -334,6 +340,7 @@ export function FeedbackPanel({
 }
 
 const styles = StyleSheet.create({
+  pathActionFull: { paddingBottom: space.md },
   pathRow: {
     flexDirection: 'row',
     alignItems: 'center',

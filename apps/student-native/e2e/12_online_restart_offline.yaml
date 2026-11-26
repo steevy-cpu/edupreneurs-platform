@@ -1,0 +1,29 @@
+# Backend still UNREACHABLE. Force-quit and reopen: the online-only lesson is still on Home and in
+# Réviser (activity kept), is labelled online, and opening it says plainly that a connection is needed.
+appId: ht.edupreneur.student.dev
+---
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Continuer en ligne"
+    timeout: 60000
+- assertVisible: ".*En ligne · non téléchargée.*"
+- assertNotVisible: "Continuer ma leçon"
+- assertVisible: "5 question\\(s\\) répondue\\(s\\)"
+- takeScreenshot: shots/25-home-online-continue
+- tapOn:
+    id: "tab-review"
+- extendedWaitUntil:
+    visible: "5 faits · 4 bonne\\(s\\) réponse\\(s\\)"
+    timeout: 20000
+- assertVisible: "Lecture en ligne : une connexion est nécessaire."
+- takeScreenshot: shots/26-review-online
+- tapOn:
+    id: "tab-home"
+- tapOn: "Continuer en ligne"
+- extendedWaitUntil:
+    visible: "Impossible de charger la leçon : pas de connexion Internet."
+    timeout: 30000
+- assertVisible: "Réessayer"
+- takeScreenshot: shots/27-online-needs-connection

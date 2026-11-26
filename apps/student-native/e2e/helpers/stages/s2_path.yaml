@@ -1,0 +1,9 @@
+# Navigation stage for the scaled-text screenshots (photographed with adb by the caller).
+appId: ht.edupreneur.student.dev
+---
+- tapOn:
+    id: "tab-learn"
+- scrollUntilVisible:
+    element:
+      id: "read-1"
+    direction: DOWN

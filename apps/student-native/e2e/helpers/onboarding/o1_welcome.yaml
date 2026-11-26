@@ -1,0 +1,31 @@
+# Onboarding navigation stage (test build with EXPO_PUBLIC_FF_ONBOARDING=1). Photographed with adb by the caller.
+appId: ht.edupreneur.student.dev
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+- extendedWaitUntil:
+    visible: "Se connecter"
+    timeout: 60000
+- tapOn:
+    id: "sign-in-email"
+- inputText: ${EMAIL}
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "sign-in-password"
+    direction: DOWN
+- tapOn:
+    id: "sign-in-password"
+- inputText: ${PASSWORD}
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: "sign-in-submit"
+    direction: DOWN
+- tapOn:
+    id: "sign-in-submit"
+- extendedWaitUntil:
+    visible:
+      id: "onboarding-start"
+    timeout: 40000

@@ -18,6 +18,10 @@ interface ProfileView {
   attention: AttentionItem[];
   /** e.g. "Mathématiques · 9AF", or null when nothing is chosen or the catalog is unknown. */
   selection: string | null;
+  /** The class chosen, even when no subject has been chosen yet. */
+  grade: string | null;
+  /** False when the catalog has no course for that class: then no "choose a subject" hint can be given. */
+  gradeListed?: boolean;
 }
 
 function Stat({ value, label }: { value: string; label: string }) {
@@ -63,10 +67,11 @@ export default function Profile() {
         const subject = await session.account.getPreference(PREF_SUBJECT);
         const cached = await content.getCatalog(locale);
         const course = cached?.catalog.courses.find((c) => c.grade.code === grade && c.subject.slug === subject);
+        const gradeListed = cached?.catalog.courses.some((c) => c.grade.code === grade) ?? false;
         if (!live || !session.isActive()) return;
-        setView({ standings, attention, selection: course ? `${course.subject.label} · ${course.grade.code}` : null });
+        setView({ standings, attention, grade, gradeListed, selection: course ? `${course.subject.label} · ${course.grade.code}` : null });
         await app.refreshSummary();
-      })().catch(() => live && setView((current) => current ?? { standings: [], attention: [], selection: null }));
+      })().catch(() => live && setView((current) => current ?? { standings: [], attention: [], selection: null, grade: null }));
       return () => {
         live = false;
       };
@@ -104,7 +109,7 @@ export default function Profile() {
         <AppText variant="label" color="textSecondary">
           {t('selectTitle')}
         </AppText>
-        <AppText variant="bodyStrong">{view?.selection ?? t('homeNoSelection')}</AppText>
+        <AppText variant="bodyStrong">{view?.selection ?? (view?.grade ? (view.gradeListed ? t('profileGradeOnly', { grade: view.grade }) : view.grade) : t('homeNoSelection'))}</AppText>
         <Button variant="secondary" label={t('homeChoose')} onPress={() => router.replace('/learn')} />
       </Card>
 
