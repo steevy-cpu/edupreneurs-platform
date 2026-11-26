@@ -47,6 +47,7 @@ class Limits:
     max_descriptor_bytes: int = 512 * 1024  # pilot.json and the preview manifest
     max_total_bytes: int = 4 * 1024 * 1024
     max_files: int = 80
+    max_entries: int = 200  # files + directories + links + others, counted while enumerating
     max_json_depth: int = 40
     eval: EvalLimits = field(default_factory=EvalLimits)
 

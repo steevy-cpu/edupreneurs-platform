@@ -12,9 +12,9 @@ import io
 from pathlib import Path
 from typing import Any
 
-from .checks import load_descriptor
-from .model import DEFAULT_LIMITS, LOCALES
-from .safefs import load_json_confined
+from .checks import load_descriptor, validate
+from .model import DEFAULT_LIMITS, LOCALES, TOOL_DIR, find_repo_root
+from .safefs import ContentFileError, load_json_confined
 
 TONE_FR = {"tip": "Astuce", "warning": "Attention", "remember": "À retenir"}
 LOC_NAME = {"fr": "français", "ht": "créole haïtien"}
@@ -226,7 +226,22 @@ dans le descripteur du pilote. Voir `docs/content-02a/06-path-to-content-02b.md`
 """
 
 
-def build_review_pack(root: Path) -> dict[str, str]:
+def build_review_pack(root: Path, repo_root: Path | None = None) -> dict[str, str]:
+    """The review package, generated only from content that passes the SAME validation as `validate`.
+
+    A reviewer must never receive a traceback instead of the question to fix, so the child documents are validated
+    first and the first problems are reported with lesson, file, question and field.
+    """
+    if repo_root is None:
+        try:
+            repo_root = find_repo_root(Path(root).resolve())
+        except FileNotFoundError:
+            repo_root = find_repo_root(TOOL_DIR)
+    errors = [f for f in validate(root, repo_root=repo_root) if f.severity == "error"]
+    if errors:
+        shown = "; ".join(f"{f.code} @ {f.where}: {f.message}" for f in errors[:5])
+        more = f" (and {len(errors) - 5} more)" if len(errors) > 5 else ""
+        raise ContentFileError("review_input_invalid", f"the review package cannot be built from invalid content: {shown}{more}")
     pilot = load_descriptor(root)
     files = {"00-guide-de-relecture.md": GUIDE, "answer-key-overview.md": _answer_key(root, pilot), "decisions.template.csv": _csv(root, pilot)}
     for lesson in pilot["lessons"]:

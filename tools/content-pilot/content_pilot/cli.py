@@ -19,7 +19,7 @@ from . import manifest as mf
 from .checks import summarize, validate
 from .model import find_repo_root
 from .review import build_review_pack
-from .safefs import ContentFileError, ensure_dir_inside, read_regular, write_text_atomic
+from .safefs import ContentFileError, ensure_dir_inside, read_in_dir, write_text_atomic
 
 
 def _default_root() -> Path:
@@ -36,6 +36,14 @@ def main(argv: list[str] | None = None) -> int:
     except OSError as exc:
         print(f"error [file_unsafe]: {exc.strerror or exc}", file=sys.stderr)
         return 2
+
+
+def _differs(directory: Path, name: str, text: str) -> bool:
+    """True when `directory/name` is missing or differs. A link anywhere on its path is an error, not a mismatch."""
+    try:
+        return read_in_dir(directory, name, 1 << 20).decode("utf-8", "replace") != text
+    except FileNotFoundError:
+        return True
 
 
 def _main(argv: list[str] | None) -> int:
@@ -83,7 +91,7 @@ def _main(argv: list[str] | None) -> int:
             print(f"wrote {target}")
             return 0
         if a.check:
-            if not target.exists() or read_regular(target, 1 << 20).decode("utf-8", "replace") != text:
+            if _differs(root, mf.MANIFEST_NAME, text):
                 print(f"{mf.MANIFEST_NAME} is out of date: run `manifest --write`")
                 return 1
             print(f"{mf.MANIFEST_NAME} is up to date")
@@ -99,7 +107,7 @@ def _main(argv: list[str] | None) -> int:
         return 1 if problems else 0
 
     # review-pack
-    files = build_review_pack(root)  # the descriptor is schema-checked inside, so output names are safe
+    files = build_review_pack(root, a.repo_root)  # the descriptor is schema-checked inside, so output names are safe
     if a.review_dir is not None:
         out_dir = Path(os.path.abspath(a.review_dir))  # NOT resolved: a link must stay visible so it can be refused
     elif a.write:
@@ -108,10 +116,9 @@ def _main(argv: list[str] | None) -> int:
         out_dir = find_repo_root(root) / "docs" / "content-02a" / "review"
     stale = []
     for name, text in files.items():
-        p = out_dir / name
         if a.write:
             write_text_atomic(out_dir, name, text)
-        elif a.check and (not p.exists() or p.is_symlink() or read_regular(p, 1 << 20).decode("utf-8", "replace") != text):
+        elif a.check and _differs(out_dir, name, text):
             stale.append(name)
     if a.write:
         print(f"wrote {len(files)} files to {out_dir}")

@@ -28,6 +28,20 @@ Content sizes after the changes: whole pilot 27 686 bytes fr / 25 031 ht (9 085 
 
 What the new tests cover is mapped in `07-corrections-after-qa.md`. The two sections below describe the **original** 145 tests.
 
+## Final validator corrections (after the PR #38 retest) — final results
+
+Branch `content/02a-final-validator`, stacked on #37 (`cbb045e`). Python 3.12 via `uv run --no-project`.
+
+| Command | Result |
+|---|---|
+| `tools/content-pilot/run.sh --test` (everything) | **420 passed** (230 s) = 318 prior (145 original + 74 QA #34 + 99 correction) + 7 independent retest (#38, unchanged) + 95 new edge-case tests |
+| `-k final_retest` on #37 (before) / on this branch (after) | 6 failed, 1 passed / **7 passed** |
+| `validate --forbid-approvals` | OK: 0 errors, 0 warnings |
+| `manifest --check`, `verify-manifest`, `review-pack --check` | up to date; every file matches; 9 files current |
+| `ruff check .` / `ruff format --check .` | All checks passed / 126 files formatted |
+
+No tests are blocked or skipped. The lesson content is unchanged, so sizes are as in the previous round (27 686 / 25 031 bytes).
+
 ## What the original 145 tests cover
 
 * **Good content (about 17 tests):** validator finds nothing; shape (6 lessons, 2 languages, 5 questions); **independent re-validation with `jsonschema` straight from `packages/contracts`**; exactly one correct choice per question; **all 30 answers recomputed by a second, different evaluator**; every worked example verified; fr/ht share structure, keys and numbers; Creole is not a copy of French; stable uuid5 identities; nothing approved and every draft requires both reviewers; source references honest (partial relations, a not-located source); size budgets; manifest and review pack current and deterministic.

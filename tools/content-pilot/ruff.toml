@@ -7,6 +7,7 @@ line-length = 160
 "content_pilot/review.py" = ["E501", "RUF001"]
 "content_pilot/checks.py" = ["E501", "RUF001"]   # arithmetic signs and NBSP are the point of the binding rules
 "content_pilot/textrules.py" = ["RUF001", "RUF002"]
+"content_pilot/mathcheck.py" = ["RUF001", "RUF002", "RUF003"]   # the arithmetic signs are the subject
 "tests/test_independent_qa.py" = ["I001"]   # kept byte-identical to the independent QA branch (PR #34)
 "tests/**" = ["S101", "S307", "E501", "RUF001", "RUF002", "RUF003", "B023", "PT"]
 
