@@ -42,24 +42,6 @@ jobs:
           trap 'kill "$server" 2>/dev/null || true' EXIT
           curl --retry 10 --retry-connrefused --retry-delay 1 --fail --silent http://127.0.0.1:4174/ > /dev/null
           node ../../docs/reviews/admin-01/browser.mjs
-      - name: Generate synthetic review thumbnails
-        if: always()
-        run: |
-          cd "$RUNNER_TEMP/admin-evidence"
-          python -m pip install -q --target "$RUNNER_TEMP/review-pil" pillow==11.3.0
-          PYTHONPATH="$RUNNER_TEMP/review-pil" python - <<'PYTHON'
-          from PIL import Image
-          from pathlib import Path
-          import base64, io
-          for shot in sorted(Path('.').glob('*.jpg')):
-              im = Image.open(shot)
-              im.thumbnail((680, 620))
-              buf = io.BytesIO()
-              im.save(buf, 'JPEG', quality=68)
-              data = base64.b64encode(buf.getvalue()).decode()
-              for i in range(0, len(data), 3000):
-                  print('REVIEW_FRAME', shot.name, data[i:i+3000])
-          PYTHON
       - uses: actions/upload-artifact@v4
         if: always()
         with:
