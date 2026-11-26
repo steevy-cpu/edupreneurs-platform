@@ -153,6 +153,23 @@ export class ContentStore {
     });
   }
 
+  /**
+   * Remove a downloaded lesson and its saved questions. Returns false if nothing was saved.
+   * Public content only: student records are in the account database and are not touched.
+   */
+  async deleteLesson(lessonId: string, locale: Locale): Promise<boolean> {
+    return this.db.transaction(async (tx) => {
+      const existing = await tx.first<{ lesson_id: string }>(
+        'SELECT lesson_id FROM saved_lessons WHERE lesson_id = ? AND locale = ?',
+        [lessonId, locale],
+      );
+      if (!existing) return false;
+      await tx.run('DELETE FROM saved_questions WHERE lesson_id = ? AND locale = ?', [lessonId, locale]);
+      await tx.run('DELETE FROM saved_lessons WHERE lesson_id = ? AND locale = ?', [lessonId, locale]);
+      return true;
+    });
+  }
+
   async getLessonInfo(lessonId: string, locale: Locale): Promise<SavedLessonInfo | null> {
     const row = await this.db.first<LessonRow>(
       'SELECT * FROM saved_lessons WHERE lesson_id = ? AND locale = ?',

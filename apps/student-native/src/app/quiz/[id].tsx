@@ -3,8 +3,8 @@ import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import type { PracticeQuestion } from '../../core/api/types';
-import type { SavedLesson } from '../../core/db/contentStore';
 import { answerQuestion, choicesOf, correctChoiceOf, textOf } from '../../core/learning/actions';
+import { getDownloaded, openLesson, ReadableLesson } from '../../core/learning/contentAccess';
 import {
   AnswerOption,
   AppText,
@@ -27,7 +27,7 @@ interface Feedback {
 }
 
 interface Loaded {
-  lesson: SavedLesson;
+  lesson: ReadableLesson;
   /** The questions of this run, fixed when the screen opens so the list never shifts while answering. */
   questions: PracticeQuestion[];
 }
@@ -40,7 +40,7 @@ interface Loaded {
 export default function Quiz() {
   const app = useSignedIn();
   const router = useRouter();
-  const { id, only } = useLocalSearchParams<{ id: string; only?: string }>();
+  const { id, only, mode } = useLocalSearchParams<{ id: string; only?: string; mode?: string }>();
   const [loaded, setLoaded] = useState<Loaded | null | undefined>(undefined);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
@@ -56,7 +56,19 @@ export default function Quiz() {
     if (!app || !session || !locale || !id) return;
     let live = true;
     (async () => {
-      const lesson = await app.services.content.getLesson(id, locale); // SQLite only
+      // Downloaded lesson: SQLite only. `?mode=online`: the copy the reader just fetched (memory), or a fresh fetch.
+      let lesson: ReadableLesson | null;
+      if (mode === 'online') {
+        const result = await openLesson(
+          { api: app.api, content: app.services.content, cache: app.services.lessonCache },
+          id,
+          locale,
+          'online',
+        );
+        lesson = result.kind === 'ready' ? result.lesson : result.kind === 'unavailable' ? result.downloaded : null;
+      } else {
+        lesson = await getDownloaded(app.services.content, id, locale);
+      }
       if (!lesson) {
         if (live) setLoaded(null);
         return;
@@ -73,7 +85,7 @@ export default function Quiz() {
       live = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, locale, id, only]);
+  }, [session, locale, id, only, mode]);
 
   if (!app) return <Redirect href="/sign-in" />;
   const { t } = app;
@@ -187,6 +199,7 @@ export default function Quiz() {
           {position}
         </AppText>
         <ProgressBar value={(index + (feedback ? 1 : 0)) / questions.length} label={position} />
+        {lesson.source === 'online' ? <Notice tone="info">{t('quizOnlineNote')}</Notice> : null}
       </View>
       <AppText variant="title" accessibilityRole="header">
         {textOf(question.prompt)}

@@ -2,7 +2,7 @@ import { ApiClient } from '../api/client';
 import type { Locale, PracticeQuestion } from '../api/types';
 import { validateLessonSnapshot } from '../api/validate';
 import { AccountStore } from '../db/accountStore';
-import { ContentStore, SavedLesson, SavedLessonInfo } from '../db/contentStore';
+import { ContentStore, SavedLessonInfo } from '../db/contentStore';
 
 export interface Environment {
   /** RFC 4122 v4 UUID, lower case. */
@@ -41,7 +41,7 @@ export interface AnswerReceipt {
  */
 export async function answerQuestion(
   account: AccountStore,
-  lesson: SavedLesson,
+  lesson: Pick<SavedLessonInfo, 'lessonId' | 'revisionId'>,
   question: PracticeQuestion,
   choiceId: string,
   env: Environment,
@@ -67,7 +67,7 @@ export async function answerQuestion(
 /** Mark the saved revision of a lesson as finished. False if it already was. */
 export function completeLesson(
   account: AccountStore,
-  lesson: SavedLessonInfo,
+  lesson: Pick<SavedLessonInfo, 'lessonId' | 'revisionId'>,
   env: Environment,
 ): Promise<boolean> {
   return account.recordLessonCompleted({

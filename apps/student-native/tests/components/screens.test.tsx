@@ -17,7 +17,7 @@ import Quiz from '../../src/app/quiz/[id]';
 import Review from '../../src/app/review';
 import { navigation } from '../support/expoRouterMock';
 import { Alert } from '../support/reactNativeMock';
-import { catalog, LESSON_ID, lessonSnapshot, Phone } from '../support/screenHarness';
+import { catalog, LESSON_ID, lessonSnapshot, OTHER_LESSON_ID, Phone } from '../support/screenHarness';
 
 const mockHolder: { phone: Phone | null } = { phone: null };
 jest.mock('../../src/ui/AppContext', () => ({ useApp: () => mockHolder.phone!.app }));
@@ -108,11 +108,15 @@ describe('Apprendre', () => {
     expect(screen.has('Équations du premier degré')).toBe(true);
     expect(screen.has('0 sur 2 leçon(s) terminée(s)')).toBe(true);
     expect(screen.labels()).toContain('Leçon 1. Résoudre une équation simple. Étape suivante. Enregistrée sur ce téléphone');
-    // The lesson that is not on the phone cannot be opened: it has no "open" control, only a download button.
-    expect(screen.labels().some((label) => label.startsWith('Leçon 2.'))).toBe(false);
+    // The lesson that is not on the phone is offered in two explicit ways: read now (online) or download.
     expect(screen.has('Vérifier une solution')).toBe(true);
-    expect(screen.has('À télécharger')).toBe(true);
+    expect(screen.has('Disponible en ligne')).toBe(true);
+    expect(screen.labels()).toContain('Lire maintenant');
     expect(screen.labels()).toContain('Télécharger');
+    navigation.calls.length = 0;
+    await screen.press(/^Leçon 2\./);
+    expect(navigation.calls).toEqual([`push /lesson/${OTHER_LESSON_ID}?mode=online`]);
+    navigation.calls.length = 0;
     await screen.press(/^Leçon 1\./);
     expect(navigation.calls).toEqual([`push /lesson/${LESSON_ID}`]);
 

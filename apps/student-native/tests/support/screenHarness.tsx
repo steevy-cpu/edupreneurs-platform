@@ -16,6 +16,7 @@ import { act, create, ReactTestInstance, ReactTestRenderer } from 'react-test-re
 import type { CatalogResponse, LessonResponse, Locale } from '../../src/core/api/types';
 import { AccountStore, SyncSummary } from '../../src/core/db/accountStore';
 import { ContentStore } from '../../src/core/db/contentStore';
+import { SessionLessonCache } from '../../src/core/learning/contentAccess';
 import { translator } from '../../src/core/i18n/strings';
 import type { SyncReport } from '../../src/core/sync/engine';
 import { DesignProvider } from '../../src/design';
@@ -112,13 +113,14 @@ export function catalog(locale: Locale = 'fr'): CatalogResponse {
 export interface FakeApp {
   boot: 'ready';
   bootError: null;
-  services: { content: ContentStore; env: { newId: () => string; now: () => Date } };
+  services: { content: ContentStore; env: { newId: () => string; now: () => Date }; lessonCache: SessionLessonCache };
   session: { email: string; userId: string; account: AccountStore; isActive: () => boolean; needsReauth: () => boolean };
   needsReauth: boolean;
   locale: Locale;
   t: ReturnType<typeof translator>;
   sync: { phase: 'idle' | 'syncing' | 'waiting_to_retry'; summary: SyncSummary; lastReport: SyncReport | null };
-  api: null;
+  /** Null = signed out of the network. Tests that read online install a fake with `getLesson`. */
+  api: { getLesson(lessonId: string, locale: Locale): Promise<LessonResponse> } | null;
   calls: string[];
   setLocale(locale: Locale): Promise<void>;
   signIn(): Promise<void>;
@@ -154,6 +156,7 @@ export class Phone {
       bootError: null,
       services: {
         content: this.content,
+        lessonCache: new SessionLessonCache(),
         env: {
           newId: () => `00000000-0000-4000-8000-${String((this.counter += 1)).padStart(12, '0')}`,
           now: () => new Date(Date.UTC(2026, 10, 24, 12, 0, (this.counter += 1))),
