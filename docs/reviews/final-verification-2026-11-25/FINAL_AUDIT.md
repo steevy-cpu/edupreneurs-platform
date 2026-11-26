@@ -5,6 +5,8 @@
 (#14–#20).
 **Nothing was merged, deployed, or run against real data or the owner's shared database.**
 
+*Follow-up 2026-11-26:* [`CORRECTION_PLAN.md`](CORRECTION_PLAN.md) orders the remaining work, and PR #20 received a merge-readiness pass.
+
 ## 0. How independent this is — read first
 
 The lead of this verification ran in the same Claude Code session that had directed the overnight
@@ -35,7 +37,7 @@ reproductions are kept off GitHub in `/Volumes/EdupreneursDev/logs/final-verific
 - **Two HIGH security issues remain open, and neither is a defect of the overnight code alone.**
   - **H1 — temporary-schema type shadowing.** It lets a session with arbitrary SQL on an API login
     run code as the database owner. **It is still open on `main`.** It is closed on the corrected
-    branches by one database privilege revoke, and minimal draft PR #20 brings that revoke to `main`.
+    branches by one database privilege revoke, and minimal draft PR #20 brings that revoke to `main` (merge-readiness pass 2026-11-26: head `360c7fa`, adds a per-checkout test-API port and a refusal of foreign servers; Jest 69, pgTAP 215, pytest 148).
   - **NF-1 — the local Supabase `supautils` extension wrapper.** It lets every service login create,
     drop or move privileged extensions in any schema, including the private `app` schema.
     Reproduced by the lead. No migration can fix it; it needs hosted-project verification and the
@@ -183,7 +185,7 @@ harness's disposable-runner override works in CI.
   - offline, Profil shows "Tout est synchronisé" next to "Serveur injoignable", which contradicts itself;
   - no feedback after a manual sync that gets a 503;
   - "Men lis klas yo abitye." needs a native speaker;
-  - after choosing 7AF in onboarding, Accueil and Profil still ask the learner to choose a class — **needs investigation** (possibly the grade stays local while `EXPO_PUBLIC_FF_ONBOARDING_SYNC` is off).
+  - after choosing 7AF in onboarding, Accueil and Profil still show "Choisis d'abord ta classe et ta matière". **Diagnosed by source reading (2026-11-26):** that notice shows until both a class *and a subject* exist; onboarding sets the class and deliberately clears the subject, so it is a copy/flow gap, not a data-flow bug. Fix in the correction plan, item 3-3; not re-checked on a device.
 - **Not re-verified here:** the overnight native source-review fixes (stale word label, clock handling, sync spacing, grade prefill, stale streak); account switching on device; Word of the Day freshness and Gold on a live backend; Creole at large text on Accueil/Profil.
 - **Feature-flag defaults:** all six client flags default off; with none set the app behaves as Mobile-02. Checked by source and by the overnight production-bundle inspection; not rebuilt here.
 - **Environment incident:** the emulator still had an older build from 2026-11-24, which pointed at the shared stack (port 54321). Its first launch made one sign-in attempt, rejected by Auth; nothing was written (fingerprint identical, last Auth audit entry from 2026-11-24). That build was replaced on the emulator by the debug APK from `/Volumes/EdupreneursDev/artifacts`; reinstall it from its source if it is still needed.
