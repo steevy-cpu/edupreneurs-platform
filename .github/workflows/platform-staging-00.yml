@@ -69,8 +69,11 @@ jobs:
           uv run --no-sync python scripts/restore_drill.py --environment local
           make test-db
           uv run --no-sync pytest -q tests/integration
-      - name: Run original PR 36 assertions and positive controls unmasked
-        run: uv run --no-sync pytest --runxfail -q tests/staging_acceptance/qa_unit.py tests/staging_acceptance/qa_database.py
+      - name: Run independent PR 36 and PR 40 acceptance cases unmasked
+        run: >
+          uv run --no-sync pytest --runxfail -q
+          tests/staging_acceptance/qa_unit.py tests/staging_acceptance/qa_database.py
+          tests/staging_acceptance/extra_acl_retest.py
       - name: Verify HTTP liveness and database readiness
         run: |
           uv run --no-sync uvicorn edu_api.main:create_app --factory --host 127.0.0.1 --port 8174 --no-access-log &

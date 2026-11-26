@@ -39,10 +39,19 @@ SELECT
     WHERE t.oid IS NULL OR NOT has_table_privilege('edu_api_login', t.oid, 'SELECT')
   ) AS required_reads,
   NOT EXISTS (SELECT FROM app_tables WHERE has_table_privilege(
-    'edu_api_login', oid, 'INSERT,UPDATE,DELETE,TRUNCATE,TRIGGER,REFERENCES')) AND
+    'edu_api_login', oid, 'INSERT,UPDATE,DELETE,TRUNCATE,TRIGGER,REFERENCES,MAINTAIN')) AND
     NOT EXISTS (SELECT FROM app_tables WHERE relname IN
       ('staff_roles','content_sources','lesson_revision_sources','editorial_reviews','audit_events','background_jobs')
       AND has_any_column_privilege('edu_api_login', oid, 'SELECT')) AS private_tables,
+  -- has_any_column_privilege covers both whole-table and column ACLs, including
+  -- inherited grants. SELECT and the profile INSERT are the only permitted data rights.
+  NOT EXISTS (SELECT FROM app_tables WHERE has_any_column_privilege('edu_api_login', oid,
+      'SELECT WITH GRANT OPTION,INSERT WITH GRANT OPTION'))
+    AND NOT has_database_privilege('edu_api_login', current_database(), 'CONNECT WITH GRANT OPTION')
+    AND NOT has_schema_privilege('edu_api_login', 'app', 'USAGE WITH GRANT OPTION')
+    AND NOT EXISTS (SELECT FROM pg_proc WHERE pronamespace = 'app'::regnamespace
+      AND has_function_privilege('edu_api_login', oid, 'EXECUTE WITH GRANT OPTION'))
+    AS web_cannot_delegate,
   (SELECT array_agg(proname::text ORDER BY proname) = ARRAY['current_actor_id','sync_apply_operation']
    FROM pg_proc WHERE pronamespace = 'app'::regnamespace AND
    has_function_privilege('edu_api_login',oid,'EXECUTE')) AND

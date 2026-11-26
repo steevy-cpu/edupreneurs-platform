@@ -16,13 +16,14 @@ uv run python scripts/staging_verify.py audit --environment local
 uv run python scripts/restore_drill.py --environment local
 make test-db
 uv run pytest
-uv run pytest --runxfail -q tests/staging_acceptance/qa_unit.py tests/staging_acceptance/qa_database.py
+uv run pytest --runxfail -q tests/staging_acceptance/qa_unit.py tests/staging_acceptance/qa_database.py \
+  tests/staging_acceptance/extra_acl_retest.py
 make stop
 ```
 
 Configuration derives the project ID and port lane from the absolute worktree path. Keep the resulting local changes to `supabase/config.toml` out of commits. A port collision must fail startup. Choose a different disposable worktree if it occurs. Reset requires the named DB and gateway containers to own the expected ports. Effective URLs must agree with those ports, credentials must name the proper database roles, and file/process conflicts fail verification. Both named containers must publish their expected ports on IPv4 loopback or the IPv4 wildcard, and both loopback connections must succeed. If either check fails, inspect the checkout and its containers before retrying. Both standalone Auth helpers run the same checks before changing a seed account's password. Run them from this configured checkout with its generated environment. Use uppercase `EDU_*` and `LOCAL_*` settings. Remove conflicting process exports before retrying.
 
-The two explicit acceptance modules reproduce the original [PR #36 probes](https://github.com/steevy-cpu/edupreneurs-platform/pull/36) at `cfac1ac803124d8863d7b9812893fa55234a092e`. The command runs every assertion, including the seven historical failures. Stop preserves disposable data. CI uses the same identity check before its optional no-backup cleanup.
+The first two acceptance modules reproduce the original [PR #36 probes](https://github.com/steevy-cpu/edupreneurs-platform/pull/36) at `cfac1ac803124d8863d7b9812893fa55234a092e`. The third module reproduces the two PostgreSQL 17 ACL probes from [PR #40](https://github.com/steevy-cpu/edupreneurs-platform/pull/40) at `6b7273e7e8eb75e0e44fee087531c1575a46bdb2`. The command runs all 19 cases with expected-failure masking disabled. Stop preserves disposable data. CI uses the same identity check before its optional no-backup cleanup.
 
 The guarded targets are the supported interface. An owner with direct Docker or database administration privileges can invoke upstream tools independently of this repository. Raw `supabase db reset`, linked CLI operations, `pg_restore --clean` against a service database and copied owner environment files are outside this procedure.
 
@@ -64,3 +65,19 @@ The drill does not back up provider control-plane settings, cluster role passwor
 Run one process per instance. The launcher pins one Uvicorn worker even when the host supplies a different `WEB_CONCURRENCY`. The example's pool budget remains four connections per instance (three plus one overflow). Recalculate the overlapping old and new instance budgets before changing capacity.
 
 A staging `/ready` response requires effective catalog SELECT privileges under the API login. The probe reads PostgreSQL privilege metadata. During a failed readiness check, keep traffic on the last healthy release and have the migration operator compare grants against the reviewed migrations. Confirm `/ready` returns 200 again and exercise an authenticated synthetic request before promotion.
+
+The release audit, startup, staging readiness and restore rehearsal all read
+`services/api/src/edu_api/db/staging_security.sql`. The policy evaluates the effective
+rights of `edu_api_login`, even when an operator or the metadata reader runs the query.
+On PostgreSQL 17, MAINTAIN on any application table blocks release. Learner-facing
+table reads and INSERT on `app.learner_profiles.user_id` remain required. Both
+whole-table and individual-column grant options fail the policy, including options
+inherited through `edu_api`. The same delegation restriction covers connection to
+the application database, use of the app schema and execution of app functions.
+
+For a failed gate, inspect grants to the login, its group and PUBLIC, and check table
+ownership. PostgreSQL gives an owner implicit grant options and disallows granting
+an option directly to PUBLIC. Have the migration operator remove the surplus right
+at its source. For a required privilege, revoke only its grant option. Rerun the
+audit, exercise startup and verify that readiness recovers. Liveness can stay green
+throughout an ACL failure. [PostgreSQL 17 privilege checks](https://www.postgresql.org/docs/17/functions-info.html#FUNCTIONS-INFO-ACCESS-TABLE) · [PostgreSQL 17 GRANT](https://www.postgresql.org/docs/17/sql-grant.html)
