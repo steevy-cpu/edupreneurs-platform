@@ -24,10 +24,11 @@
 * **One lesson = one screen of ideas.** Each lesson is 10-13 blocks of v1 types only (`heading`, `paragraph`, `example`, `callout`); about 2.0-2.6 KB of lesson text per language (plus about 1.7-2.6 KB of questions).
 * **Fixed block skeleton, stable keys.** Every lesson starts with `objectifs` then `intro` (a concrete situation) and ends with `piege` (a common error) and `retenir` (a summary). Keys such as `exemple-addition` are identical in French and Creole and never change meaning, so reading position and future revisions stay aligned.
 * **Worked examples before practice**, one step per line, each arithmetic result verified by the tool.
-* **Common mistakes named explicitly** (`piege`): comparing only the last digit, subtracting the large from the small, dividing by 0, “just add a zero”, adding digits for divisibility by 3/9 incorrectly.
+* **Common mistakes named explicitly** (`piege`): comparing only the last digit, reversing the order of a subtraction, dividing by 0, “just add a zero”, adding digits for divisibility by 3/9 incorrectly.
 * **Plain text only.** No images, no maths markup (format v2 is not approved). Numbers use a no-break space inside digit groups (`2 450`) so a number never splits across lines on a 320 dp screen.
 * **Everyday Haitian contexts** with neutral, clearly fictional quantities (a stadium, mangoes in baskets, notebooks in parcels, a school, a truck of maize). No prices, brands, politics or real people.
 * **Practice: five multiple-choice questions per lesson.** Distractors are *diagnostic*: they reproduce the typical error (forgetting to carry, mixing quotient and remainder, confusing 10× with +10, looking at only the last digit).
+* **Answer positions are spread.** Choice ids stay opaque and stable (`a`–`d`, in authoring order) while the *displayed* order places the correct answer evenly over positions A–D (7–8 of 30 in each), so that a learner cannot score by always choosing the same position. Display order is the same in both languages.
 * **Practice is formative.** Answer keys ship with the lesson (the existing offline-practice contract). They must **never** be reused as a controlled exam item (see Content-Delivery-00 doc 6 §4).
 
 ## Two languages

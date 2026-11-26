@@ -72,7 +72,7 @@ def test_answers_are_recomputed_by_an_independent_evaluator():
                 got = eval(spec["compute"], {"__builtins__": {}}, dict(safe))
                 matches = [cid for cid, v in spec["choices"].items() if v == got]
             else:
-                matches = [cid for cid, expr in spec["choices"].items() if eval(expr, {"__builtins__": {}}, dict(safe)) is True]
+                matches = [cid for cid, entry in spec["choices"].items() if eval(entry["expr"], {"__builtins__": {}}, dict(safe)) is True]
             assert matches == [correct], f"{lesson['slug']}/{key}: computed {matches}, key {correct}"
             checked += 1
     assert checked == 30

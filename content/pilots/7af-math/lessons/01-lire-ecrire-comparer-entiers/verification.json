@@ -3,6 +3,10 @@
     "valeur-du-chiffre": {
       "mode": "value",
       "compute": "5723 // 100 % 10 * 100",
+      "prompt_numbers": [
+        5723,
+        7
+      ],
       "choices": {
         "a": 7,
         "b": 70,
@@ -13,6 +17,7 @@
     "ecrire-en-chiffres": {
       "mode": "value",
       "compute": "32 * 1000 + 506",
+      "prompt_numbers": [],
       "choices": {
         "a": 32056,
         "b": 32506,
@@ -22,16 +27,52 @@
     },
     "comparer-deux-nombres": {
       "mode": "truth",
+      "prompt_numbers": [
+        6054,
+        6540
+      ],
       "choices": {
-        "a": "6054 < 6540",
-        "b": "6054 > 6540",
-        "c": "6054 == 6540",
-        "d": "False"
+        "a": {
+          "expr": "6054 < 6540",
+          "numbers": [
+            6054,
+            6540
+          ],
+          "symbols": "<"
+        },
+        "b": {
+          "expr": "6054 > 6540",
+          "numbers": [
+            6054,
+            6540
+          ],
+          "symbols": ">"
+        },
+        "c": {
+          "expr": "6054 == 6540",
+          "numbers": [
+            6054,
+            6540
+          ],
+          "symbols": "="
+        },
+        "d": {
+          "expr": "False",
+          "numbers": [],
+          "symbols": ""
+        }
       }
     },
     "plus-grand-nombre": {
       "mode": "value",
       "compute": "max(9870, 10002, 9999, 987)",
+      "prompt_numbers": [
+        9870,
+        10002,
+        9999,
+        987
+      ],
+      "operands_in_proof": true,
       "choices": {
         "a": 9870,
         "b": 10002,
@@ -42,6 +83,10 @@
     "chiffre-des-centaines": {
       "mode": "value",
       "compute": "3480 // 100 % 10",
+      "prompt_numbers": [
+        3480
+      ],
+      "operands_in_proof": true,
       "choices": {
         "a": 3,
         "b": 4,

@@ -12,7 +12,8 @@
 | Validation tool, size estimates, hash-verified preview manifest, review-pack generator + tests | `tools/content-pilot/` |
 | Deterministic **preview manifest** (not a production pack format) | `content/pilots/7af-math/manifest.preview.json` |
 | **Educator review package** (French guide, one sheet per lesson, answer-key overview, decisions CSV) | `docs/content-02a/review/` |
-| Research and design documentation | `docs/content-02a/01…06` |
+| Research and design documentation | `docs/content-02a/01…07` |
+| Independent QA report and regression suite (included unmodified from PR #34) | `docs/reviews/content-02a/FINAL_QA.md`, `tools/content-pilot/tests/test_independent_qa.py` |
 
 ## Documents
 
@@ -22,6 +23,7 @@
 4. [Rights and provenance](04-rights-and-provenance.md)
 5. [Verification evidence](05-verification-evidence.md) — commands run, exact results, sizes
 6. [Path toward Content-02B](06-path-to-content-02b.md)
+7. [Corrections after independent QA (PR #34)](07-corrections-after-qa.md) — what changed, what was not fixed
 
 ## For an educator
 
@@ -43,4 +45,4 @@ tools/content-pilot/run.sh --build                        # regenerate the JSON 
 
 ## Scope kept
 
-Only `content/pilots/7af-math/`, `tools/content-pilot/` and `docs/content-02a/` were added. The mobile app, FastAPI, migrations, seeds, Admin-01 code, the shared stack and Lovable were not touched.
+Only `content/pilots/7af-math/`, `tools/content-pilot/`, `docs/content-02a/` and (QA files, unmodified) `docs/reviews/content-02a/` were added or changed. The mobile app, FastAPI, migrations, seeds, Admin-01 code, the shared stack and Lovable were not touched.

@@ -17,9 +17,9 @@
 - Verifye yon divizyon ak miltiplikasyon.
 
 ## 2. Lien avec les programmes officiels (à vérifier par vous)
-- **S1** — correspondance PARTIELLE — p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « Savoir effectuer des opérations (addition, soustraction, multiplication et division) » ; « Quotient, multiples et diviseurs de nombres entiers »  
+- **S1** — correspondance PARTIELLE — p. imprimée 38 (PDF p. 39), 7e année, unité « Nombres et calculs » : sous-objectifs sur l'exécution des quatre opérations, puis sur le quotient, les multiples et les diviseurs d'entiers  
   *Remarque :* Multiplication par un nombre à un chiffre et division avec reste sur de petits nombres seulement ; division posée par un diviseur à plusieurs chiffres non traitée.
-- **S2** — correspondance directe — PDF p. 6 (décembre, semaine 3), Algèbre 2.1.1 « … sommes, produits, différences, quotients d'entiers naturels »  
+- **S2** — correspondance directe — PDF p. 6 (décembre, semaine 3), code Algèbre 2.1.1 : calcul de sommes, différences, produits et quotients d'entiers naturels  
   *Remarque :* Programme à compétences minimales 2019-2020.
 
 Registre complet des sources et de leurs limites : `docs/content-02a/01-source-register.md`. L'alignement n'est **pas** déclaré officiel : c'est à vous de le confirmer ou de le corriger.
@@ -96,16 +96,16 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 **Q1 · `multiplication`** — Calcule : 8 × 14
 
 - **A.** 102
-- **B.** 112  ← **réponse attendue**
-- **C.** 122
-- **D.** 22
+- **B.** 122
+- **C.** 22
+- **D.** 112  ← **réponse attendue**
 
 *Explication fournie :* 8 × 4 = 32 : on écrit 2 et on retient 3. 8 × 1 = 8, puis 8 + 3 = 11. Donc 8 × 14 = 112.
 
 **Q2 · `probleme-chaises`** — Une salle a 9 rangées de 15 chaises. Combien y a-t-il de chaises en tout ?
 
-- **A.** 125
-- **B.** 135  ← **réponse attendue**
+- **A.** 135  ← **réponse attendue**
+- **B.** 125
 - **C.** 145
 - **D.** 24
 
@@ -123,8 +123,8 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 **Q4 · `reste-division`** — On divise 47 par 6. Quel est le reste ?
 
 - **A.** 1
-- **B.** 5  ← **réponse attendue**
-- **C.** 6
+- **B.** 6
+- **C.** 5  ← **réponse attendue**
 - **D.** 7
 
 *Explication fournie :* 6 × 7 = 42 et 47 − 42 = 5. Le quotient est 7 et le reste est 5.
@@ -134,7 +134,7 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 - **A.** 29 = 4 × 7 + 1  ← **réponse attendue**
 - **B.** 29 = 4 × 7 − 1
 - **C.** 29 = 7 × 1 + 4
-- **D.** 29 = 4 × 1 + 7
+- **D.** 29 = 4 × 7
 
 *Explication fournie :* Dividende = diviseur × quotient + reste : 4 × 7 + 1 = 29.
 
@@ -220,16 +220,16 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 **Q1 · `multiplication`** — Kalkile: 8 × 14
 
 - **A.** 102
-- **B.** 112  ← **réponse attendue**
-- **C.** 122
-- **D.** 22
+- **B.** 122
+- **C.** 22
+- **D.** 112  ← **réponse attendue**
 
 *Explication fournie :* 8 × 4 = 32: nou ekri 2 epi nou retni 3. 8 × 1 = 8, answit 8 + 3 = 11. Donk 8 × 14 = 112.
 
 **Q2 · `probleme-chaises`** — Yon sal gen 9 ranje ki gen 15 chèz chak. Konbyen chèz ki genyen an total ?
 
-- **A.** 125
-- **B.** 135  ← **réponse attendue**
+- **A.** 135  ← **réponse attendue**
+- **B.** 125
 - **C.** 145
 - **D.** 24
 
@@ -247,8 +247,8 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 **Q4 · `reste-division`** — Nou divize 47 pa 6. Ki rès la ?
 
 - **A.** 1
-- **B.** 5  ← **réponse attendue**
-- **C.** 6
+- **B.** 6
+- **C.** 5  ← **réponse attendue**
 - **D.** 7
 
 *Explication fournie :* 6 × 7 = 42 epi 47 − 42 = 5. Kosyan an se 7 epi rès la se 5.
@@ -258,7 +258,7 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 - **A.** 29 = 4 × 7 + 1  ← **réponse attendue**
 - **B.** 29 = 4 × 7 − 1
 - **C.** 29 = 7 × 1 + 4
-- **D.** 29 = 4 × 1 + 7
+- **D.** 29 = 4 × 7
 
 *Explication fournie :* Dividand = divizè × kosyan + rès: 4 × 7 + 1 = 29.
 

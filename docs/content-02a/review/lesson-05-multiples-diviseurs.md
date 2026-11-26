@@ -8,19 +8,19 @@
 ## 1. Objectifs de la leçon
 **Français**
 - Reconnaître un multiple d'un nombre avec sa table de multiplication.
-- Trouver tous les diviseurs d'un petit nombre.
+- Trouver tous les diviseurs d'un petit nombre entier positif.
 - Dire quand une division tombe juste (reste égal à 0).
 
 **Créole haïtien**
 - Rekonèt yon miltip yon nonb ak tab miltiplikasyon li.
-- Jwenn tout divizè yon ti nonb.
+- Jwenn tout divizè yon ti nonb antye pozitif.
 - Di ki lè yon divizyon egzat (rès la egal ak 0).
 
 ## 2. Lien avec les programmes officiels (à vérifier par vous)
-- **S1** — correspondance directe — p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « Quotient, multiples et diviseurs de nombres entiers »  
+- **S1** — correspondance directe — p. imprimée 38 (PDF p. 39), 7e année, unité « Nombres et calculs » : sous-objectif sur le quotient, les multiples et les diviseurs d'entiers  
   *Remarque :* Limité aux petits nombres ; nombres premiers, PGCD et PPCM relèvent de la 9e année dans ce programme et ne sont pas traités.
-- **S2** — contexte seulement — PDF p. 9 (janvier, semaine 3), Algèbre 2.5 « Divisibilité par 2, 3, 4, 5, 9, 10, 11 »  
-  *Remarque :* Les notions de multiple et de diviseur sont le préalable des critères de divisibilité (leçon 6).
+- **S2** — contexte seulement — PDF p. 9 (janvier, semaine 3), code Algèbre 2.5 : critères de divisibilité par 2, 3, 4, 5, 9, 10 et 11  
+  *Remarque :* Appui de contexte seulement : ce programme ne demande pas expressément de dresser la liste de tous les diviseurs. Multiples et diviseurs sont le préalable des critères de divisibilité (leçon 6).
 
 Registre complet des sources et de leurs limites : `docs/content-02a/01-source-register.md`. L'alignement n'est **pas** déclaré officiel : c'est à vous de le confirmer ou de le corriger.
 
@@ -39,7 +39,7 @@ Un commerçant veut ranger 12 bouteilles en rangées égales, sans bouteille en 
 
 **B4 · `multiples`**
 
-Les multiples d'un nombre sont les résultats de sa table de multiplication. Les multiples de 4 sont 4, 8, 12, 16, 20, et ainsi de suite : on n'arrive jamais au dernier.
+Les multiples d'un nombre sont les résultats de sa table de multiplication. Les multiples de 4 sont 0, 4, 8, 12, 16, 20, et ainsi de suite : on n'arrive jamais au dernier.
 
 **B5 · `exemple-multiples`** — *exemple* : **Reconnaître un multiple de 7**
 
@@ -51,23 +51,21 @@ Les multiples d'un nombre sont les résultats de sa table de multiplication. Les
 
 **B7 · `diviseurs`**
 
-Un nombre b est un diviseur d'un nombre a quand la division de a par b tombe juste, c'est-à-dire quand le reste est 0. On dit alors que a est divisible par b, ou que a est un multiple de b.
+Dans cette leçon, on divise toujours par un nombre différent de 0. Un nombre b est un diviseur d'un nombre a quand la division de a par b tombe juste, c'est-à-dire quand le reste est 0. On dit alors que a est divisible par b, ou que a est un multiple de b.
 
 **B8 · `exemple-diviseurs`** — *exemple* : **Trouver tous les diviseurs de 12**
 
-   1. 12 ÷ 1 = 12, reste 0 : 1 est un diviseur.
-   2. 12 ÷ 2 = 6, reste 0 : 2 est un diviseur.
-   3. 12 ÷ 3 = 4, reste 0 : 3 est un diviseur.
-   4. 12 ÷ 4 = 3, reste 0 : 4 est un diviseur.
-   5. 12 ÷ 5 = 2, reste 2 : 5 n'est pas un diviseur.
-   6. 12 ÷ 6 = 2, reste 0 : 6 est un diviseur, et 12 ÷ 12 = 1 : 12 aussi.
-   7. Diviseurs de 12 : 1, 2, 3, 4, 6, 12
+   1. 1 × 12 = 12 : 1 et 12 sont des diviseurs de 12.
+   2. 2 × 6 = 12 : 2 et 6 sont des diviseurs.
+   3. 3 × 4 = 12 : 3 et 4 sont des diviseurs.
+   4. On s'arrête ici : après 3 × 4, les couples se répètent dans l'autre sens. 5 n'est pas un diviseur, car 12 = 5 × 2 + 2 : il reste 2.
+   5. Diviseurs de 12 : 1, 2, 3, 4, 6, 12
 
-**B9 · `astuce`** — **Astuce** : Pour trouver les diviseurs, cherche les couples de nombres dont le produit est le nombre : 12 = 1 × 12 = 2 × 6 = 3 × 4.
+**B9 · `astuce`** — **Astuce** : Pour savoir si un nombre est un diviseur de 12, fais la division de 12 par ce nombre et regarde le reste : un reste de 0 veut dire que c'est un diviseur.
 
-**B10 · `piege`** — **Attention** : Attention : 1 et le nombre lui-même sont toujours des diviseurs. Un diviseur d'un nombre non nul n'est jamais plus grand que ce nombre.
+**B10 · `piege`** — **Attention** : Attention : pour un nombre positif, 1 et le nombre lui-même sont toujours des diviseurs, et aucun diviseur n'est plus grand que ce nombre. Le cas de 0 est à part : 0 est un multiple de tous les nombres, et on ne l'étudie pas dans cette leçon.
 
-**B11 · `retenir`** — **À retenir** : b est un diviseur de a, a est un multiple de b et a est divisible par b : trois façons de dire que la division de a par b a un reste égal à 0.
+**B11 · `retenir`** — **À retenir** : b est un diviseur de a, a est un multiple de b et a est divisible par b : trois façons de dire que la division de a par b (avec b différent de 0) a un reste égal à 0.
 
 ### Décisions sur le texte (français)
 
@@ -99,26 +97,26 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 
 **Q2 · `diviseurs-de-10`** — Quels sont tous les diviseurs de 10 ?
 
-- **A.** 1, 2, 5, 10  ← **réponse attendue**
-- **B.** 1, 2, 3, 5, 10
+- **A.** 1, 2, 3, 5, 10
+- **B.** 1, 2, 5, 10  ← **réponse attendue**
 - **C.** 2, 5, 10
 - **D.** 1, 5, 10
 
-*Explication fournie :* 10 ÷ 1 = 10, 10 ÷ 2 = 5, 10 ÷ 5 = 2 et 10 ÷ 10 = 1 tombent juste. 3 n'est pas un diviseur de 10 : 10 ÷ 3 = 3, reste 1.
+*Explication fournie :* 10 ÷ 1 = 10, 10 ÷ 2 = 5, 10 ÷ 5 = 2 et 10 ÷ 10 = 1 tombent juste. 3 n'est pas un diviseur de 10 : 10 = 3 × 3 + 1, il reste 1.
 
-**Q3 · `divisible-par-8`** — Le nombre 24 est-il divisible par 8 ?
+**Q3 · `divisible-par-8`** — Laquelle de ces phrases montre que 24 est divisible par 8 ?
 
-- **A.** Oui, car 8 × 3 = 24  ← **réponse attendue**
-- **B.** Non, car il reste 8
-- **C.** Non, car 24 est plus grand que 8
-- **D.** Oui, car 24 + 8 = 32
+- **A.** Il reste 8 quand on divise 24 par 8
+- **B.** 24 est plus grand que 8, donc 24 n'est pas divisible par 8
+- **C.** 24 + 8 = 32, donc 24 est divisible par 8
+- **D.** 8 × 3 = 24, donc la division de 24 par 8 tombe juste  ← **réponse attendue**
 
-*Explication fournie :* 8 × 3 = 24, donc 24 ÷ 8 = 3 et le reste est 0 : 24 est divisible par 8.
+*Explication fournie :* 8 × 3 = 24, donc 24 ÷ 8 = 3 et le reste est 0 : 24 est divisible par 8. Une addition (24 + 8) ou une comparaison de grandeur ne montre pas qu'une division tombe juste.
 
 **Q4 · `nombre-de-diviseurs-de-7`** — Combien de diviseurs le nombre 7 a-t-il ?
 
-- **A.** 1
-- **B.** 2  ← **réponse attendue**
+- **A.** 2  ← **réponse attendue**
+- **B.** 1
 - **C.** 3
 - **D.** 7
 
@@ -128,10 +126,10 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 
 - **A.** 2
 - **B.** 3
-- **C.** 4  ← **réponse attendue**
-- **D.** 6
+- **C.** 6
+- **D.** 4  ← **réponse attendue**
 
-*Explication fournie :* 18 ÷ 4 = 4, reste 2 : la division ne tombe pas juste. Avec 2, 3 ou 6 livres par rangée, il ne reste rien.
+*Explication fournie :* 18 = 4 × 4 + 2 : il reste 2, donc la division ne tombe pas juste. Avec 2, 3 ou 6 livres par rangée, il ne reste rien.
 
 ### Décisions sur les exercices (français)
 
@@ -158,7 +156,7 @@ Yon komèsan vle ranje 12 boutèy an ranje egal, san gen boutèy ki rete. Li ka 
 
 **B4 · `multiples`**
 
-Miltip yon nonb se rezilta tab miltiplikasyon li. Miltip 4 yo se 4, 8, 12, 16, 20, epi konsa: nou pa janm rive nan dènye a.
+Miltip yon nonb se rezilta tab miltiplikasyon li. Miltip 4 yo se 0, 4, 8, 12, 16, 20, epi konsa: nou pa janm rive nan dènye a.
 
 **B5 · `exemple-multiples`** — *exemple* : **Rekonèt yon miltip 7**
 
@@ -170,23 +168,21 @@ Miltip yon nonb se rezilta tab miltiplikasyon li. Miltip 4 yo se 4, 8, 12, 16, 2
 
 **B7 · `diviseurs`**
 
-Yon nonb b se yon divizè yon nonb a lè divizyon a pa b egzat, sa vle di lè rès la se 0. Nou di tou a divizib pa b, oswa a se yon miltip b.
+Nan leson sa a, nou toujou divize pa yon nonb ki pa 0. Yon nonb b se yon divizè yon nonb a lè divizyon a pa b egzat, sa vle di lè rès la se 0. Nou di tou a divizib pa b, oswa a se yon miltip b.
 
 **B8 · `exemple-diviseurs`** — *exemple* : **Jwenn tout divizè 12**
 
-   1. 12 ÷ 1 = 12, rès 0: 1 se yon divizè.
-   2. 12 ÷ 2 = 6, rès 0: 2 se yon divizè.
-   3. 12 ÷ 3 = 4, rès 0: 3 se yon divizè.
-   4. 12 ÷ 4 = 3, rès 0: 4 se yon divizè.
-   5. 12 ÷ 5 = 2, rès 2: 5 pa yon divizè.
-   6. 12 ÷ 6 = 2, rès 0: 6 se yon divizè, epi 12 ÷ 12 = 1: 12 tou.
-   7. Divizè 12 yo: 1, 2, 3, 4, 6, 12
+   1. 1 × 12 = 12: 1 ak 12 se divizè 12.
+   2. 2 × 6 = 12: 2 ak 6 se divizè.
+   3. 3 × 4 = 12: 3 ak 4 se divizè.
+   4. Nou sispann isit la: apre 3 × 4, koup yo repete nan lòt sans lan. 5 pa yon divizè, paske 12 = 5 × 2 + 2: li rete 2.
+   5. Divizè 12 yo: 1, 2, 3, 4, 6, 12
 
-**B9 · `astuce`** — **Astuce** : Pou jwenn divizè yo, chèche koup nonb ki gen pwodui yo se nonb lan: 12 = 1 × 12 = 2 × 6 = 3 × 4.
+**B9 · `astuce`** — **Astuce** : Pou konnen si yon nonb se yon divizè 12, fè divizyon 12 pa nonb sa a epi gade rès la: yon rès ki 0 vle di se yon divizè.
 
-**B10 · `piege`** — **Attention** : Atansyon: 1 ak nonb lan menm toujou se divizè. Yon divizè yon nonb ki pa zewo pa janm pi gwo pase nonb sa a.
+**B10 · `piege`** — **Attention** : Atansyon: pou yon nonb pozitif, 1 ak nonb lan menm toujou se divizè, epi pa gen divizè ki pi gwo pase nonb lan. Ka 0 a apa: 0 se yon miltip tout nonb, epi nou pa etidye li nan leson sa a.
 
-**B11 · `retenir`** — **À retenir** : b se yon divizè a, a se yon miltip b epi a divizib pa b: twa fason pou di divizyon a pa b gen yon rès ki egal ak 0.
+**B11 · `retenir`** — **À retenir** : b se yon divizè a, a se yon miltip b epi a divizib pa b: twa fason pou di divizyon a pa b (ak b ki pa 0) gen yon rès ki egal ak 0.
 
 ### Décisions sur le texte (créole haïtien)
 
@@ -218,26 +214,26 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 
 **Q2 · `diviseurs-de-10`** — Ki se tout divizè 10 yo ?
 
-- **A.** 1, 2, 5, 10  ← **réponse attendue**
-- **B.** 1, 2, 3, 5, 10
+- **A.** 1, 2, 3, 5, 10
+- **B.** 1, 2, 5, 10  ← **réponse attendue**
 - **C.** 2, 5, 10
 - **D.** 1, 5, 10
 
-*Explication fournie :* 10 ÷ 1 = 10, 10 ÷ 2 = 5, 10 ÷ 5 = 2 ak 10 ÷ 10 = 1 egzat. 3 pa yon divizè 10: 10 ÷ 3 = 3, rès 1.
+*Explication fournie :* 10 ÷ 1 = 10, 10 ÷ 2 = 5, 10 ÷ 5 = 2 ak 10 ÷ 10 = 1 egzat. 3 pa yon divizè 10: 10 = 3 × 3 + 1, li rete 1.
 
-**Q3 · `divisible-par-8`** — Èske nonb 24 divizib pa 8 ?
+**Q3 · `divisible-par-8`** — Ki fraz ki montre ke 24 divizib pa 8 ?
 
-- **A.** Wi, paske 8 × 3 = 24  ← **réponse attendue**
-- **B.** Non, paske li rete 8
-- **C.** Non, paske 24 pi gwo pase 8
-- **D.** Wi, paske 24 + 8 = 32
+- **A.** Li rete 8 lè nou divize 24 pa 8
+- **B.** 24 pi gwo pase 8, donk 24 pa divizib pa 8
+- **C.** 24 + 8 = 32, donk 24 divizib pa 8
+- **D.** 8 × 3 = 24, donk divizyon 24 pa 8 egzat  ← **réponse attendue**
 
-*Explication fournie :* 8 × 3 = 24, donk 24 ÷ 8 = 3 epi rès la se 0: 24 divizib pa 8.
+*Explication fournie :* 8 × 3 = 24, donk 24 ÷ 8 = 3 epi rès la se 0: 24 divizib pa 8. Yon adisyon (24 + 8) oswa yon konparezon grandè pa montre yon divizyon egzat.
 
 **Q4 · `nombre-de-diviseurs-de-7`** — Konbyen divizè nonb 7 genyen ?
 
-- **A.** 1
-- **B.** 2  ← **réponse attendue**
+- **A.** 2  ← **réponse attendue**
+- **B.** 1
 - **C.** 3
 - **D.** 7
 
@@ -247,10 +243,10 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 
 - **A.** 2
 - **B.** 3
-- **C.** 4  ← **réponse attendue**
-- **D.** 6
+- **C.** 6
+- **D.** 4  ← **réponse attendue**
 
-*Explication fournie :* 18 ÷ 4 = 4, rès 2: divizyon an pa egzat. Ak 2, 3 oswa 6 liv pa ranje, pa gen anyen ki rete.
+*Explication fournie :* 18 = 4 × 4 + 2: li rete 2, donk divizyon an pa egzat. Ak 2, 3 oswa 6 liv pa ranje, pa gen anyen ki rete.
 
 ### Décisions sur les exercices (créole haïtien)
 

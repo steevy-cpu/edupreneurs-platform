@@ -29,7 +29,7 @@ SOURCES = [
         "retrieved": DATE,
         "rights_status": "all_rights_reserved_reference_only",
         "verification": "read_in_full_for_relevant_part",
-        "notes": "PDF de 60 pages hébergé par un éditeur (page de téléchargement : editions-jpl.com/programmes-officiels-menfp-3e-cycle-fondamental), pas par le MENFP. Lu : sommaire, partie « Domaine des mathématiques » et unités « Nombres et calculs » (7e-9e année, p. imprimées 38-42). INCERTAIN : (a) l'hébergement par un tiers ne prouve pas que ce soit la version finale validée ; le préambule du PDF dit encore « Introduction politique à réaliser quand les programmes seront validés » ; (b) aucune page du MENFP lui-même n'a été trouvée ; (c) aucun texte n'est reproduit dans ce dépôt, seulement des références de lieu.",
+        "notes": "PDF de 60 pages hébergé par un éditeur (page de téléchargement : editions-jpl.com/programmes-officiels-menfp-3e-cycle-fondamental), pas par le MENFP. Lu : sommaire, partie « Domaine des mathématiques » et unités « Nombres et calculs » (7e-9e année, p. imprimées 38-42). INCERTAIN : (a) le PDF se déclare « version définitive » datée du 28 juillet 2024 (p. 2 du PDF), mais sa page de préambule (p. 3) contient encore une consigne de rédaction inachevée qui annonce une validation à venir ; (b) l'hébergement par un éditeur tiers ne prouve pas l'adoption : aucun acte d'adoption signé du MENFP rattaché à cette version exacte n'a été trouvé, et aucune page du MENFP lui-même n'a été trouvée ; (c) aucun texte n'est reproduit dans ce dépôt, seulement des références de lieu et des paraphrases. Vérifié dans le PDF (corrections après QA indépendante) : p. 2-3 et p. 39-42 du PDF.",
     },
     {
         "id": "S2",
@@ -40,7 +40,7 @@ SOURCES = [
         "retrieved": DATE,
         "rights_status": "unknown_reference_only",
         "verification": "read_in_full_for_relevant_part",
-        "notes": "PDF de 82 pages (copie hébergée par haiti-now.org). Mathématiques : p. 4-15 du PDF. Le texte lui-même précise qu'il s'agit d'une mesure pour 2019-2020 qui « ne peut en aucun cas être substitué[e] aux objectifs globaux prévus dans les programmes officiels valides depuis mars 1989 ». INCERTAIN : statut actuel (probablement dépassé par S1), droits non indiqués, copie tierce. Utilisé seulement pour repérer des recoupements ; aucun texte reproduit.",
+        "notes": "PDF de 82 pages (copie hébergée par haiti-now.org). Mathématiques : p. 4-15 du PDF. Le texte précise lui-même qu'il s'agit d'une mesure limitée à l'année 2019-2020, qui ne remplace pas les objectifs globaux des programmes officiels valides depuis mars 1989. Un contrôle indépendant (PR #34) signale que ce programme couvre aussi les fractions (p. 13-14 du PDF), ce que le registre sous-estimait ; non revérifié par l'auteur des corrections. INCERTAIN : statut actuel (probablement dépassé par S1), droits non indiqués, copie tierce. Utilisé seulement pour repérer des recoupements ; aucun texte reproduit.",
     },
     {
         "id": "S3",

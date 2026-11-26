@@ -63,3 +63,16 @@ def scan_text(text: str) -> list[tuple[str, str]]:
 def number_tokens(text: str) -> list[str]:
     """Numbers as written (digit groups joined by NBSP), used to compare fr/ht versions."""
     return sorted(NUMBER.findall(text))
+
+
+MATH_SYMBOLS = "+−×÷=<>≤≥≠"
+
+
+def number_sequence(text: str) -> list[int]:
+    """Numbers as written, IN ORDER (NBSP digit groups joined). Order matters: 702 − 345 is not 345 − 702."""
+    return [int(t.replace(NBSP, "")) for t in NUMBER.findall(text)]
+
+
+def math_symbols(text: str) -> str:
+    """The arithmetic and comparison signs of a text, in order, so `<` can never silently become `≥`."""
+    return "".join(ch for ch in text if ch in MATH_SYMBOLS)

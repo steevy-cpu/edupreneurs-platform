@@ -3,6 +3,12 @@
     "multiplication": {
       "mode": "value",
       "compute": "8 * 14",
+      "prompt_numbers": [
+        8,
+        14
+      ],
+      "prompt_math": "8 × 14",
+      "operands_in_proof": true,
       "choices": {
         "a": 102,
         "b": 112,
@@ -13,6 +19,11 @@
     "probleme-chaises": {
       "mode": "value",
       "compute": "9 * 15",
+      "prompt_numbers": [
+        9,
+        15
+      ],
+      "operands_in_proof": true,
       "choices": {
         "a": 125,
         "b": 135,
@@ -23,6 +34,12 @@
     "quotient": {
       "mode": "value",
       "compute": "56 // 7",
+      "prompt_numbers": [
+        56,
+        7
+      ],
+      "prompt_math": "56 ÷ 7",
+      "operands_in_proof": true,
       "choices": {
         "a": 7,
         "b": 8,
@@ -33,6 +50,11 @@
     "reste-division": {
       "mode": "value",
       "compute": "47 % 6",
+      "prompt_numbers": [
+        47,
+        6
+      ],
+      "operands_in_proof": true,
       "choices": {
         "a": 1,
         "b": 5,
@@ -42,11 +64,52 @@
     },
     "egalite-division": {
       "mode": "truth",
+      "prompt_numbers": [
+        29,
+        4,
+        7,
+        1
+      ],
       "choices": {
-        "a": "29 == 4 * 7 + 1",
-        "b": "29 == 4 * 7 - 1",
-        "c": "29 == 7 * 1 + 4",
-        "d": "29 == 4 * 1 + 7"
+        "a": {
+          "expr": "29 == 4 * 7 + 1",
+          "numbers": [
+            29,
+            4,
+            7,
+            1
+          ],
+          "symbols": "=×+"
+        },
+        "b": {
+          "expr": "29 == 4 * 7 - 1",
+          "numbers": [
+            29,
+            4,
+            7,
+            1
+          ],
+          "symbols": "=×−"
+        },
+        "c": {
+          "expr": "29 == 7 * 1 + 4",
+          "numbers": [
+            29,
+            7,
+            1,
+            4
+          ],
+          "symbols": "=×+"
+        },
+        "d": {
+          "expr": "29 == 4 * 7",
+          "numbers": [
+            29,
+            4,
+            7
+          ],
+          "symbols": "=×"
+        }
       }
     }
   },
@@ -60,7 +123,12 @@
           "must_appear": "6×2=12"
         },
         {
-          "expr": "6 * 1 + 1",
+          "expr": "6 * 1",
+          "equals": 6,
+          "must_appear": "6×1=6"
+        },
+        {
+          "expr": "6 + 1",
           "equals": 7,
           "must_appear": "6+1=7"
         },

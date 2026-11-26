@@ -12,11 +12,17 @@ import io
 from pathlib import Path
 from typing import Any
 
-from .model import LOCALES, read_json
+from .checks import load_descriptor
+from .model import DEFAULT_LIMITS, LOCALES
+from .safefs import load_json_confined
 
 TONE_FR = {"tip": "Astuce", "warning": "Attention", "remember": "À retenir"}
 LOC_NAME = {"fr": "français", "ht": "créole haïtien"}
 STATUS_FR = "BROUILLON — non relu, non approuvé"
+
+
+def _read(root: Path, rel: str) -> Any:
+    return load_json_confined(root, rel, DEFAULT_LIMITS.max_file_bytes)
 
 
 def _t(s: str) -> str:
@@ -39,9 +45,9 @@ def _block_md(i: int, b: dict[str, Any]) -> str:
 def _question_md(n: int, q: dict[str, Any]) -> str:
     correct = q["answer_key"]["correct_choice_id"]
     lines = [f"**Q{n} · `{q['question_key']}`** — {_t(q['prompt']['text'])}", ""]
-    for c in q["response_spec"]["choices"]:
+    for pos, c in enumerate(q["response_spec"]["choices"]):
         mark = "  ← **réponse attendue**" if c["id"] == correct else ""
-        lines.append(f"- **{c['id'].upper()}.** {_t(c['text'])}{mark}")
+        lines.append(f"- **{chr(ord('A') + pos)}.** {_t(c['text'])}{mark}")
     lines += ["", f"*Explication fournie :* {_t(q['explanation']['text'])}"]
     return "\n".join(lines)
 
@@ -75,8 +81,8 @@ def _sheet(root: Path, pilot: dict[str, Any], lesson: dict[str, Any]) -> str:
 
     part = 3
     for loc in LOCALES:
-        blocks = read_json(root / lesson["files"]["blocks"][loc])
-        questions = read_json(root / lesson["files"]["questions"][loc])
+        blocks = _read(root, lesson["files"]["blocks"][loc])
+        questions = _read(root, lesson["files"]["questions"][loc])
         extra = (
             "Vérifiez aussi : le vocabulaire mathématique, l'orthographe, le naturel des phrases, la cohérence avec le français."
             if loc == "ht"
@@ -135,17 +141,17 @@ def _answer_key(root: Path, pilot: dict[str, Any]) -> str:
     ls = [
         "# Clé de réponses — vue d'ensemble (français)",
         "",
-        f"> **{STATUS_FR}.** Tableau de contrôle rapide : la lettre de la réponse attendue pour chaque exercice. À confirmer ou corriger par un enseignant.",
+        f"> **{STATUS_FR}.** Tableau de contrôle rapide : la lettre (position affichée : A, B, C, D) de la réponse attendue pour chaque exercice. À confirmer ou corriger par un enseignant.",
         "",
         "| Leçon | Exercice | Énoncé | Réponse attendue |",
         "|---|---|---|---|",
     ]
     for lesson in pilot["lessons"]:
-        qs = read_json(root / lesson["files"]["questions"]["fr"])
+        qs = _read(root, lesson["files"]["questions"]["fr"])
         for n, q in enumerate(qs, start=1):
             cid = q["answer_key"]["correct_choice_id"]
-            text = next(c["text"] for c in q["response_spec"]["choices"] if c["id"] == cid)
-            ls.append(f"| {lesson['position']} | Q{n} | {_t(q['prompt']['text'])} | **{cid.upper()}** — {_t(text)} |")
+            pos, text = next((i, c["text"]) for i, c in enumerate(q["response_spec"]["choices"]) if c["id"] == cid)
+            ls.append(f"| {lesson['position']} | Q{n} | {_t(q['prompt']['text'])} | **{chr(ord('A') + pos)}** — {_t(text)} |")
     return "\n".join(ls) + "\n"
 
 
@@ -156,9 +162,9 @@ def _csv(root: Path, pilot: dict[str, Any]) -> str:
     for lesson in pilot["lessons"]:
         for loc in LOCALES:
             w.writerow([lesson["slug"], loc, "lesson", lesson["id"], "", "", "", "", ""])
-            for b in read_json(root / lesson["files"]["blocks"][loc]):
+            for b in _read(root, lesson["files"]["blocks"][loc]):
                 w.writerow([lesson["slug"], loc, "block", b["key"], "", "", "", "", ""])
-            for q in read_json(root / lesson["files"]["questions"][loc]):
+            for q in _read(root, lesson["files"]["questions"][loc]):
                 w.writerow([lesson["slug"], loc, "question", q["question_key"], "", "", "", "", ""])
     return buf.getvalue()
 
@@ -221,7 +227,7 @@ dans le descripteur du pilote. Voir `docs/content-02a/06-path-to-content-02b.md`
 
 
 def build_review_pack(root: Path) -> dict[str, str]:
-    pilot = read_json(root / "pilot.json")
+    pilot = load_descriptor(root)
     files = {"00-guide-de-relecture.md": GUIDE, "answer-key-overview.md": _answer_key(root, pilot), "decisions.template.csv": _csv(root, pilot)}
     for lesson in pilot["lessons"]:
         files[f"lesson-{lesson['position']:02d}-{lesson['slug']}.md"] = _sheet(root, pilot, lesson)

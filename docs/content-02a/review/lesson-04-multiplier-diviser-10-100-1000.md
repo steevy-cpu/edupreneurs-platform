@@ -17,9 +17,9 @@
 - Chanje inite mezi (m an cm, km an m) ak kalkil sa yo.
 
 ## 2. Lien avec les programmes officiels (à vérifier par vous)
-- **S1** — correspondance PARTIELLE — p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « Multiplier ou diviser un nombre décimal par 10 ; 100 ; 1 000 ; 0,1 ; 0,01 ; 0,001 »  
+- **S1** — correspondance PARTIELLE — p. imprimée 38 (PDF p. 39), 7e année, unité « Nombres et calculs » : sous-objectif sur la multiplication et la division d'un nombre décimal par des puissances de 10 (et par 0,1 ; 0,01 ; 0,001)  
   *Remarque :* Seulement les entiers naturels : la multiplication et la division de nombres décimaux (et par 0,1 ; 0,01 ; 0,001) sont renvoyées à Content-02B.
-- **S2** — contexte seulement — PDF p. 6 (décembre, semaine 3), Mesures 1.1.2 « Passer d'une unité de mesure à une autre »  
+- **S2** — contexte seulement — PDF p. 6 (décembre, semaine 3), code Mesures 1.1.2 : passage d'une unité de mesure à une autre  
   *Remarque :* Aucun item de ce programme ne traite directement de ×10/×100/×1 000 ; le lien se fait par les conversions d'unités.
 
 Registre complet des sources et de leurs limites : `docs/content-02a/01-source-register.md`. L'alignement n'est **pas** déclaré officiel : c'est à vous de le confirmer ou de le corriger.
@@ -100,17 +100,17 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 **Q2 · `divise-10`** — Calcule : 6 200 ÷ 10
 
 - **A.** 62
-- **B.** 620  ← **réponse attendue**
-- **C.** 6 200
-- **D.** 62 000
+- **B.** 6 200
+- **C.** 62 000
+- **D.** 620  ← **réponse attendue**
 
 *Explication fournie :* Diviser par 10, c'est enlever un zéro : 6 200 ÷ 10 = 620.
 
 **Q3 · `convertir-km`** — Combien de mètres y a-t-il dans 8 km ?
 
-- **A.** 80 m
-- **B.** 800 m
-- **C.** 8 000 m  ← **réponse attendue**
+- **A.** 8 000 m  ← **réponse attendue**
+- **B.** 80 m
+- **C.** 800 m
 - **D.** 80 000 m
 
 *Explication fournie :* 1 km = 1 000 m, donc 8 km = 8 × 1 000 = 8 000 m.
@@ -118,8 +118,8 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 **Q4 · `paquets-de-feuilles`** — Un paquet contient 100 feuilles. Combien de feuilles y a-t-il dans 24 paquets ?
 
 - **A.** 240
-- **B.** 2 400  ← **réponse attendue**
-- **C.** 24 000
+- **B.** 24 000
+- **C.** 2 400  ← **réponse attendue**
 - **D.** 124
 
 *Explication fournie :* 24 × 100 = 2 400 feuilles.
@@ -219,17 +219,17 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 **Q2 · `divise-10`** — Kalkile: 6 200 ÷ 10
 
 - **A.** 62
-- **B.** 620  ← **réponse attendue**
-- **C.** 6 200
-- **D.** 62 000
+- **B.** 6 200
+- **C.** 62 000
+- **D.** 620  ← **réponse attendue**
 
 *Explication fournie :* Divize pa 10, se wete yon zewo: 6 200 ÷ 10 = 620.
 
 **Q3 · `convertir-km`** — Konbyen mèt ki genyen nan 8 km ?
 
-- **A.** 80 m
-- **B.** 800 m
-- **C.** 8 000 m  ← **réponse attendue**
+- **A.** 8 000 m  ← **réponse attendue**
+- **B.** 80 m
+- **C.** 800 m
 - **D.** 80 000 m
 
 *Explication fournie :* 1 km = 1 000 m, donk 8 km = 8 × 1 000 = 8 000 m.
@@ -237,8 +237,8 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 **Q4 · `paquets-de-feuilles`** — Yon pake gen 100 fèy. Konbyen fèy ki genyen nan 24 pake ?
 
 - **A.** 240
-- **B.** 2 400  ← **réponse attendue**
-- **C.** 24 000
+- **B.** 24 000
+- **C.** 2 400  ← **réponse attendue**
 - **D.** 124
 
 *Explication fournie :* 24 × 100 = 2 400 fèy.

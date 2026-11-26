@@ -76,7 +76,7 @@
     "key": "piege",
     "type": "callout",
     "tone": "warning",
-    "text": "Attention : avec des entiers naturels, on enlève toujours le petit nombre au grand nombre. 275 − 623 n'est pas possible."
+    "text": "Attention : l'ordre compte dans une soustraction. On garde l'ordre écrit : 623 − 275 se calcule, mais 275 − 623 n'a pas de résultat parmi les entiers naturels, car 275 est plus petit que 623. Si les deux nombres sont égaux, la différence est 0."
   },
   {
     "key": "retenir",

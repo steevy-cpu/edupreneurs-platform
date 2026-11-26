@@ -2,6 +2,10 @@
 
 The manifest is a review/integrity aid for this pilot only. It is NOT a production pack format and must not be
 consumed by the app, the API or the object store: Content-Delivery-00 defines the real manifest and signing.
+It is unsigned: it detects accidental or careless change, not a determined attacker who can also rewrite it.
+
+`verify_manifest` compares the WHOLE committed document (entry order, roles, locales, labels, totals, version) with
+a canonical rebuild from disk, so altered metadata cannot pass just because the file hashes still match.
 """
 
 from __future__ import annotations
@@ -9,12 +13,16 @@ from __future__ import annotations
 import gzip
 import hashlib
 import json
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from .model import LOCALES, PILOT_ID, minified, read_json
+from .checks import MANIFEST_NAME, inventory, load_descriptor
+from .model import DEFAULT_LIMITS, LOCALES, PILOT_ID, Limits, expected_files, minified
+from .safefs import ContentFileError, load_json_confined, loads_strict, read_confined
 
-MANIFEST_NAME = "manifest.preview.json"
+__all__ = ["LINKS_KBIT", "MANIFEST_NAME", "build_manifest", "render", "sizes", "verify_manifest"]
+
 # Illustrative link speeds for the transfer-time column (assumptions, not measurements).
 LINKS_KBIT = {"2G-like 32 kbit/s": 32, "slow 3G-like 128 kbit/s": 128}
 
@@ -23,15 +31,28 @@ def _gz(data: bytes) -> int:
     return len(gzip.compress(data, compresslevel=9, mtime=0))
 
 
-def sizes(root: Path) -> dict[str, Any]:
+def _lesson_files(lesson: dict[str, Any]) -> dict[str, dict[str, str]]:
+    """path -> {lesson_id, locale, role}, derived from the validated descriptor, never from the file system."""
+    want = expected_files(lesson)
+    meta: dict[str, dict[str, str]] = {}
+    for kind in ("blocks", "questions"):
+        for loc in LOCALES:
+            meta[want[kind][loc]] = {"lesson_id": lesson["id"], "locale": loc, "role": kind}
+    meta[want["verification"]] = {"lesson_id": lesson["id"], "locale": "all", "role": "verification"}
+    return meta
+
+
+def sizes(root: Path, limits: Limits | None = None) -> dict[str, Any]:
     """Per lesson and locale: delivery-shaped (minified UTF-8) bytes and gzip bytes, plus totals."""
-    pilot = read_json(root / "pilot.json")
+    lim = limits or DEFAULT_LIMITS
+    pilot = load_descriptor(root, lim)
     rows: list[dict[str, Any]] = []
     totals = {loc: {"bytes": 0, "gzip": 0} for loc in LOCALES}
     for lesson in pilot["lessons"]:
+        want = expected_files(lesson)
         for loc in LOCALES:
-            blocks = read_json(root / lesson["files"]["blocks"][loc])
-            questions = read_json(root / lesson["files"]["questions"][loc])
+            blocks = load_json_confined(root, want["blocks"][loc], lim.max_file_bytes)
+            questions = load_json_confined(root, want["questions"][loc], lim.max_file_bytes)
             b, q = minified(blocks), minified(questions)
             both = minified({"blocks": blocks, "questions": questions})
             row = {
@@ -58,26 +79,26 @@ def sizes(root: Path) -> dict[str, Any]:
     }
 
 
-def _files(root: Path) -> list[Path]:
-    out = [root / "pilot.json"]
-    out += sorted((root / "lessons").rglob("*.json"))
-    return out
-
-
-def build_manifest(root: Path) -> dict[str, Any]:
-    pilot = read_json(root / "pilot.json")
-    by_file: dict[str, dict[str, str]] = {}
+def _expected_entries(root: Path, lim: Limits) -> tuple[dict[str, Any], dict[str, dict[str, str]]]:
+    pilot = load_descriptor(root, lim)
+    meta: dict[str, dict[str, str]] = {"pilot.json": {"role": "descriptor"}}
     for lesson in pilot["lessons"]:
-        for kind in ("blocks", "questions"):
-            for loc in LOCALES:
-                by_file[lesson["files"][kind][loc]] = {"lesson_id": lesson["id"], "locale": loc, "role": kind}
-        by_file[lesson["files"]["verification"]] = {"lesson_id": lesson["id"], "locale": "all", "role": "verification"}
+        meta.update(_lesson_files(lesson))
+    return pilot, meta
+
+
+def build_manifest(root: Path, limits: Limits | None = None) -> dict[str, Any]:
+    """Canonical manifest: exactly the files the descriptor names, each read through the confined loader."""
+    lim = limits or DEFAULT_LIMITS
+    root = Path(root)
+    _, meta = _expected_entries(root, lim)
     entries = []
-    for p in _files(root):
-        rel = p.relative_to(root).as_posix()
-        data = p.read_bytes()
-        meta = by_file.get(rel, {"role": "descriptor"} if rel == "pilot.json" else {"role": "unlisted"})
-        entries.append({"path": rel, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(), **meta})
+    for rel in sorted(meta):
+        try:
+            data = read_confined(root, rel, lim.max_descriptor_bytes if rel == "pilot.json" else lim.max_file_bytes)
+        except FileNotFoundError as exc:
+            raise ContentFileError("file_missing", f"listed by the descriptor but missing on disk: {rel}") from exc
+        entries.append({"path": rel, "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest(), **meta[rel]})
     core = {"pilot_id": PILOT_ID, "entries": entries}
     digest = hashlib.sha256(json.dumps(core, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     return {
@@ -94,30 +115,49 @@ def render(manifest: dict[str, Any]) -> str:
     return json.dumps(manifest, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
 
 
-def verify_manifest(root: Path) -> list[str]:
-    """Compare the committed manifest with the files on disk. Returns human-readable problems."""
-    path = root / MANIFEST_NAME
-    if not path.exists():
-        return [f"{MANIFEST_NAME} is missing"]
+def verify_manifest(root: Path, limits: Limits | None = None) -> list[str]:
+    """Compare the committed manifest with the files on disk. Returns human-readable problems (empty = verified)."""
+    lim = limits or DEFAULT_LIMITS
+    root = Path(root)
     try:
-        committed = read_json(path)
-    except json.JSONDecodeError as exc:
-        return [f"{MANIFEST_NAME} is not valid JSON: {exc}"]
+        committed = loads_strict(read_confined(root, MANIFEST_NAME, lim.max_descriptor_bytes), max_depth=lim.max_json_depth)
+    except FileNotFoundError:
+        return [f"{MANIFEST_NAME} is missing"]
+    except ContentFileError as exc:
+        return [f"{MANIFEST_NAME} is not valid JSON: {exc.message}" if exc.code == "json_invalid" else f"{MANIFEST_NAME}: {exc.message}"]
+    if not isinstance(committed, dict) or not isinstance(committed.get("entries"), list) or not all(isinstance(e, dict) for e in committed["entries"]):
+        return [f"{MANIFEST_NAME} must be an object with an 'entries' list of objects"]
+
     problems: list[str] = []
-    listed = {e.get("path"): e for e in committed.get("entries", [])}
-    actual = {p.relative_to(root).as_posix(): p for p in _files(root)}
-    for rel in sorted(set(listed) - set(actual)):
-        problems.append(f"listed but missing on disk: {rel}")
-    for rel in sorted(set(actual) - set(listed)):
+    paths = [e.get("path") for e in committed["entries"]]
+    for path, n in sorted(Counter(map(str, paths)).items()):
+        if n > 1:
+            problems.append(f"manifest lists {path} {n} times")
+    try:
+        canonical = build_manifest(root, lim)
+        stray, _ = inventory(root, load_descriptor(root, lim), lim)
+    except ContentFileError as exc:
+        return [*problems, exc.message]
+    except OSError as exc:
+        return [*problems, f"cannot read the pilot: {exc.strerror or exc}"]
+
+    for f in stray:
+        problems.append(f"on disk but not in the manifest or the pilot: {f.where} ({f.message})")
+    want = {e["path"]: e for e in canonical["entries"]}
+    got = {str(e.get("path")): e for e in committed["entries"]}
+    for rel in sorted(set(want) - set(got)):
         problems.append(f"on disk but not in the manifest: {rel}")
-    for rel in sorted(set(listed) & set(actual)):
-        data = actual[rel].read_bytes()
-        if hashlib.sha256(data).hexdigest() != listed[rel].get("sha256"):
+    for rel in sorted(set(got) - set(want)):
+        problems.append(f"listed but not part of the pilot (or missing on disk): {rel}")
+    for rel in sorted(set(want) & set(got)):
+        if got[rel].get("sha256") != want[rel]["sha256"]:
             problems.append(f"hash mismatch: {rel}")
-        elif len(data) != listed[rel].get("bytes"):
+        elif got[rel].get("bytes") != want[rel]["bytes"]:
             problems.append(f"size mismatch: {rel}")
-    if not problems:
-        fresh = build_manifest(root)
-        if fresh["manifest_sha256"] != committed.get("manifest_sha256"):
-            problems.append("manifest_sha256 does not match its entries")
+        else:
+            for field in sorted((set(want[rel]) | set(got[rel])) - {"path", "bytes", "sha256"}):
+                if got[rel].get(field) != want[rel].get(field):
+                    problems.append(f"metadata mismatch in {rel}: {field} is {got[rel].get(field)!r}, expected {want[rel].get(field)!r}")
+    if not problems and committed != canonical:
+        problems.append("the manifest differs from the canonical rebuild (entry order, totals, labels or version)")
     return problems

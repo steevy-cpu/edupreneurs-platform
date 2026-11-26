@@ -1,12 +1,6 @@
 {
   "entries": [
     {
-      "bytes": 23653,
-      "path": "pilot.json",
-      "role": "descriptor",
-      "sha256": "eec72d251436a8b175ba01cca474b88555790bca89573e04b5402b71b037b11e"
-    },
-    {
       "bytes": 2839,
       "lesson_id": "a54081a5-abcb-54a5-a278-56f21f45f4cc",
       "locale": "fr",
@@ -28,7 +22,7 @@
       "locale": "fr",
       "path": "lessons/01-lire-ecrire-comparer-entiers/questions.fr.json",
       "role": "questions",
-      "sha256": "8ec3fb064a315156a70793c1ef03762c6bb5248cb9596787f74b6d8407653f89"
+      "sha256": "db45ea2d983e6f9e54440c9a354d5e5ac6b3765970a58336c56c3a881e04927f"
     },
     {
       "bytes": 3277,
@@ -36,31 +30,31 @@
       "locale": "ht",
       "path": "lessons/01-lire-ecrire-comparer-entiers/questions.ht.json",
       "role": "questions",
-      "sha256": "f6e6abfc53e8c8259f460d4467ab0895ec252bfe5f76eaf67548b4ee2343a167"
+      "sha256": "aa8e19b46322a5a923f9d800048101624331589ab1b55da8ab718dd50bf04553"
     },
     {
-      "bytes": 1622,
+      "bytes": 2436,
       "lesson_id": "a54081a5-abcb-54a5-a278-56f21f45f4cc",
       "locale": "all",
       "path": "lessons/01-lire-ecrire-comparer-entiers/verification.json",
       "role": "verification",
-      "sha256": "ff41470e751491b942f5e7743dd25242a711d89f9d6d1760601461ad737143b4"
+      "sha256": "b08c004dfdd64eb57fb4f2ede48c39e719e77fdf54d282a26d40763be3fdd706"
     },
     {
-      "bytes": 3011,
+      "bytes": 3140,
       "lesson_id": "d3c1f476-2dcf-5c1f-8ac0-7a0c553eb19c",
       "locale": "fr",
       "path": "lessons/02-additionner-soustraire/blocks.fr.json",
       "role": "blocks",
-      "sha256": "cdd85086c6308a1d32ba5b4ecbd64a4443bb9d3b1468c8b06dca10f6c6f52eb0"
+      "sha256": "53f80e0fa1e9414c533a210c5324ccac541abca9d11c3fb717f2420a4945b5a6"
     },
     {
-      "bytes": 2743,
+      "bytes": 2868,
       "lesson_id": "d3c1f476-2dcf-5c1f-8ac0-7a0c553eb19c",
       "locale": "ht",
       "path": "lessons/02-additionner-soustraire/blocks.ht.json",
       "role": "blocks",
-      "sha256": "06a26d6286678da341e00c0e68ff9bc4ea3bb3cfcc7bd0fff3b9e12b37aaab38"
+      "sha256": "9d6b704b67e923b3411d5b57722d690a8b188d82de543c27f43662936a7ebc49"
     },
     {
       "bytes": 3382,
@@ -68,7 +62,7 @@
       "locale": "fr",
       "path": "lessons/02-additionner-soustraire/questions.fr.json",
       "role": "questions",
-      "sha256": "fc272454f7b2e3ee92944f76e8f1511c7850e5e473a2cc3c5819612611595650"
+      "sha256": "8e68b37717c2ab32dd8a5d02d1585a207745b8440cf0ac75c29c6b574c5f121e"
     },
     {
       "bytes": 3311,
@@ -76,15 +70,15 @@
       "locale": "ht",
       "path": "lessons/02-additionner-soustraire/questions.ht.json",
       "role": "questions",
-      "sha256": "05105b91f5b31b4fccbba37ecbba478ff516a81f648717ff8510afe5ef1500e3"
+      "sha256": "6f24a27198251d89a8b77c91c075128ade449bb655b8db534d4893e5ea3dd3e6"
     },
     {
-      "bytes": 2440,
+      "bytes": 3637,
       "lesson_id": "d3c1f476-2dcf-5c1f-8ac0-7a0c553eb19c",
       "locale": "all",
       "path": "lessons/02-additionner-soustraire/verification.json",
       "role": "verification",
-      "sha256": "f68863e12d78c507a760a19f848d8ce747eab2378c14e5c56566418721db94c6"
+      "sha256": "c1b57c0fc8e11d315168763e586afaa7ebad9469789b20adb620feb27d0fe25f"
     },
     {
       "bytes": 2707,
@@ -103,28 +97,28 @@
       "sha256": "248be9199076941345323536545add87ccb515564f08f68aea24ad25cc1c2adb"
     },
     {
-      "bytes": 3222,
+      "bytes": 3218,
       "lesson_id": "fd4d8565-c927-5c27-a14e-ab50e6a6fed7",
       "locale": "fr",
       "path": "lessons/03-multiplier-diviser/questions.fr.json",
       "role": "questions",
-      "sha256": "a1a105ab6e75af6118991f0fc0aa00acc12fe3304bfbe784baacd5a520261caa"
+      "sha256": "4c12f4c438dd31ee85a846b9772d171cd99140d35f73c895c72b9f2a33a52994"
     },
     {
-      "bytes": 3166,
+      "bytes": 3162,
       "lesson_id": "fd4d8565-c927-5c27-a14e-ab50e6a6fed7",
       "locale": "ht",
       "path": "lessons/03-multiplier-diviser/questions.ht.json",
       "role": "questions",
-      "sha256": "429196952fb119fc4a030888d40714f3665375e0de0ac33e609057da5525bb21"
+      "sha256": "1d180da4e859f29147c00ee8d1c47d8ee21b45458e310f0fdb69216f84819611"
     },
     {
-      "bytes": 2575,
+      "bytes": 3781,
       "lesson_id": "fd4d8565-c927-5c27-a14e-ab50e6a6fed7",
       "locale": "all",
       "path": "lessons/03-multiplier-diviser/verification.json",
       "role": "verification",
-      "sha256": "e46bb747fb9517e70ef2d0b72e9ee27a7d580e8a85a04c0ebec7fe9d39d79ea6"
+      "sha256": "5d5489fbb71d75f7b1f6d8fe587d8f5ed65b7b03f5d5fe56da83c6e157eecb5f"
     },
     {
       "bytes": 2550,
@@ -148,7 +142,7 @@
       "locale": "fr",
       "path": "lessons/04-multiplier-diviser-10-100-1000/questions.fr.json",
       "role": "questions",
-      "sha256": "d0a6f018a1c78190deda2cdf18a5778f0ed02c73c533586592ef318ade295926"
+      "sha256": "3871436b68e75acdff59f7c1d3e1d574dc71e2160696444cd02e1c1674ea36e4"
     },
     {
       "bytes": 3066,
@@ -156,55 +150,55 @@
       "locale": "ht",
       "path": "lessons/04-multiplier-diviser-10-100-1000/questions.ht.json",
       "role": "questions",
-      "sha256": "4bed862ef01b21a6c7b4d6410ac90fc28be6857f87a6066794d0950ee9568499"
+      "sha256": "6c7780f6bf5bfd2e368c7037309c93e8f1c412c0688b209864b0996718512f64"
     },
     {
-      "bytes": 2364,
+      "bytes": 2925,
       "lesson_id": "72358982-dc5b-57db-baa8-76e2378074a8",
       "locale": "all",
       "path": "lessons/04-multiplier-diviser-10-100-1000/verification.json",
       "role": "verification",
-      "sha256": "38b8e85170ec9ff4099ede008ac6ffce80b1aa56fc3120490d4c5064967a735f"
+      "sha256": "dd9e10a3581cb3007e579eeb6525a4633a3e99fdb52781c1ba326a778cd8554c"
     },
     {
-      "bytes": 2751,
+      "bytes": 2953,
       "lesson_id": "73f7960b-c811-555d-89f1-4a3e59dfe9f8",
       "locale": "fr",
       "path": "lessons/05-multiples-diviseurs/blocks.fr.json",
       "role": "blocks",
-      "sha256": "1d93eacc08ecc097bcddc6ba04ed6d27d7aab4d7c2f02b7849fb67cf9fcc68fd"
+      "sha256": "14f60e64b946b4479afe9b1a5ad8b3e6c7a10c4e9c7317090df7458927c62cda"
     },
     {
-      "bytes": 2400,
+      "bytes": 2518,
       "lesson_id": "73f7960b-c811-555d-89f1-4a3e59dfe9f8",
       "locale": "ht",
       "path": "lessons/05-multiples-diviseurs/blocks.ht.json",
       "role": "blocks",
-      "sha256": "7315007da27547cec1eee20306a7ec936aaf18652c8ae55d4456c0e6db76b963"
+      "sha256": "4a85f04dc3fd8d9646a4e23c7d1a2ff27e692c6e4b0c881a637db847dc761dde"
     },
     {
-      "bytes": 3515,
+      "bytes": 3747,
       "lesson_id": "73f7960b-c811-555d-89f1-4a3e59dfe9f8",
       "locale": "fr",
       "path": "lessons/05-multiples-diviseurs/questions.fr.json",
       "role": "questions",
-      "sha256": "63656de0c99caa8ee672257a1eaee885505e3f08d00821d4965a531e9010a1dd"
+      "sha256": "23a6fb19f4e955fc204a27ed3b5e13af4975c95afcd039442e517c1d1305be47"
     },
     {
-      "bytes": 3378,
+      "bytes": 3543,
       "lesson_id": "73f7960b-c811-555d-89f1-4a3e59dfe9f8",
       "locale": "ht",
       "path": "lessons/05-multiples-diviseurs/questions.ht.json",
       "role": "questions",
-      "sha256": "9d882df98d0473b66131020c097d9f82903afa8bb97ab103e130acbbbbcd1a92"
+      "sha256": "606adfa7a18fa20085cdc77abd8859638d0a8dc9c820da6a81674b1ad4355646"
     },
     {
-      "bytes": 2080,
+      "bytes": 4407,
       "lesson_id": "73f7960b-c811-555d-89f1-4a3e59dfe9f8",
       "locale": "all",
       "path": "lessons/05-multiples-diviseurs/verification.json",
       "role": "verification",
-      "sha256": "1f6fcb088cfa58659da5c04146b3882d887125d7c86b6758827a2aba01c96dc1"
+      "sha256": "199df0d3f38be9793583605c3ccf094384b42eeac662b6a79bd2acae960763ac"
     },
     {
       "bytes": 2776,
@@ -223,36 +217,42 @@
       "sha256": "d7933ff2e6ad666a4c292001c790a0410b7d52d48e608e2faa5a8ff72cb354a6"
     },
     {
-      "bytes": 3904,
+      "bytes": 4096,
       "lesson_id": "e2b13eab-dcaa-5712-a3a5-b9c9686086dc",
       "locale": "fr",
       "path": "lessons/06-criteres-de-divisibilite/questions.fr.json",
       "role": "questions",
-      "sha256": "e3f473098b28ae69d68390439f1689e2fc4af335883a71ef347b324eea95fcd2"
+      "sha256": "8f31126a189a8943e4497230059365b4bad6e2a0e168b9b353ac59120552289e"
     },
     {
-      "bytes": 3651,
+      "bytes": 3790,
       "lesson_id": "e2b13eab-dcaa-5712-a3a5-b9c9686086dc",
       "locale": "ht",
       "path": "lessons/06-criteres-de-divisibilite/questions.ht.json",
       "role": "questions",
-      "sha256": "59d7cbcdc1facbad60b2bd8135ac709fa3759f4fc361ef51c5409b6ba6f2c460"
+      "sha256": "17953198b551e2ea71cae68d9bd7d2f99d141f9ffa4b34bb73eaa45166828d00"
     },
     {
-      "bytes": 2633,
+      "bytes": 5681,
       "lesson_id": "e2b13eab-dcaa-5712-a3a5-b9c9686086dc",
       "locale": "all",
       "path": "lessons/06-criteres-de-divisibilite/verification.json",
       "role": "verification",
-      "sha256": "89324872fb6b45ee27d92fa2ef4dacbf5ae5fe3f78dcc3270d4d1c47fd8564a7"
+      "sha256": "3cb3caf9c5661acaa15a9a7a425ae02d46e7700949ecad34b0a0da021848ed4f"
+    },
+    {
+      "bytes": 24281,
+      "path": "pilot.json",
+      "role": "descriptor",
+      "sha256": "247f50c1963df1db09b079cbb3987e08802635494398c68493f2ef901d202d51"
     }
   ],
-  "manifest_sha256": "1230af78a56cc6337ec1c631b3ef4fcd49acba7b6e9e502f5a3c69c7e58687e2",
+  "manifest_sha256": "8754315a835329a5aef0266882972a885b92f2df08f7be60a0ffb930d20da393",
   "manifest_version": "pilot-preview-0",
   "pilot_id": "7af-math-pilot",
   "purpose": "Integrity preview for reviewers. NOT a production pack format; never served to the app.",
   "totals": {
-    "bytes": 109290,
+    "bytes": 120365,
     "files": 31
   }
 }

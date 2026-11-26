@@ -3,6 +3,12 @@
     "fois-100": {
       "mode": "value",
       "compute": "35 * 100",
+      "prompt_numbers": [
+        35,
+        100
+      ],
+      "prompt_math": "35 × 100",
+      "operands_in_proof": true,
       "choices": {
         "a": 350,
         "b": 3500,
@@ -13,6 +19,12 @@
     "divise-10": {
       "mode": "value",
       "compute": "6200 // 10",
+      "prompt_numbers": [
+        6200,
+        10
+      ],
+      "prompt_math": "6 200 ÷ 10",
+      "operands_in_proof": true,
       "choices": {
         "a": 62,
         "b": 620,
@@ -23,6 +35,10 @@
     "convertir-km": {
       "mode": "value",
       "compute": "8 * 1000",
+      "prompt_numbers": [
+        8
+      ],
+      "operands_in_proof": true,
       "choices": {
         "a": 80,
         "b": 800,
@@ -33,6 +49,11 @@
     "paquets-de-feuilles": {
       "mode": "value",
       "compute": "24 * 100",
+      "prompt_numbers": [
+        100,
+        24
+      ],
+      "operands_in_proof": true,
       "choices": {
         "a": 240,
         "b": 2400,
@@ -43,6 +64,12 @@
     "divise-1000": {
       "mode": "value",
       "compute": "48000 // 1000",
+      "prompt_numbers": [
+        48000,
+        1000
+      ],
+      "prompt_math": "48 000 ÷ 1 000",
+      "operands_in_proof": true,
       "choices": {
         "a": 480,
         "b": 48,

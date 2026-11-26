@@ -17,7 +17,7 @@
   {
     "key": "multiples",
     "type": "paragraph",
-    "text": "Miltip yon nonb se rezilta tab miltiplikasyon li. Miltip 4 yo se 4, 8, 12, 16, 20, epi konsa: nou pa janm rive nan dènye a."
+    "text": "Miltip yon nonb se rezilta tab miltiplikasyon li. Miltip 4 yo se 0, 4, 8, 12, 16, 20, epi konsa: nou pa janm rive nan dènye a."
   },
   {
     "key": "exemple-multiples",
@@ -37,19 +37,17 @@
   {
     "key": "diviseurs",
     "type": "paragraph",
-    "text": "Yon nonb b se yon divizè yon nonb a lè divizyon a pa b egzat, sa vle di lè rès la se 0. Nou di tou a divizib pa b, oswa a se yon miltip b."
+    "text": "Nan leson sa a, nou toujou divize pa yon nonb ki pa 0. Yon nonb b se yon divizè yon nonb a lè divizyon a pa b egzat, sa vle di lè rès la se 0. Nou di tou a divizib pa b, oswa a se yon miltip b."
   },
   {
     "key": "exemple-diviseurs",
     "type": "example",
     "title": "Jwenn tout divizè 12",
     "steps": [
-      "12 ÷ 1 = 12, rès 0: 1 se yon divizè.",
-      "12 ÷ 2 = 6, rès 0: 2 se yon divizè.",
-      "12 ÷ 3 = 4, rès 0: 3 se yon divizè.",
-      "12 ÷ 4 = 3, rès 0: 4 se yon divizè.",
-      "12 ÷ 5 = 2, rès 2: 5 pa yon divizè.",
-      "12 ÷ 6 = 2, rès 0: 6 se yon divizè, epi 12 ÷ 12 = 1: 12 tou.",
+      "1 × 12 = 12: 1 ak 12 se divizè 12.",
+      "2 × 6 = 12: 2 ak 6 se divizè.",
+      "3 × 4 = 12: 3 ak 4 se divizè.",
+      "Nou sispann isit la: apre 3 × 4, koup yo repete nan lòt sans lan. 5 pa yon divizè, paske 12 = 5 × 2 + 2: li rete 2.",
       "Divizè 12 yo: 1, 2, 3, 4, 6, 12"
     ]
   },
@@ -57,18 +55,18 @@
     "key": "astuce",
     "type": "callout",
     "tone": "tip",
-    "text": "Pou jwenn divizè yo, chèche koup nonb ki gen pwodui yo se nonb lan: 12 = 1 × 12 = 2 × 6 = 3 × 4."
+    "text": "Pou konnen si yon nonb se yon divizè 12, fè divizyon 12 pa nonb sa a epi gade rès la: yon rès ki 0 vle di se yon divizè."
   },
   {
     "key": "piege",
     "type": "callout",
     "tone": "warning",
-    "text": "Atansyon: 1 ak nonb lan menm toujou se divizè. Yon divizè yon nonb ki pa zewo pa janm pi gwo pase nonb sa a."
+    "text": "Atansyon: pou yon nonb pozitif, 1 ak nonb lan menm toujou se divizè, epi pa gen divizè ki pi gwo pase nonb lan. Ka 0 a apa: 0 se yon miltip tout nonb, epi nou pa etidye li nan leson sa a."
   },
   {
     "key": "retenir",
     "type": "callout",
     "tone": "remember",
-    "text": "b se yon divizè a, a se yon miltip b epi a divizib pa b: twa fason pou di divizyon a pa b gen yon rès ki egal ak 0."
+    "text": "b se yon divizè a, a se yon miltip b epi a divizib pa b: twa fason pou di divizyon a pa b (ak b ki pa 0) gen yon rès ki egal ak 0."
   }
 ]
