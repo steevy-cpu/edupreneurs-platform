@@ -141,9 +141,7 @@ def drill() -> None:
             )
         finally:
             subprocess.run([*docker, "dropdb", "-U", "supabase_admin", target], check=True)
-    print(
-        "Restore passed: data digests, migration ledger, role policy and drift."
-    )
+    print("Restore passed: data digests, migration ledger, role policy and drift.")
 
 
 if __name__ == "__main__":
