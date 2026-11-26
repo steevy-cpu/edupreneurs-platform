@@ -6,14 +6,46 @@
 
 | Gate | Independent evidence on the pinned SHA |
 | --- | --- |
-| Database and isolation | New GitHub-hosted VM with project `edu-qa-45840800322-1`. The QA wrapper verified the database and gateway container bindings and effective service/Auth URLs before the suites. The #20 harness reported DB port 41002, gateway 41001 and API 41000. The shared override was unset. A separate dry check still found QA-7, so the isolated execution cannot certify arbitrary harness configurations. |
+| Database and isolation | New GitHub-hosted VM with project `edu-qa-45840800322-1`. The QA wrapper verified the database and gateway container bindings and effective service/Auth URLs before the suites. The #20 harness reported DB port 41002, gateway 41001 and API 41000. The shared override was unset. The network-free mixed-endpoint probe still reproduced QA-7. |
 | PostgreSQL and backend | 215 pgTAP assertions passed, 148 pytest cases passed, and all 215 pgTAP assertions passed again after pytest. |
 | Mobile static checks and real stack | Generated API types fresh, app and test TypeScript passed, all 441 cases in 30 mobile Jest suites passed. These include real Auth, SQLite, restart/reconnect, server scoring, lost-response recovery, account isolation, download removal and real withdrawal. |
 | Independent negative and privacy cases | 6 passed, 5 failed. Home and Réviser displayed the online lesson title, omitted catalog entries were identified as unlisted, late response bodies were discarded, queued work stayed account-specific, and a late Auth refresh could not restore learner A after learner B signed in. QA-2, QA-3, QA-5, QA-6 and QA-7 reproduced. |
 | Local cross-check | Across component, unit, experience, delivery and independent probes, 399 passed and 8 failed. Five were the same product/harness findings. The other three were local socket-bind denials; those three passed on GitHub. |
-| Android device acceptance | Independent run in progress; see the final device evidence below. |
+| Android device acceptance | Four of six flows reached the post-restart review. Both 2.0 cells reached the reader. A longer scroll follow-up is running on the same SHA. |
 
 [Independent run and jobs](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45840800322) · [Stack log](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45840800322/job/139981680977) · [Stack results artifact](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45840800322/artifacts/15128201631) · [Review on #25](https://github.com/steevy-cpu/edupreneurs-platform/pull/25#pullrequestreview-6076012498).
+
+### Learner scenarios on the published candidate
+
+| Scenario | Observed behavior |
+| --- | --- |
+| 1. Read online without a download | The live online-reading suite found zero permanent copies after reading and answering. |
+| 2. Reopen a download offline | The real-stack test reopened the saved lesson after recreating the client and SQLite handles offline. |
+| 3. Persist and sync online-only answers | Pending answers survived restart. After reconnecting, the API scored them. Retrying a lost response preserved a single operation. |
+| 4. Show online-only progress | Independent Home and Réviser assertions both found the lesson title with no saved copy. This closes QA-1. |
+| 5. Delete a download | Removing the public copy preserved the learner's attempts, completion and pending work in the real-stack test. |
+| 6. Replace interrupted or corrupted content | Ordinary interruptions and storage failures rolled back. A delayed earlier download and an incomplete paragraph both displaced good content (QA-2, QA-3). |
+| 7. Switch accounts | Live A/B sessions isolated attempts, lesson references and pending uploads. Late HTTP and Auth results in the independent probes could not replace the new account's state. |
+| 8. Withdraw or republish a lesson | The live withdrawal/republication and stale-catalog tests passed. A fresh catalog omission now returns unlisted (QA-4 closed). Service outage and recovery messaging still fail in QA-5 and QA-9. |
+| 9. Keep practice separate from controlled exams | The server serves practice only. The independent runtime test saved a response tagged with an unsupported assessment mode (QA-6). |
+| 10. Reach controls at large text | See the Android matrix for independent device coverage and the separately attributed candidate screenshots. |
+
+[Candidate integration tests](https://github.com/steevy-cpu/edupreneurs-platform/tree/3ed9a197164fa177d8a353aa71e0b52c69eddd1e/apps/student-native/tests/integration) · [Independent regression cases](acceptance.test.tsx).
+
+### Independent Android evidence
+
+The release build ran on API 24 with a 1 GB x86_64 AVD. The verified logical display was 640 × 1066 at 320 dpi (320 dp wide). ADB captured the underlying 320 × 640 framebuffer. Each cell started from cleared app data and signed in against isolated Auth. All six reached Home; in the three Haitian Creole cells the driver changed language through Profile and verified “Pwofil” before returning. The four bottom navigation tabs were visible at each setting. At 2.0, the empty-state action was below the first viewport. This screenshot alone does not establish its reachability by scrolling.
+
+![Independent Home screenshots in French and Haitian Creole at font scales 1.0, 1.3 and 2.0](screenshots/home-api24.jpg)
+
+The contact sheet contains ADB captures taken after Maestro's API 24 screenshot service returned a null image. That interrupted the first attempt before the lesson path. The raw PNGs and the effective display settings were uploaded by the isolated runner. [Home run](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45851177725/job/140017674616) · [Original PNGs](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45851177725/artifacts/15135240989).
+
+| Language | 1.0 | 1.3 | 2.0 |
+| --- | --- | --- | --- |
+| French | Pass, 5 checkpoints | Pass, 5 checkpoints | Reader reached. Practice not reached in 15 seconds of scrolling. |
+| Haitian Creole | Pass, 5 checkpoints | Pass, 5 checkpoints | Reader reached. Practice not reached in 15 seconds of scrolling. |
+
+The four complete flows activated read online, opened practice, submitted a correct answer, confirmed local persistence, stopped and relaunched the app, and found the lesson in Réviser/Revize. The isolated API and Auth stayed available. Each run cleared app data while reusing the synthetic server account, so post-restart totals can include previous cells. The separate live suites verified offline restart and synchronized operation counts. The 2.0 captures show scrolling stopped in the middle of the lesson. They establish a test timeout only. The repeated matrix allows up to two minutes to traverse the lesson while retaining the same element visibility and interaction checks. [Device job](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45853769281/job/140026725242) · [Full-resolution PNGs and CSV](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45853769281/artifacts/15136811705) · [French captures](screenshots/fr-lesson-path.jpg) · [Haitian Creole captures](screenshots/ht-lesson-path.jpg).
 
 ### Device evidence from the candidate
 
@@ -32,7 +64,7 @@ I inspected the 19 original 480×800 screenshots committed by the implementer. A
 | Independently tested local snapshot | `fec0920370d8f91bf975733cdbac08d5b38c3f60` | Merges #3 and #22 onto hardened main. Predates the local native reconciliation. |
 | Published consolidated candidate | `3ed9a197164fa177d8a353aa71e0b52c69eddd1e` | [Draft #25](https://github.com/steevy-cpu/edupreneurs-platform/pull/25), based on hardened main. |
 
-QA used a detached checkout, its own Node dependencies, synthetic accounts, temporary SQLite files and a fake API. The QA branch contains review materials only. The platform-stabilization commit remains on its original branch. Product comparisons use the repository's Lovable inventory, Mobile-02 report and Content-Delivery-00 decisions. No live prototype comparison was performed.
+Local probes used a detached checkout, independent Node dependencies, synthetic accounts, temporary SQLite files and controlled responses. The published integration suites additionally used real Auth, the candidate FastAPI service and PostgreSQL in a disposable GitHub VM. The QA branch contains review materials only. The platform-stabilization commit remains on its original branch. Product comparisons use the repository's Lovable inventory, Mobile-02 report and Content-Delivery-00 decisions. No live prototype comparison was performed.
 
 ## Preliminary evidence on fec0920
 
@@ -76,9 +108,9 @@ Severity reflects effect on this slice. Each row describes one reproducible scen
 
 At local native reconciliation `e2e902e9701ccbd1ef19074fe9e047c4b477e8d2`, both TypeScript checks passed. The existing delivery configuration passed 263 cases and failed the same three socket binds. All 94 tests in the separate experience directory passed. The independent probes still recorded 2 passes and 8 failures.
 
-At local correction `aefbad60aeb3b1f892c1697d27b90ad6586072b0`, both TypeScript checks and all 30 new continuity/freshness regressions passed. Of the ten independent probes, five passed and five failed. **QA-1 and QA-4 passed the independent retest.** QA-2, QA-3, QA-5, QA-6 and QA-7 reproduced. A follow-up strengthened the two screen assertions to require the lesson title, required the exact not-listed status, and added a sign-out race through the real SessionManager with a delayed synthetic Auth refresh and database reopen. Six of 11 probes passed; the same five failed. The restarted account stayed with learner B and could not read learner A’s marker. The developer also added real-stack tests for online reading and withdrawal; those require the live gate.
+At local correction `aefbad60aeb3b1f892c1697d27b90ad6586072b0`, both TypeScript checks and all 30 new continuity/freshness regressions passed. Of the ten independent probes, five passed and five failed. **QA-1 and QA-4 passed the independent retest.** QA-2, QA-3, QA-5, QA-6 and QA-7 reproduced. A follow-up strengthened the two screen assertions to require the lesson title, required the exact not-listed status, and added a sign-out race through the real SessionManager with a delayed synthetic Auth refresh and database reopen. Six of 11 probes passed; the same five failed. The restarted account stayed with learner B and could not read learner A’s marker. The corrective real-stack tests for online reading and withdrawal subsequently passed on the published SHA.
 
-**Android runner isolation (High, e2e-run.sh at e2e902e).** The default Android port-forward path checked the database project, then forwarded the device to fixed host ports. Running only its `backend reachable` function with a recording ADB stand-in emitted `reverse tcp:8000 tcp:8000` and `reverse tcp:54321 tcp:54321`. The stand-in contacted no device or service. The script can therefore use a different API/Auth pair from the stack it inspects. Derive both forwards from the verified runtime endpoints and require an exact device serial. Add a recording-adapter test with nondefault ports. The independent GitHub job uses a dedicated emulator, explicit reverse mappings and a new Supabase project on its own VM.
+**QA-8 · High, Android runner isolation.** The default Android port-forward path checked the database project, then forwarded the device to fixed host ports. Running only its `backend reachable` function with a recording ADB stand-in emitted `reverse tcp:8000 tcp:8000` and `reverse tcp:54321 tcp:54321`. The stand-in contacted no device or service. The script can therefore use a different API/Auth pair from the stack it inspects. Derive both forwards from the verified runtime endpoints and require an exact device serial. Add a recording-adapter test with nondefault ports. The independent GitHub job uses a dedicated emulator, explicit reverse mappings and a new Supabase project on its own VM.
 
 ### Old-phone efficiency
 
@@ -101,6 +133,10 @@ cp "$QA_REPORT_DIR/acceptance.test.tsx" tests/delivery/qa.acceptance.test.tsx
 
 ## Decisions and merge gates
 
-The owner still needs to decide access to already downloaded withdrawn materials and which future papers are controlled exams. Missing or stale catalog evidence must be described accurately under either policy. Native Haitian Creole wording needs educator review. No pass is claimed for low-memory startup time, storage pressure on the device, Android process restart or large-text reachability.
+| Review target | Verdict on the recorded revisions | Evidence needed for approval |
+| --- | --- | --- |
+| #3 Mobile-02 | Hold approval as part of #25. The standalone #3 head has CI evidence only. | Retest device reachability across both languages and all scales on the proposed merge head, including the shared connectivity header. |
+| #22 Content-Delivery-00 | Hold. The combined candidate can lose an offline revision, install unreadable content and misreport availability. | Independently rerun QA-2, QA-3, QA-5 and QA-6 after corrections. Retain the passing online progress, deletion, sync and withdrawal regressions. |
+| #25 consolidated candidate | Hold. The independent branch adds endpoint safeguards for its own disposable runner. The candidate harness and device script still accept inconsistent targets. | Correct QA-7 and QA-8, resolve QA-9, then rerun the live and device suites on the new exact SHA. |
 
-Hold consolidated approval until the online progress, download replacement and harness isolation findings are corrected and independently retested. Carry the exact published head into live sync and the six emulator runs. A passing report-only PR workflow does not exercise these downloaded regression probes against the candidate.
+The owner still needs to decide access to already downloaded withdrawn materials and which future papers are controlled exams. Native Haitian Creole wording needs educator review. Physical-device startup time, sustained memory pressure and low-storage behavior remain unmeasured. No production data or credentials were used.
