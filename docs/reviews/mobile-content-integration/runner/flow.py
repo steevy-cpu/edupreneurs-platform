@@ -29,35 +29,69 @@ def shot(label):
 
 
 if not fr:
-    commands.extend([
-        {"tapOn": {"id": "tab-profile"}},
-        reach({"text": "Kreyòl"}),
-        {"tapOn": "Kreyòl"},
-        {"assertVisible": "Pwofil"},
-    ])
+    commands.extend(
+        [
+            {"tapOn": {"id": "tab-profile"}},
+            reach({"text": "Kreyòl"}),
+            {"tapOn": "Kreyòl"},
+            {"assertVisible": "Pwofil"},
+        ]
+    )
 
 practice = "Faire les exercices" if fr else "Fè egzèsis yo"
 validate = "Valider" if fr else "Valide"
 subject = "Mathématiques" if fr else "Matematik"
-commands.extend([
-    {"tapOn": {"id": "tab-home"}},
-    shot("home"),
-    {"tapOn": {"id": "tab-learn"}},
-    reach({"text": "9AF"}), {"tapOn": "9AF"},
-    reach({"text": subject}), {"tapOn": subject},
-    reach({"id": "read-1"}), shot("learn"), {"tapOn": {"id": "read-1"}},
-    {"extendedWaitUntil": {"visible": "En ligne · non téléchargée" if fr else "Sou entènèt · pa telechaje", "timeout": 25000}},
-    shot("reader"), reach({"text": practice}), {"tapOn": practice},
-    reach({"text": "x = 7"}), {"tapOn": "x = 7"},
-    reach({"text": validate}), {"tapOn": validate},
-    reach({"text": ".*" + ("Réponse enregistrée sur ce téléphone" if fr else "Repons lan anrejistre sou telefòn sa a") + ".*"}),
-    shot("quiz"),
-    "stopApp", {"launchApp": {"clearState": False}},
-    {"extendedWaitUntil": {"visible": {"id": "tab-review"}, "timeout": 45000}},
-    {"tapOn": {"id": "tab-review"}},
-    reach({"text": ".*" + ("Résoudre une équation simple" if fr else "Rezoud yon ekwasyon senp") + ".*"}),
-    shot("review"),
-])
+commands.extend(
+    [
+        {"tapOn": {"id": "tab-home"}},
+        shot("home"),
+        {"tapOn": {"id": "tab-learn"}},
+        reach({"text": "9AF"}),
+        {"tapOn": "9AF"},
+        reach({"text": subject}),
+        {"tapOn": subject},
+        reach({"id": "read-1"}),
+        shot("learn"),
+        {"tapOn": {"id": "read-1"}},
+        {
+            "extendedWaitUntil": {
+                "visible": "En ligne · non téléchargée" if fr else "Sou entènèt · pa telechaje",
+                "timeout": 25000,
+            }
+        },
+        shot("reader"),
+        reach({"text": practice}),
+        {"tapOn": practice},
+        reach({"text": "x = 7"}),
+        {"tapOn": "x = 7"},
+        reach({"text": validate}),
+        {"tapOn": validate},
+        reach(
+            {
+                "text": ".*"
+                + (
+                    "Réponse enregistrée sur ce téléphone"
+                    if fr
+                    else "Repons lan anrejistre sou telefòn sa a"
+                )
+                + ".*"
+            }
+        ),
+        shot("quiz"),
+        "stopApp",
+        {"launchApp": {"clearState": False}},
+        {"extendedWaitUntil": {"visible": {"id": "tab-review"}, "timeout": 45000}},
+        {"tapOn": {"id": "tab-review"}},
+        reach(
+            {
+                "text": ".*"
+                + ("Résoudre une équation simple" if fr else "Rezoud yon ekwasyon senp")
+                + ".*"
+            }
+        ),
+        shot("review"),
+    ]
+)
 # Maestro's YAML parser accepts JSON as a document. Do not serialize credentials.
 print("appId: ht.edupreneur.student.dev\n---")
 print(json.dumps(commands, ensure_ascii=False))
