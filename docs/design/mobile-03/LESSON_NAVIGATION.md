@@ -38,3 +38,13 @@ The diagram's complete index communicates the intended information architecture 
 ## Acceptance before any implementation
 
 Verify both locales at 320dp and a larger screen, font scales 1.0/1.3/2.0, 48dp targets, contrast, focus order, TalkBack, reduced motion, full scrolling and online/offline reader/quiz regression on API 24. Validate translations with a Haitian Creole educator and review the seven-section mapping with the owner. The preview is static browser artwork and provides no emulator, screen-reader or performance evidence.
+
+## Decision: prototype strip versus expandable index
+
+The prototype's horizontal strip preserves its familiar rounded active tab and leaves more initial vertical room, but seven labels cannot all be visible at a 320dp width with 48dp targets: even seven minimum-width targets require at least 336dp before gaps, and full French and Creole labels need more. Hidden off-screen sections therefore depend on a discoverable scroll affordance and screen-reader traversal; the prototype's abbreviated mobile labels save space at the cost of clarity. This is a source-and-dimensions assessment, not a learner study.
+
+The expandable index keeps the active section visible when collapsed and gives the full list a clear, explicitly labeled entry point. Its expanded form costs vertical space, especially at 2× text, but remains vertically scrollable and can switch to one column without abbreviating labels. Recommend the index for a future implementation, retaining the prototype's teal rounded selected treatment. Validate discoverability with learners and TalkBack, and compare time to locate a non-adjacent section, clipping and focus behavior on 320dp devices before approving implementation. Neither concept may expose unavailable sections as functioning controls.
+
+## Studygram future direction
+
+If approved separately, create visual revision sheets in a staff content workflow, require educator review, version them with their lesson, and deliver approved assets with integrity checks. Offer an optional download with the lesson and disclose availability and size; no automatic generation on every open. Generation, approval, storage and delivery contracts are outside Mobile-03, and no offline availability is asserted today.

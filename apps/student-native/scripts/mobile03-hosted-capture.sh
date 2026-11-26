@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Hosted CI only: captures real application routes using the existing Maestro journey.
+# Partial coverage is reported honestly in the manifest; no design fixtures are opened.
+set -uo pipefail
+ROOT="${1:?source checkout required}"
+OUT="${2:?evidence directory required}"
+KIND="${3:?baseline or candidate required}"
+mkdir -p "$OUT"
+SHA=$(git -C "$ROOT" rev-parse HEAD)
+export ANDROID_SERIAL=emulator-5554
+export EDU_DEV_VOLUME="$RUNNER_TEMP/mobile03-dev"
+mkdir -p "$EDU_DEV_VOLUME"
+ln -s "$ANDROID_HOME" "$EDU_DEV_VOLUME/android-sdk"
+mkdir -p "$EDU_DEV_VOLUME/android-avd" "$EDU_DEV_VOLUME/gradle" "$EDU_DEV_VOLUME/caches/uv" "$EDU_DEV_VOLUME/caches/npm"
+export E2E_OUT="$OUT/runs"
+adb -s "$ANDROID_SERIAL" wait-for-device
+adb -s "$ANDROID_SERIAL" shell wm size 480x800
+adb -s "$ANDROID_SERIAL" shell wm density 240
+adb -s "$ANDROID_SERIAL" install -r "$ROOT/apps/student-native/android/app/build/outputs/apk/release/app-release.apk" || exit 1
+adb -s "$ANDROID_SERIAL" shell getprop ro.build.version.sdk > "$OUT/api.txt"
+adb -s "$ANDROID_SERIAL" shell wm size > "$OUT/size.txt"
+adb -s "$ANDROID_SERIAL" shell wm density > "$OUT/density.txt"
+printf '%s\n' "$SHA" > "$OUT/commit.txt"
+printf '%s\n' "$KIND" > "$OUT/build.txt"
+failed=0
+for scale in 1.0 1.3 2.0; do
+  adb -s "$ANDROID_SERIAL" shell settings put system font_scale "$scale"
+  export E2E_OUT="$OUT/runs/$scale"
+  mkdir -p "$E2E_OUT"
+  if (cd "$ROOT" && apps/student-native/scripts/e2e-run.sh android); then
+    printf 'passed\n' > "$E2E_OUT/result.txt"
+  else
+    printf 'failed\n' > "$E2E_OUT/result.txt"
+    failed=1
+  fi
+done
+# The known existing flow only covers some requested screen/locale combinations.
+# Screenshots remain in each run directory with their original Maestro names.
+export MOBILE03_ROOT="$OUT" MOBILE03_SHA="$SHA" MOBILE03_KIND="$KIND"
+python3 - <<'PY'
+import datetime, json, os
+from pathlib import Path
+root = Path(os.environ['MOBILE03_ROOT'])
+captures = []
+for path in sorted(root.glob('runs/*/run.*/shots/*.png')):
+    scale = path.parts[-4]
+    state = path.stem
+    locale = 'ht' if state.startswith(('30-', '31-', '32-', '33-', '34-')) else 'fr'
+    result = (root / 'runs' / scale / 'result.txt').read_text().strip()
+    captures.append({'file': str(path.relative_to(root)), 'commit_sha': os.environ['MOBILE03_SHA'],
+        'api_level': 24, 'device': 'GitHub-hosted emulator, x86_64, 1024 MB configured',
+        'physical_size_px': '480x800', 'density_dpi': 240, 'logical_width_dp': 320,
+        'locale': locale, 'font_scale': scale, 'screen_and_state': state,
+        'feature_flags': 'all optional learner flags off; design preview off',
+        'captured_at_utc': datetime.datetime.fromtimestamp(path.stat().st_mtime, datetime.timezone.utc).isoformat(),
+        'journey_result': result})
+(root / 'capture-manifest.json').write_text(json.dumps({'build': os.environ['MOBILE03_KIND'],
+    'captures': captures, 'limitations': 'Existing Maestro journeys only; not the complete requested matrix. Inspect failed journey logs; no claim of TalkBack or large-screen coverage.'}, indent=2)+'\n')
+PY
+exit "$failed"
