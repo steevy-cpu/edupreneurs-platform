@@ -158,3 +158,21 @@ async def test_injected_http_client_must_match_approved_https_origin():
     ) as client:
         with pytest.raises(TutorConfigurationError):
             build_provider(settings, http_client=client)
+
+
+async def test_completed_provider_call_remains_chargeable_if_local_validation_fails(monkeypatch):
+    from edu_api.tutor.errors import TutorError
+
+    harness = build_harness(max_attempts=1)
+
+    def validator_temporarily_unavailable(*_args, **_kwargs):
+        raise RuntimeError("synthetic validator outage")
+
+    monkeypatch.setattr(
+        "edu_api.tutor.service.validate_model_output", validator_temporarily_unavailable
+    )
+    with pytest.raises(TutorError):
+        await harness.service.answer(LEARNER_A, ask())
+    assert len(harness.provider.calls) == 1
+    row = harness.usage.records()[0]
+    assert row.status == "settled" and row.spent_micro > 0

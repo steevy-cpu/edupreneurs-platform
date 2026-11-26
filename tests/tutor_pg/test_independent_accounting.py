@@ -5,6 +5,8 @@ import contextlib
 import uuid
 from dataclasses import replace
 
+import pytest
+
 from edu_api.tutor.factory import build_tutor_service
 from edu_api.tutor.providers.base import TokenUsage
 from edu_api.tutor.providers.mock import DeterministicMockProvider
@@ -101,3 +103,31 @@ async def test_pause_stops_new_provider_attempts_during_backoff(store, owner) ->
         await service.answer(LEARNER_A, ask())
     assert await store.is_paused()
     assert len(provider.calls) == 1, "no new dispatch should begin after an emergency pause"
+
+
+async def test_integer_boundary_fails_closed_without_losing_the_existing_hold(store, owner):
+    from sqlalchemy.exc import DBAPIError
+
+    from edu_api.tutor.errors import TutorError
+
+    await store.reserve(learner_id=A, request_key=uuid.uuid4(), estimate_micro=7)
+    before = await global_totals(owner)
+    with pytest.raises((TutorError, DBAPIError)):
+        await store.reserve(learner_id=A, request_key=uuid.uuid4(), estimate_micro=2**63 - 1)
+    assert await global_totals(owner) == before
+    assert (await store.learner_usage(A)).day_requests == 1
+
+
+async def test_erasure_and_late_settlement_do_not_recreate_an_erased_account(store, owner):
+    hold = await store.reserve(learner_id=A, request_key=uuid.uuid4(), estimate_micro=8)
+    await owner.fetchval("SELECT tutor.erase_learner($1, NULL)", A)
+    await store.settle(hold, spent(5))
+    assert (
+        await owner.fetchval("SELECT count(*) FROM tutor.usage_requests WHERE learner_id=$1", A)
+        == 0
+    )
+    assert (
+        await owner.fetchval("SELECT count(*) FROM tutor.budget_counters WHERE learner_id=$1", A)
+        == 0
+    )
+    assert await global_totals(owner) == (8, 0)
