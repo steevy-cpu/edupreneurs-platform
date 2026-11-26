@@ -1,6 +1,6 @@
 # Independent Mobile-02 and Content-Delivery-00 QA
 
-**Hold the consolidated merge.** Independent verification targets [PR #25 at 3ed9a197164fa177d8a353aa71e0b52c69eddd1e](https://github.com/steevy-cpu/edupreneurs-platform/commit/3ed9a197164fa177d8a353aa71e0b52c69eddd1e). The existing live suites passed. Five additional probes failed, including two ways a replacement download can leave a learner with the wrong or unreadable offline revision.
+**Hold the consolidated merge.** Independent verification targets [PR #25 at 3ed9a197164fa177d8a353aa71e0b52c69eddd1e](https://github.com/steevy-cpu/edupreneurs-platform/commit/3ed9a197164fa177d8a353aa71e0b52c69eddd1e). All six Android configurations and the existing live suites passed. Five additional probes failed, including two ways a replacement download can leave a learner with the wrong or unreadable offline revision.
 
 ## Published candidate results
 
@@ -11,7 +11,7 @@
 | Mobile static checks and real stack | Generated API types fresh, app and test TypeScript passed, all 441 cases in 30 mobile Jest suites passed. These include real Auth, SQLite, restart/reconnect, server scoring, lost-response recovery, account isolation, download removal and real withdrawal. |
 | Independent negative and privacy cases | 6 passed, 5 failed. Home and Réviser displayed the online lesson title, omitted catalog entries were identified as unlisted, late response bodies were discarded, queued work stayed account-specific, and a late Auth refresh could not restore learner A after learner B signed in. QA-2, QA-3, QA-5, QA-6 and QA-7 reproduced. |
 | Local cross-check | Across component, unit, experience, delivery and independent probes, 399 passed and 8 failed. Five were the same product/harness findings. The other three were local socket-bind denials; those three passed on GitHub. |
-| Android device acceptance | Four of six flows reached the post-restart review. Both 2.0 cells reached the reader. A longer scroll follow-up is running on the same SHA. |
+| Android device acceptance | 6/6 passed on API 24 at 320 dp, with 30 screenshots. All six completed online reading, practice and post-restart review. |
 
 [Independent run and jobs](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45840800322) · [Stack log](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45840800322/job/139981680977) · [Stack results artifact](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45840800322/artifacts/15128201631) · [Review on #25](https://github.com/steevy-cpu/edupreneurs-platform/pull/25#pullrequestreview-6076012498).
 
@@ -40,12 +40,14 @@ The release build ran on API 24 with a 1 GB x86_64 AVD. The verified logical dis
 
 The contact sheet contains ADB captures taken after Maestro's API 24 screenshot service returned a null image. That interrupted the first attempt before the lesson path. The raw PNGs and the effective display settings were uploaded by the isolated runner. [Home run](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45851177725/job/140017674616) · [Original PNGs](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45851177725/artifacts/15135240989).
 
-| Language | 1.0 | 1.3 | 2.0 |
+| Language | Font 1.0 | Font 1.3 | Font 2.0 |
 | --- | --- | --- | --- |
-| French | Pass, 5 checkpoints | Pass, 5 checkpoints | Reader reached. Practice not reached in 15 seconds of scrolling. |
-| Haitian Creole | Pass, 5 checkpoints | Pass, 5 checkpoints | Reader reached. Practice not reached in 15 seconds of scrolling. |
+| French | [Pass · 5 captures](screenshots/fr-1.0.jpg) | [Pass · 5 captures](screenshots/fr-1.3.jpg) | [Pass · 5 captures](screenshots/fr-2.0.jpg) |
+| Haitian Creole | [Pass · 5 captures](screenshots/ht-1.0.jpg) | [Pass · 5 captures](screenshots/ht-1.3.jpg) | [Pass · 5 captures](screenshots/ht-2.0.jpg) |
 
-The four complete flows activated read online, opened practice, submitted a correct answer, confirmed local persistence, stopped and relaunched the app, and found the lesson in Réviser/Revize. The isolated API and Auth stayed available. Each run cleared app data while reusing the synthetic server account, so post-restart totals can include previous cells. The separate live suites verified offline restart and synchronized operation counts. The 2.0 captures show scrolling stopped in the middle of the lesson. They establish a test timeout only. The repeated matrix allows up to two minutes to traverse the lesson while retaining the same element visibility and interaction checks. [Device job](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45853769281/job/140026725242) · [Full-resolution PNGs and CSV](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45853769281/artifacts/15136811705) · [French captures](screenshots/fr-lesson-path.jpg) · [Haitian Creole captures](screenshots/ht-lesson-path.jpg).
+All six flows activated read online, opened practice, submitted an answer, saw its local confirmation, stopped and relaunched the app, and found the lesson in Réviser/Revize. The isolated API and Auth stayed available. Each cell cleared app data and reused the synthetic server account, so post-restart totals can include earlier cells. The separate live suites verified offline restart and synchronized operation counts. [Final device run](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45858518754/job/140043167951) · [30 original PNGs, display settings, candidate SHA and results CSV](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45858518754/artifacts/15137679357).
+
+At 2.0, practice follows the entire lesson in the scrollable reader. An earlier 15-second search stopped midway in both languages. With a 120-second allowance, the same build met the same visibility and tap assertions in both. Large text required additional scrolling, including on the catalog screen. The passed matrix covers this seeded path and its navigation. The download, account-switch and withdrawal assertions used the live integration suites. [Earlier device job](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45853769281/job/140026725242).
 
 ### Device evidence from the candidate
 
@@ -135,7 +137,7 @@ cp "$QA_REPORT_DIR/acceptance.test.tsx" tests/delivery/qa.acceptance.test.tsx
 
 | Review target | Verdict on the recorded revisions | Evidence needed for approval |
 | --- | --- | --- |
-| #3 Mobile-02 | Hold approval as part of #25. The standalone #3 head has CI evidence only. | Retest device reachability across both languages and all scales on the proposed merge head, including the shared connectivity header. |
+| #3 Mobile-02 | Hold approval as part of #25. The standalone #3 head has CI evidence only. | All six device configurations passed on #25. Resolve the stale connectivity header (QA-9) and recheck recovery on the proposed merge head. |
 | #22 Content-Delivery-00 | Hold. The combined candidate can lose an offline revision, install unreadable content and misreport availability. | Independently rerun QA-2, QA-3, QA-5 and QA-6 after corrections. Retain the passing online progress, deletion, sync and withdrawal regressions. |
 | #25 consolidated candidate | Hold. The independent branch adds endpoint safeguards for its own disposable runner. The candidate harness and device script still accept inconsistent targets. | Correct QA-7 and QA-8, resolve QA-9, then rerun the live and device suites on the new exact SHA. |
 
