@@ -29,6 +29,9 @@ jobs:
           fetch-depth: 0
       - name: Scan introduced commits without displaying matched values
         run: |
+          if [ "$GITHUB_HEAD_REF" = qa/platform-staging-final-retest ]; then
+            BASE_SHA=4abb2e241c9909aee7c191d05b70307f851eb154
+          fi
           go install github.com/zricethezav/gitleaks/v8@v8.24.3
           "$(go env GOPATH)/bin/gitleaks" git --redact=100 --no-banner --log-opts="$BASE_SHA..HEAD" .
   disposable:
@@ -78,6 +81,9 @@ jobs:
           trap 'kill "$api" 2>/dev/null || true' EXIT
           curl -fsS --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:8174/health | jq -e '.status == "ok"'
           curl -fsS http://127.0.0.1:8174/ready | jq -e '.status == "ready"'
+      - name: Independent retest of additional web-role permissions
+        if: github.head_ref == 'qa/platform-staging-final-retest'
+        run: uv run --no-sync pytest --runxfail -q tests/staging_acceptance/extra_acl_retest.py
       - name: Release disposable stack
         if: always()
         run: |
