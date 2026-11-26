@@ -1,0 +1,56 @@
+name: Review pinned emulator screenshots
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/qa-review-emulator-images.yml'
+permissions:
+  actions: read
+  contents: read
+jobs:
+  review:
+    if: github.event.pull_request.number == 24 && github.head_ref == 'qa/mobile-content-integration' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        locale: [fr, ht]
+        scale: ['1.0','1.3','2.0']
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: '45851177725'
+          name: mobile-qa-android-3ed9a197164fa177d8a353aa71e0b52c69eddd1e
+          github-token: ${{ github.token }}
+          path: captures
+      - env:
+          CELL: ${{ matrix.locale }}-${{ matrix.scale }}
+        run: |
+          python3 -m pip install -q Pillow
+          python3 - <<'PY'
+          import base64, io, os
+          from pathlib import Path
+          from PIL import Image, ImageDraw
+          cell = os.environ['CELL']
+          root = Path('captures')
+          assert (root/'commit.txt').read_text().strip() == '3ed9a197164fa177d8a353aa71e0b52c69eddd1e'
+          print((root/'cells.csv').read_text())
+          selected = []
+          for name in ['home','learn','reader','quiz','review','failure']:
+              source = root/cell/('failure.png' if name == 'failure' else f'{cell}-{name}.png')
+              if source.is_file() and source.stat().st_size:
+                  selected.append((name,source))
+          if not selected:
+              raise SystemExit('No screen captured')
+          dst = Image.new('RGB',(220*len(selected),396),'white')
+          for i,(name,path) in enumerate(selected):
+              with Image.open(path) as src:
+                  assert src.size == (640,1066), src.size
+                  dst.paste(src.convert('RGB').resize((216,360),Image.Resampling.LANCZOS),(220*i+2,27))
+              ImageDraw.Draw(dst).text((i*220+5,7),f'{cell}  {name}',fill='black')
+          for q in [85,70,60,50,40]:
+              out = io.BytesIO()
+              dst.save(out,'JPEG',quality=q,optimize=True)
+              if len(out.getvalue()) < 64000: break
+          data = base64.b64encode(out.getvalue()).decode()
+          for i in range(0,len(data),640):
+              print('QAPIXEL '+data[i:i+640])
+          PY
