@@ -1,0 +1,70 @@
+name: Independent Jude-01 security checks
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/jude-01-security-qa.yml'
+      - 'tests/**/test_independent*.py'
+permissions:
+  contents: read
+jobs:
+  audit:
+    if: github.head_ref == 'qa/jude-01-security' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EDU_TUTOR_LIVE_PROVIDER_CALLS_AUTHORIZED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify tested source and isolate project
+        run: |
+          set -euo pipefail
+          pin=b11b780fff7820dccabb75bacfac383505a1fe1c
+          git merge-base --is-ancestor "$pin" HEAD
+          git diff --exit-code "$pin" HEAD -- services packages supabase scripts pyproject.toml uv.lock
+          test ! -f .env
+          test -z "${JUDE_TEST_ADMIN_DATABASE_URL:-}"
+          test -z "${EDU_TEST_ALLOW_SHARED_STACK:-}"
+          export QA_PROJECT="jude-qa-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          p = Path("supabase/config.toml")
+          s = p.read_text()
+          old = 'project_id = "mon-edupreneur"'
+          assert s.count(old) == 1
+          p.write_text(s.replace(old, f'project_id = "{os.environ["QA_PROJECT"]}"'))
+          PY
+          echo "QA_PROJECT=$QA_PROJECT" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: astral-sh/setup-uv@v5
+      - name: Start runner-owned Supabase
+        id: stack
+        run: |
+          set -euo pipefail
+          npm ci --no-fund --no-audit
+          uv sync --frozen
+          make start >/dev/null
+          docker port "supabase_db_$QA_PROJECT" 5432/tcp | grep -Eq ':54322$'
+          docker port "supabase_kong_$QA_PROJECT" 8000/tcp | grep -Eq ':54321$'
+          make db-reset >/dev/null
+      - name: Verify unaltered baseline
+        run: |
+          uv run python scripts/export_openapi.py --check
+          uv run pytest -q tests/unit tests/tutor_pg tests/integration --ignore=tests/unit/tutor/test_independent_boundaries.py --ignore=tests/tutor_pg/test_independent_accounting.py --ignore=tests/integration/test_independent_jude_access.py --junitxml=baseline.xml
+      - name: Independent regression checks
+        if: "!cancelled() && steps.stack.outcome == 'success'"
+        run: |
+          uv run pytest -q --tb=line tests/unit/tutor/test_independent_boundaries.py tests/tutor_pg/test_independent_accounting.py tests/integration/test_independent_jude_access.py --junitxml=independent.xml
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jude-qa-results
+          path: |
+            baseline.xml
+            independent.xml
