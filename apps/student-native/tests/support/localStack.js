@@ -13,7 +13,9 @@ const path = require('node:path');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..', '..');
 const SHARED_PROJECT_ID = 'mon-edupreneur';
-const DEFAULT_API_PORT = 8011;
+const API_PORT_BASE = 20000;
+const API_PORT_SPAN = 10000; // 20000-29999: clear of Supabase lanes (54xxx-58xxx), 8000 and 8081
+const net = require('node:net');
 
 function parsePort(value, name) {
   const port = Number(value);
@@ -23,14 +25,25 @@ function parsePort(value, name) {
   return port;
 }
 
-const API_PORT = process.env.EDU_MOBILE_TEST_API_PORT
-  ? parsePort(process.env.EDU_MOBILE_TEST_API_PORT, 'EDU_MOBILE_TEST_API_PORT')
-  : DEFAULT_API_PORT;
-
 /** One pid/log file per checkout, so two worktrees never signal each other's server. */
 function repoTag(root = REPO_ROOT) {
   return crypto.createHash('sha256').update(path.resolve(root)).digest('hex').slice(0, 12);
 }
+
+/** Default test-API port: a stable function of the checkout root, in 20000-29999. */
+function defaultApiPort(root = REPO_ROOT) {
+  return API_PORT_BASE + (parseInt(repoTag(root).slice(0, 8), 16) % API_PORT_SPAN);
+}
+
+/** EDU_MOBILE_TEST_API_PORT (validated) wins; otherwise the per-checkout default. */
+function resolveApiPort(processEnv = process.env, root = REPO_ROOT) {
+  return processEnv.EDU_MOBILE_TEST_API_PORT
+    ? parsePort(processEnv.EDU_MOBILE_TEST_API_PORT, 'EDU_MOBILE_TEST_API_PORT')
+    : defaultApiPort(root);
+}
+
+const API_PORT = resolveApiPort();
+const API_URL = `http://127.0.0.1:${API_PORT}`;
 const PID_FILE = path.join(os.tmpdir(), `edu-mobile-test-api-${repoTag()}.pid`);
 const LOG_FILE = path.join(os.tmpdir(), `edu-mobile-test-api-${repoTag()}.log`);
 
@@ -157,7 +170,79 @@ function resetLearningState() {
   return target;
 }
 
+/** Rejects if anything already accepts a TCP connection on 127.0.0.1:<port>. */
+function assertPortFree(port) {
+  return new Promise((resolve, reject) => {
+    const taken = () =>
+      reject(
+        new Error(
+          `Port ${port} on 127.0.0.1 is already in use, so the mobile test API cannot start. Another process (likely ` +
+            'another checkout\'s test API, or a stale one) is listening there; the tests would run against it. ' +
+            'Stop it, or choose a free port with EDU_MOBILE_TEST_API_PORT.',
+        ),
+      );
+    const socket = net.connect({ host: '127.0.0.1', port });
+    socket.setTimeout(2000);
+    socket.once('connect', () => {
+      socket.destroy();
+      taken();
+    });
+    socket.once('timeout', () => {
+      socket.destroy();
+      taken();
+    });
+    socket.once('error', (error) => {
+      socket.destroy();
+      if (error.code === 'ECONNREFUSED') resolve();
+      else reject(error);
+    });
+  });
+}
+
+/**
+ * Wait until OUR spawned server is ready. A foreign server answering /ready is never enough: our own
+ * log must show uvicorn bound this port and our child must still be alive. Kills the group and throws
+ * on any failure.
+ *
+ *   port, fetchFn, readLog() => string, isAlive() => boolean, kill() => void, sleep(ms), timeoutMs, pollMs
+ */
+async function awaitOwnApi({
+  port, fetchFn = fetch, readLog, isAlive, kill, timeoutMs = 30_000, pollMs = 300,
+  sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+}) {
+  const fail = (message) => {
+    kill();
+    throw new Error(message);
+  };
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const log = readLog();
+    if (!isAlive()) {
+      fail(
+        `The test API process exited before becoming ready (port ${port} taken? set EDU_MOBILE_TEST_API_PORT). ` +
+          `Log tail: ${log.slice(-400)}`,
+      );
+    }
+    if (/address already in use|errno 98|errno 48/i.test(log)) {
+      fail(`The test API could not bind port ${port} (already in use). Set EDU_MOBILE_TEST_API_PORT to a free port.`);
+    }
+    if (log.includes('Uvicorn running on') && log.includes(`:${port}`)) {
+      try {
+        const response = await fetchFn(`http://127.0.0.1:${port}/ready`);
+        if (response.ok) return;
+      } catch {
+        // not answering yet
+      }
+    }
+    if (Date.now() > deadline) {
+      fail('The local API did not become ready (its own log never showed it bound the port). Is the database running? (`make start`)');
+    }
+    await sleep(pollMs);
+  }
+}
+
 module.exports = {
+  assertPortFree, awaitOwnApi, defaultApiPort, resolveApiPort, API_URL,
   REPO_ROOT, API_PORT, PID_FILE, LOG_FILE, SHARED_PROJECT_ID, readRootEnv,
   parseSupabaseConfig, deriveTarget, deriveRepoTarget, resetLearningState, repoTag, TRUNCATE_SQL,
 };
