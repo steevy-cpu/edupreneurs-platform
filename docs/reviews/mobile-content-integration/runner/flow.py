@@ -103,7 +103,8 @@ segment = []
 for command in commands:
     if isinstance(command, dict) and "checkpoint" in command:
         path = Path(output) / (command["checkpoint"] + ".yaml")
-        path.write_text("appId: ht.edupreneur.student.dev\n---\n" + json.dumps(segment, ensure_ascii=False))
+        body = json.dumps(segment, ensure_ascii=False)
+        path.write_text("appId: ht.edupreneur.student.dev\n---\n" + body)
         segment = []
     else:
         segment.append(command)
