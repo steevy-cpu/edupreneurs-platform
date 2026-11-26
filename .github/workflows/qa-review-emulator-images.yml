@@ -20,6 +20,7 @@ jobs:
         with:
           run-id: '45869164441'
           artifact-ids: '15142653354'
+          merge-multiple: true
           github-token: ${{ github.token }}
           path: captures
       - env:
