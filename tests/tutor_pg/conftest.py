@@ -124,8 +124,16 @@ async def database(tutor_database_url: str) -> AsyncIterator[Database]:
         server_settings["role"] = "edu_api"
     else:
         url = _with_database(api_url, name, scheme="postgresql+asyncpg")
+    # The real login role has CONNECTION LIMIT 40 (scripts/local_stack.py) and shares it
+    # with the application's own pool in the same test session. Twelve connections give
+    # twelve genuinely concurrent transactions while staying well inside that limit;
+    # further tasks queue for a connection.
     engine = create_async_engine(
-        url, pool_size=20, max_overflow=30, connect_args={"server_settings": server_settings}
+        url,
+        pool_size=12,
+        max_overflow=0,
+        pool_timeout=60,
+        connect_args={"server_settings": server_settings},
     )
     db = Database(engine)
     try:
