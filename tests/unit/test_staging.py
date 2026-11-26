@@ -9,7 +9,7 @@ from disposable import validate_urls
 from edu_api.config import Settings
 from edu_api.db.staging import validate_runtime
 from staging_service import EventFormatter
-from staging_verify import versions
+from staging_verify import pending_versions, versions
 
 REF = "s" * 20
 ISSUER = f"https://{REF}.supabase.co/auth/v1"
@@ -113,3 +113,12 @@ def test_disposable_identity_and_bindings_fail_before_db_access(tmp_path, monkey
     )
     with pytest.raises(ValueError, match="binding"):
         disposable.verify()
+
+
+def test_planner_accepts_only_an_ordered_prefix() -> None:
+    ids = versions()
+    assert pending_versions(ids, ids[:-1]) == [ids[-1]]
+    assert pending_versions(ids, ids) == []
+    for incorrect in (ids[1:], [*ids, ids[-1]], [*ids[:-1], "unknown"]):
+        with pytest.raises(ValueError, match="prefix"):
+            pending_versions(ids, incorrect)

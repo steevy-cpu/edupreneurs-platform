@@ -52,6 +52,11 @@ jobs:
           uv run --no-sync python scripts/export_openapi.py --check
           uv run --no-sync python scripts/staging_verify.py manifest --base "$BASE_SHA"
           uv run --no-sync pytest -q tests/unit
+      - name: Exercise the production dependency set and packaged policy
+        run: |
+          UV_PROJECT_ENVIRONMENT="$RUNNER_TEMP/edu-production" uv sync --locked --no-dev --no-editable
+          "$RUNNER_TEMP/edu-production/bin/python" -c 'from edu_api.db.staging import SECURITY_SQL; assert "temp_revoked" in SECURITY_SQL'
+          "$RUNNER_TEMP/edu-production/bin/python" scripts/staging_service.py --help
       - name: Start checkout-bound synthetic stack
         run: |
           uv run --no-sync python scripts/disposable.py configure

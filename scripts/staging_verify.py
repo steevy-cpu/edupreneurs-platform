@@ -34,6 +34,12 @@ def versions() -> list[str]:
     return ids
 
 
+def pending_versions(expected: list[str], applied: list[str]) -> list[str]:
+    if applied != expected[: len(applied)]:
+        raise ValueError("migration ledger is not a reviewed prefix")
+    return expected[len(applied) :]
+
+
 async def audit(environment: str, *, plan: bool = False) -> None:
     expected = versions()
     tls: ssl.SSLContext | bool = False
@@ -55,17 +61,26 @@ async def audit(environment: str, *, plan: bool = False) -> None:
         async with db.transaction(readonly=True, isolation="repeatable_read"):
             if await db.fetchval("SELECT current_user") != login:
                 raise ValueError("unexpected audit session identity")
+            if environment == "staging" and not await db.fetchval("""
+                SELECT NOT (rolsuper OR rolbypassrls OR rolcreatedb OR rolcreaterole
+                            OR rolreplication)
+                    AND NOT EXISTS (SELECT FROM pg_auth_members WHERE member = r.oid)
+                    AND NOT has_database_privilege(r.oid, current_database(), 'CREATE,TEMP')
+                    AND NOT has_schema_privilege(r.oid, 'app', 'USAGE')
+                    AND NOT has_schema_privilege(r.oid, 'auth', 'USAGE')
+                FROM pg_roles r WHERE rolname = current_user
+            """):
+                raise ValueError("excessive audit login privileges")
             rows = await db.fetch(
                 "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version"
             )
             applied = [r["version"] for r in rows]
+            pending = pending_versions(expected, applied)
             if plan:
-                if applied != expected[: len(applied)]:
-                    raise ValueError("migration ledger is not a reviewed prefix")
-                print("Pending versions:", *expected[len(applied) :])
+                print("Pending versions:", *pending)
                 return
-            if applied != expected:
-                raise ValueError("applied migration versions differ from the release")
+            if pending:
+                raise ValueError("pending migrations")
             result = await db.fetchrow(SECURITY_SQL)
             failed = [key for key, value in result.items() if value is not True]
             if failed:

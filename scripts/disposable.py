@@ -113,6 +113,18 @@ def validate_urls(env: dict[str, str], api: int, db: int) -> None:
             raise ValueError(f"{key} does not match the disposable stack")
 
 
+def require_local_docker() -> None:
+    socket = os.environ.get("DOCKER_HOST")
+    if socket and os.getenv("DOCKER_CONTEXT"):
+        raise ValueError("conflicting Docker host and context overrides")
+    if not socket:
+        socket = subprocess.check_output(
+            ["docker", "context", "inspect", "--format", "{{.Endpoints.docker.Host}}"], text=True
+        ).strip()
+    if not socket.startswith("unix:///"):
+        raise ValueError("expected a local Docker socket")
+
+
 def verify(*, check_env: bool = False, env: dict[str, str] | None = None) -> str:
     project, api, db = layout()
     if check_env or env is not None or (ROOT / ".env").exists():
@@ -128,13 +140,7 @@ def verify(*, check_env: bool = False, env: dict[str, str] | None = None) -> str
         )
     ):
         raise ValueError("unexpected endpoint overrides in an unconfigured worktree")
-    socket = os.environ.get("DOCKER_HOST")
-    if not socket or os.getenv("DOCKER_CONTEXT"):
-        socket = subprocess.check_output(
-            ["docker", "context", "inspect", "--format", "{{.Endpoints.docker.Host}}"], text=True
-        ).strip()
-    if not socket.startswith("unix:///"):
-        raise ValueError("expected a local Docker socket")
+    require_local_docker()
     for component, internal, port in (("db", "5432/tcp", db), ("kong", "8000/tcp", api)):
         bindings = json.loads(
             subprocess.check_output(
@@ -161,5 +167,6 @@ if __name__ == "__main__":
         configure()
     elif action == "config":
         layout()
+        require_local_docker()
     else:
         verify(check_env=action == "env")
