@@ -165,9 +165,10 @@ def test_manifest_rejects_byte_drift_with_same_version(monkeypatch, tmp_path):
     reason="QA-5: local Auth maintenance helpers do not verify the disposable identity",
 )
 def test_auth_maintenance_checks_ownership_before_http(helper, monkeypatch):
+    import httpx
+
     import dev_login
     import dev_token
-    import httpx
 
     config = {"LOCAL_SUPABASE_URL": "http://127.0.0.1:1", "LOCAL_SUPABASE_SECRET_KEY": "inert"}
     entry = dev_login if helper == "dev_login" else dev_token
