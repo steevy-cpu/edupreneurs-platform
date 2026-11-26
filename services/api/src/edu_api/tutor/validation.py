@@ -131,7 +131,7 @@ def validate_model_output(
 
     status = ResponseStatus(answer.status)
     if status is not ResponseStatus.ANSWERED:
-        # The service replaces these with reviewed fixed messages; model text is dropped.
+        # The service replaces these with fixed messages; model text is dropped.
         return ValidatedAnswer(status, Grounding.NONE, "", None, None, (), NextAction.NONE)
 
     explanation = answer.explanation.strip()

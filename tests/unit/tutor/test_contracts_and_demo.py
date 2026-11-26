@@ -52,9 +52,9 @@ async def test_the_demo_runs_end_to_end_without_a_network() -> None:
     output = "\n".join(await demo.run())
     assert "language=ht" in output and "grounding=lesson" in output
     assert "cites    : block 'balance'" in output
-    assert "status   : insufficient_context | source=reviewed_template" in output
-    assert "status   : safety_support | source=reviewed_template" in output
-    assert "status   : declined | source=reviewed_template" in output
+    assert "status   : insufficient_context | source=fixed_template" in output
+    assert "status   : safety_support | source=fixed_template" in output
+    assert "status   : declined | source=fixed_template" in output
     assert "error    : tutor_daily_limit_reached (HTTP 429)" in output
     assert "correct? : False" in output
     ledger = output.split("=== Usage ledger")[1]

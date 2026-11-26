@@ -22,9 +22,10 @@ from edu_api.tutor.content import InMemoryLessonSource
 from edu_api.tutor.factory import build_tutor_service
 from edu_api.tutor.governance import ConsentState, StaticConsent, StaticEntitlements
 from edu_api.tutor.providers.base import ModelProvider
-from edu_api.tutor.providers.mock import Behaviour, DeterministicMockProvider
+from edu_api.tutor.providers.mock import Behaviour
 from edu_api.tutor.service import TutorService
 from edu_api.tutor.types import TutorRequest
+from tests.unit.tutor.spies import RecordingMockProvider
 
 LEARNER_A = uuid.UUID("d0000000-0000-4000-8000-00000000000a")
 LEARNER_B = uuid.UUID("d0000000-0000-4000-8000-00000000000b")
@@ -60,7 +61,8 @@ async def no_sleep(_: float) -> None:
 @dataclass
 class Harness:
     service: TutorService
-    provider: DeterministicMockProvider
+    #: An explicitly injected recording spy; the factory's own mock records nothing.
+    provider: RecordingMockProvider
     usage: InMemoryUsageStore
     lessons: InMemoryLessonSource
     consent: StaticConsent
@@ -93,7 +95,7 @@ def build_harness(
     usage = InMemoryUsageStore(settings.budget_policy(), clock=clock)
     consent = StaticConsent({learner: ConsentState.GRANTED for learner in learners})
     entitlements = StaticEntitlements(set(learners))
-    mock = DeterministicMockProvider(script=script, default=default)
+    mock = RecordingMockProvider(script=script, default=default)
     service = build_tutor_service(
         settings,
         lessons=lessons,

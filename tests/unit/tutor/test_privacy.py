@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from edu_api.tutor.budget import AuditEntry, UsageOutcome, UsageRecord
+from edu_api.tutor.budget import AttemptCharge, AuditEntry, UsageOutcome, UsageRecord
 from edu_api.tutor.errors import TutorError
 from edu_api.tutor.providers.base import ModelRequest, ModelResult
 from edu_api.tutor.providers.mock import Behaviour
@@ -42,6 +42,25 @@ ALLOWED_LEDGER_FIELDS = {
     "price_version",
     "prompt_version",
     "lesson_revision_id",
+    # Accounting evidence added by the security corrections: counts and amounts only.
+    "dispatches",
+    "unmetered_attempts",
+    "bound_violations",
+    "overage_micro",
+    "charges",
+}
+
+#: One provider call: codes, a flag, counts and an amount.
+ALLOWED_CHARGE_FIELDS = {
+    "provider",
+    "model",
+    "price_version",
+    "outcome",
+    "metered",
+    "input_tokens",
+    "output_tokens",
+    "cost_micro",
+    "over_bound",
 }
 
 
@@ -50,6 +69,7 @@ def test_the_ledger_has_no_field_that_could_hold_conversation_text() -> None:
     assert {f.name for f in dataclasses.fields(UsageOutcome)} <= ALLOWED_LEDGER_FIELDS | {
         "counts_as_request"
     }
+    assert {f.name for f in dataclasses.fields(AttemptCharge)} == ALLOWED_CHARGE_FIELDS
     assert {f.name for f in dataclasses.fields(AuditEntry)} == {"actor", "action", "at", "details"}
 
 

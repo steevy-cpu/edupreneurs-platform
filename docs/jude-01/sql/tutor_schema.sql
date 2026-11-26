@@ -10,14 +10,29 @@
 --
 -- DESIGN
 --   * Money is bigint micro-USD (millionths of a US dollar). No floats.
---   * The API role gets NO table privilege here. It may only EXECUTE five
+--   * The API role gets NO table privilege here. It may only EXECUTE six
 --     SECURITY DEFINER functions, which identify the learner themselves through
 --     app.current_actor_id() — there is no learner_id parameter to forge.
 --   * Every limit is checked and the hold recorded in ONE transaction, after
 --     taking row locks in one fixed order:
---         global month counter -> learner month counter -> learner day counter
+--         policy row -> global month counter -> learner month counter
+--                    -> learner day counter -> request row
 --     Two requests can therefore never both pass a check that only one fits.
---     Invariant:  spent_micro + reserved_micro <= limit   for every counter.
+--     Invariant:  spent_micro + reserved_micro <= limit   for every counter,
+--     AS LONG AS no provider bills more than the hold assumed. An amount above
+--     the hold is recorded as reported (never capped), kept as overage_micro,
+--     audited, and turns the kill switch on. This ledger is an admission
+--     control, not a guarantee about a third party's invoice.
+--   * IDENTITY. request_key is the client's logical idempotency key. Every
+--     admission is a NEW row with a new id; a key released with nothing spent
+--     may be admitted again, as a different row. settle/release/authorize name
+--     the row id, so a late call for an old admission cannot touch a newer one.
+--   * PAUSE BOUNDARY. tutor.set_paused updates the policy row. reserve and
+--     authorize_dispatch read that row FOR SHARE, so each of them is strictly
+--     before or strictly after a pause. authorize_dispatch runs before EVERY
+--     provider call: none is authorised by a transaction that starts its policy
+--     read after the pause committed. A call authorised just before may still
+--     reach the provider; it is settled normally.
 --   * What is stored: ids, counters, token counts, amounts, model and prompt
 --     version, an outcome CODE. There is no column that could hold a student's
 --     words or a model's answer, and "outcome" is constrained to a code shape.
@@ -43,6 +58,9 @@ CREATE TABLE tutor.policy (
     max_concurrent_global integer NOT NULL DEFAULT 20 CHECK (max_concurrent_global >= 1),
     reservation_ttl_s integer NOT NULL DEFAULT 120 CHECK (reservation_ttl_s >= 1),
     budget_timezone text NOT NULL DEFAULT 'America/Port-au-Prince',
+    -- Why it is paused, when the system paused itself ('cost_bound_exceeded').
+    -- NULL for a staff decision. A code, never free text.
+    pause_reason text CHECK (pause_reason ~ '^[a-z][a-z0-9_]{1,59}$'),
     updated_at timestamptz NOT NULL DEFAULT now(),
     updated_by uuid
 );
@@ -73,7 +91,10 @@ CREATE TRIGGER price_versions_immutable
     FOR EACH ROW EXECUTE FUNCTION tutor.price_versions_are_immutable();
 
 -- ---------------------------------------------------------------------------
--- The ledger: one row per tutoring request that reached the budget.
+-- The ledger: one row per ADMISSION of a tutoring request to the budget.
+-- A logical request (learner_id, request_key) has at most one row that is not
+-- 'released', plus any number of released ones (earlier tries that sent nothing
+-- billable). The row id is the reservation id handed to the API.
 -- learner_id has no foreign key on purpose (like app.audit_events.actor_id):
 -- erasure is done by tutor.erase_learner(), called by the erasure orchestrator.
 -- ---------------------------------------------------------------------------
@@ -89,6 +110,14 @@ CREATE TABLE tutor.usage_requests (
     input_tokens integer NOT NULL DEFAULT 0 CHECK (input_tokens >= 0),
     output_tokens integer NOT NULL DEFAULT 0 CHECK (output_tokens >= 0),
     attempts smallint NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+    -- Provider calls authorised for this hold (tutor.authorize_dispatch).
+    dispatches smallint NOT NULL DEFAULT 0 CHECK (dispatches >= 0),
+    -- Calls charged at the assumed bound because the provider gave no usable figures.
+    unmetered_attempts smallint NOT NULL DEFAULT 0 CHECK (unmetered_attempts >= 0),
+    -- Calls whose reported usage was above the bound the hold was sized with.
+    bound_violations smallint NOT NULL DEFAULT 0 CHECK (bound_violations >= 0),
+    -- spent_micro - reserved_micro when the provider billed above the hold.
+    overage_micro bigint NOT NULL DEFAULT 0 CHECK (overage_micro >= 0),
     -- A code such as 'answered' or 'tutor_provider_timeout'. The CHECK makes it
     -- impossible to park free text (a question, an answer) in this column.
     outcome text CHECK (outcome ~ '^[a-z][a-z0-9_]{1,59}$'),
@@ -99,14 +128,36 @@ CREATE TABLE tutor.usage_requests (
     lesson_revision_id uuid,
     created_at timestamptz NOT NULL DEFAULT now(),
     expires_at timestamptz NOT NULL,
-    finished_at timestamptz,
-    UNIQUE (learner_id, request_key)
+    finished_at timestamptz
 );
+-- One live admission per logical request. Released rows are history.
+CREATE UNIQUE INDEX usage_requests_one_current ON tutor.usage_requests (learner_id, request_key)
+    WHERE status <> 'released';
+CREATE INDEX usage_requests_key ON tutor.usage_requests (learner_id, request_key);
 CREATE INDEX usage_requests_in_flight ON tutor.usage_requests (expires_at)
     WHERE status = 'reserved';
 CREATE INDEX usage_requests_learner_in_flight ON tutor.usage_requests (learner_id)
     WHERE status = 'reserved';
 CREATE INDEX usage_requests_created ON tutor.usage_requests (created_at);
+
+-- One row per provider call that may have been billed, with the price version it
+-- was charged at, so a request that used two differently priced models can be
+-- re-costed. Removed with its request (erasure, retention).
+CREATE TABLE tutor.usage_attempts (
+    request_id uuid NOT NULL REFERENCES tutor.usage_requests (id) ON DELETE CASCADE,
+    attempt_no smallint NOT NULL CHECK (attempt_no BETWEEN 1 AND 32),
+    provider text NOT NULL CHECK (provider ~ '^[a-z0-9._-]{1,40}$'),
+    model text NOT NULL CHECK (model ~ '^[A-Za-z0-9._:/-]{1,200}$'),
+    price_version text NOT NULL CHECK (price_version ~ '^[a-z0-9._-]{1,80}$'),
+    outcome text NOT NULL CHECK (outcome ~ '^[a-z][a-z0-9_]{1,59}$'),
+    -- false: no usable figures from the provider; the assumed bound was charged.
+    metered boolean NOT NULL,
+    input_tokens integer NOT NULL CHECK (input_tokens >= 0),
+    output_tokens integer NOT NULL CHECK (output_tokens >= 0),
+    cost_micro bigint NOT NULL CHECK (cost_micro >= 0),
+    over_bound boolean NOT NULL DEFAULT false,
+    PRIMARY KEY (request_id, attempt_no)
+);
 
 CREATE TABLE tutor.budget_counters (
     scope text NOT NULL CHECK (scope IN ('global', 'learner')),
@@ -135,6 +186,7 @@ CREATE TABLE tutor.admin_audit (
 ALTER TABLE tutor.policy ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tutor.price_versions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tutor.usage_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE tutor.usage_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tutor.budget_counters ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tutor.admin_audit ENABLE ROW LEVEL SECURITY;
 -- No policies: with RLS on and no policy, a role that somehow got a table
@@ -206,8 +258,64 @@ BEGIN
      WHERE scope = 'learner' AND learner_id = p_request.learner_id
        AND period_kind = 'day' AND period_start = p_request.usage_day;
     UPDATE tutor.usage_requests
-       SET status = p_status, spent_micro = p_spent, finished_at = clock_timestamp()
+       SET status = p_status, spent_micro = p_spent,
+           overage_micro = GREATEST(p_spent - p_request.reserved_micro, 0),
+           finished_at = clock_timestamp()
      WHERE id = p_request.id;
+END $$;
+
+-- A provider billed beyond what the hold assumed. Stop all further dispatch and
+-- leave a record. The caller must already hold the policy row FOR UPDATE.
+-- The audit row carries amounts and versions: no learner, no text.
+CREATE FUNCTION tutor._trip_cost_bound(p_request_id uuid)
+RETURNS void LANGUAGE plpgsql SET search_path = '' AS $$
+DECLARE v_request tutor.usage_requests;
+BEGIN
+    SELECT * INTO STRICT v_request FROM tutor.usage_requests WHERE id = p_request_id;
+    UPDATE tutor.policy
+       SET paused = true, pause_reason = 'cost_bound_exceeded', updated_at = now(),
+           updated_by = NULL;
+    INSERT INTO tutor.admin_audit (actor_id, action, details)
+    VALUES (NULL, 'tutor.cost_bound.exceeded', jsonb_build_object(
+        'reserved_micro', v_request.reserved_micro,
+        'spent_micro', v_request.spent_micro,
+        'overage_micro', v_request.overage_micro,
+        'bound_violations', v_request.bound_violations,
+        'unmetered_attempts', v_request.unmetered_attempts,
+        'provider', v_request.provider,
+        'model', v_request.model,
+        'price_version', v_request.price_version));
+END $$;
+
+-- Describe a finished request and its per-call charges. p_charges is a JSON
+-- array of objects; the table's CHECK constraints reject anything that is not
+-- a code or a number.
+CREATE FUNCTION tutor._describe(
+    p_request_id uuid, p_input_tokens integer, p_output_tokens integer, p_attempts integer,
+    p_outcome text, p_provider text, p_model text, p_price_version text,
+    p_prompt_version text, p_lesson_revision_id uuid, p_unmetered_attempts integer,
+    p_bound_violations integer, p_charges jsonb
+) RETURNS void LANGUAGE plpgsql SET search_path = '' AS $$
+BEGIN
+    UPDATE tutor.usage_requests
+       SET input_tokens = COALESCE(p_input_tokens, 0),
+           output_tokens = COALESCE(p_output_tokens, 0),
+           attempts = COALESCE(p_attempts, 0),
+           outcome = p_outcome, provider = p_provider, model = p_model,
+           price_version = p_price_version, prompt_version = p_prompt_version,
+           lesson_revision_id = p_lesson_revision_id,
+           unmetered_attempts = COALESCE(p_unmetered_attempts, 0),
+           bound_violations = COALESCE(p_bound_violations, 0)
+     WHERE id = p_request_id;
+    DELETE FROM tutor.usage_attempts WHERE request_id = p_request_id;
+    INSERT INTO tutor.usage_attempts
+        (request_id, attempt_no, provider, model, price_version, outcome, metered,
+         input_tokens, output_tokens, cost_micro, over_bound)
+    SELECT p_request_id, c.ordinality, c.item->>'provider', c.item->>'model',
+           c.item->>'price_version', c.item->>'outcome', (c.item->>'metered')::boolean,
+           (c.item->>'input_tokens')::integer, (c.item->>'output_tokens')::integer,
+           (c.item->>'cost_micro')::bigint, COALESCE((c.item->>'over_bound')::boolean, false)
+    FROM jsonb_array_elements(COALESCE(p_charges, '[]'::jsonb)) WITH ORDINALITY AS c(item, ordinality);
 END $$;
 
 -- Lock the counters of one ledger row in the canonical order.
@@ -247,6 +355,7 @@ DECLARE
     v_learner_day tutor.budget_counters;
     v_existing tutor.usage_requests;
     v_stale tutor.usage_requests;
+    v_candidate record;
     v_id uuid;
     v_expires timestamptz;
     v_refusal text;
@@ -256,7 +365,10 @@ BEGIN
         RAISE EXCEPTION 'tutor.reserve: invalid arguments' USING ERRCODE = '22023';
     END IF;
 
-    SELECT * INTO STRICT v_policy FROM tutor.policy;
+    -- FOR SHARE: a concurrent tutor.set_paused / policy change either committed
+    -- before this read (and is seen) or waits until this admission has committed.
+    -- The limits used below are therefore the ones in force, not an older snapshot.
+    SELECT * INTO STRICT v_policy FROM tutor.policy FOR SHARE;
     IF v_policy.paused THEN
         RETURN QUERY SELECT 'paused'::text, NULL::uuid, NULL::bigint, NULL::timestamptz;
         RETURN;
@@ -274,23 +386,33 @@ BEGIN
 
     -- This learner's reservations that ran out of time: nobody settled them, so
     -- assume the provider billed the whole hold.
-    FOR v_stale IN
-        SELECT * FROM tutor.usage_requests u
+    -- Counters first, then the row (the fixed order): a stale hold from an earlier
+    -- day or month has other counters than the ones locked above, and a late
+    -- settle of that hold takes them in the same order.
+    FOR v_candidate IN
+        SELECT u.id, u.usage_day, u.usage_month FROM tutor.usage_requests u
         WHERE u.learner_id = v_actor AND u.status = 'reserved' AND u.expires_at <= v_now
-        ORDER BY u.created_at
-        FOR UPDATE
+        ORDER BY u.usage_month, u.usage_day, u.id
     LOOP
-        PERFORM tutor._lock_counters_of(v_stale.learner_id, v_stale.usage_day, v_stale.usage_month);
-        PERFORM tutor._finish(v_stale, 'expired', v_stale.reserved_micro, true);
-        UPDATE tutor.usage_requests SET outcome = 'expired_unsettled' WHERE id = v_stale.id;
+        PERFORM tutor._lock_counters_of(v_actor, v_candidate.usage_day, v_candidate.usage_month);
+        SELECT * INTO v_stale FROM tutor.usage_requests u
+        WHERE u.id = v_candidate.id AND u.status = 'reserved' AND u.expires_at <= v_now
+        FOR UPDATE;
+        IF FOUND THEN
+            PERFORM tutor._finish(v_stale, 'expired', v_stale.reserved_micro, true);
+            UPDATE tutor.usage_requests SET outcome = 'expired_unsettled' WHERE id = v_stale.id;
+        END IF;
     END LOOP;
     -- Re-read the counters: the loop above may have changed them.
     v_global := tutor._lock_counter('global', v_zero, 'month', v_month);
     v_learner_month := tutor._lock_counter('learner', v_actor, 'month', v_month);
     v_learner_day := tutor._lock_counter('learner', v_actor, 'day', v_day);
 
+    -- The one live admission of this key, if any. Released rows are history and
+    -- do not stop a new admission.
     SELECT * INTO v_existing FROM tutor.usage_requests u
     WHERE u.learner_id = v_actor AND u.request_key = p_request_key
+      AND u.status <> 'released'
     FOR UPDATE;
 
     v_refusal := CASE
@@ -317,22 +439,14 @@ BEGIN
     END IF;
 
     v_expires := v_now + make_interval(secs => v_policy.reservation_ttl_s);
-    IF v_existing.id IS NOT NULL THEN
-        -- A released request (nothing was spent) may try again under the same key.
-        UPDATE tutor.usage_requests
-           SET status = 'reserved', usage_day = v_day, usage_month = v_month,
-               reserved_micro = p_estimate_micro, spent_micro = 0, outcome = NULL,
-               created_at = v_now, expires_at = v_expires, finished_at = NULL
-         WHERE id = v_existing.id
-        RETURNING id INTO v_id;
-    ELSE
-        INSERT INTO tutor.usage_requests
-            (learner_id, request_key, status, usage_day, usage_month, reserved_micro,
-             created_at, expires_at)
-        VALUES (v_actor, p_request_key, 'reserved', v_day, v_month, p_estimate_micro,
-                v_now, v_expires)
-        RETURNING id INTO v_id;
-    END IF;
+    -- ALWAYS a new row, so always a new reservation id. An earlier admission of
+    -- the same key that was released keeps its own row and id.
+    INSERT INTO tutor.usage_requests
+        (learner_id, request_key, status, usage_day, usage_month, reserved_micro,
+         created_at, expires_at)
+    VALUES (v_actor, p_request_key, 'reserved', v_day, v_month, p_estimate_micro,
+            v_now, v_expires)
+    RETURNING id INTO v_id;
 
     UPDATE tutor.budget_counters SET reserved_micro = budget_counters.reserved_micro + p_estimate_micro
      WHERE scope = 'global' AND learner_id = v_zero
@@ -349,25 +463,148 @@ BEGIN
     RETURN QUERY SELECT 'reserved'::text, v_id, p_estimate_micro, v_expires;
 END $$;
 
--- Record what a reservation really cost. Returns settled | already_finished | not_found.
--- Calling it twice changes nothing the second time; calling it for a
--- reservation of another learner finds nothing.
+-- Permission for ONE provider call on a hold. Called before every call.
+-- Returns authorized | paused | not_active.
+--   paused      the kill switch is on (for whatever reason): do not call.
+--   not_active  the hold is not this learner's, or is finished, expired or erased.
+-- On 'authorized' the dispatch is counted on the hold in the same transaction.
+CREATE FUNCTION tutor.authorize_dispatch(p_reservation_id uuid)
+RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+    v_actor uuid := tutor._actor();
+    v_paused boolean;
+    v_request tutor.usage_requests;
+BEGIN
+    PERFORM tutor._require_read_committed();
+    -- Same lock as tutor.reserve: strictly before or strictly after a pause.
+    SELECT paused INTO STRICT v_paused FROM tutor.policy FOR SHARE;
+    SELECT * INTO v_request FROM tutor.usage_requests
+    WHERE id = p_reservation_id AND learner_id = v_actor
+    FOR UPDATE;
+    IF NOT FOUND OR v_request.status <> 'reserved'
+       OR v_request.expires_at <= clock_timestamp() THEN
+        RETURN 'not_active';
+    END IF;
+    IF v_paused THEN
+        RETURN 'paused';
+    END IF;
+    UPDATE tutor.usage_requests SET dispatches = dispatches + 1 WHERE id = v_request.id;
+    RETURN 'authorized';
+END $$;
+
+-- Record what a reservation really cost.
+-- Returns settled | late_overage | already_finished | not_found.
+--   * Exactly once: a second call, or a call for an admission that was released,
+--     changes nothing ('already_finished').
+--   * The reservation id names ONE admission; a later admission of the same
+--     request_key has another id and cannot be reached with this one.
+--   * The amount is recorded as given, also when it is above the hold. In that
+--     case, or when p_bound_violations > 0, the kill switch is turned on.
+--   * 'late_overage': the hold had already expired (charged in full) and the
+--     real amount, known only now, is higher: the difference is added.
+--     A late amount that is lower leaves the full charge in place.
 CREATE FUNCTION tutor.settle(
     p_reservation_id uuid, p_spent_micro bigint, p_input_tokens integer,
     p_output_tokens integer, p_attempts integer, p_outcome text, p_counts_as_request boolean,
     p_provider text, p_model text, p_price_version text, p_prompt_version text,
-    p_lesson_revision_id uuid
+    p_lesson_revision_id uuid, p_unmetered_attempts integer DEFAULT 0,
+    p_bound_violations integer DEFAULT 0, p_charges jsonb DEFAULT '[]'::jsonb
+) RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
+DECLARE
+    v_actor uuid := tutor._actor();
+    v_request tutor.usage_requests;
+    v_trip boolean;
+    v_extra bigint;
+BEGIN
+    PERFORM tutor._require_read_committed();
+    IF p_spent_micro IS NULL OR p_spent_micro < 0 THEN
+        RAISE EXCEPTION 'tutor.settle: invalid amount' USING ERRCODE = '22023';
+    END IF;
+    -- Periods and the hold never change once a row exists, so an unlocked read
+    -- is enough to know WHICH locks to take; the row is re-read under lock.
+    SELECT * INTO v_request FROM tutor.usage_requests
+    WHERE id = p_reservation_id AND learner_id = v_actor;
+    IF NOT FOUND THEN
+        IF p_spent_micro > 0 THEN
+            -- The row is gone (learner erased, or purged). Its hold was already
+            -- turned into anonymous spend; keep the reported figure for audit.
+            INSERT INTO tutor.admin_audit (actor_id, action, details)
+            VALUES (NULL, 'tutor.settlement.orphan',
+                    jsonb_build_object('reported_micro', p_spent_micro));
+        END IF;
+        RETURN 'not_found';
+    END IF;
+    v_trip := p_spent_micro > v_request.reserved_micro OR COALESCE(p_bound_violations, 0) > 0;
+    IF v_trip THEN
+        -- Policy row first: the fixed lock order (policy -> counters -> row).
+        PERFORM 1 FROM tutor.policy FOR UPDATE;
+    END IF;
+    PERFORM tutor._lock_counters_of(v_request.learner_id, v_request.usage_day, v_request.usage_month);
+    SELECT * INTO v_request FROM tutor.usage_requests
+    WHERE id = p_reservation_id AND learner_id = v_actor
+    FOR UPDATE;
+    IF NOT FOUND THEN
+        RETURN 'not_found';
+    END IF;
+
+    IF v_request.status = 'expired' AND p_spent_micro > v_request.spent_micro THEN
+        v_extra := p_spent_micro - v_request.spent_micro;
+        UPDATE tutor.budget_counters SET spent_micro = spent_micro + v_extra
+         WHERE (scope = 'global' AND period_kind = 'month' AND period_start = v_request.usage_month)
+            OR (scope = 'learner' AND learner_id = v_request.learner_id
+                AND ((period_kind = 'month' AND period_start = v_request.usage_month)
+                  OR (period_kind = 'day' AND period_start = v_request.usage_day)));
+        UPDATE tutor.usage_requests
+           SET spent_micro = p_spent_micro,
+               overage_micro = GREATEST(p_spent_micro - reserved_micro, 0)
+         WHERE id = v_request.id;
+        PERFORM tutor._describe(v_request.id, p_input_tokens, p_output_tokens, p_attempts,
+            'expired_late_overage', p_provider, p_model, p_price_version, p_prompt_version,
+            p_lesson_revision_id, p_unmetered_attempts, p_bound_violations, p_charges);
+        PERFORM tutor._trip_cost_bound(v_request.id);
+        RETURN 'late_overage';
+    END IF;
+    IF v_request.status <> 'reserved' THEN
+        IF v_request.status = 'released' AND p_spent_micro > 0 THEN
+            -- Should not happen: something was billed for an admission that was
+            -- given back. Nothing is changed here; the claim is kept for audit.
+            INSERT INTO tutor.admin_audit (actor_id, action, details)
+            VALUES (NULL, 'tutor.settlement.stale',
+                    jsonb_build_object('reported_micro', p_spent_micro));
+        END IF;
+        RETURN 'already_finished';
+    END IF;
+
+    PERFORM tutor._finish(v_request, 'settled', p_spent_micro, COALESCE(p_counts_as_request, true));
+    PERFORM tutor._describe(v_request.id, p_input_tokens, p_output_tokens, p_attempts,
+        p_outcome, p_provider, p_model, p_price_version, p_prompt_version,
+        p_lesson_revision_id, p_unmetered_attempts, p_bound_violations, p_charges);
+    IF v_request.dispatches > COALESCE(p_attempts, 0) THEN
+        -- More calls were authorised than the API accounted for.
+        INSERT INTO tutor.admin_audit (actor_id, action, details)
+        VALUES (NULL, 'tutor.settlement.unaccounted_dispatch', jsonb_build_object(
+            'authorized', v_request.dispatches, 'accounted', COALESCE(p_attempts, 0)));
+    END IF;
+    IF v_trip THEN
+        PERFORM tutor._trip_cost_bound(v_request.id);
+    END IF;
+    RETURN 'settled';
+END $$;
+
+-- Give a hold back untouched: NO billable provider operation happened.
+-- Returns released | already_finished | not_found | dispatch_mismatch.
+-- p_refused_attempts is how many dispatches the provider turned away before
+-- doing any work. It must equal the dispatches authorised for this hold. If it
+-- does not, a call is unaccounted for: nothing is released and the hold is left
+-- to expire at its full amount.
+CREATE FUNCTION tutor.release(
+    p_reservation_id uuid, p_outcome text, p_refused_attempts integer DEFAULT 0
 ) RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 DECLARE
     v_actor uuid := tutor._actor();
     v_request tutor.usage_requests;
 BEGIN
     PERFORM tutor._require_read_committed();
-    IF p_spent_micro IS NULL OR p_spent_micro < 0 THEN
-        RAISE EXCEPTION 'tutor.settle: invalid amount' USING ERRCODE = '22023';
-    END IF;
-    -- Periods never change while a row is reserved, so an unlocked read is
-    -- enough to know WHICH counters to lock; the row itself is re-read under lock.
     SELECT * INTO v_request FROM tutor.usage_requests
     WHERE id = p_reservation_id AND learner_id = v_actor;
     IF NOT FOUND THEN
@@ -383,43 +620,17 @@ BEGIN
     IF v_request.status <> 'reserved' THEN
         RETURN 'already_finished';
     END IF;
-    PERFORM tutor._finish(v_request, 'settled', p_spent_micro, COALESCE(p_counts_as_request, true));
-    UPDATE tutor.usage_requests
-       SET input_tokens = COALESCE(p_input_tokens, 0),
-           output_tokens = COALESCE(p_output_tokens, 0),
-           attempts = COALESCE(p_attempts, 0),
-           outcome = p_outcome, provider = p_provider, model = p_model,
-           price_version = p_price_version, prompt_version = p_prompt_version,
-           lesson_revision_id = p_lesson_revision_id
-     WHERE id = v_request.id;
-    RETURN 'settled';
-END $$;
-
--- Give a hold back untouched (no provider call was made).
-CREATE FUNCTION tutor.release(p_reservation_id uuid, p_outcome text)
-RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
-DECLARE
-    v_actor uuid := tutor._actor();
-    v_request tutor.usage_requests;
-BEGIN
-    PERFORM tutor._require_read_committed();
-    SELECT * INTO v_request FROM tutor.usage_requests
-    WHERE id = p_reservation_id AND learner_id = v_actor;
-    IF NOT FOUND THEN
-        RETURN 'not_found';
-    END IF;
-    PERFORM tutor._lock_counters_of(v_request.learner_id, v_request.usage_day, v_request.usage_month);
-    SELECT * INTO v_request FROM tutor.usage_requests
-    WHERE id = p_reservation_id AND learner_id = v_actor
-    FOR UPDATE;
-    IF NOT FOUND THEN
-        RETURN 'not_found';
-    END IF;
-    IF v_request.status <> 'reserved' THEN
-        RETURN 'already_finished';
+    IF v_request.dispatches <> COALESCE(p_refused_attempts, 0) THEN
+        INSERT INTO tutor.admin_audit (actor_id, action, details)
+        VALUES (NULL, 'tutor.release.dispatch_mismatch', jsonb_build_object(
+            'authorized', v_request.dispatches,
+            'refused', COALESCE(p_refused_attempts, 0)));
+        RETURN 'dispatch_mismatch';
     END IF;
     PERFORM tutor._finish(v_request, 'released', 0, false);
-    UPDATE tutor.usage_requests SET outcome = p_outcome WHERE id = v_request.id;
+    UPDATE tutor.usage_requests
+       SET outcome = p_outcome, attempts = COALESCE(p_refused_attempts, 0)
+     WHERE id = v_request.id;
     RETURN 'released';
 END $$;
 
@@ -490,7 +701,10 @@ END $$;
 CREATE FUNCTION tutor.set_paused(p_paused boolean, p_actor uuid)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = '' AS $$
 BEGIN
-    UPDATE tutor.policy SET paused = p_paused, updated_at = now(), updated_by = p_actor;
+    -- Takes the policy row lock: waits for admissions and dispatch authorisations
+    -- already reading it, and every later one sees the new value.
+    UPDATE tutor.policy
+       SET paused = p_paused, pause_reason = NULL, updated_at = now(), updated_by = p_actor;
     INSERT INTO tutor.admin_audit (actor_id, action, details)
     VALUES (p_actor, 'tutor.kill_switch.set', jsonb_build_object('paused', p_paused));
 END $$;
@@ -540,14 +754,16 @@ BEGIN
 END $$;
 
 -- ---------------------------------------------------------------------------
--- Privileges: the API role may call five functions and touch no table.
+-- Privileges: the API role may call six functions and touch no table.
 -- ---------------------------------------------------------------------------
 REVOKE ALL ON ALL TABLES IN SCHEMA tutor FROM PUBLIC;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA tutor FROM PUBLIC;
 GRANT USAGE ON SCHEMA tutor TO edu_api;
 GRANT EXECUTE ON FUNCTION tutor.is_paused() TO edu_api;
 GRANT EXECUTE ON FUNCTION tutor.reserve(uuid, bigint) TO edu_api;
+GRANT EXECUTE ON FUNCTION tutor.authorize_dispatch(uuid) TO edu_api;
 GRANT EXECUTE ON FUNCTION tutor.settle(uuid, bigint, integer, integer, integer, text, boolean,
-                                       text, text, text, text, uuid) TO edu_api;
-GRANT EXECUTE ON FUNCTION tutor.release(uuid, text) TO edu_api;
+                                       text, text, text, text, uuid, integer, integer, jsonb)
+    TO edu_api;
+GRANT EXECUTE ON FUNCTION tutor.release(uuid, text, integer) TO edu_api;
 GRANT EXECUTE ON FUNCTION tutor.my_usage() TO edu_api;

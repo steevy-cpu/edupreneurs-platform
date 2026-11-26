@@ -109,8 +109,17 @@ async def test_released_request_costs_nothing_and_may_retry_with_the_same_key(
     usage = await store.learner_usage(A)
     assert (usage.day_requests, usage.day_micro) == (0, 0)
     again = await store.reserve(learner_id=A, request_key=key, estimate_micro=300)
-    assert again.id == reservation.id and again.reserved_micro == 300
+    # A new admission of the same key: a NEW reservation id (J-04), the old row kept.
+    assert again.id != reservation.id and again.reserved_micro == 300
     assert await global_totals(owner) == (0, 300)
+    rows = await owner.fetch(
+        "SELECT id, status FROM tutor.usage_requests WHERE request_key = $1 ORDER BY created_at",
+        key,
+    )
+    assert [(r["id"], r["status"]) for r in rows] == [
+        (reservation.id, "released"),
+        (again.id, "reserved"),
+    ]
 
 
 async def test_each_limit_refuses_with_its_own_error(
@@ -425,6 +434,7 @@ async def test_no_column_can_hold_conversation_text(owner: asyncpg.Pool) -> None
         "budget_counters",
         "policy",
         "price_versions",
+        "usage_attempts",
         "usage_requests",
     }
     for table, column in names:
@@ -444,6 +454,29 @@ async def test_no_column_can_hold_conversation_text(owner: asyncpg.Pool) -> None
         "provider",
         "status",
     ]
+    # ... and so is every text column of the per-call table, and the pause reason.
+    request_id = await owner.fetchval(
+        "INSERT INTO tutor.usage_requests (learner_id, request_key, status, usage_day, "
+        "usage_month, reserved_micro, expires_at) VALUES (gen_random_uuid(), "
+        "gen_random_uuid(), 'settled', current_date, current_date, 0, now()) RETURNING id"
+    )
+    for column in ("provider", "model", "price_version", "outcome"):
+        values = {"provider": "mock", "model": "m", "price_version": "p", "outcome": "ok"}
+        values[column] = "Pourquoi on soustrait 5 des deux côtés ?"
+        with pytest.raises(asyncpg.CheckViolationError):
+            await owner.execute(
+                "INSERT INTO tutor.usage_attempts (request_id, attempt_no, provider, model, "
+                "price_version, outcome, metered, input_tokens, output_tokens, cost_micro) "
+                "VALUES ($1, 1, $2, $3, $4, $5, true, 0, 0, 0)",
+                request_id,
+                values["provider"],
+                values["model"],
+                values["price_version"],
+                values["outcome"],
+            )
+    with pytest.raises(asyncpg.CheckViolationError):
+        await owner.execute("UPDATE tutor.policy SET pause_reason = 'A sentence, not a code.'")
+    await owner.execute("DELETE FROM tutor.usage_requests WHERE id = $1", request_id)
     for value in ("Pourquoi on soustrait 5 des deux côtés ?", "x" * 61, "Has Spaces"):
         with pytest.raises(asyncpg.CheckViolationError):
             await owner.execute(

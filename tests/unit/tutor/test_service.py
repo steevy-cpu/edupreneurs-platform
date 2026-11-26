@@ -217,7 +217,7 @@ async def test_a_question_the_lesson_does_not_cover_gets_a_limitation_not_an_ans
         LEARNER_A, ask(message="Qui a gagné la Coupe du monde de football en 1998 ?")
     )
     assert response.status is ResponseStatus.INSUFFICIENT_CONTEXT
-    assert response.source is ResponseSource.REVIEWED_TEMPLATE
+    assert response.source is ResponseSource.FIXED_TEMPLATE
     assert response.grounding is Grounding.NONE
     assert response.references == []
     assert response.notices == [Notice.QUESTION_NOT_IN_LESSON]
@@ -226,11 +226,11 @@ async def test_a_question_the_lesson_does_not_cover_gets_a_limitation_not_an_ans
     assert harness.usage.records() == []
 
 
-async def test_model_saying_it_lacks_context_becomes_the_reviewed_limitation() -> None:
+async def test_model_saying_it_lacks_context_becomes_the_fixed_limitation() -> None:
     harness = build_harness(script=("insufficient",))
     response = await harness.service.answer(LEARNER_A, ask())
     assert response.status is ResponseStatus.INSUFFICIENT_CONTEXT
-    assert response.source is ResponseSource.REVIEWED_TEMPLATE
+    assert response.source is ResponseSource.FIXED_TEMPLATE
     assert response.references == []
 
 
@@ -332,18 +332,18 @@ async def test_a_student_trying_to_change_the_rules_gets_a_fixed_reply_and_no_mo
 ) -> None:
     response = await harness.service.answer(LEARNER_A, ask(message=message))
     assert response.status is ResponseStatus.DECLINED
-    assert response.source is ResponseSource.REVIEWED_TEMPLATE
+    assert response.source is ResponseSource.FIXED_TEMPLATE
     assert response.notices == [Notice.INSTRUCTION_MANIPULATION]
     assert harness.provider.calls == [] and harness.usage.records() == []
 
 
 # --- safeguarding ---------------------------------------------------------------------------------
-async def test_a_child_in_distress_gets_the_reviewed_support_message(harness: Harness) -> None:
+async def test_a_child_in_distress_gets_the_fixed_support_message(harness: Harness) -> None:
     response = await harness.service.answer(
         LEARNER_A, ask(message="Mwen pè tounen lakay, papa m ap bat mwen.", response_locale="ht")
     )
     assert response.status is ResponseStatus.SAFETY_SUPPORT
-    assert response.source is ResponseSource.REVIEWED_TEMPLATE
+    assert response.source is ResponseSource.FIXED_TEMPLATE
     assert response.next_action is NextAction.TALK_TO_TRUSTED_ADULT
     assert "granmoun ou fè konfyans" in response.explanation
     assert "mwen pa ka rele pèsonn" in response.explanation
@@ -358,11 +358,11 @@ async def test_the_support_message_is_given_even_without_consent_or_budget() -> 
     assert harness.provider.calls == []
 
 
-async def test_model_flagging_a_safety_concern_also_yields_the_reviewed_message() -> None:
+async def test_model_flagging_a_safety_concern_also_yields_the_fixed_message() -> None:
     harness = build_harness(script=("safety_support",))
     response = await harness.service.answer(LEARNER_A, ask())
     assert response.status is ResponseStatus.SAFETY_SUPPORT
-    assert response.source is ResponseSource.REVIEWED_TEMPLATE
+    assert response.source is ResponseSource.FIXED_TEMPLATE
     assert response.explanation.startswith("Merci de me l'avoir dit")
 
 
@@ -683,7 +683,11 @@ async def test_a_request_that_failed_before_spending_may_be_retried_with_the_sam
     assert (record.status, record.spent_micro) == ("released", 0)
     # Nothing was spent, so the SAME key may try again — and is then accounted once.
     assert (await harness.service.answer(LEARNER_A, request)).status is ResponseStatus.ANSWERED
-    assert len(harness.usage.records()) == 1
+    # The retry is a NEW admission with its own id; the released one stays as history.
+    released, settled = harness.usage.records()
+    assert (released.status, settled.status) == ("released", "settled")
+    assert released.id != settled.id and released.request_key == settled.request_key
+    assert (released.dispatches, released.attempts) == (2, 2)  # both refused by the provider
     with pytest.raises(DuplicateRequest):
         await harness.service.answer(LEARNER_A, request)
 

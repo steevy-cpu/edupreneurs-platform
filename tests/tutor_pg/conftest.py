@@ -151,10 +151,13 @@ async def database(tutor_database_url: str) -> AsyncIterator[Database]:
 @pytest.fixture
 async def store(database: Database, owner: asyncpg.Pool) -> PostgresUsageStore:
     """A clean ledger with small synthetic limits, not paused."""
-    await owner.execute("TRUNCATE tutor.usage_requests, tutor.budget_counters, tutor.admin_audit")
+    await owner.execute(
+        "TRUNCATE tutor.usage_attempts, tutor.usage_requests, tutor.budget_counters, "
+        "tutor.admin_audit"
+    )
     await owner.execute(
         """
-        UPDATE tutor.policy SET paused = false, learner_daily_requests = 5,
+        UPDATE tutor.policy SET paused = false, pause_reason = NULL, learner_daily_requests = 5,
             learner_daily_micro = 1000, learner_monthly_micro = 3000,
             global_monthly_micro = 10000, max_concurrent_per_learner = 2,
             max_concurrent_global = 500, reservation_ttl_s = 60

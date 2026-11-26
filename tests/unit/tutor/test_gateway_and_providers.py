@@ -14,6 +14,7 @@ from edu_api.tutor.config import TutorSettings
 from edu_api.tutor.errors import TutorConfigurationError
 from edu_api.tutor.factory import build_provider
 from edu_api.tutor.gateway import Attempt, ModelGateway, OutputRejected, RetryPolicy, Route
+from edu_api.tutor.metering import AttemptBound
 from edu_api.tutor.providers.base import (
     ChatMessage,
     ModelRequest,
@@ -58,6 +59,14 @@ def accept(result: ModelResult) -> str:
     return result.text
 
 
+async def allow() -> None:
+    """A budget that authorises every dispatch (the gateway is tested alone here)."""
+
+
+#: Authorise everything, with a bound no test response exceeds.
+OPEN: dict[str, Any] = {"authorize": allow, "bound": AttemptBound(1_000_000, 1_000_000)}
+
+
 class Sleeps:
     def __init__(self) -> None:
         self.delays: list[float] = []
@@ -69,7 +78,9 @@ class Sleeps:
 async def test_success_on_the_first_try_makes_one_call_and_meters_it() -> None:
     provider = mock()
     attempts: list[Attempt] = []
-    result = await ModelGateway(route(provider), sleep=no_sleep).run(request_for, accept, attempts)
+    result = await ModelGateway(route(provider), sleep=no_sleep).run(
+        request_for, accept, attempts, **OPEN
+    )
     assert result.failure is None and result.value
     assert len(provider.calls) == 1
     assert [(a.outcome, a.usage_unknown) for a in attempts] == [("ok", False)]
@@ -83,7 +94,7 @@ async def test_timeout_is_retried_with_backoff_then_succeeds() -> None:
     gateway = ModelGateway(
         route(provider), retry=RetryPolicy(max_attempts=3, base_delay_s=0.5), sleep=sleeps
     )
-    result = await gateway.run(request_for, accept, attempts)
+    result = await gateway.run(request_for, accept, attempts, **OPEN)
     assert result.failure is None
     assert [a.outcome for a in attempts] == ["timeout", "ok"]
     assert attempts[0].usage is None and attempts[0].usage_unknown  # may have been billed
@@ -94,7 +105,7 @@ async def test_retries_are_bounded() -> None:
     provider = mock("timeout", "timeout", "timeout", "ok")
     attempts: list[Attempt] = []
     gateway = ModelGateway(route(provider), retry=RetryPolicy(max_attempts=2), sleep=no_sleep)
-    result = await gateway.run(request_for, accept, attempts)
+    result = await gateway.run(request_for, accept, attempts, **OPEN)
     assert (result.value, result.failure) == (None, "timeout")
     assert len(provider.calls) == 2 == gateway.max_calls
 
@@ -110,7 +121,7 @@ async def test_an_auth_error_is_not_retried() -> None:
     provider = mock("auth_error", "ok")
     attempts: list[Attempt] = []
     gateway = ModelGateway(route(provider), retry=RetryPolicy(max_attempts=3), sleep=no_sleep)
-    result = await gateway.run(request_for, accept, attempts)
+    result = await gateway.run(request_for, accept, attempts, **OPEN)
     assert result.failure == "auth" and len(provider.calls) == 1
     assert attempts[0].usage_unknown is False  # rejected before any work: nothing to charge
 
@@ -118,7 +129,9 @@ async def test_an_auth_error_is_not_retried() -> None:
 async def test_rate_limiting_is_retried_and_not_charged() -> None:
     provider = mock("rate_limited", "ok")
     attempts: list[Attempt] = []
-    result = await ModelGateway(route(provider), sleep=no_sleep).run(request_for, accept, attempts)
+    result = await ModelGateway(route(provider), sleep=no_sleep).run(
+        request_for, accept, attempts, **OPEN
+    )
     assert result.failure is None
     assert (attempts[0].outcome, attempts[0].usage, attempts[0].usage_unknown) == (
         "rate_limited",
@@ -138,7 +151,9 @@ async def test_rejected_output_is_retried_and_its_tokens_are_still_counted() -> 
         return result.text
 
     attempts: list[Attempt] = []
-    result = await ModelGateway(route(provider), sleep=no_sleep).run(request_for, picky, attempts)
+    result = await ModelGateway(route(provider), sleep=no_sleep).run(
+        request_for, picky, attempts, **OPEN
+    )
     assert result.failure is None
     assert [(a.outcome, a.detail) for a in attempts] == [
         ("output_rejected", "not_json"),
@@ -150,7 +165,9 @@ async def test_rejected_output_is_retried_and_its_tokens_are_still_counted() -> 
 async def test_no_fallback_happens_unless_one_was_configured() -> None:
     primary = mock("unavailable", "unavailable")
     attempts: list[Attempt] = []
-    result = await ModelGateway(route(primary), sleep=no_sleep).run(request_for, accept, attempts)
+    result = await ModelGateway(route(primary), sleep=no_sleep).run(
+        request_for, accept, attempts, **OPEN
+    )
     assert result.failure == "unavailable"
     assert {a.provider for a in attempts} == {"mock"}
 
@@ -159,7 +176,7 @@ async def test_configured_fallback_is_used_once_after_the_primary_is_exhausted()
     primary, backup = mock("unavailable", "unavailable"), mock(name="backup")
     attempts: list[Attempt] = []
     gateway = ModelGateway(route(primary, PRICEY), fallback=route(backup, CHEAP), sleep=no_sleep)
-    result = await gateway.run(request_for, accept, attempts)
+    result = await gateway.run(request_for, accept, attempts, **OPEN)
     assert result.failure is None
     assert [(a.provider, a.model, a.outcome) for a in attempts] == [
         ("mock", "pricey", "unavailable"),
@@ -173,7 +190,7 @@ async def test_fallback_is_tried_straight_away_when_retrying_the_primary_cannot_
     primary, backup = mock("auth_error"), mock(name="backup")
     attempts: list[Attempt] = []
     gateway = ModelGateway(route(primary, PRICEY), fallback=route(backup, CHEAP), sleep=no_sleep)
-    await gateway.run(request_for, accept, attempts)
+    await gateway.run(request_for, accept, attempts, **OPEN)
     assert [a.provider for a in attempts] == ["mock", "backup"]
 
 
@@ -193,7 +210,7 @@ def test_worst_case_cost_covers_every_call_the_gateway_may_make() -> None:
         route(mock(), PRICEY), retry=RetryPolicy(max_attempts=2), fallback=route(mock(), CHEAP)
     )
     usage = TokenUsage(1_000, 500)
-    assert gateway.worst_case_micro(input_tokens=1_000, max_output_tokens=500) == (
+    assert gateway.worst_case_micro(AttemptBound(1_000, 500)) == (
         2 * PRICEY.cost_micro(usage) + CHEAP.cost_micro(usage)
     )
 
@@ -202,7 +219,7 @@ async def test_cancellation_stops_the_call_and_records_the_attempt() -> None:
     provider = mock("timeout")
     attempts: list[Attempt] = []
     gateway = ModelGateway(route(provider, timeout_s=30), sleep=no_sleep)
-    task = asyncio.create_task(gateway.run(request_for, accept, attempts))
+    task = asyncio.create_task(gateway.run(request_for, accept, attempts, **OPEN))
     await asyncio.sleep(0.01)
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
@@ -219,7 +236,7 @@ async def test_an_adapter_crash_is_contained_and_its_text_is_not_kept() -> None:
 
     attempts: list[Attempt] = []
     result = await ModelGateway(route(Crashing()), sleep=no_sleep).run(
-        request_for, accept, attempts
+        request_for, accept, attempts, **OPEN
     )
     assert result.failure == "provider_crashed"
     assert len(attempts) == 1 and attempts[0].usage_unknown

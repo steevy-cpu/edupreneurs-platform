@@ -15,7 +15,9 @@ from fastapi import APIRouter, Depends
 
 from edu_api.deps import CurrentPrincipal
 from edu_api.errors import ApiError, error_responses
+from edu_api.tutor.config import TutorSettings
 from edu_api.tutor.errors import TutorError
+from edu_api.tutor.factory import require_student_facing_readiness
 from edu_api.tutor.service import TutorService
 from edu_api.tutor.types import TutorAvailability, TutorRequest, TutorResponse
 
@@ -26,7 +28,20 @@ def to_api_error(error: TutorError) -> ApiError:
     return ApiError(error.http_status, error.code, error.message, headers=headers)
 
 
+def build_student_facing_router(
+    settings: TutorSettings, get_service: Callable[..., TutorService]
+) -> APIRouter:
+    """The ONLY entry point a production application may use to mount Jude.
+
+    Raises ``TutorConfigurationError`` while the safeguarding review is
+    outstanding. Nothing calls this yet.
+    """
+    require_student_facing_readiness(settings)
+    return build_tutor_router(get_service)
+
+
 def build_tutor_router(get_service: Callable[..., TutorService]) -> APIRouter:
+    """The routes themselves, with no readiness check: for tests on a private app only."""
     router = APIRouter(prefix="/v1/jude", tags=["jude"])
 
     @router.post(
