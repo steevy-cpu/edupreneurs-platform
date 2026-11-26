@@ -78,12 +78,21 @@ for scale in 1.0 1.3 2.0; do
     cell="$EVIDENCE/$lang-$scale"
     mkdir -p "$cell"
     python3 "$QA/runner/flow.py" "$lang" "$cell" > "$RUNNER_TEMP/cell.yaml"
-    if [[ "$actual" == "$scale" ]] && "$maestro" test -e PASS_A="$PASS_A" "$RUNNER_TEMP/cell.yaml"; then
+    if [[ "$actual" == "$scale" ]] && timeout 360 "$maestro" test -e PASS_A="$PASS_A" "$RUNNER_TEMP/cell.yaml"; then
       status=pass
     else
       status=fail
       failed=1
+      timeout 15 adb exec-out screencap -p > "$cell/failure.png"
     fi
+    find "$HOME/.maestro/tests" -type f -path '*/takeScreenshot/*' -name "$lang-$scale-*.png" \
+      -exec cp '{}' "$cell/" \;
+    if [[ "$status" == pass ]] && [[ $(find "$cell" -name '*.png' | wc -l) != 5 ]]; then
+      echo "Missing screenshot for $lang at $scale"
+      status=missing_evidence
+      failed=1
+    fi
+    echo "Device cell $lang at $actual: $status"
     printf '%s,%s,%s,%s\n' "$CANDIDATE" "$lang" "$actual" "$status" >> "$EVIDENCE/cells.csv"
   done
 done

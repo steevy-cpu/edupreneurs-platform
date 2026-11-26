@@ -14,14 +14,25 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.pin.outputs.sha }}
+      suites: ${{ steps.pin.outputs.suites }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
+          fetch-depth: 2
       - id: pin
+        env:
+          PREVIOUS: ${{ github.event.before }}
         run: |
-          file=docs/reviews/mobile-content-integration/CANDIDATE
+          dir=docs/reviews/mobile-content-integration
+          file="$dir/CANDIDATE"
+          suites='["stack","android"]'
+          if [[ "$PREVIOUS" =~ ^[0-9a-f]{40}$ ]] && git cat-file -e "$PREVIOUS^{commit}" 2>/dev/null; then
+            if git diff --quiet "$PREVIOUS" HEAD -- "$file" "$dir/runner" "$dir/acceptance.test.tsx" .github/workflows/mobile-content-qa.yml; then exit 0; fi
+            if git diff --quiet "$PREVIOUS" HEAD -- "$file" "$dir/runner/stack.sh" "$dir/acceptance.test.tsx"; then suites='["android"]'; fi
+          fi
+          echo "suites=$suites" >> "$GITHUB_OUTPUT"
           if test -f "$file"; then
             sha=$(cat "$file")
             [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
@@ -33,7 +44,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [stack, android]
+        suite: ${{ fromJSON(needs.candidate.outputs.suites || '[]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:

@@ -7,25 +7,30 @@ from pathlib import Path
 lang, cell = sys.argv[1:]
 assert lang in {"fr", "ht"}
 fr = lang == "fr"
-commands = [
-    {"launchApp": {"clearState": True}},
-    {"extendedWaitUntil": {"visible": {"id": "sign-in-email"}, "timeout": 90000}},
-    {"tapOn": {"id": "sign-in-email"}},
-    {"inputText": "student.a@edupreneur.test"},
-    {"tapOn": {"id": "sign-in-password"}},
-    {"inputText": "${PASS_A}"},
-    "hideKeyboard",
-    {"tapOn": {"id": "sign-in-submit"}},
-    {"extendedWaitUntil": {"visible": {"id": "tab-profile"}, "timeout": 60000}},
-]
 
 
 def reach(selector):
     return {"scrollUntilVisible": {"element": selector, "direction": "DOWN", "timeout": 15000}}
 
 
+commands = [
+    {"launchApp": {"clearState": True}},
+    {"extendedWaitUntil": {"visible": {"id": "sign-in-email"}, "timeout": 90000}},
+    {"tapOn": {"id": "sign-in-email"}},
+    {"inputText": "student.a@edupreneur.test"},
+    "hideKeyboard",
+    reach({"id": "sign-in-password"}),
+    {"tapOn": {"id": "sign-in-password"}},
+    {"inputText": "${PASS_A}"},
+    "hideKeyboard",
+    reach({"id": "sign-in-submit"}),
+    {"tapOn": {"id": "sign-in-submit"}},
+    {"extendedWaitUntil": {"visible": {"id": "tab-profile"}, "timeout": 60000}},
+]
+
+
 def shot(label):
-    return {"takeScreenshot": str(Path(cell) / label)}
+    return {"takeScreenshot": f"{Path(cell).name}-{label}"}
 
 
 if not fr:
