@@ -35,6 +35,9 @@ async def test_metadata_reader_can_audit_without_application_data(admin: asyncpg
             await db.execute(
                 "GRANT SELECT(version) ON supabase_migrations.schema_migrations TO edu_staging_auditor"
             )
+            # PG17 gives a CREATEROLE creator ADMIN, but not necessarily SET membership.
+            # Only the test operator assumes the narrow role, inside this rolled-back fixture.
+            await db.execute("GRANT edu_staging_auditor TO CURRENT_USER WITH SET TRUE")
             await db.execute("SET LOCAL ROLE edu_staging_auditor")
             await check_session(db, "edu_staging_auditor", versions())
         finally:

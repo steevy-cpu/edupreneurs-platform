@@ -75,8 +75,9 @@ async def audit(environment: str, *, plan: bool = False) -> None:
     expected = versions()
     tls: ssl.SSLContext | bool = False
     if environment == "local":
-        verify(check_env=True)
-        url = read_env_file()["LOCAL_ADMIN_DATABASE_URL"]
+        local = read_env_file()
+        verify(env=local)
+        url = local["LOCAL_ADMIN_DATABASE_URL"]
         login = "postgres"
     else:
         if os.environ.get("EDU_ENVIRONMENT") != "staging":

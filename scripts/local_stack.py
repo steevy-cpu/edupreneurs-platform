@@ -171,8 +171,8 @@ def cmd_provision() -> None:
     """Create the login role the API connects as (member of edu_api only)."""
     from disposable import verify
 
-    verify(check_env=True)
     env = read_env_file()
+    verify(env=env)
     admin_url = env.get("LOCAL_ADMIN_DATABASE_URL")
     password = env.get("LOCAL_API_DB_PASSWORD")
     if not admin_url or not password:
