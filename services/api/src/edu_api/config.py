@@ -26,6 +26,9 @@ class Settings(BaseSettings):
 
     environment: Literal["local", "test", "staging", "production"] = "local"
 
+    staging_project_ref: str | None = None
+    db_ca_file: str | None = None
+
     # --- Database -----------------------------------------------------------
     #: Must log in as ``edu_api_login`` (member of ``edu_api``). Never postgres,
     #: service_role, or any role with BYPASSRLS.

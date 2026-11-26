@@ -32,23 +32,27 @@ install: ## Install the pinned Supabase CLI and Python dependencies
 	uv sync
 
 setup: install ## First-time setup: signing key, start stack, apply schema, write .env
+	@$(PY) python scripts/disposable.py config
 	$(PY) python scripts/local_stack.py keys
 	$(MAKE) start
 	$(MAKE) db-reset
 
 start: ## Start the local Supabase stack (Postgres + Auth), Docker required
+	@$(PY) python scripts/disposable.py config
 	$(PY) python scripts/local_stack.py keys
 	$(SUPABASE) start
 
 stop: ## Stop the local stack (data is kept until the next db-reset)
+	@$(PY) python scripts/disposable.py running
 	$(SUPABASE) stop
 
 status: ## Show local stack status
 	$(SUPABASE) status
 
 db-reset: ## DESTROY and rebuild the LOCAL database from migrations + seed
+	@$(PY) python scripts/disposable.py running
 	@echo ">> Target: LOCAL disposable database only (no --linked / --remote)."
-	$(SUPABASE) db reset
+	$(SUPABASE) db reset --local
 	$(PY) python scripts/local_stack.py env
 	$(PY) python scripts/local_stack.py provision
 
@@ -59,6 +63,7 @@ token: ## Print a local access token: make token ACCOUNT=student_a
 	@$(PY) python scripts/dev_token.py $(or $(ACCOUNT),student_a)
 
 test-db: ## Database tests (pgTAP) inside the local Postgres
+	@$(PY) python scripts/disposable.py env
 	$(SUPABASE) test db
 
 test-api: ## API unit + integration tests (pytest) against the local stack

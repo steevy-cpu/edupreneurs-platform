@@ -1,0 +1,79 @@
+name: Platform staging preflight
+on:
+  pull_request:
+    paths: &paths
+      - "services/api/**"
+      - "supabase/**"
+      - "scripts/**"
+      - "docs/infra/staging-00/**"
+      - "tests/**"
+      - "Makefile"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "package*.json"
+      - ".github/workflows/platform-staging-00.yml"
+  push:
+    branches: [main]
+    paths: *paths
+permissions:
+  contents: read
+env:
+  BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Scan introduced commits without displaying matched values
+        run: |
+          go install github.com/zricethezav/gitleaks/v8@v8.24.3
+          "$(go env GOPATH)/bin/gitleaks" git --redact=100 --no-banner --log-opts="$BASE_SHA..HEAD" .
+  disposable:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: astral-sh/setup-uv@v5
+      - name: Check locks, source and upgrade order
+        run: |
+          npm ci --no-fund --no-audit
+          uv sync --locked
+          uv run --no-sync ruff check .
+          uv run --no-sync ruff format --check .
+          uv run --no-sync mypy
+          uv run --no-sync python scripts/export_openapi.py --check
+          uv run --no-sync python scripts/staging_verify.py manifest --base "$BASE_SHA"
+          uv run --no-sync pytest -q tests/unit
+      - name: Start checkout-bound synthetic stack
+        run: |
+          uv run --no-sync python scripts/disposable.py configure
+          make start > /dev/null
+          make db-reset
+      - name: Verify effective privileges and restore a synthetic backup
+        run: |
+          uv run --no-sync python scripts/staging_verify.py plan --environment local
+          uv run --no-sync python scripts/staging_verify.py audit --environment local
+          uv run --no-sync python scripts/restore_drill.py --environment local
+          make test-db
+          uv run --no-sync pytest -q tests/integration
+      - name: Verify HTTP liveness and database readiness
+        run: |
+          uv run --no-sync uvicorn edu_api.main:create_app --factory --host 127.0.0.1 --port 8174 --no-access-log &
+          api=$!
+          trap 'kill "$api" 2>/dev/null || true' EXIT
+          curl -fsS --retry 10 --retry-connrefused --retry-delay 1 http://127.0.0.1:8174/health | jq -e '.status == "ok"'
+          curl -fsS http://127.0.0.1:8174/ready | jq -e '.status == "ready"'
+      - name: Release disposable stack
+        if: always()
+        run: |
+          if [ -x .venv/bin/python ] && .venv/bin/python scripts/disposable.py running; then
+            npx --no-install supabase stop --no-backup
+          fi

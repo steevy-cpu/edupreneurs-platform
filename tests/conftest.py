@@ -17,7 +17,6 @@ import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
 
 import asyncpg
 import httpx
@@ -29,9 +28,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from dev_token import issue_token  # noqa: E402
+from disposable import verify  # noqa: E402
 from edu_api.config import Settings  # noqa: E402
 from edu_api.main import create_app  # noqa: E402
-from local_stack import LOCAL_HOSTS, read_env_file  # noqa: E402
+from local_stack import read_env_file  # noqa: E402
 from tests.helpers import EDITOR, REVIEWER, SEED_SOURCE, SEED_UNIT  # noqa: E402
 
 LEARNING_TABLES = (
@@ -59,12 +59,7 @@ def local_env() -> dict[str, str]:
             "(or `make start && make db-reset`). Integration tests are never silently skipped.",
             pytrace=False,
         )
-    for name in ("EDU_DATABASE_URL", "LOCAL_ADMIN_DATABASE_URL", "LOCAL_SUPABASE_URL"):
-        if urlsplit(env[name]).hostname not in LOCAL_HOSTS:
-            pytest.fail(
-                f"{name} is not a local address. Tests only run against this machine.",
-                pytrace=False,
-            )
+    verify(check_env=True)
     return env
 
 

@@ -17,6 +17,7 @@ from edu_api.auth.jwks import JWKSCache, KeyProvider
 from edu_api.auth.verifier import TokenVerifier
 from edu_api.config import Settings, get_settings
 from edu_api.db.session import Database, build_engine
+from edu_api.db.staging import validate_runtime
 from edu_api.errors import install_error_handlers
 from edu_api.middleware import BodyLimitMiddleware, RequestIdMiddleware
 from edu_api.routers import catalog, health, me, sync
@@ -25,7 +26,11 @@ from edu_api.routers import catalog, health, me, sync
 def create_app(
     settings: Settings | None = None, *, key_provider: KeyProvider | None = None
 ) -> FastAPI:
-    settings = settings or get_settings()
+    if settings is None:
+        settings = get_settings()
+        validate_runtime(settings)
+    elif settings.environment in {"staging", "production"}:
+        validate_runtime(settings)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
     jwks_cache: JWKSCache | None = None

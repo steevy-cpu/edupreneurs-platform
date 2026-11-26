@@ -97,6 +97,9 @@ def cmd_keys() -> None:
 
 def cmd_env() -> None:
     """Write .env for the API and the test-suite from the running local stack."""
+    from disposable import verify
+
+    verify()
     status = stack_status()
     existing = read_env_file()
     password = existing.get("LOCAL_API_DB_PASSWORD") or secrets.token_urlsafe(32)
@@ -166,6 +169,9 @@ async def _provision(admin_url: str, password: str) -> None:
 
 def cmd_provision() -> None:
     """Create the login role the API connects as (member of edu_api only)."""
+    from disposable import verify
+
+    verify(check_env=True)
     env = read_env_file()
     admin_url = env.get("LOCAL_ADMIN_DATABASE_URL")
     password = env.get("LOCAL_API_DB_PASSWORD")
