@@ -1,0 +1,126 @@
+name: Independent mobile acceptance
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/mobile-content-qa.yml'
+      - 'docs/reviews/mobile-content-integration/CANDIDATE'
+      - 'docs/reviews/mobile-content-integration/runner/**'
+      - 'docs/reviews/mobile-content-integration/acceptance.test.tsx'
+      - 'docs/reviews/mobile-content-integration/recovery.test.tsx'
+      - 'docs/reviews/mobile-content-integration/record-android-target.sh'
+permissions:
+  contents: read
+jobs:
+  candidate:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'qa/mobile-content-integration'
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.pin.outputs.sha }}
+      suites: ${{ steps.pin.outputs.suites }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 2
+      - id: pin
+        env:
+          PREVIOUS: ${{ github.event.before }}
+        run: |
+          dir=docs/reviews/mobile-content-integration
+          file="$dir/CANDIDATE"
+          suites='["stack","android"]'
+          if [[ "$PREVIOUS" =~ ^[0-9a-f]{40}$ ]] && git cat-file -e "$PREVIOUS^{commit}" 2>/dev/null; then
+            probes=("$dir/acceptance.test.tsx" "$dir/recovery.test.tsx" "$dir/record-android-target.sh")
+            if git diff --quiet "$PREVIOUS" HEAD -- "$file" "$dir/runner" "${probes[@]}" .github/workflows/mobile-content-qa.yml; then exit 0; fi
+            if git diff --quiet "$PREVIOUS" HEAD -- "$file" "$dir/runner/stack.sh" "${probes[@]}"; then
+              suites='["android"]'
+            elif git diff --quiet "$PREVIOUS" HEAD -- "$file" "$dir/runner/android.sh" "$dir/runner/flow.py"; then
+              suites='["stack"]'
+            fi
+          fi
+          echo "suites=$suites" >> "$GITHUB_OUTPUT"
+          if test -f "$file"; then
+            sha=$(cat "$file")
+            [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+            echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          fi
+  acceptance:
+    needs: candidate
+    if: needs.candidate.outputs.sha != ''
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ${{ fromJSON(needs.candidate.outputs.suites || '[]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      QA: ${{ github.workspace }}/review/docs/reviews/mobile-content-integration
+      EVIDENCE: ${{ github.workspace }}/evidence
+      CANDIDATE: ${{ needs.candidate.outputs.sha }}
+      EDU_MOBILE_TEST_API_PORT: '41000'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: review
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.candidate.outputs.sha }}
+          path: app
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: astral-sh/setup-uv@v5
+      - name: Start and verify the runner-local stack
+        working-directory: app
+        run: bash "$QA/runner/stack.sh"
+      - name: Install pinned mobile dependencies
+        id: mobiledeps
+        working-directory: app/apps/student-native
+        run: npm ci --no-fund --no-audit
+      - name: PostgreSQL and real API tests
+        if: matrix.suite == 'stack'
+        working-directory: app
+        run: |
+          make test-db
+          uv run pytest -q
+          make test-db
+      - name: Mobile regression on real Auth and API
+        if: matrix.suite == 'stack' && !cancelled() && steps.mobiledeps.outcome == 'success'
+        working-directory: app/apps/student-native
+        run: |
+          npm run check:api
+          ./node_modules/.bin/tsc --noEmit
+          ./node_modules/.bin/tsc --noEmit -p tests
+          ./node_modules/.bin/jest --runInBand --json --outputFile="$EVIDENCE/mobile.json"
+      - name: Independent regression probes
+        if: matrix.suite == 'stack' && !cancelled() && steps.mobiledeps.outcome == 'success'
+        working-directory: app/apps/student-native
+        run: |
+          cp "$QA/acceptance.test.tsx" tests/delivery/qa.acceptance.test.tsx
+          ./node_modules/.bin/jest -c jest.delivery.config.js --runInBand --runTestsByPath tests/delivery/qa.acceptance.test.tsx --json --outputFile="$EVIDENCE/probes.json"
+      - name: Record the candidate Android adapter with nondefault ports
+        if: matrix.suite == 'stack' && !cancelled() && steps.mobiledeps.outcome == 'success'
+        working-directory: app
+        run: bash "$QA/record-android-target.sh" "$PWD"
+      - name: Recovery and malformed-response checks in French and Haitian Creole
+        if: matrix.suite == 'stack' && !cancelled() && steps.mobiledeps.outcome == 'success'
+        working-directory: app/apps/student-native
+        run: |
+          cp "$QA/recovery.test.tsx" tests/delivery/qa.profile-recovery.test.tsx
+          ./node_modules/.bin/jest -c jest.delivery.config.js --runInBand --runTestsByPath tests/delivery/qa.profile-recovery.test.tsx --json --outputFile="$EVIDENCE/recovery.json"
+      - name: Build Android application and run six acceptance cells
+        if: matrix.suite == 'android'
+        working-directory: app
+        run: bash "$QA/runner/android.sh"
+      - name: Upload QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-qa-${{ matrix.suite }}-${{ needs.candidate.outputs.sha }}
+          path: ${{ env.EVIDENCE }}
+          if-no-files-found: warn
+          retention-days: 7
