@@ -14,6 +14,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function hasText(value: unknown): boolean {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
 /**
  * Structural validation of a lesson snapshot before it replaces the saved copy.
  *
@@ -38,12 +42,20 @@ export function validateLessonSnapshot(
   if (typeof lesson.title !== 'string' || lesson.title.length === 0) {
     throw new SnapshotError('missing_title');
   }
+  if (lesson.assessment_mode !== 'offline_practice') throw new SnapshotError('unsupported_assessment_mode');
   if (!Array.isArray(lesson.blocks) || lesson.blocks.length === 0) {
     throw new SnapshotError('missing_blocks');
   }
   for (const block of lesson.blocks) {
-    if (!isRecord(block) || typeof block.type !== 'string' || typeof block.key !== 'string') {
+    if (!isRecord(block) || typeof block.type !== 'string' || !hasText(block.key)) {
       throw new SnapshotError('malformed_block');
+    }
+    if (['paragraph', 'heading', 'callout'].includes(block.type) && !hasText(block.text)) {
+      throw new SnapshotError('missing_block_text');
+    }
+    if (block.type === 'example' && (!hasText(block.title) || !Array.isArray(block.steps)
+        || block.steps.length === 0 || !block.steps.every(hasText))) {
+      throw new SnapshotError('malformed_example');
     }
   }
   if (!Array.isArray(lesson.questions)) throw new SnapshotError('missing_questions');

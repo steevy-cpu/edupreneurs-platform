@@ -1,4 +1,5 @@
-# Fresh install: sign in, walk the screens, save the seed lesson for offline study.
+# Fresh install: sign in, choose grade and subject on the Apprendre tab, download
+# the seed lesson from the learning path and open it. (Mobile-02 navigation.)
 # Run with: maestro test -e EMAIL=... -e PASSWORD=... e2e/01_sign_in_and_save.yaml
 appId: ht.edupreneur.student.dev
 ---
@@ -15,45 +16,54 @@ appId: ht.edupreneur.student.dev
 - tapOn:
     id: "sign-in-password"
 - inputText: ${PASSWORD}
-- takeScreenshot: shots/02-sign-in-filled
 - runFlow:
     when:
       platform: Android
     commands:
       - hideKeyboard
-- tapOn: "Se connecter"
+- tapOn:
+    id: "sign-in-submit"
 # iOS may offer to save the password in its keychain; decline so the test stays deterministic.
 - tapOn:
     text: "Not Now"
     optional: true
 - extendedWaitUntil:
-    visible: "Choisir ma classe et ma matière"
+    visible: "Choisis ta première leçon"
     timeout: 30000
-- takeScreenshot: shots/03-home
-- tapOn: "Choisir ma classe et ma matière"
+- assertVisible: "Bonjour student.a"
+- assertVisible: "Profil"
+- takeScreenshot: shots/03-home-empty
+- tapOn: "Voir les matières"
 - extendedWaitUntil:
-    visible: "9AF.*"
+    visible: "9AF"
     timeout: 20000
-- tapOn: "9AF.*"
+- tapOn: "9AF"
 - tapOn: "Mathématiques"
-- takeScreenshot: shots/04-select
-- tapOn: "Voir les leçons"
 - extendedWaitUntil:
-    visible: "Enregistrer pour étudier hors ligne"
+    visible: "Équations du premier degré"
     timeout: 20000
-- takeScreenshot: shots/05-lessons-not-saved
-- tapOn: "Enregistrer pour étudier hors ligne"
+- takeScreenshot: shots/04-path-top
+- scrollUntilVisible:
+    element:
+      id: "download-1"
+    direction: DOWN
+- assertVisible: ".*Disponible en ligne.*"
+- assertVisible: "Lire maintenant"
+- takeScreenshot: shots/05-path-not-saved
+- tapOn:
+    id: "download-1"
 - extendedWaitUntil:
-    visible: "Ouvrir"
+    visible: ".*Résoudre une équation simple.*Enregistrée sur ce téléphone.*"
     timeout: 20000
-- assertVisible: "Enregistrée sur ce téléphone.*"
-- takeScreenshot: shots/06-lessons-saved
-- tapOn: "Ouvrir"
+- assertVisible: ".*Étape suivante.*"
+- takeScreenshot: shots/06-path-saved
+- tapOn: ".*Résoudre une équation simple.*Enregistrée sur ce téléphone.*"
 - extendedWaitUntil:
     visible: "La règle de la balance"
     timeout: 10000
+- assertVisible: "Faire les exercices"
 - takeScreenshot: shots/07-reader
 - scrollUntilVisible:
-    element: "Faire les exercices"
+    element: "J’ai terminé la leçon"
     direction: DOWN
 - takeScreenshot: shots/08-reader-bottom

@@ -47,18 +47,29 @@ More detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/SECURITY.md`
 - API endpoints for the learner profile, the catalog, lesson download, and sync push / pull.
 - Exactly-once synchronisation: an answer sent twice, or sent by twenty retries at once, is recorded once. The server scores answers itself.
 
-**Student app (Mobile-01, Release-01)**
-- Sign in, browse the catalog, save a lesson to the phone, read it offline.
+**Student app (Mobile-01, Release-01, Mobile-02)**
+- Four destinations: **Accueil**, **Apprendre**, **Réviser**, **Profil**.
+- Sign in, choose a grade and subject, follow the learning path, download a lesson and read it offline.
 - Answer practice questions offline; each answer is written to SQLite before the app says it is saved.
-- Automatic sync when the network returns, with distinct "saved on this phone", "waiting to sync", "synced" and "failed" states.
+- Automatic sync when the network returns, with distinct "saved on this phone", "waiting to sync", "synced" and "failed" states. "Synced" is never shown for work the server has not acknowledged.
+- Redo the exercises of saved lessons, or only the questions last answered wrongly.
 - French and Haitian Creole interface.
 - Shared-phone safety: one student's saved work is not visible to the next student who signs in.
-- Validated as standalone release builds on an Android 7.0 emulator (API 24, 1 GB RAM, 480×800) and an iPhone simulator. Reports: [`docs/RELEASE_01_REPORT.md`](docs/RELEASE_01_REPORT.md), [`apps/student-native/docs/`](apps/student-native/docs/).
+- Validated as standalone release builds on an Android 7.0 emulator (API 24, 1 GB RAM, 480×800, airplane mode) and an iPhone simulator. Reports: [`docs/MOBILE_02_REPORT.md`](docs/MOBILE_02_REPORT.md), [`docs/RELEASE_01_REPORT.md`](docs/RELEASE_01_REPORT.md), [`apps/student-native/docs/`](apps/student-native/docs/).
 
-**Design-00 (separate branch, not merged)**
-- A design system and five native screen previews driven by made-up data live on the
-  [`design-00`](../../tree/design-00) branch. They are for visual review only and are
-  not part of the application on `main`.
+### The app on this branch (Mobile-02)
+
+Android 7.0 emulator, release build, synthetic student and lesson.
+
+| Accueil | Apprendre | Leçon | Exercices | Profil |
+|---|---|---|---|---|
+| ![Home with the Continue card and work waiting to sync](docs/mobile-02/android/14-home-after-restart-offline.png) | ![Learning path with a downloaded lesson](docs/mobile-02/android/06-path-saved.png) | ![Lesson reader](docs/mobile-02/android/07-reader.png) | ![Exercise feedback after a wrong answer](docs/mobile-02/android/11-quiz-q5-wrong.png) | ![Profile with progress and pending work](docs/mobile-02/android/15-profile-after-restart-offline.png) |
+
+The design system (colour, type and spacing tokens, about twenty components) comes from
+Design-00: specification [`docs/design/EDUPRENEURS_DESIGN00_SPEC_v0.2.md`](docs/design/EDUPRENEURS_DESIGN00_SPEC_v0.2.md),
+report [`docs/design/DESIGN_00_REPORT.md`](docs/design/DESIGN_00_REPORT.md). The original
+fixture-driven previews remain available in development builds only (`monedupreneur://design`)
+and are excluded from release bundles.
 
 ## Offline-first principles
 
@@ -73,7 +84,7 @@ More detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/SECURITY.md`
 
 | Path | What it is |
 |---|---|
-| `apps/student-native/` | React Native (Expo) student app, its tests, UI test flows and validation reports |
+| `apps/student-native/` | React Native (Expo) student app: screens (`src/app`), design system (`src/design`), offline core (`src/core`), tests and UI test flows |
 | `services/api/` | The FastAPI service |
 | `supabase/migrations/` | The database schema, the single source of truth (ordered SQL files) |
 | `supabase/seed.sql` | Synthetic test data: two students, an editor, a reviewer, one grade-9 maths lesson in French and Haitian Creole |
@@ -82,7 +93,7 @@ More detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/SECURITY.md`
 | `packages/contracts/` | OpenAPI contract and JSON Schemas |
 | `scripts/` | Local-only helpers (setup, test tokens, contract export) |
 | `docs/` | Architecture, security, API contract, schema changelog, test and release reports, next steps |
-| `docs/design/` | UX direction (and, on the `design-00` branch, the Design-00 specification, report and screenshots) |
+| `docs/design/` | UX direction, the Design-00 specification, report and screenshots |
 | `docs/reference/` | The original planning drafts, kept unmodified for comparison |
 
 ## Development setup
@@ -124,7 +135,7 @@ The first run downloads about 1.5 GB of Docker images.
 | `make check` | Everything CI runs |
 | `make openapi` | Regenerate `packages/contracts/openapi.json` after changing the API |
 | `make status` | Show local stack URLs |
-| `make mobile-install` / `mobile-check` / `mobile-test` | Mobile app: install, static checks, 52 core tests against the local stack |
+| `make mobile-install` / `mobile-check` / `mobile-test` | Mobile app: install, static checks, 157 tests (storage, sync, design tokens, screen components) against the local stack |
 | `make dev-login ACCOUNT=student_a` | Print an e-mail + password to type into the app |
 | `make mobile-env TARGET=ios-sim` then `make mobile-ios` | Configure and run the app on the iOS Simulator (`android-emu` / `mobile-android` for Android) |
 
@@ -168,7 +179,7 @@ Details: `docs/ARCHITECTURE.md` and `docs/SECURITY.md`.
 - **Tested on emulators and simulators, not on physical phones.**
 - **Haitian Creole wording is a draft** and still needs review by a Creole-speaking educator.
 - **Not built yet:** teacher or parent features, an AI tutor, payments, community, notifications, content-authoring tools.
-- **Automated tests at the Release-01 tag:** 209 database tests, 144 API tests and 52 mobile tests. CI (`.github/workflows/ci.yml`) runs them on a disposable local stack with no cloud project and no repository secrets.
+- **Automated tests:** 209 database tests, 144 API tests and 157 mobile tests. CI (`.github/workflows/ci.yml`) runs them on a disposable local stack with no cloud project and no repository secrets.
 - **Some documents describe one developer's machine** (for example an external development volume in [`docs/DEV_STORAGE.md`](docs/DEV_STORAGE.md)). That set-up is optional; the steps above work from any folder.
 - **Licence:** none has been chosen yet. Until one is added, the code is published for reading and review only, with all rights reserved.
 

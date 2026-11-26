@@ -1,4 +1,4 @@
-import { ApiError } from './errors';
+import { ApiError, receivedHttpResponse } from './errors';
 import { FetchLike, requestJson } from './http';
 import type {
   CatalogResponse,
@@ -15,6 +15,8 @@ export interface ApiClientOptions {
   /** Returns a usable access token; `forceRefresh` is set after the API answered 401. */
   getAccessToken: (options?: { forceRefresh?: boolean }) => Promise<string>;
   fetchImpl?: FetchLike;
+  /** Actual authenticated HTTP attempts only. Cached lesson reads emit no observation. */
+  onReachability?: (reachable: boolean) => void;
   timeoutMs?: number;
   /** Aborted when the session ends (sign-out / account switch). */
   sessionSignal?: AbortSignal;
@@ -79,7 +81,13 @@ export class ApiClient {
         this.baseUrl + path,
         { method, headers, body: json === undefined ? undefined : JSON.stringify(json) },
         { timeoutMs: this.timeoutMs, sessionSignal: this.options.sessionSignal },
-      );
+      ).catch((error: unknown) => {
+        if (error instanceof ApiError && error.kind !== 'aborted') {
+          this.options.onReachability?.(receivedHttpResponse(error));
+        }
+        throw error;
+      });
+      this.options.onReachability?.(true);
       if (status >= 200 && status < 300) return body as T;
 
       const code = readErrorCode(body);

@@ -5,6 +5,7 @@ import { SupabaseAuthClient } from '../core/auth/authClient';
 import { ActiveSession, SessionManager } from '../core/auth/session';
 import { ContentStore } from '../core/db/contentStore';
 import type { Environment } from '../core/learning/actions';
+import { SessionLessonCache } from '../core/learning/contentAccess';
 import { SyncEngine, SyncPhase } from '../core/sync/engine';
 import { loadConfig } from './config';
 import { openExpoDatabase } from './expoSqlite';
@@ -14,12 +15,14 @@ export interface Services {
   sessions: SessionManager;
   content: ContentStore;
   env: Environment;
+  /** Lessons read online during this run. Memory only; not a download. */
+  lessonCache: SessionLessonCache;
   apiFor(session: ActiveSession): ApiClient;
   engineFor(session: ActiveSession, onPhase: (phase: SyncPhase) => void): SyncEngine;
 }
 
 /** Wires the platform adapters into the core. Called once at app start. */
-export async function createServices(): Promise<Services> {
+export async function createServices(onReachability: (reachable: boolean) => void): Promise<Services> {
   const config = loadConfig();
   const sessions = new SessionManager({
     auth: new SupabaseAuthClient({
@@ -35,6 +38,7 @@ export async function createServices(): Promise<Services> {
   const apiFor = (session: ActiveSession) =>
     new ApiClient({
       baseUrl: config.apiUrl,
+      onReachability: (reachable) => { if (session.isActive()) onReachability(reachable); },
       sessionSignal: session.signal,
       getAccessToken: (options) => sessions.accessToken(session, options),
     });
@@ -43,6 +47,7 @@ export async function createServices(): Promise<Services> {
     sessions,
     content,
     env,
+    lessonCache: new SessionLessonCache(),
     apiFor,
     engineFor: (session, onPhase) =>
       new SyncEngine({

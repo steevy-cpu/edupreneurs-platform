@@ -3,8 +3,9 @@ import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { LogBox } from 'react-native';
 
+import { LoadingState, MessageState, ScreenFrame, TopBar } from '../design';
 import { AppProvider, useApp } from '../ui/AppContext';
-import { Banner, Body, Loading, Screen } from '../ui/components';
+import { Themed } from '../ui/shell';
 
 // React Navigation emits this development-only warning on every transition; it is
 // harmless but its on-screen banner covers the bottom buttons in debug builds.
@@ -14,29 +15,32 @@ function Root() {
   const { boot, bootError, t } = useApp();
   if (boot === 'starting') {
     return (
-      <Screen>
-        <Loading label={t('loading')} />
-      </Screen>
+      <ScreenFrame top={<TopBar />}>
+        <LoadingState label={t('loading')} />
+      </ScreenFrame>
     );
   }
   if (boot === 'failed') {
     return (
-      <Screen>
-        <Banner tone="bad">{bootError ?? 'Start-up failed'}</Banner>
-        <Body muted>Edupreneurs</Body>
-      </Screen>
+      <ScreenFrame top={<TopBar />}>
+        <MessageState tone="danger" title={t('errorTitle')} body={bootError ?? 'Start-up failed'} />
+      </ScreenFrame>
     );
   }
+  // Every screen draws its own top bar and (for the four main destinations) tab bar.
   return (
-    <Stack screenOptions={{ headerBackTitle: t('back'), animation: 'none' }}>
-      <Stack.Screen name="index" options={{ headerShown: false }} />
-      <Stack.Screen name="sign-in" options={{ title: t('signInTitle'), headerBackVisible: false }} />
-      <Stack.Screen name="home" options={{ title: t('appName'), headerBackVisible: false }} />
-      <Stack.Screen name="select" options={{ title: t('selectTitle') }} />
-      <Stack.Screen name="lessons" options={{ title: t('lessonsTitle') }} />
-      <Stack.Screen name="lesson/[id]" options={{ title: '' }} />
-      <Stack.Screen name="quiz/[id]" options={{ title: t('quizTitle') }} />
-      <Stack.Screen name="progress" options={{ title: t('progressTitle') }} />
+    <Stack screenOptions={{ headerShown: false, animation: 'none' }}>
+      <Stack.Screen name="index" />
+      <Stack.Screen name="sign-in" />
+      <Stack.Screen name="onboarding" />
+      <Stack.Screen name="home" />
+      <Stack.Screen name="learn" />
+      <Stack.Screen name="review" />
+      <Stack.Screen name="profile" />
+      <Stack.Screen name="lesson/[id]" />
+      <Stack.Screen name="quiz/[id]" />
+      <Stack.Screen name="tour" />
+      <Stack.Screen name="leaderboard" />
     </Stack>
   );
 }
@@ -44,8 +48,10 @@ function Root() {
 export default function Layout() {
   return (
     <AppProvider>
-      <StatusBar style="dark" />
-      <Root />
+      <Themed>
+        <StatusBar style="dark" />
+        <Root />
+      </Themed>
     </AppProvider>
   );
 }

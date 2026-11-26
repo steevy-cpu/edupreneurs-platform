@@ -1,5 +1,5 @@
 import { ApiClient } from '../api/client';
-import { ApiError, errorCode, isAborted, isAuthRequired, isTransient } from '../api/errors';
+import { ApiError, errorCode, isAborted, isAuthRequired, isTransient, receivedHttpResponse } from '../api/errors';
 import { AccountStore, PendingOperation } from '../db/accountStore';
 
 export type SyncOutcome = 'ok' | 'offline' | 'auth_required' | 'aborted' | 'error';
@@ -13,6 +13,20 @@ export interface SyncReport {
   /** Changes applied from the server feed. */
   pulled: number;
   errorCode: string | null;
+  /**
+   * True when the run ended `offline` although the server DID answer (an error reply such as 503 from
+   * the API itself). Such a run is retried like an offline one, but must not be shown as "no connection".
+   */
+  serverAnswered?: boolean;
+}
+
+/** The last run could not reach the server at all (no HTTP reply). */
+export function wasUnreachable(report: SyncReport | null | undefined): boolean {
+  return report?.outcome === 'offline' && report.serverAnswered !== true;
+}
+
+export function serviceUnreachable(status: { serviceReachable?: boolean | null; lastReport: SyncReport | null }): boolean {
+  return status.serviceReachable == null ? wasUnreachable(status.lastReport) : !status.serviceReachable;
 }
 
 export type SyncPhase = 'idle' | 'syncing' | 'waiting_to_retry';
@@ -113,6 +127,7 @@ export class SyncEngine {
         report.outcome = 'auth_required';
       } else if (isTransient(error)) {
         report.outcome = 'offline';
+        report.serverAnswered = error instanceof ApiError && receivedHttpResponse(error);
       } else {
         report.outcome = 'error';
       }

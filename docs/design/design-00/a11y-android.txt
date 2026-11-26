@@ -1,0 +1,18 @@
+PASS  home?locale=fr                        5 targets, smallest side 52, 1 clipped-skipped
+PASS  home?locale=ht&state=pending          5 targets, smallest side 52, 1 clipped-skipped
+PASS  home?locale=fr&state=empty            5 targets, smallest side 52, 0 clipped-skipped
+PASS  home?locale=fr&state=error            5 targets, smallest side 52, 0 clipped-skipped
+PASS  path?locale=fr                       10 targets, smallest side 48, 3 clipped-skipped
+PASS  path?locale=ht&state=offline         11 targets, smallest side 48, 3 clipped-skipped
+PASS  lesson?locale=fr                      2 targets, smallest side 48, 0 clipped-skipped
+PASS  lesson?locale=ht                      2 targets, smallest side 48, 0 clipped-skipped
+PASS  quiz?locale=fr                        5 targets, smallest side 48, 1 clipped-skipped
+PASS  quiz?locale=fr&state=selected         6 targets, smallest side 48, 0 clipped-skipped
+PASS  quiz?locale=ht&state=incorrect        3 targets, smallest side 48, 3 clipped-skipped
+PASS  quiz?locale=fr&state=long             3 targets, smallest side 48, 3 clipped-skipped
+PASS  progress?locale=fr                    4 targets, smallest side 60, 1 clipped-skipped
+PASS  progress?locale=ht&state=pending      4 targets, smallest side 60, 1 clipped-skipped
+PASS  progress?locale=fr&state=failed       4 targets, smallest side 60, 1 clipped-skipped
+PASS  progress?locale=fr&state=empty        5 targets, smallest side 52, 0 clipped-skipped
+
+android: 79 activatable elements checked, 0 failures (minimum 48)

@@ -1,8 +1,8 @@
 import { ApiClient } from '../api/client';
 import type { Locale, PracticeQuestion } from '../api/types';
 import { validateLessonSnapshot } from '../api/validate';
-import { AccountStore } from '../db/accountStore';
-import { ContentStore, SavedLesson, SavedLessonInfo } from '../db/contentStore';
+import { AccountStore, LessonRef } from '../db/accountStore';
+import { ContentStore, DownloadOutcome, SavedLessonInfo } from '../db/contentStore';
 
 export interface Environment {
   /** RFC 4122 v4 UUID, lower case. */
@@ -29,6 +29,15 @@ export function textOf(value: Record<string, unknown>): string {
   return typeof value.text === 'string' ? value.text : '';
 }
 
+/** What an answer or completion needs to know about its lesson. Title/locale/revision, when present, are kept as a minimal reference. */
+export type LessonIdentity = Pick<SavedLessonInfo, 'lessonId' | 'revisionId'> &
+  Partial<Pick<SavedLessonInfo, 'locale' | 'title' | 'revision'>>;
+
+function refOf(lesson: LessonIdentity, at: string): LessonRef | undefined {
+  if (!lesson.locale || !lesson.title || typeof lesson.revision !== 'number') return undefined;
+  return { lessonId: lesson.lessonId, locale: lesson.locale, title: lesson.title, revisionId: lesson.revisionId, revision: lesson.revision, at };
+}
+
 export interface AnswerReceipt {
   opId: string;
   /** Provisional verdict from the downloaded answer key. The server re-scores on sync. */
@@ -41,7 +50,7 @@ export interface AnswerReceipt {
  */
 export async function answerQuestion(
   account: AccountStore,
-  lesson: SavedLesson,
+  lesson: LessonIdentity,
   question: PracticeQuestion,
   choiceId: string,
   env: Environment,
@@ -60,6 +69,7 @@ export async function answerQuestion(
     choiceId,
     localIsCorrect: isCorrect,
     recordedAt: env.now().toISOString(),
+    ref: refOf(lesson, env.now().toISOString()),
   });
   return { opId, isCorrect };
 }
@@ -67,7 +77,7 @@ export async function answerQuestion(
 /** Mark the saved revision of a lesson as finished. False if it already was. */
 export function completeLesson(
   account: AccountStore,
-  lesson: SavedLessonInfo,
+  lesson: LessonIdentity,
   env: Environment,
 ): Promise<boolean> {
   return account.recordLessonCompleted({
@@ -75,13 +85,14 @@ export function completeLesson(
     lessonId: lesson.lessonId,
     lessonRevisionId: lesson.revisionId,
     recordedAt: env.now().toISOString(),
+    ref: refOf(lesson, env.now().toISOString()),
   });
 }
 
 export interface SaveLessonResult {
   revisionId: string;
   /** 'new' first save, 'updated' a different revision replaced the saved one, 'unchanged' same revision. */
-  outcome: 'new' | 'updated' | 'unchanged';
+  outcome: DownloadOutcome;
 }
 
 /**
@@ -98,14 +109,16 @@ export async function saveLessonOffline(
   locale: Locale,
   env: Pick<Environment, 'now'>,
 ): Promise<SaveLessonResult> {
-  const previous = await content.getLessonInfo(lessonId, locale);
-  const downloaded = await api.getLesson(lessonId, locale);
-  const snapshot = validateLessonSnapshot(downloaded, { lessonId, locale });
-  if (previous && previous.revisionId === snapshot.revision_id) {
-    return { revisionId: snapshot.revision_id, outcome: 'unchanged' };
+  const token = await content.beginDownload(lessonId, locale);
+  try {
+    const snapshot = validateLessonSnapshot(await api.getLesson(lessonId, locale), { lessonId, locale });
+    const outcome = await content.replaceLesson(snapshot, env.now().toISOString(), token);
+    return { revisionId: snapshot.revision_id, outcome };
+  } catch (error) {
+    const gone = (error as { status?: number } | null)?.status === 404;
+    await content.finishFailedDownload(lessonId, locale, token, gone ? env.now().toISOString() : null);
+    throw error;
   }
-  await content.replaceLesson(snapshot, env.now().toISOString());
-  return { revisionId: snapshot.revision_id, outcome: previous ? 'updated' : 'new' };
 }
 
 /** Fetch the catalog and cache it. Screens read the cache; this only refreshes it. */

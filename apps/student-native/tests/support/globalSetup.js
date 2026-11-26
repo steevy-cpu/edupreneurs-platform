@@ -21,7 +21,7 @@ module.exports = async function globalSetup() {
   }
 
   // Refuses (throws) unless the database stack is this checkout's own and the .env matches it.
-  const target = deriveRepoTarget();
+  const target = deriveRepoTarget(env);
   console.error(
     `[mobile-test-harness] stack ${target.projectId}: db container ${target.dbContainer}, db port ${target.dbPort}, ` +
       `Supabase ${env.LOCAL_SUPABASE_URL}, test API port ${API_PORT}, pid file ${PID_FILE}`,
@@ -33,7 +33,7 @@ module.exports = async function globalSetup() {
   const child = spawn(
     'uv',
     ['run', 'uvicorn', 'edu_api.main:create_app', '--factory', '--host', '127.0.0.1', '--port', String(API_PORT)],
-    { cwd: REPO_ROOT, detached: true, stdio: ['ignore', log, log] },
+    { cwd: REPO_ROOT, env: { ...process.env, ...env }, detached: true, stdio: ['ignore', log, log] },
   );
   child.unref();
   fs.writeFileSync(PID_FILE, String(child.pid));

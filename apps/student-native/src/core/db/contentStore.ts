@@ -42,6 +42,19 @@ const MIGRATIONS: Migration[] = [
        )`,
     ],
   },
+  {
+    // The moment the server answered "no such published lesson" for a lesson saved on this phone.
+    // Cleared by the next successful download. Additive: one nullable column, no existing row changes.
+    version: 2,
+    statements: [`ALTER TABLE saved_lessons ADD COLUMN server_gone_at TEXT`],
+  },
+  {
+    version: 3,
+    statements: [`CREATE TABLE download_requests (
+      lesson_id TEXT NOT NULL, locale TEXT NOT NULL, token TEXT NOT NULL,
+      PRIMARY KEY (lesson_id, locale)
+    )`],
+  },
 ];
 
 export interface SavedLessonInfo {
@@ -51,6 +64,8 @@ export interface SavedLessonInfo {
   revision: number;
   title: string;
   savedAt: string;
+  /** When the server last said this lesson is no longer published; null if it never did. */
+  serverGoneAt: string | null;
 }
 
 export interface SavedLesson extends SavedLessonInfo {
@@ -66,6 +81,7 @@ interface LessonRow {
   title: string;
   blocks_json: string;
   saved_at: string;
+  server_gone_at: string | null;
 }
 
 interface QuestionRow {
@@ -87,8 +103,11 @@ function toInfo(row: LessonRow): SavedLessonInfo {
     revision: row.revision,
     title: row.title,
     savedAt: row.saved_at,
+    serverGoneAt: row.server_gone_at ?? null,
   };
 }
+
+export type DownloadOutcome = 'new' | 'updated' | 'unchanged' | 'superseded';
 
 export class ContentStore {
   private constructor(private readonly db: SqlDatabase) {}
@@ -102,13 +121,48 @@ export class ContentStore {
     return this.db.close();
   }
 
+  /** Reserve the next explicit selection before fetching. Different handles share the same order. */
+  beginDownload(lessonId: string, locale: Locale): Promise<string> {
+    return this.db.transaction(async (tx) => {
+      const row = await tx.first<{ token: string }>('SELECT hex(randomblob(16)) AS token');
+      const token = row!.token;
+      await tx.run('INSERT OR REPLACE INTO download_requests VALUES (?, ?, ?)', [lessonId, locale, token]);
+      return token;
+    });
+  }
+
+  async finishFailedDownload(lessonId: string, locale: Locale, token: string, goneAt: string | null): Promise<void> {
+    await this.db.transaction(async (tx) => {
+      const args = [lessonId, locale, token];
+      if (goneAt) {
+        await tx.run(`UPDATE saved_lessons SET server_gone_at = ? WHERE lesson_id = ? AND locale = ?
+          AND EXISTS (SELECT 1 FROM download_requests WHERE lesson_id = ? AND locale = ? AND token = ?)`,
+          [goneAt, lessonId, locale, ...args]);
+      }
+      await tx.run('DELETE FROM download_requests WHERE lesson_id = ? AND locale = ? AND token = ?', args);
+    });
+  }
+
   /**
    * Replace the saved copy of a lesson with a new, already validated snapshot.
    * One transaction: a reader sees either the complete old copy or the complete
    * new one, and a failure part-way leaves the old copy in place.
    */
-  async replaceLesson(snapshot: LessonResponse, savedAt: string): Promise<void> {
-    await this.db.transaction(async (tx) => {
+  async replaceLesson(snapshot: LessonResponse, savedAt: string, token?: string): Promise<DownloadOutcome> {
+    return this.db.transaction(async (tx) => {
+      const key = [snapshot.lesson_id, snapshot.locale];
+      if (token) {
+        const current = await tx.first<{ token: string }>(
+          'SELECT token FROM download_requests WHERE lesson_id = ? AND locale = ?', key);
+        if (current?.token !== token) return 'superseded';
+      }
+      await tx.run('DELETE FROM download_requests WHERE lesson_id = ? AND locale = ?', key);
+      const previous = await tx.first<{ revision_id: string }>(
+        'SELECT revision_id FROM saved_lessons WHERE lesson_id = ? AND locale = ?', key);
+      if (token && previous?.revision_id === snapshot.revision_id) {
+        await tx.run('UPDATE saved_lessons SET server_gone_at = NULL WHERE lesson_id = ? AND locale = ?', key);
+        return 'unchanged';
+      }
       await tx.run('DELETE FROM saved_lessons WHERE lesson_id = ? AND locale = ?', [
         snapshot.lesson_id,
         snapshot.locale,
@@ -150,7 +204,35 @@ export class ContentStore {
           ],
         );
       }
+      return previous ? 'updated' : 'new';
     });
+  }
+
+  /**
+   * Remove a downloaded lesson and its saved questions. Returns false if nothing was saved.
+   * Public content only: student records are in the account database and are not touched.
+   */
+  async deleteLesson(lessonId: string, locale: Locale): Promise<boolean> {
+    return this.db.transaction(async (tx) => {
+      const existing = await tx.first<{ lesson_id: string }>(
+        'SELECT lesson_id FROM saved_lessons WHERE lesson_id = ? AND locale = ?',
+        [lessonId, locale],
+      );
+      await tx.run('DELETE FROM download_requests WHERE lesson_id = ? AND locale = ?', [lessonId, locale]);
+      if (!existing) return false;
+      await tx.run('DELETE FROM saved_questions WHERE lesson_id = ? AND locale = ?', [lessonId, locale]);
+      await tx.run('DELETE FROM saved_lessons WHERE lesson_id = ? AND locale = ?', [lessonId, locale]);
+      return true;
+    });
+  }
+
+  /** Record that the server said this saved lesson is no longer published. The copy and the student's work are kept. */
+  async markServerGone(lessonId: string, locale: Locale, at: string): Promise<void> {
+    await this.db.run('UPDATE saved_lessons SET server_gone_at = ? WHERE lesson_id = ? AND locale = ?', [
+      at,
+      lessonId,
+      locale,
+    ]);
   }
 
   async getLessonInfo(lessonId: string, locale: Locale): Promise<SavedLessonInfo | null> {

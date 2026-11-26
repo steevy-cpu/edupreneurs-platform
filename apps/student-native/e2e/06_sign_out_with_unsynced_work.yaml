@@ -1,43 +1,42 @@
 # Run while the backend is UNREACHABLE, signed in as student A with the lesson saved.
-# One offline answer, then sign out: the app must warn, and "keep my work" must not lose it.
+# One offline answer, then sign out from Profil: the app must warn, and "keep my work" must not lose it.
 appId: ht.edupreneur.student.dev
 ---
 - stopApp
 - launchApp:
     clearState: false
 - extendedWaitUntil:
-    visible: "Mes leçons"
+    visible: "Continuer ma leçon"
     timeout: 60000
-- tapOn: "Mes leçons"
+- takeScreenshot: shots/22-home-offline-from-cache
+- tapOn:
+    id: "home-continue"
 - extendedWaitUntil:
-    visible: "Ouvrir"
+    visible: "Faire les exercices"
     timeout: 20000
-- takeScreenshot: shots/22-lessons-offline-from-cache
-- tapOn: "Ouvrir"
-- scrollUntilVisible:
-    element: "Faire les exercices"
-    direction: DOWN
 - tapOn: "Faire les exercices"
 - tapOn: "x = 7"
-- scrollUntilVisible:
-    element: "Valider"
-    direction: DOWN
 - tapOn: "Valider"
 - extendedWaitUntil:
-    visible: "Réponse enregistrée sur ce téléphone"
-    timeout: 10000
+    visible: ".*Réponse enregistrée sur ce téléphone.*"
+    timeout: 15000
 - stopApp
 - launchApp:
     clearState: false
 - extendedWaitUntil:
-    visible: "Mes leçons"
+    visible: "1 action\\(s\\) en attente de synchronisation.*"
     timeout: 90000
-- scrollUntilVisible:
-    element: "1 action\\(s\\) en attente de synchronisation"
-    direction: DOWN
+- tapOn:
+    id: "tab-profile"
+- extendedWaitUntil:
+    visible: "Ma progression"
+    timeout: 20000
 - scrollUntilVisible:
     element: "Se déconnecter"
     direction: DOWN
+# Let the scroll settle: a tap during the fling is swallowed by the scroll view.
+- waitForAnimationToEnd:
+    timeout: 3000
 - tapOn: "Se déconnecter"
 - extendedWaitUntil:
     visible: "Travail non synchronisé"

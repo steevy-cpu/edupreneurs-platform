@@ -1,0 +1,29 @@
+# Backend reachable again. Retry loads the lesson; the five answers sync once; nothing was downloaded.
+appId: ht.edupreneur.student.dev
+---
+- tapOn:
+    text: "Réessayer"
+    optional: true
+- extendedWaitUntil:
+    visible: "La règle de la balance"
+    timeout: 30000
+- assertVisible: "En ligne · non téléchargée"
+- takeScreenshot: shots/28-online-retry-ok
+- tapOn: "Retour"
+- tapOn:
+    id: "tab-profile"
+- extendedWaitUntil:
+    visible: "Ma progression"
+    timeout: 20000
+- scrollUntilVisible:
+    element: "Synchroniser maintenant"
+    direction: DOWN
+- tapOn: "Synchroniser maintenant"
+- extendedWaitUntil:
+    visible: "Tout est synchronisé"
+    timeout: 60000
+- scrollUntilVisible:
+    element: "5 question\\(s\\) répondue\\(s\\)"
+    direction: UP
+- assertVisible: "Synchronisé"
+- takeScreenshot: shots/29-online-profile-synced

@@ -1,0 +1,16 @@
+# Signed in. Switch the interface language from Profil: -e LABEL="Kreyòl" or -e LABEL="Français".
+appId: ht.edupreneur.student.dev
+---
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible:
+      id: "tab-profile"
+    timeout: 90000
+- tapOn:
+    id: "tab-profile"
+- scrollUntilVisible:
+    element: ${LABEL}
+    direction: DOWN
+- tapOn: ${LABEL}

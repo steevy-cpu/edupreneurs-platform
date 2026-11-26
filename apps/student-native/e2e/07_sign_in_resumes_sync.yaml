@@ -12,15 +12,23 @@ appId: ht.edupreneur.student.dev
       platform: Android
     commands:
       - hideKeyboard
-- tapOn: "Se connecter"
+- tapOn:
+    id: "sign-in-submit"
+# iOS may offer to save the password in its keychain; decline so the test stays deterministic.
 - tapOn:
     text: "Not Now"
     optional: true
 - extendedWaitUntil:
-    visible: "Mes leçons"
+    visible: "Bonjour student.a"
     timeout: 60000
+- tapOn:
+    id: "tab-profile"
+- extendedWaitUntil:
+    visible: "Ma progression"
+    timeout: 20000
 - scrollUntilVisible:
     element: "Tout est synchronisé"
     direction: DOWN
     timeout: 60000
+- assertNotVisible: ".*en attente de synchronisation.*"
 - takeScreenshot: shots/25-work-synced-after-sign-in

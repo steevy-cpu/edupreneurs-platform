@@ -52,8 +52,8 @@ make mobile-test      # 52 tests: real SQLite files, real local API and Auth
 `make mobile-test` starts its own copy of the API and resets the
 local learning tables between tests. It only ever talks to `127.0.0.1`.
 The target database is derived from this checkout's `supabase/config.toml`; the harness refuses to run
-against the default shared `mon-edupreneur` stack unless `EDU_TEST_ALLOW_SHARED_STACK=1` is set deliberately
-(CI sets it on its disposable stack). Run the tests from a separate worktree with its own `project_id`.
+against the shared `mon-edupreneur` stack. Run from a separate worktree with its own project ID,
+database and Auth ports. CI assigns a fresh project ID on its disposable runner.
 
 The test API port is derived per checkout (a stable value in 20000-29999 computed from the checkout path), so two
 worktrees never share one; set `EDU_MOBILE_TEST_API_PORT` to override it. If the port is already taken the harness
@@ -104,13 +104,19 @@ once and try again.
 
 ```bash
 make api                                       # terminal 1
-apps/student-native/scripts/android-open.sh    # terminal 2: starts the API 24 emulator, forwards ports,
+ANDROID_SERIAL=emulator-5554 apps/student-native/scripts/android-open.sh  # terminal 2: starts the API 24 emulator, forwards ports,
                                                # installs the saved APK if needed, starts Metro, launches the app
 ```
 
 The emulator reaches the Mac's API, Auth and Metro through `adb reverse`, so the
 same `.env.local` (127.0.0.1) works for iOS and Android. Port forwarding is lost
 when the emulator restarts; the script sets it again.
+
+For the Maestro journey, set `EDU_MOBILE_TEST_API_PORT` to a free host port before generating
+the app environment and building the test app. Use the loopback configuration (`make mobile-env TARGET=ios-sim`)
+for ADB reverse, or the Android emulator host for airplane mode. Install that build on the selected
+device. The runner verifies the checkout's database and gateway bindings and starts its own FastAPI process.
+Set `ANDROID_SERIAL` or `IOS_UDID` to the exact acceptance device before running `scripts/e2e-run.sh`.
 
 ### The manual acceptance test
 

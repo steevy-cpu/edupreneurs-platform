@@ -1,0 +1,10 @@
+# Onboarding navigation stage (test build with EXPO_PUBLIC_FF_ONBOARDING=1). Photographed with adb by the caller.
+appId: ht.edupreneur.student.dev
+---
+- scrollUntilVisible:
+    element:
+      id: "onboarding-continue"
+    direction: DOWN
+- tapOn:
+    id: "onboarding-continue"
+- waitForAnimationToEnd

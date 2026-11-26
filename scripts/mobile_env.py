@@ -10,6 +10,7 @@ key. The file is git-ignored anyway, because it is machine-specific.
 
 from __future__ import annotations
 
+import os
 import socket
 import sys
 from pathlib import Path
@@ -19,7 +20,7 @@ from local_stack import LOCAL_HOSTS, ROOT, read_env_file
 
 TARGETS = ("ios-sim", "android-emu", "lan")
 OUTPUT = ROOT / "apps" / "student-native" / ".env.local"
-API_PORT = 8000
+API_PORT = int(os.environ.get("EDU_MOBILE_TEST_API_PORT", "8000"))
 
 
 def lan_address() -> str:

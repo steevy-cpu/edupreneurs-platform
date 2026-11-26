@@ -1,4 +1,6 @@
 import type { ChangeItem, OperationResult, SyncOperation } from '../api/types';
+import { EXPERIENCE_MIGRATIONS } from '../experience/schema';
+import { ExperienceStore } from '../experience/store';
 import { migrate, Migration, SqlDatabase, SqlExecutor } from './driver';
 
 /**
@@ -13,6 +15,10 @@ import { migrate, Migration, SqlDatabase, SqlExecutor } from './driver';
  *   lesson_progress    lesson completion (local intent + server confirmation)
  *   outbox             operations not yet confirmed by the server, in the order they happened
  *   meta               account id, pull cursor, last sync time, preferences
+ *
+ * Versions 2+ add the learner-experience tables (onboarding, tour, …). They are
+ * defined in ../experience/schema.ts, are additive only, and never touch the
+ * tables above.
  */
 const MIGRATIONS: Migration[] = [
   {
@@ -73,7 +79,46 @@ const MIGRATIONS: Migration[] = [
       `CREATE INDEX outbox_by_state ON outbox (state, seq)`,
     ],
   },
+  ...EXPERIENCE_MIGRATIONS,
+  {
+    // Online-only continuity (Content-Delivery). A minimal reference to each lesson this student opened or
+    // answered, so Home and Review can show activity for a lesson that is not downloaded. It holds the
+    // lesson's PUBLIC title and revision only: never lesson content, answers or questions. Additive only.
+    version: 5,
+    statements: [
+      `CREATE TABLE IF NOT EXISTS lesson_refs (
+         lesson_id      TEXT NOT NULL,
+         locale         TEXT NOT NULL CHECK (locale IN ('fr','ht')),
+         title          TEXT NOT NULL,
+         revision_id    TEXT NOT NULL,
+         revision       INTEGER NOT NULL,
+         last_opened_at TEXT NOT NULL,
+         PRIMARY KEY (lesson_id, locale)
+       )`,
+    ],
+  },
 ];
+
+/** What is remembered about a lesson this student has opened: public metadata only. */
+export interface LessonRef {
+  lessonId: string;
+  locale: 'fr' | 'ht';
+  title: string;
+  revisionId: string;
+  revision: number;
+  /** ISO time of the most recent open, answer or completion. */
+  at: string;
+}
+
+async function upsertLessonRef(tx: SqlExecutor, ref: LessonRef): Promise<void> {
+  await tx.run(
+    `INSERT INTO lesson_refs (lesson_id, locale, title, revision_id, revision, last_opened_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT (lesson_id, locale) DO UPDATE SET title = excluded.title, revision_id = excluded.revision_id,
+       revision = excluded.revision, last_opened_at = excluded.last_opened_at`,
+    [ref.lessonId, ref.locale, ref.title, ref.revisionId, ref.revision, ref.at],
+  );
+}
 
 export type SyncState = 'pending' | 'synced' | 'needs_attention';
 
@@ -122,6 +167,8 @@ export interface NewAnswer {
   choiceId: string;
   localIsCorrect: boolean;
   recordedAt: string;
+  /** Written in the same transaction as the answer, so an answered lesson is never unreferenced. */
+  ref?: LessonRef;
 }
 
 export interface NewCompletion {
@@ -129,6 +176,7 @@ export interface NewCompletion {
   lessonId: string;
   lessonRevisionId: string;
   recordedAt: string;
+  ref?: LessonRef;
 }
 
 export interface PushApplyOutcome {
@@ -151,10 +199,15 @@ function str(value: unknown): string | null {
 }
 
 export class AccountStore {
+  /** This account's onboarding / tour / cached extras. Same file, same isolation as the learning data. */
+  readonly experience: ExperienceStore;
+
   private constructor(
     private readonly db: SqlDatabase,
     readonly accountId: string,
-  ) {}
+  ) {
+    this.experience = new ExperienceStore(db);
+  }
 
   /**
    * Opens the store and binds it to `accountId`. If the file already belongs
@@ -197,6 +250,7 @@ export class AccountStore {
    */
   async recordAnswer(answer: NewAnswer): Promise<void> {
     await this.db.transaction(async (tx) => {
+      if (answer.ref) await upsertLessonRef(tx, answer.ref);
       await tx.run(
         `INSERT INTO attempts (op_id, question_revision_id, lesson_revision_id, lesson_id, choice_id,
            local_is_correct, recorded_at, origin, sync_state)
@@ -233,6 +287,7 @@ export class AccountStore {
    */
   async recordLessonCompleted(completion: NewCompletion): Promise<boolean> {
     return this.db.transaction(async (tx) => {
+      if (completion.ref) await upsertLessonRef(tx, completion.ref);
       const existing = await tx.first<{ local_completed_at: string | null; server_completed_at: string | null }>(
         'SELECT local_completed_at, server_completed_at FROM lesson_progress WHERE lesson_id = ?',
         [completion.lessonId],
@@ -257,6 +312,32 @@ export class AccountStore {
       );
       return true;
     });
+  }
+
+  // ------------------------------------------------------------------ lesson references
+  /** Remember that this student opened a lesson (any source). Public metadata only. */
+  async touchLessonRef(ref: LessonRef): Promise<void> {
+    await this.db.transaction((tx) => upsertLessonRef(tx, ref));
+  }
+
+  /** Lessons this student has opened or answered, most recent first. */
+  async listLessonRefs(locale: 'fr' | 'ht'): Promise<LessonRef[]> {
+    const rows = await this.db.all<{
+      lesson_id: string;
+      locale: 'fr' | 'ht';
+      title: string;
+      revision_id: string;
+      revision: number;
+      last_opened_at: string;
+    }>('SELECT * FROM lesson_refs WHERE locale = ? ORDER BY last_opened_at DESC, lesson_id', [locale]);
+    return rows.map((row) => ({
+      lessonId: row.lesson_id,
+      locale: row.locale,
+      title: row.title,
+      revisionId: row.revision_id,
+      revision: row.revision,
+      at: row.last_opened_at,
+    }));
   }
 
   // ------------------------------------------------------------------------ push

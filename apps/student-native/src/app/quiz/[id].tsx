@@ -1,10 +1,25 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { View } from 'react-native';
 
-import type { SavedLesson } from '../../core/db/contentStore';
+import type { PracticeQuestion } from '../../core/api/types';
 import { answerQuestion, choicesOf, correctChoiceOf, textOf } from '../../core/learning/actions';
-import { Banner, Body, Button, Card, colors, Loading, Screen } from '../../ui/components';
+import { getDownloaded, openLesson, ReadableLesson } from '../../core/learning/contentAccess';
+import type { OpenResult } from '../../core/learning/contentAccess';
+import {
+  AnswerOption,
+  AppText,
+  Button,
+  Card,
+  FeedbackPanel,
+  LoadingState,
+  MessageState,
+  Notice,
+  OptionState,
+  ProgressBar,
+  space,
+} from '../../design';
+import { DetailScreen } from '../../ui/shell';
 import { useSignedIn } from '../../ui/useSession';
 
 interface Feedback {
@@ -12,11 +27,24 @@ interface Feedback {
   correctChoiceId: string | null;
 }
 
+interface Loaded {
+  lesson: ReadableLesson;
+  /** The questions of this run, fixed when the screen opens so the list never shifts while answering. */
+  questions: PracticeQuestion[];
+}
+
+/**
+ * Exercises: one question per screen.
+ * `?only=missed` limits the run to questions whose last answer was wrong
+ * (from the local records); with nothing missed it falls back to every question.
+ */
 export default function Quiz() {
   const app = useSignedIn();
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const [lesson, setLesson] = useState<SavedLesson | null | undefined>(undefined);
+  const { id, only, mode } = useLocalSearchParams<{ id: string; only?: string; mode?: string }>();
+  const [loaded, setLoaded] = useState<Loaded | null | undefined>(undefined);
+  const [failure, setFailure] = useState<Extract<OpenResult, { kind: 'unavailable' }>['reason'] | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -26,59 +54,123 @@ export default function Quiz() {
   const [finished, setFinished] = useState(false);
   const session = app?.session;
   const locale = app?.locale;
+
   useEffect(() => {
     if (!app || !session || !locale || !id) return;
     let live = true;
-    app.services.content
-      .getLesson(id, locale) // SQLite only
-      .then((saved) => live && setLesson(saved))
-      .catch(() => live && setLesson(null));
+    (async () => {
+      // Downloaded lesson: SQLite only. `?mode=online`: the copy the reader just fetched (memory), or a fresh fetch.
+      let lesson: ReadableLesson | null;
+      if (mode === 'online') {
+        const result = await openLesson(
+          { api: app.api, content: app.services.content, cache: app.services.lessonCache },
+          id,
+          locale,
+          'online',
+        );
+        lesson = result.kind === 'ready' ? result.lesson : result.kind === 'unavailable' ? result.downloaded : null;
+        if (result.kind === 'unavailable' && !result.downloaded && live) setFailure(result.reason);
+        else if (live) setFailure(null);
+      } else {
+        lesson = await getDownloaded(app.services.content, id, locale);
+      }
+      if (!lesson) {
+        if (live) setLoaded(null);
+        return;
+      }
+      let questions = lesson.questions.filter((q) => q.kind === 'mcq');
+      if (only === 'missed') {
+        const progress = await session.account.questionProgress(id);
+        const missed = questions.filter((q) => progress.get(q.id)?.lastIsCorrect === false);
+        if (missed.length > 0) questions = missed;
+      }
+      if (live) setLoaded({ lesson, questions });
+    })().catch(() => live && setLoaded(null));
     return () => {
       live = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session, locale, id]);
+  }, [session, locale, id, only, mode, attempt]);
 
   if (!app) return <Redirect href="/sign-in" />;
   const { t } = app;
 
-  if (lesson === undefined) {
+  if (loaded === undefined) {
     return (
-      <Screen>
-        <Loading label={t('loading')} />
-      </Screen>
+      <DetailScreen title={t('quizTitle')}>
+        <LoadingState label={t('loading')} />
+      </DetailScreen>
     );
   }
-  const questions = (lesson?.questions ?? []).filter((q) => q.kind === 'mcq');
-  if (!lesson || questions.length === 0) {
+  if (!loaded && failure) {
+    const reasonText = {
+      offline: t('readerFailOffline'),
+      service: t('readerFailService'),
+      not_found: t('readerFailNotFound'),
+      session: t('readerFailSession'),
+      invalid: t('readerFailInvalid'),
+    }[failure];
     return (
-      <Screen>
-        <Body muted>{lesson ? t('quizNoQuestions') : t('readerNotSaved')}</Body>
-        <Button label={t('back')} onPress={() => router.back()} />
-      </Screen>
+      <DetailScreen title={t('quizTitle')}>
+        <MessageState
+          tone="danger"
+          title={t('readerOnlineTitle')}
+          body={reasonText}
+          actionLabel={failure === 'not_found' ? t('back') : t('readerRetry')}
+          onAction={() => {
+            if (failure === 'not_found') router.canGoBack() ? router.back() : router.replace('/learn');
+            else {
+              setLoaded(undefined);
+              setAttempt((n) => n + 1);
+            }
+          }}
+        />
+      </DetailScreen>
     );
   }
+  if (!loaded || loaded.questions.length === 0) {
+    return (
+      <DetailScreen title={t('quizTitle')}>
+        <MessageState
+          title={t('quizTitle')}
+          body={loaded ? t('quizNoQuestions') : t('readerNotSaved')}
+          actionLabel={t('back')}
+          onAction={() => (router.canGoBack() ? router.back() : router.replace('/learn'))}
+        />
+      </DetailScreen>
+    );
+  }
+  const { lesson, questions } = loaded;
 
   if (finished) {
     return (
-      <Screen>
+      <DetailScreen
+        title={t('quizTitle')}
+        action={
+          <>
+            <Button label={t('homeProgress')} onPress={() => router.replace('/profile')} />
+            <Button
+              variant="secondary"
+              label={t('quizAgain')}
+              onPress={() => {
+                setIndex(0);
+                setSelected(null);
+                setFeedback(null);
+                setCorrectCount(0);
+                setFinished(false);
+              }}
+            />
+          </>
+        }
+      >
         <Card>
-          <Body style={{ fontWeight: '700' }}>{t('quizResult', { correct: correctCount, total: questions.length })}</Body>
-          <Body muted>{t('quizProvisional')}</Body>
+          <AppText variant="title" accessibilityRole="header">
+            {t('quizResult', { correct: correctCount, total: questions.length })}
+          </AppText>
+          {/* The phone's verdict is provisional until the server has scored the answers. */}
+          <AppText color="textSecondary">{t('quizProvisional')}</AppText>
         </Card>
-        <Button label={t('homeProgress')} onPress={() => router.replace('/progress')} />
-        <Button
-          variant="secondary"
-          label={t('quizAgain')}
-          onPress={() => {
-            setIndex(0);
-            setSelected(null);
-            setFeedback(null);
-            setCorrectCount(0);
-            setFinished(false);
-          }}
-        />
-      </Screen>
+      </DetailScreen>
     );
   }
 
@@ -118,66 +210,66 @@ export default function Quiz() {
     setFeedback(null);
   };
 
+  const position = t('quizQuestionOf', { current: index + 1, total: questions.length });
+  const correctChoice = feedback ? choices.find((choice) => choice.id === feedback.correctChoiceId) : undefined;
+
   return (
-    <Screen revealEndKey={feedback ? `${index}` : null}>
-      <Body muted>{t('quizQuestionOf', { current: index + 1, total: questions.length })}</Body>
-      <Text style={styles.prompt}>{textOf(question.prompt)}</Text>
-      <View style={{ gap: 8 }} accessibilityRole="radiogroup">
+    <DetailScreen
+      title={t('quizTitle')}
+      revealEndKey={feedback ? `${index}` : null}
+      action={
+        feedback === null ? (
+          <Button label={t('quizValidate')} disabled={!selected} busy={saving} onPress={() => void validate()} />
+        ) : (
+          <Button label={index + 1 >= questions.length ? t('quizFinish') : t('quizNext')} onPress={next} />
+        )
+      }
+    >
+      <View style={{ gap: space.sm }}>
+        <AppText variant="label" color="textSecondary">
+          {position}
+        </AppText>
+        <ProgressBar value={(index + (feedback ? 1 : 0)) / questions.length} label={position} />
+        {lesson.source === 'online' ? <Notice tone="info">{t('quizOnlineNote')}</Notice> : null}
+      </View>
+      <AppText variant="title" accessibilityRole="header">
+        {textOf(question.prompt)}
+      </AppText>
+      <View style={{ gap: space.sm }} accessibilityRole="radiogroup">
         {choices.map((choice) => {
           const isSelected = selected === choice.id;
-          const showCorrect = feedback !== null && feedback.correctChoiceId === choice.id;
-          const showWrong = feedback !== null && isSelected && !feedback.isCorrect;
+          let state: OptionState = isSelected ? 'selected' : 'idle';
+          let resultLabel: string | undefined;
+          if (feedback !== null) {
+            if (feedback.correctChoiceId === choice.id) {
+              state = 'correct';
+              resultLabel = t('quizCorrect');
+            } else if (isSelected) {
+              state = 'incorrect';
+              resultLabel = t('quizIncorrect');
+            } else state = 'dimmed';
+          }
           return (
-            <Pressable
+            <AnswerOption
               key={choice.id}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: isSelected, disabled: feedback !== null }}
-              disabled={feedback !== null || saving}
-              onPress={() => setSelected(choice.id)}
-              style={[
-                styles.choice,
-                isSelected && styles.choiceSelected,
-                showCorrect && { borderColor: colors.good },
-                showWrong && { borderColor: colors.bad },
-              ]}
-            >
-              <Text style={styles.choiceText}>
-                {showCorrect ? '✓ ' : showWrong ? '✗ ' : ''}
-                {choice.text}
-              </Text>
-            </Pressable>
+              label={choice.text}
+              state={state}
+              resultLabel={resultLabel}
+              onPress={saving ? undefined : () => setSelected(choice.id)}
+            />
           );
         })}
       </View>
-      {saveFailed ? <Banner tone="bad">{t('quizSaveFailed')}</Banner> : null}
-      {feedback === null ? (
-        <Button label={t('quizValidate')} disabled={!selected} busy={saving} onPress={() => void validate()} />
-      ) : (
-        <>
-          <Banner tone={feedback.isCorrect ? 'good' : 'bad'}>
-            {feedback.isCorrect ? t('quizCorrect') : t('quizIncorrect')}
-          </Banner>
-          <Body>{textOf(question.explanation)}</Body>
-          <Body muted>{t('quizSavedLocal')}</Body>
-          <Button label={index + 1 >= questions.length ? t('quizFinish') : t('quizNext')} onPress={next} />
-        </>
-      )}
-    </Screen>
+      {saveFailed ? <Notice tone="danger">{t('quizSaveFailed')}</Notice> : null}
+      {feedback !== null ? (
+        <FeedbackPanel
+          correct={feedback.isCorrect}
+          title={feedback.isCorrect ? t('quizCorrect') : t('quizIncorrect')}
+          detail={!feedback.isCorrect && correctChoice ? t('correctAnswerIs', { answer: correctChoice.text }) : undefined}
+          explanation={textOf(question.explanation)}
+          savedLabel={t('quizSavedLocal')}
+        />
+      ) : null}
+    </DetailScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  prompt: { fontSize: 22, fontWeight: '600', color: colors.text, lineHeight: 30 },
-  choice: {
-    minHeight: 52,
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    backgroundColor: colors.surface,
-  },
-  choiceSelected: { borderColor: colors.primary },
-  choiceText: { fontSize: 18, color: colors.text },
-});

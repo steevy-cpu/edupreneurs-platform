@@ -4,6 +4,6 @@
     "types": ["jest", "node"],
     "noEmit": true
   },
-  "include": ["./**/*.ts", "../src/core"],
+  "include": ["./**/*.ts", "./**/*.tsx", "../src"],
   "exclude": []
 }

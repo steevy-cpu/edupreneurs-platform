@@ -6,11 +6,19 @@ appId: ht.edupreneur.student.dev
 - launchApp:
     clearState: false
 - extendedWaitUntil:
-    visible: "Mes leçons"
+    visible: "Bonjour student.a"
     timeout: 90000
+- tapOn:
+    id: "tab-profile"
+- extendedWaitUntil:
+    visible: "Ma progression"
+    timeout: 20000
 - scrollUntilVisible:
     element: "Se déconnecter"
     direction: DOWN
+# Let the scroll settle: a tap during the fling is swallowed by the scroll view.
+- waitForAnimationToEnd:
+    timeout: 3000
 - tapOn: "Se déconnecter"
 - extendedWaitUntil:
     visible: "Se connecter"
@@ -27,7 +35,8 @@ appId: ht.edupreneur.student.dev
       platform: Android
     commands:
       - hideKeyboard
-- tapOn: "Se connecter"
+- tapOn:
+    id: "sign-in-submit"
 # iOS may offer to save the password in its keychain; decline so the test stays deterministic.
 - tapOn:
     text: "Not Now"
@@ -35,33 +44,28 @@ appId: ht.edupreneur.student.dev
 - extendedWaitUntil:
     visible: "Bonjour student.b"
     timeout: 30000
-- scrollUntilVisible:
-    element: "Tout est synchronisé"
-    direction: DOWN
+# The lesson file is shared content, so B can continue it — with B's own (empty) progress.
+- assertVisible: "0 sur 5 exercices faits"
+- assertNotVisible: "5 sur 5 exercices faits"
+- assertNotVisible: ".*en attente de synchronisation.*"
 - takeScreenshot: shots/19-home-student-b
-- scrollUntilVisible:
-    element: "Progrès et synchronisation"
-    direction: UP
-- tapOn: "Progrès et synchronisation"
+- tapOn:
+    id: "tab-profile"
+- extendedWaitUntil:
+    visible: "Ma progression"
+    timeout: 20000
+- assertVisible: "student.b@edupreneur.test"
 - scrollUntilVisible:
     element: "0 question\\(s\\) répondue\\(s\\) sur 5"
     direction: DOWN
 - assertNotVisible: "5 question\\(s\\) répondue\\(s\\) sur 5"
-- takeScreenshot: shots/20-progress-student-b-empty
-# Back to home: the header button on iOS, the system back key on Android.
-- runFlow:
-    when:
-      platform: iOS
-    commands:
-      - tapOn: "Retour"
-- runFlow:
-    when:
-      platform: Android
-    commands:
-      - back
+- takeScreenshot: shots/20-profile-student-b-empty
 - scrollUntilVisible:
     element: "Se déconnecter"
     direction: DOWN
+# Let the scroll settle: a tap during the fling is swallowed by the scroll view.
+- waitForAnimationToEnd:
+    timeout: 3000
 - tapOn: "Se déconnecter"
 - extendedWaitUntil:
     visible: "Se connecter"
@@ -77,7 +81,8 @@ appId: ht.edupreneur.student.dev
       platform: Android
     commands:
       - hideKeyboard
-- tapOn: "Se connecter"
+- tapOn:
+    id: "sign-in-submit"
 # iOS may offer to save the password in its keychain; decline so the test stays deterministic.
 - tapOn:
     text: "Not Now"
@@ -85,9 +90,13 @@ appId: ht.edupreneur.student.dev
 - extendedWaitUntil:
     visible: "Bonjour student.a"
     timeout: 30000
-- tapOn: "Progrès et synchronisation"
+- tapOn:
+    id: "tab-profile"
+- extendedWaitUntil:
+    visible: "Ma progression"
+    timeout: 20000
 - scrollUntilVisible:
     element: "5 question\\(s\\) répondue\\(s\\) sur 5"
     direction: DOWN
     timeout: 30000
-- takeScreenshot: shots/21-progress-student-a-back
+- takeScreenshot: shots/21-profile-student-a-back
