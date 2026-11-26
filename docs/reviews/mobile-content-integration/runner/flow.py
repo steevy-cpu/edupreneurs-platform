@@ -4,7 +4,7 @@ import json
 import sys
 from pathlib import Path
 
-lang, cell = sys.argv[1:]
+lang, output = sys.argv[1:]
 assert lang in {"fr", "ht"}
 fr = lang == "fr"
 
@@ -30,7 +30,7 @@ commands = [
 
 
 def shot(label):
-    return {"takeScreenshot": f"{Path(cell).name}-{label}"}
+    return {"checkpoint": label}
 
 
 if not fr:
@@ -97,6 +97,14 @@ commands.extend(
         shot("review"),
     ]
 )
-# Maestro's YAML parser accepts JSON as a document. Do not serialize credentials.
-print("appId: ht.edupreneur.student.dev\n---")
-print(json.dumps(commands, ensure_ascii=False))
+# Each segment leaves the application in the foreground. ADB captures the API 24
+# framebuffer directly at its end, independently of Maestro's screenshot service.
+segment = []
+for command in commands:
+    if isinstance(command, dict) and "checkpoint" in command:
+        path = Path(output) / (command["checkpoint"] + ".yaml")
+        path.write_text("appId: ht.edupreneur.student.dev\n---\n" + json.dumps(segment, ensure_ascii=False))
+        segment = []
+    else:
+        segment.append(command)
+assert not segment

@@ -77,21 +77,23 @@ for scale in 1.0 1.3 2.0; do
   for lang in fr ht; do
     cell="$EVIDENCE/$lang-$scale"
     mkdir -p "$cell"
-    python3 "$QA/runner/flow.py" "$lang" "$cell" > "$RUNNER_TEMP/cell.yaml"
-    if [[ "$actual" == "$scale" ]] && timeout 360 "$maestro" test -e PASS_A="$PASS_A" "$RUNNER_TEMP/cell.yaml"; then
-      status=pass
-    else
-      status=fail
-      failed=1
-      timeout 15 adb exec-out screencap -p > "$cell/failure.png"
-    fi
-    find "$HOME/.maestro/tests" -type f -path '*/takeScreenshot/*' -name "$lang-$scale-*.png" \
-      -exec cp '{}' "$cell/" \;
-    if [[ "$status" == pass ]] && [[ $(find "$cell" -name '*.png' | wc -l) != 5 ]]; then
-      echo "Missing screenshot for $lang at $scale"
-      status=missing_evidence
-      failed=1
-    fi
+    flowdir="$RUNNER_TEMP/flows-$lang-$scale"
+    mkdir -p "$flowdir"
+    python3 "$QA/runner/flow.py" "$lang" "$flowdir"
+    status=pass
+    for screen in home learn reader quiz review; do
+      if [[ "$actual" == "$scale" ]] && timeout 240 "$maestro" test -e PASS_A="$PASS_A" "$flowdir/$screen.yaml"; then
+        timeout 15 adb exec-out screencap -p > "$cell/$lang-$scale-$screen.png"
+        test -s "$cell/$lang-$scale-$screen.png"
+        echo "Reached $lang $scale $screen"
+      else
+        echo "Stopped at $lang $scale $screen"
+        timeout 15 adb exec-out screencap -p > "$cell/failure.png"
+        status=fail
+        failed=1
+        break
+      fi
+    done
     echo "Device cell $lang at $actual: $status"
     printf '%s,%s,%s,%s\n' "$CANDIDATE" "$lang" "$actual" "$status" >> "$EVIDENCE/cells.csv"
   done
