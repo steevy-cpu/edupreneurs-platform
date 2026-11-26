@@ -26,6 +26,29 @@ grep -q "480x800" "$OUT/size.txt"
 grep -q "240" "$OUT/density.txt"
 printf '%s\n' "$SHA" > "$OUT/commit.txt"
 printf '%s\n' "$KIND" > "$OUT/build.txt"
+# Indicative only: cold launches to the signed-out screen, no student data.
+for run in 1 2 3; do
+  adb -s "$ANDROID_SERIAL" shell am force-stop ht.edupreneur.student.dev
+  adb -s "$ANDROID_SERIAL" shell am start -W -n ht.edupreneur.student.dev/.MainActivity > "$OUT/cold-start-$run.txt"
+done
+adb -s "$ANDROID_SERIAL" shell dumpsys meminfo ht.edupreneur.student.dev > "$OUT/meminfo.txt"
+# Independent signed-out capture: verify the real UI hierarchy before saving pixels.
+# This can provide partial evidence even if the Maestro journey fails.
+capture_signed_out() {
+  local directory="$1" attempt
+  mkdir -p "$directory/shots"
+  adb -s "$ANDROID_SERIAL" shell pm clear ht.edupreneur.student.dev > /dev/null || return 1
+  adb -s "$ANDROID_SERIAL" shell am start -n ht.edupreneur.student.dev/.MainActivity > /dev/null || return 1
+  for attempt in $(seq 1 12); do
+    sleep 5
+    if adb -s "$ANDROID_SERIAL" shell uiautomator dump /sdcard/mobile03-window.xml > /dev/null 2>&1 && \
+       adb -s "$ANDROID_SERIAL" shell cat /sdcard/mobile03-window.xml | grep -q 'sign-in-email'; then
+      adb -s "$ANDROID_SERIAL" exec-out screencap -p > "$directory/shots/00-sign-in.png" || return 1
+      return 0
+    fi
+  done
+  return 1
+}
 failed=0
 for scale in 1.0 1.3 2.0; do
   adb -s "$ANDROID_SERIAL" shell settings put system font_scale "$scale"
@@ -33,6 +56,13 @@ for scale in 1.0 1.3 2.0; do
   test "$actual_scale" = "$scale"
   export E2E_OUT="$OUT/runs/$scale"
   mkdir -p "$E2E_OUT"
+  if capture_signed_out "$E2E_OUT/run.direct"; then
+    printf 'passed\n' > "$E2E_OUT/run.direct/result.txt"
+  else
+    printf 'failed\n' > "$E2E_OUT/run.direct/result.txt"
+    echo "Signed-out UI capture failed at font scale $scale"
+    failed=1
+  fi
   if (cd "$ROOT" && apps/student-native/scripts/e2e-run.sh android); then
     printf 'passed\n' > "$E2E_OUT/result.txt"
   else
@@ -72,15 +102,20 @@ for path in sorted(root.glob('runs/*/run.*/shots/*.png')):
     scale = path.parts[-4]
     state = path.stem
     locale = 'ht' if state.startswith(('30-', '31-', '32-', '33-', '34-')) else 'fr'
-    result = (root / 'runs' / scale / 'result.txt').read_text().strip()
+    is_direct = path.parts[-3] == 'run.direct'
+    result_file = root / 'runs' / scale / ('run.direct/result.txt' if is_direct else 'result.txt')
+    result = result_file.read_text().strip()
     captures.append({'file': str(path.relative_to(root)), 'commit_sha': os.environ['MOBILE03_SHA'],
         'api_level': 24, 'device': 'GitHub-hosted emulator, x86_64, 1024 MB configured',
         'physical_size_px': '480x800', 'density_dpi': 240, 'logical_width_dp': 320,
         'locale': locale, 'font_scale': scale, 'screen_and_state': state,
         'feature_flags': 'all optional learner flags off; design preview off',
         'captured_at_utc': datetime.datetime.fromtimestamp(path.stat().st_mtime, datetime.timezone.utc).isoformat(),
-        'journey_result': result})
+        'journey_result': result, 'verification_method': 'UI hierarchy check' if is_direct else 'Maestro journey'})
+if not captures:
+    print('No screenshots captured; evidence remains incomplete.')
 (root / 'capture-manifest.json').write_text(json.dumps({'build': os.environ['MOBILE03_KIND'],
     'captures': captures, 'limitations': 'Existing Maestro journeys only; not the complete requested matrix. Inspect failed journey logs; no claim of TalkBack or large-screen coverage.'}, indent=2)+'\n')
 PY
+compgen -G "$OUT/runs/*/run.*/shots/*.png" > /dev/null || failed=1
 exit "$failed"

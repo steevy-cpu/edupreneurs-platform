@@ -113,6 +113,8 @@ jobs:
             evidence/commit.txt
             evidence/build.txt
             evidence/apk-bytes.txt
+            evidence/cold-start-*.txt
+            evidence/meminfo.txt
             evidence/api.txt
             evidence/size.txt
             evidence/density.txt
