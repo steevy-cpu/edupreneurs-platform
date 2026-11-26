@@ -57,9 +57,13 @@ Severity reflects effect on this slice. Each row describes one reproducible scen
 
 At local native reconciliation `e2e902e9701ccbd1ef19074fe9e047c4b477e8d2`, both TypeScript checks passed. The existing delivery configuration passed 263 cases and failed the same three socket binds. All 94 tests in the separate experience directory passed. The independent probes still recorded 2 passes and 8 failures.
 
-At local correction `aefbad60aeb3b1f892c1697d27b90ad6586072b0`, both TypeScript checks and all 30 new continuity/freshness regressions passed. Of the ten independent probes, five passed and five failed. **QA-1 and QA-4 passed the independent retest.** QA-2, QA-3, QA-5, QA-6 and QA-7 reproduced. The developer also added real-stack tests for online reading and withdrawal; those require the live gate.
+At local correction `aefbad60aeb3b1f892c1697d27b90ad6586072b0`, both TypeScript checks and all 30 new continuity/freshness regressions passed. Of the ten independent probes, five passed and five failed. **QA-1 and QA-4 passed the independent retest.** QA-2, QA-3, QA-5, QA-6 and QA-7 reproduced. A follow-up strengthened the two screen assertions to require the lesson title, required the exact not-listed status, and added a sign-out race through the real SessionManager with a delayed synthetic Auth refresh and database reopen. Six of 11 probes passed; the same five failed. The restarted account stayed with learner B and could not read learner A’s marker. The developer also added real-stack tests for online reading and withdrawal; those require the live gate.
 
 **Android runner isolation (High, e2e-run.sh at e2e902e).** The default Android port-forward path checked the database project, then forwarded the device to fixed host ports. Running only its `backend reachable` function with a recording ADB stand-in emitted `reverse tcp:8000 tcp:8000` and `reverse tcp:54321 tcp:54321`. The stand-in contacted no device or service. The script can therefore use a different API/Auth pair from the stack it inspects. Derive both forwards from the verified runtime endpoints and require an exact device serial. Add a recording-adapter test with nondefault ports. The independent GitHub job uses a dedicated emulator, explicit reverse mappings and a new Supabase project on its own VM.
+
+### Old-phone efficiency
+
+On `aefbad60aeb3b1f892c1697d27b90ad6586072b0`, I populated temporary SQLite with 1, 25 and 100 two-question lessons and counted the account and content drivers' `first` and `all` calls during one `learningStandings` read. The counts were 6, 102 and 402. Home and Réviser use this operation on focus. Before large libraries ship, measure focus-to-render on API 24 and consider a bounded set of summary queries that avoid loading paragraph bodies. These are query counts from Node SQLite; device latency remains unmeasured.
 
 ## Reproduction
 

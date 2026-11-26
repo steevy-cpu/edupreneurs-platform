@@ -2,6 +2,8 @@
 import React from 'react';
 import Home from '../../src/app/home';
 import Review from '../../src/app/review';
+import { SessionManager, StoredSession } from '../../src/core/auth/session';
+import { nodeDatabases } from '../support/nodeSqlite';
 import { ApiError } from '../../src/core/api/errors';
 import { requestJson } from '../../src/core/api/http';
 import { answerQuestion, completeLesson } from '../../src/core/learning/actions';
@@ -38,6 +40,7 @@ it.each([['Home', Home, 'homeEmptyTitle'], ['Réviser', Review, 'reviewEmptyTitl
     expect(await phone.content.getLesson(id, 'fr')).toBeNull();
     const screen = await phone.render(<Screen />);
     expect(screen.has(t(emptyTitle))).toBe(false);
+    expect(screen.text()).toContain(lesson.title);
   });
 
 it('a delayed earlier download cannot replace a later explicit download', async () => {
@@ -67,7 +70,7 @@ it('a saved lesson absent from a fresh catalog cannot be declared current', asyn
   const { env } = phone.app.services;
   await downloadForOffline(api(1), phone.content, id, 'fr', env);
   await phone.content.saveCatalog({ locale: 'fr', courses: [] }, env.now().toISOString());
-  expect(await checkForUpdates(phone.content, id, 'fr')).not.toBe('up_to_date');
+  expect(await checkForUpdates(phone.content, id, 'fr')).toBe('not_listed');
 });
 
 it('a reachable service returning 503 is not evidence that the phone is offline', async () => {
@@ -122,4 +125,46 @@ it('preflight rejects a service DSN from a different disposable port', () => {
     EDU_DATABASE_URL: 'postgresql+asyncpg://localhost:42002/postgres',
   };
   expect(() => deriveTarget({ configText, env, processEnv: {}, isRunning: () => true })).toThrow();
+});
+
+it('a late Auth refresh cannot replace the next learner on restart', async () => {
+  let stored: StoredSession | null = null;
+  const tokens = {
+    load: async () => stored,
+    save: async (value: StoredSession) => { stored = value; },
+    clear: async () => { stored = null; },
+  };
+  let release!: () => void;
+  let started!: () => void;
+  const entered = new Promise<void>(r => { started = r; });
+  const gate = new Promise<void>(r => { release = r; });
+  const sessionFor = (email: string) => ({
+    email, userId: email.startsWith('a@') ? '00000000-0000-4000-a000-000000000001' : '00000000-0000-4000-a000-000000000002',
+    accessToken: 'synthetic', refreshToken: 'synthetic', expiresAt: 1000,
+  });
+  const deps = {
+    tokens, openDatabase: nodeDatabases(phone.dir), now: () => 0,
+    auth: {
+      signInWithPassword: async (email: string) => sessionFor(email),
+      refresh: async () => { started(); await gate; return sessionFor('a@example.test'); },
+      signOut: async () => {},
+    },
+  };
+  const manager = new SessionManager(deps);
+  const a = await manager.signIn('a@example.test', 'synthetic');
+  await a.account.setPreference('qa_marker', 'learner A');
+  const refresh = manager.accessToken(a, { forceRefresh: true });
+  await entered;
+  await manager.signOut();
+  const b = await manager.signIn('b@example.test', 'synthetic');
+  release();
+  await expect(refresh).rejects.toMatchObject({ kind: 'aborted' });
+  expect(await b.account.getPreference('qa_marker')).toBeNull();
+  await b.account.close();
+  const restarted = new SessionManager(deps);
+  const restored = await restarted.restore();
+  try {
+    expect(restored?.userId).toBe(b.userId);
+    expect(await restored?.account.getPreference('qa_marker')).toBeNull();
+  } finally { await restarted.signOut(); }
 });
