@@ -80,7 +80,9 @@ jobs:
       - name: Install Maestro
         run: |
           set -euo pipefail
+          export MAESTRO_VERSION=2.12.1
           curl -fsSL https://get.maestro.mobile.dev | bash
+          "$HOME/.maestro/bin/maestro" --version
           mkdir -p source/.tools
           ln -s "$HOME/.maestro" source/.tools/maestro
       - name: Enable KVM
