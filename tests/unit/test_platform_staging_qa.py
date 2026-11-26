@@ -82,7 +82,12 @@ def test_real_launcher_reaches_single_server(stage_env, workers, monkeypatch):
     captured = []
     monkeypatch.setenv("WEB_CONCURRENCY", workers)
     monkeypatch.setattr(sys, "argv", ["staging_service.py", "--environment", "staging"])
-    monkeypatch.setattr(uvicorn.Server, "run", lambda self, **kw: captured.append(self.config))
+
+    def finished_server(server, **kwargs):
+        captured.append(server.config)
+        server.started = True
+
+    monkeypatch.setattr(uvicorn.Server, "run", finished_server)
     # Preserve pytest's log handlers. Uvicorn builds its real configuration and selects its run mode.
     with patch("logging.basicConfig"):
         try:
@@ -151,3 +156,34 @@ def test_manifest_rejects_byte_drift_with_same_version(monkeypatch, tmp_path):
     monkeypatch.setattr(staging_verify, "ROOT", tmp_path)
     with pytest.raises(ValueError, match="manifest"):
         staging_verify.versions()
+
+
+@pytest.mark.parametrize("helper", ["dev_login", "dev_token"])
+@pytest.mark.xfail(
+    strict=True,
+    raises=ControlMiss,
+    reason="QA-5: local Auth maintenance helpers do not verify the disposable identity",
+)
+def test_auth_maintenance_checks_ownership_before_http(helper, monkeypatch):
+    import dev_login
+    import dev_token
+    import httpx
+
+    config = {"LOCAL_SUPABASE_URL": "http://127.0.0.1:1", "LOCAL_SUPABASE_SECRET_KEY": "inert"}
+    entry = dev_login if helper == "dev_login" else dev_token
+    monkeypatch.setattr(entry, "read_env_file", lambda: config)
+
+    def block_http(client, request, **kwargs):
+        if request.method == "PUT":
+            raise ControlMiss("an unverified Auth target reached the write boundary")
+        pytest.fail("unexpected HTTP operation")
+
+    monkeypatch.setattr(httpx.Client, "send", block_http)
+    try:
+        if helper == "dev_login":
+            dev_login.main("student_a")
+        else:
+            dev_token.issue_token("student_a")
+    except (ValueError, SystemExit):
+        return
+    pytest.fail("expected refusal before reaching HTTP")
