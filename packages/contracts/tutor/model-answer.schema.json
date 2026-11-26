@@ -1,0 +1,95 @@
+{
+  "$id": "https://contracts.mon-edupreneur.local/tutor/model-answer.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The JSON object the output-format section of the prompt asks for.",
+  "properties": {
+    "check_question": {
+      "anyOf": [
+        {
+          "maxLength": 400,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Check Question"
+    },
+    "explanation": {
+      "maxLength": 1500,
+      "title": "Explanation",
+      "type": "string"
+    },
+    "grounding": {
+      "enum": [
+        "lesson",
+        "general",
+        "none"
+      ],
+      "title": "Grounding",
+      "type": "string"
+    },
+    "hint": {
+      "anyOf": [
+        {
+          "maxLength": 400,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Hint"
+    },
+    "language": {
+      "enum": [
+        "fr",
+        "ht"
+      ],
+      "title": "Language",
+      "type": "string"
+    },
+    "next_action": {
+      "default": "none",
+      "enum": [
+        "none",
+        "reread_passage",
+        "review_example",
+        "try_practice_question",
+        "ask_follow_up",
+        "rephrase_question"
+      ],
+      "title": "Next Action",
+      "type": "string"
+    },
+    "references": {
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 12,
+      "title": "References",
+      "type": "array"
+    },
+    "status": {
+      "enum": [
+        "answered",
+        "insufficient_context",
+        "declined",
+        "safety_support"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "status",
+    "grounding",
+    "language",
+    "explanation"
+  ],
+  "title": "Structured output a model must return (internal, not sent to clients)",
+  "type": "object"
+}

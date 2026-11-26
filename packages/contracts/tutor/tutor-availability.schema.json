@@ -1,0 +1,53 @@
+{
+  "$id": "https://contracts.mon-edupreneur.local/tutor/tutor-availability.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Answer of the status probe. Contains no usage of anyone but the caller.",
+  "properties": {
+    "available": {
+      "title": "Available",
+      "type": "boolean"
+    },
+    "daily_requests_limit": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Daily Requests Limit"
+    },
+    "daily_requests_used": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Daily Requests Used"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "A stable tutor error code.",
+      "title": "Reason"
+    }
+  },
+  "required": [
+    "available"
+  ],
+  "title": "Jude availability probe",
+  "type": "object"
+}
