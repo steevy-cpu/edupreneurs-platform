@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Hosted CI only: captures real application routes using the existing Maestro journey.
 # Partial coverage is reported honestly in the manifest; no design fixtures are opened.
-set -uo pipefail
+set -euo pipefail
 ROOT="${1:?source checkout required}"
 OUT="${2:?evidence directory required}"
 KIND="${3:?baseline or candidate required}"
@@ -18,19 +18,45 @@ adb -s "$ANDROID_SERIAL" shell wm size 480x800
 adb -s "$ANDROID_SERIAL" shell wm density 240
 adb -s "$ANDROID_SERIAL" install -r "$ROOT/apps/student-native/android/app/build/outputs/apk/release/app-release.apk" || exit 1
 adb -s "$ANDROID_SERIAL" shell getprop ro.build.version.sdk > "$OUT/api.txt"
+test "$(tr -d '\r\n' < "$OUT/api.txt")" = 24
+wc -c < "$ROOT/apps/student-native/android/app/build/outputs/apk/release/app-release.apk" > "$OUT/apk-bytes.txt"
 adb -s "$ANDROID_SERIAL" shell wm size > "$OUT/size.txt"
 adb -s "$ANDROID_SERIAL" shell wm density > "$OUT/density.txt"
+grep -q "480x800" "$OUT/size.txt"
+grep -q "240" "$OUT/density.txt"
 printf '%s\n' "$SHA" > "$OUT/commit.txt"
 printf '%s\n' "$KIND" > "$OUT/build.txt"
 failed=0
 for scale in 1.0 1.3 2.0; do
   adb -s "$ANDROID_SERIAL" shell settings put system font_scale "$scale"
+  actual_scale=$(adb -s "$ANDROID_SERIAL" shell settings get system font_scale | tr -d '\r\n')
+  test "$actual_scale" = "$scale"
   export E2E_OUT="$OUT/runs/$scale"
   mkdir -p "$E2E_OUT"
   if (cd "$ROOT" && apps/student-native/scripts/e2e-run.sh android); then
     printf 'passed\n' > "$E2E_OUT/result.txt"
   else
     printf 'failed\n' > "$E2E_OUT/result.txt"
+    # Report categories only: the original Maestro logs can include synthetic credentials.
+    python3 - "$E2E_OUT" <<'PYDIAG'
+from pathlib import Path
+import re, sys
+logs = list(Path(sys.argv[1]).glob('run.*/journey.log'))
+checks = {
+    'Maestro CLI option or usage error': r'unknown option|unknown argument|usage:',
+    'Java or binary compatibility error': r'UnsupportedClassVersionError|Exec format error|NoClassDefFoundError',
+    'Maestro executable missing or permission denied': r'No such file or directory|Permission denied',
+    'UI element or assertion failure': r'Element not found|Assertion is false|Assertion failed|not visible',
+    'Maestro driver or connection failure': r'Unable to connect|failed to connect|Unable to start|driver.*fail',
+    'Application launch failure': r'Failed to launch|Unable to launch|app.*crash',
+}
+for log in logs:
+    data = log.read_text(errors='replace')
+    found = [label for label, pattern in checks.items() if re.search(pattern, data, re.I)]
+    exceptions = sorted(set(re.findall(r'\b[A-Za-z][A-Za-z0-9_.]*(?:Exception|Error)\b', data)))
+    print('Safe failure categories:', ', '.join(found) or 'unclassified')
+    print('Exception type names:', ', '.join(exceptions) or 'none')
+PYDIAG
     failed=1
   fi
 done

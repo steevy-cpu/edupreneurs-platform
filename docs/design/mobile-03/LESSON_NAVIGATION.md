@@ -1,6 +1,6 @@
 # Lesson navigation — Mobile-03 addendum
 
-**Status: design proposal, not implemented.** The owner's seven-section requirement supersedes the earlier Design-00 recommendation to retire the seven lesson tabs. [Open the static visual preview](lesson-navigation-preview.html). It depicts proposed layouts, not a working app or a device screenshot. No content schema, database, route or network behavior changes are included in this addendum.
+**Status: design proposal, not implemented.** The owner's seven-section requirement supersedes the earlier Design-00 recommendation to retire the seven lesson tabs. [Open the static visual preview](lesson-navigation-preview.html) and [compare the two navigation concepts](lesson-navigation-comparison.html). It depicts proposed layouts, not a working app or a device screenshot. No content schema, database, route or network behavior changes are included in this addendum.
 
 ## Prototype evidence: Studygram
 

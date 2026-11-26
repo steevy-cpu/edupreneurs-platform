@@ -101,7 +101,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
           disable-animations: true
           script: bash "$GITHUB_WORKSPACE/harness/apps/student-native/scripts/mobile03-hosted-capture.sh" "$GITHUB_WORKSPACE/source" "$GITHUB_WORKSPACE/evidence" "$BUILD_KIND"
-      - name: Upload capture evidence and failure logs
+      - name: Upload capture evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -110,6 +110,7 @@ jobs:
             evidence/capture-manifest.json
             evidence/commit.txt
             evidence/build.txt
+            evidence/apk-bytes.txt
             evidence/api.txt
             evidence/size.txt
             evidence/density.txt
@@ -121,3 +122,30 @@ jobs:
         if: always()
         working-directory: source
         run: npx --no-install supabase stop --no-backup
+
+  compare:
+    name: Pair verified captures
+    needs: capture
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: mobile03-*-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence
+      - name: Create contact sheets from matching successful captures
+        run: |
+          set -euo pipefail
+          python3 -m pip install 'Pillow==11.3.0'
+          python3 docs/design/mobile-03/make-comparisons.py \
+            "evidence/mobile03-baseline-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            "evidence/mobile03-candidate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            comparisons
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mobile03-comparisons-${{ github.run_id }}-${{ github.run_attempt }}
+          path: comparisons/
+          if-no-files-found: error
+          retention-days: 30
