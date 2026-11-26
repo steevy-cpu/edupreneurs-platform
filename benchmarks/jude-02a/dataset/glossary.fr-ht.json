@@ -1,0 +1,717 @@
+{
+ "_about": "French / Haitian Creole school-mathematics terms used to translate a question's words into the lesson's language before lexical ranking. Written from the LESSON texts, not from the benchmark questions. 'general' entries are everyday classroom words; the others are topic vocabulary tagged with the lesson they came from, so the benchmark can also be run with a lesson's own topic terms removed. SYNTHETIC and unreviewed: a native Haitian Creole speaker must check every pair.",
+ "entries": [
+  {
+   "scope": "general",
+   "fr": [
+    "nombre"
+   ],
+   "ht": [
+    "nonm"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "calculer",
+    "calcul"
+   ],
+   "ht": [
+    "kalkile"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "additionner",
+    "addition"
+   ],
+   "ht": [
+    "adisyone"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "multiplier",
+    "multipliée",
+    "multiplié"
+   ],
+   "ht": [
+    "miltipliye"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "diviser"
+   ],
+   "ht": [
+    "divize"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "côté",
+    "côtés"
+   ],
+   "ht": [
+    "bò"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "même"
+   ],
+   "ht": [
+    "menm"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "différent",
+    "différents"
+   ],
+   "ht": [
+    "diferan"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "réponse"
+   ],
+   "ht": [
+    "repons"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "vérifier"
+   ],
+   "ht": [
+    "verifye"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "exemple"
+   ],
+   "ht": [
+    "egzanp"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "valeur"
+   ],
+   "ht": [
+    "valè"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "égal",
+    "égalité"
+   ],
+   "ht": [
+    "egal",
+    "egalite"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "trouver"
+   ],
+   "ht": [
+    "jwenn"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "résoudre"
+   ],
+   "ht": [
+    "rezoud"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "solution",
+    "solutions"
+   ],
+   "ht": [
+    "solisyon"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "quantité"
+   ],
+   "ht": [
+    "kantite"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "carré",
+    "carrés"
+   ],
+   "ht": [
+    "kare"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "somme"
+   ],
+   "ht": [
+    "sòm"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "règle"
+   ],
+   "ht": [
+    "règ"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "formule"
+   ],
+   "ht": [
+    "fòmil"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "prix"
+   ],
+   "ht": [
+    "pri"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "garder"
+   ],
+   "ht": [
+    "kenbe"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "remplacer"
+   ],
+   "ht": [
+    "ranplase"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "écrire",
+    "écrit"
+   ],
+   "ht": [
+    "ekri"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "tracer"
+   ],
+   "ht": [
+    "trase"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "droite"
+   ],
+   "ht": [
+    "dwat"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "point",
+    "points"
+   ],
+   "ht": [
+    "pwen"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "combien"
+   ],
+   "ht": [
+    "konbyen"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "servir",
+    "sert"
+   ],
+   "ht": [
+    "sèvi",
+    "wòl"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "rapidement",
+    "vite"
+   ],
+   "ht": [
+    "vit"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "tous",
+    "tout"
+   ],
+   "ht": [
+    "tout"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "marcher",
+    "marche"
+   ],
+   "ht": [
+    "mache"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "deux"
+   ],
+   "ht": [
+    "de"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "zéro"
+   ],
+   "ht": [
+    "zewo"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "représenter",
+    "représente"
+   ],
+   "ht": [
+    "reprezante"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "long"
+   ],
+   "ht": [
+    "long"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "plusieurs"
+   ],
+   "ht": [
+    "plizyè"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "négatif"
+   ],
+   "ht": [
+    "negatif"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "positif"
+   ],
+   "ht": [
+    "pozitif"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "terme",
+    "termes"
+   ],
+   "ht": [
+    "tèm"
+   ]
+  },
+  {
+   "scope": "general",
+   "fr": [
+    "dire",
+    "dit"
+   ],
+   "ht": [
+    "di"
+   ]
+  },
+  {
+   "scope": "7af-fractions",
+   "fr": [
+    "fraction",
+    "fractions"
+   ],
+   "ht": [
+    "fraksyon"
+   ]
+  },
+  {
+   "scope": "7af-fractions",
+   "fr": [
+    "dénominateur",
+    "dénominateurs"
+   ],
+   "ht": [
+    "denominatè"
+   ]
+  },
+  {
+   "scope": "7af-fractions",
+   "fr": [
+    "numérateur",
+    "numérateurs"
+   ],
+   "ht": [
+    "nimeratè"
+   ]
+  },
+  {
+   "scope": "8af-pourcentages",
+   "fr": [
+    "pourcentage"
+   ],
+   "ht": [
+    "pousantaj"
+   ]
+  },
+  {
+   "scope": "8af-pourcentages",
+   "fr": [
+    "cent"
+   ],
+   "ht": [
+    "san"
+   ]
+  },
+  {
+   "scope": "8af-pourcentages",
+   "fr": [
+    "réduction"
+   ],
+   "ht": [
+    "rabè"
+   ]
+  },
+  {
+   "scope": "9af-equations",
+   "fr": [
+    "équation"
+   ],
+   "ht": [
+    "ekwasyon"
+   ]
+  },
+  {
+   "scope": "9af-equations",
+   "fr": [
+    "inconnue"
+   ],
+   "ht": [
+    "enkoni"
+   ]
+  },
+  {
+   "scope": "9af-equations",
+   "fr": [
+    "balance"
+   ],
+   "ht": [
+    "balans"
+   ]
+  },
+  {
+   "scope": "9af-equations",
+   "fr": [
+    "équilibre"
+   ],
+   "ht": [
+    "ekilib"
+   ]
+  },
+  {
+   "scope": "9af-equations",
+   "fr": [
+    "soustraire",
+    "soustrait"
+   ],
+   "ht": [
+    "soustrè",
+    "retire"
+   ]
+  },
+  {
+   "scope": "ns1-pythagore",
+   "fr": [
+    "triangle",
+    "triangles"
+   ],
+   "ht": [
+    "triyang"
+   ]
+  },
+  {
+   "scope": "ns1-pythagore",
+   "fr": [
+    "rectangle"
+   ],
+   "ht": [
+    "rektang"
+   ]
+  },
+  {
+   "scope": "ns1-pythagore",
+   "fr": [
+    "hypoténuse"
+   ],
+   "ht": [
+    "ipoteniz"
+   ]
+  },
+  {
+   "scope": "ns1-pythagore",
+   "fr": [
+    "théorème"
+   ],
+   "ht": [
+    "teyorèm"
+   ]
+  },
+  {
+   "scope": "ns1-pythagore",
+   "fr": [
+    "pythagore"
+   ],
+   "ht": [
+    "pitagò"
+   ]
+  },
+  {
+   "scope": "ns1-pythagore",
+   "fr": [
+    "angle"
+   ],
+   "ht": [
+    "ang"
+   ]
+  },
+  {
+   "scope": "ns1-pythagore",
+   "fr": [
+    "racine"
+   ],
+   "ht": [
+    "rasin"
+   ]
+  },
+  {
+   "scope": "ns2-fonction-affine",
+   "fr": [
+    "fonction"
+   ],
+   "ht": [
+    "fonksyon"
+   ]
+  },
+  {
+   "scope": "ns2-fonction-affine",
+   "fr": [
+    "affine"
+   ],
+   "ht": [
+    "afin"
+   ]
+  },
+  {
+   "scope": "ns2-fonction-affine",
+   "fr": [
+    "coefficient"
+   ],
+   "ht": [
+    "koyefisyan"
+   ]
+  },
+  {
+   "scope": "ns2-fonction-affine",
+   "fr": [
+    "directeur"
+   ],
+   "ht": [
+    "direktè"
+   ]
+  },
+  {
+   "scope": "ns2-fonction-affine",
+   "fr": [
+    "ordonnée"
+   ],
+   "ht": [
+    "òdone"
+   ]
+  },
+  {
+   "scope": "ns2-fonction-affine",
+   "fr": [
+    "origine"
+   ],
+   "ht": [
+    "orijin"
+   ]
+  },
+  {
+   "scope": "ns2-fonction-affine",
+   "fr": [
+    "graphique"
+   ],
+   "ht": [
+    "grafik"
+   ]
+  },
+  {
+   "scope": "ns3-second-degre",
+   "fr": [
+    "discriminant"
+   ],
+   "ht": [
+    "diskriminan",
+    "delta"
+   ]
+  },
+  {
+   "scope": "ns3-second-degre",
+   "fr": [
+    "second"
+   ],
+   "ht": [
+    "dezyèm"
+   ]
+  },
+  {
+   "scope": "ns3-second-degre",
+   "fr": [
+    "équation"
+   ],
+   "ht": [
+    "ekwasyon"
+   ]
+  },
+  {
+   "scope": "ns3-second-degre",
+   "fr": [
+    "degré"
+   ],
+   "ht": [
+    "degre"
+   ]
+  },
+  {
+   "scope": "ns4-derivee",
+   "fr": [
+    "dérivée",
+    "dériver"
+   ],
+   "ht": [
+    "derive"
+   ]
+  },
+  {
+   "scope": "ns4-derivee",
+   "fr": [
+    "constante"
+   ],
+   "ht": [
+    "konstant"
+   ]
+  },
+  {
+   "scope": "ns4-derivee",
+   "fr": [
+    "puissance"
+   ],
+   "ht": [
+    "pisans"
+   ]
+  },
+  {
+   "scope": "ns4-derivee",
+   "fr": [
+    "exposant"
+   ],
+   "ht": [
+    "ekspozan"
+   ]
+  },
+  {
+   "scope": "ns4-derivee",
+   "fr": [
+    "fonction"
+   ],
+   "ht": [
+    "fonksyon"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,295 @@
+{
+  "slug": "ns2-fonction-affine",
+  "grade": "NS2",
+  "subject": "mathematiques",
+  "lesson_id": "f58cfa59-449c-5cbb-9012-dd8ac081d26f",
+  "status": "SYNTHETIC — written for benchmarking; not approved curriculum; Haitian Creole not reviewed by a native speaker",
+  "revisions": {
+    "fr": {
+      "revision_id": "f03d38dc-6774-5c5d-b8f4-a698b12aadac",
+      "revision": 1,
+      "title": "La fonction affine",
+      "blocks": [
+        {
+          "key": "definition-titre",
+          "type": "heading",
+          "text": "Qu'est-ce qu'une fonction affine ?"
+        },
+        {
+          "key": "definition",
+          "type": "paragraph",
+          "text": "Une fonction affine associe à chaque nombre x le nombre f(x) = ax + b, où a et b sont deux nombres fixés."
+        },
+        {
+          "key": "pente-titre",
+          "type": "heading",
+          "text": "Le coefficient directeur"
+        },
+        {
+          "key": "pente",
+          "type": "paragraph",
+          "text": "Le nombre a s'appelle le coefficient directeur. Il indique de combien f(x) augmente quand x augmente de 1. Si a est négatif, la fonction est décroissante."
+        },
+        {
+          "key": "ordonnee",
+          "type": "paragraph",
+          "text": "Le nombre b s'appelle l'ordonnée à l'origine : c'est la valeur de f(x) quand x = 0."
+        },
+        {
+          "key": "exemple-image",
+          "type": "example",
+          "title": "Calculer f(4) pour f(x) = 2x + 3",
+          "steps": [
+            "On remplace x par 4 : f(4) = 2 × 4 + 3.",
+            "f(4) = 8 + 3 = 11."
+          ]
+        },
+        {
+          "key": "graphique-titre",
+          "type": "heading",
+          "text": "La représentation graphique"
+        },
+        {
+          "key": "graphique",
+          "type": "paragraph",
+          "text": "La représentation graphique d'une fonction affine est une droite. Deux points suffisent pour la tracer."
+        },
+        {
+          "key": "astuce",
+          "type": "callout",
+          "tone": "tip",
+          "text": "Pour tracer la droite, calcule f(0) et f(1), place les deux points, puis relie-les à la règle."
+        }
+      ],
+      "questions": [
+        {
+          "question_key": "q-image",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Pour f(x) = 3x − 2, combien vaut f(5) ?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "13"
+              },
+              {
+                "id": "b",
+                "text": "17"
+              },
+              {
+                "id": "c",
+                "text": "10"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "a"
+          },
+          "explanation": {
+            "text": "f(5) = 3 × 5 − 2 = 15 − 2 = 13."
+          }
+        },
+        {
+          "question_key": "q-pente",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Dans f(x) = −4x + 7, quel est le coefficient directeur ?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "7"
+              },
+              {
+                "id": "b",
+                "text": "−4"
+              },
+              {
+                "id": "c",
+                "text": "4"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "b"
+          },
+          "explanation": {
+            "text": "Le coefficient directeur est le nombre qui multiplie x : ici −4."
+          }
+        }
+      ]
+    },
+    "ht": {
+      "revision_id": "06f9df36-e777-5661-b38e-ef82d3484f45",
+      "revision": 1,
+      "title": "Fonksyon afin",
+      "blocks": [
+        {
+          "key": "definition-titre",
+          "type": "heading",
+          "text": "Kisa yon fonksyon afin ye?"
+        },
+        {
+          "key": "definition",
+          "type": "paragraph",
+          "text": "Yon fonksyon afin bay pou chak nonm x nonm f(x) = ax + b, kote a ak b se de nonm ki fikse."
+        },
+        {
+          "key": "pente-titre",
+          "type": "heading",
+          "text": "Koyefisyan direktè a"
+        },
+        {
+          "key": "pente",
+          "type": "paragraph",
+          "text": "Nonm a rele koyefisyan direktè. Li montre konbyen f(x) ogmante lè x ogmante 1. Si a negatif, fonksyon an ap desann."
+        },
+        {
+          "key": "ordonnee",
+          "type": "paragraph",
+          "text": "Nonm b rele òdone nan orijin: se valè f(x) lè x = 0."
+        },
+        {
+          "key": "exemple-image",
+          "type": "example",
+          "title": "Kalkile f(4) pou f(x) = 2x + 3",
+          "steps": [
+            "Nou ranplase x pa 4: f(4) = 2 × 4 + 3.",
+            "f(4) = 8 + 3 = 11."
+          ]
+        },
+        {
+          "key": "graphique-titre",
+          "type": "heading",
+          "text": "Reprezantasyon grafik la"
+        },
+        {
+          "key": "graphique",
+          "type": "paragraph",
+          "text": "Reprezantasyon grafik yon fonksyon afin se yon dwat. De pwen ase pou trase l."
+        },
+        {
+          "key": "astuce",
+          "type": "callout",
+          "tone": "tip",
+          "text": "Pou trase dwat la, kalkile f(0) ak f(1), mete de pwen yo, epi relye yo ak règ la."
+        }
+      ],
+      "questions": [
+        {
+          "question_key": "q-image",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Pou f(x) = 3x − 2, konbyen f(5) vo?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "13"
+              },
+              {
+                "id": "b",
+                "text": "17"
+              },
+              {
+                "id": "c",
+                "text": "10"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "a"
+          },
+          "explanation": {
+            "text": "f(5) = 3 × 5 − 2 = 15 − 2 = 13."
+          }
+        },
+        {
+          "question_key": "q-pente",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Nan f(x) = −4x + 7, ki koyefisyan direktè a?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "7"
+              },
+              {
+                "id": "b",
+                "text": "−4"
+              },
+              {
+                "id": "c",
+                "text": "4"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "b"
+          },
+          "explanation": {
+            "text": "Koyefisyan direktè a se nonm ki miltipliye x la: la a se −4."
+          }
+        }
+      ]
+    }
+  },
+  "probes": [
+    {
+      "id": "definition",
+      "kind": "explanation",
+      "fr": "C'est quoi une fonction affine ?",
+      "ht": "Kisa yon fonksyon afin ye?",
+      "gold": [
+        "definition"
+      ]
+    },
+    {
+      "id": "coefficient",
+      "kind": "explanation",
+      "fr": "À quoi sert le coefficient directeur ?",
+      "ht": "Ki wòl koyefisyan direktè a?",
+      "gold": [
+        "pente"
+      ]
+    },
+    {
+      "id": "nombre-b",
+      "kind": "explanation",
+      "fr": "Que représente le nombre b ?",
+      "ht": "Kisa nonm b a reprezante?",
+      "gold": [
+        "ordonnee"
+      ]
+    },
+    {
+      "id": "tracer",
+      "kind": "reasoning",
+      "fr": "Comment tracer la droite d'une fonction affine ?",
+      "ht": "Kijan pou m trase dwat yon fonksyon afin?",
+      "gold": [
+        "graphique",
+        "astuce"
+      ]
+    }
+  ],
+  "hint_problem": {
+    "question_key": "q-image",
+    "final_answer_patterns": [
+      "\\b13\\b"
+    ],
+    "final_answer_text": "13"
+  },
+  "wrong_answer": {
+    "question_key": "q-pente",
+    "choice": "a",
+    "misconception": "confused the slope with the constant term"
+  },
+  "worked_example_block": "exemple-image"
+}

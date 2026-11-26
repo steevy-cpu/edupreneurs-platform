@@ -1,0 +1,291 @@
+{
+  "slug": "ns4-derivee",
+  "grade": "NS4",
+  "subject": "mathematiques",
+  "lesson_id": "145fafb1-bff7-5f57-a3b3-d123f91db0af",
+  "status": "SYNTHETIC — written for benchmarking; not approved curriculum; Haitian Creole not reviewed by a native speaker",
+  "revisions": {
+    "fr": {
+      "revision_id": "6a438582-c97e-5a71-8d16-de9c6eaa1f5d",
+      "revision": 1,
+      "title": "La dérivée d'un polynôme",
+      "blocks": [
+        {
+          "key": "idee-titre",
+          "type": "heading",
+          "text": "À quoi sert la dérivée ?"
+        },
+        {
+          "key": "idee",
+          "type": "paragraph",
+          "text": "La dérivée d'une fonction mesure la vitesse à laquelle la fonction varie. On la note f′(x)."
+        },
+        {
+          "key": "puissance-titre",
+          "type": "heading",
+          "text": "La règle de la puissance"
+        },
+        {
+          "key": "puissance",
+          "type": "paragraph",
+          "text": "La dérivée de xⁿ est n × xⁿ⁻¹ : on descend l'exposant devant, puis on diminue l'exposant de 1. Par exemple, la dérivée de x³ est 3x²."
+        },
+        {
+          "key": "constante",
+          "type": "callout",
+          "tone": "remember",
+          "text": "La dérivée d'une constante est zéro. La dérivée de ax est a."
+        },
+        {
+          "key": "somme",
+          "type": "paragraph",
+          "text": "Pour dériver une somme, on dérive chaque terme séparément puis on additionne les résultats."
+        },
+        {
+          "key": "exemple-polynome",
+          "type": "example",
+          "title": "Dériver f(x) = 2x³ + 5x − 4",
+          "steps": [
+            "La dérivée de 2x³ est 2 × 3x² = 6x².",
+            "La dérivée de 5x est 5.",
+            "La dérivée de −4 est 0.",
+            "Donc f′(x) = 6x² + 5."
+          ]
+        },
+        {
+          "key": "signe",
+          "type": "callout",
+          "tone": "tip",
+          "text": "Si f′(x) est positive sur un intervalle, la fonction f est croissante sur cet intervalle."
+        }
+      ],
+      "questions": [
+        {
+          "question_key": "q-puissance",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Quelle est la dérivée de x⁴ ?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "4x³"
+              },
+              {
+                "id": "b",
+                "text": "x³"
+              },
+              {
+                "id": "c",
+                "text": "4x⁴"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "a"
+          },
+          "explanation": {
+            "text": "On descend l'exposant 4 devant et on diminue l'exposant de 1 : 4x³."
+          }
+        },
+        {
+          "question_key": "q-polynome",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Quelle est la dérivée de f(x) = 3x² + 2x + 7 ?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "6x + 2"
+              },
+              {
+                "id": "b",
+                "text": "6x + 9"
+              },
+              {
+                "id": "c",
+                "text": "3x + 2"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "a"
+          },
+          "explanation": {
+            "text": "La dérivée de 3x² est 6x, celle de 2x est 2, celle de 7 est 0 : f′(x) = 6x + 2."
+          }
+        }
+      ]
+    },
+    "ht": {
+      "revision_id": "df30028c-6d15-5375-959b-ab88fe95efed",
+      "revision": 1,
+      "title": "Derive yon polinòm",
+      "blocks": [
+        {
+          "key": "idee-titre",
+          "type": "heading",
+          "text": "Pou kisa derive a sèvi?"
+        },
+        {
+          "key": "idee",
+          "type": "paragraph",
+          "text": "Derive yon fonksyon mezire vitès fonksyon an ap chanje. Yo note l f′(x)."
+        },
+        {
+          "key": "puissance-titre",
+          "type": "heading",
+          "text": "Règ pisans lan"
+        },
+        {
+          "key": "puissance",
+          "type": "paragraph",
+          "text": "Derive xⁿ se n × xⁿ⁻¹: nou desann ekspozan an devan, epi nou diminye ekspozan an pa 1. Pa egzanp, derive x³ se 3x²."
+        },
+        {
+          "key": "constante",
+          "type": "callout",
+          "tone": "remember",
+          "text": "Derive yon konstant se zewo. Derive ax se a."
+        },
+        {
+          "key": "somme",
+          "type": "paragraph",
+          "text": "Pou derive yon sòm, nou derive chak tèm apa epi nou adisyone rezilta yo."
+        },
+        {
+          "key": "exemple-polynome",
+          "type": "example",
+          "title": "Derive f(x) = 2x³ + 5x − 4",
+          "steps": [
+            "Derive 2x³ se 2 × 3x² = 6x².",
+            "Derive 5x se 5.",
+            "Derive −4 se 0.",
+            "Kidonk f′(x) = 6x² + 5."
+          ]
+        },
+        {
+          "key": "signe",
+          "type": "callout",
+          "tone": "tip",
+          "text": "Si f′(x) pozitif sou yon entèval, fonksyon f la ap monte sou entèval sa a."
+        }
+      ],
+      "questions": [
+        {
+          "question_key": "q-puissance",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Ki derive x⁴?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "4x³"
+              },
+              {
+                "id": "b",
+                "text": "x³"
+              },
+              {
+                "id": "c",
+                "text": "4x⁴"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "a"
+          },
+          "explanation": {
+            "text": "Nou desann ekspozan 4 la devan epi nou diminye ekspozan an pa 1: 4x³."
+          }
+        },
+        {
+          "question_key": "q-polynome",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Ki derive f(x) = 3x² + 2x + 7?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "6x + 2"
+              },
+              {
+                "id": "b",
+                "text": "6x + 9"
+              },
+              {
+                "id": "c",
+                "text": "3x + 2"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "a"
+          },
+          "explanation": {
+            "text": "Derive 3x² se 6x, derive 2x se 2, derive 7 se 0: f′(x) = 6x + 2."
+          }
+        }
+      ]
+    }
+  },
+  "probes": [
+    {
+      "id": "utilite",
+      "kind": "explanation",
+      "fr": "À quoi sert la dérivée ?",
+      "ht": "Pou kisa derive a sèvi?",
+      "gold": [
+        "idee"
+      ]
+    },
+    {
+      "id": "regle-puissance",
+      "kind": "reasoning",
+      "fr": "Comment dériver x à la puissance n ?",
+      "ht": "Kijan pou m derive x pisans n?",
+      "gold": [
+        "puissance"
+      ]
+    },
+    {
+      "id": "constante",
+      "kind": "explanation",
+      "fr": "Quelle est la dérivée d'une constante ?",
+      "ht": "Ki derive yon konstant?",
+      "gold": [
+        "constante"
+      ]
+    },
+    {
+      "id": "somme",
+      "kind": "reasoning",
+      "fr": "Comment dériver une somme de plusieurs termes ?",
+      "ht": "Kijan pou m derive yon sòm ki gen plizyè tèm?",
+      "gold": [
+        "somme",
+        "exemple-polynome"
+      ]
+    }
+  ],
+  "hint_problem": {
+    "question_key": "q-polynome",
+    "final_answer_patterns": [
+      "6x\\s*\\+\\s*2\\b"
+    ],
+    "final_answer_text": "6x + 2"
+  },
+  "wrong_answer": {
+    "question_key": "q-puissance",
+    "choice": "c",
+    "misconception": "kept the exponent instead of lowering it by one"
+  },
+  "worked_example_block": "exemple-polynome"
+}

@@ -1,0 +1,291 @@
+{
+  "slug": "ns3-second-degre",
+  "grade": "NS3",
+  "subject": "mathematiques",
+  "lesson_id": "b0305c9c-d754-54cb-8eaf-bb96cbf101cb",
+  "status": "SYNTHETIC — written for benchmarking; not approved curriculum; Haitian Creole not reviewed by a native speaker",
+  "revisions": {
+    "fr": {
+      "revision_id": "a5eda843-8201-53ab-bd96-1e866ff3a76f",
+      "revision": 1,
+      "title": "L'équation du second degré",
+      "blocks": [
+        {
+          "key": "forme-titre",
+          "type": "heading",
+          "text": "La forme de l'équation"
+        },
+        {
+          "key": "forme",
+          "type": "paragraph",
+          "text": "Une équation du second degré s'écrit ax² + bx + c = 0, avec a différent de zéro."
+        },
+        {
+          "key": "discriminant-titre",
+          "type": "heading",
+          "text": "Le discriminant"
+        },
+        {
+          "key": "discriminant",
+          "type": "paragraph",
+          "text": "Le discriminant se note Δ et se calcule avec la formule Δ = b² − 4ac. Son signe indique le nombre de solutions."
+        },
+        {
+          "key": "cas",
+          "type": "callout",
+          "tone": "remember",
+          "text": "Si Δ est positif, il y a deux solutions. Si Δ est égal à zéro, il y a une seule solution. Si Δ est négatif, il n'y a pas de solution réelle."
+        },
+        {
+          "key": "formule",
+          "type": "paragraph",
+          "text": "Quand Δ est positif, les solutions sont x = (−b − √Δ) / (2a) et x = (−b + √Δ) / (2a)."
+        },
+        {
+          "key": "exemple-resolution",
+          "type": "example",
+          "title": "Résoudre x² − 5x + 6 = 0",
+          "steps": [
+            "Ici a = 1, b = −5 et c = 6.",
+            "Δ = (−5)² − 4 × 1 × 6 = 25 − 24 = 1.",
+            "Δ est positif : il y a deux solutions.",
+            "x = (5 − 1) / 2 = 2 et x = (5 + 1) / 2 = 3."
+          ]
+        },
+        {
+          "key": "verification",
+          "type": "callout",
+          "tone": "tip",
+          "text": "Vérifie chaque solution en la remplaçant dans l'équation de départ."
+        }
+      ],
+      "questions": [
+        {
+          "question_key": "q-discriminant",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Quel est le discriminant de x² + 2x + 1 = 0 ?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "0"
+              },
+              {
+                "id": "b",
+                "text": "8"
+              },
+              {
+                "id": "c",
+                "text": "−4"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "a"
+          },
+          "explanation": {
+            "text": "Δ = 2² − 4 × 1 × 1 = 4 − 4 = 0."
+          }
+        },
+        {
+          "question_key": "q-solutions",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Pour x² − 6x + 8 = 0, on trouve Δ = 4. Quelles sont les solutions ?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "x = 2 et x = 4"
+              },
+              {
+                "id": "b",
+                "text": "x = −2 et x = −4"
+              },
+              {
+                "id": "c",
+                "text": "x = 3"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "a"
+          },
+          "explanation": {
+            "text": "x = (6 − 2) / 2 = 2 et x = (6 + 2) / 2 = 4."
+          }
+        }
+      ]
+    },
+    "ht": {
+      "revision_id": "891d0215-45fc-544f-9781-3f1c30766e1c",
+      "revision": 1,
+      "title": "Ekwasyon dezyèm degre",
+      "blocks": [
+        {
+          "key": "forme-titre",
+          "type": "heading",
+          "text": "Fòm ekwasyon an"
+        },
+        {
+          "key": "forme",
+          "type": "paragraph",
+          "text": "Yon ekwasyon dezyèm degre ekri ax² + bx + c = 0, ak a ki diferan de zewo."
+        },
+        {
+          "key": "discriminant-titre",
+          "type": "heading",
+          "text": "Diskriminan an"
+        },
+        {
+          "key": "discriminant",
+          "type": "paragraph",
+          "text": "Yo note diskriminan an Δ epi yo kalkile l ak fòmil Δ = b² − 4ac. Siy li montre konbyen solisyon ki genyen."
+        },
+        {
+          "key": "cas",
+          "type": "callout",
+          "tone": "remember",
+          "text": "Si Δ pozitif, gen de solisyon. Si Δ egal zewo, gen yon sèl solisyon. Si Δ negatif, pa gen solisyon reyèl."
+        },
+        {
+          "key": "formule",
+          "type": "paragraph",
+          "text": "Lè Δ pozitif, solisyon yo se x = (−b − √Δ) / (2a) ak x = (−b + √Δ) / (2a)."
+        },
+        {
+          "key": "exemple-resolution",
+          "type": "example",
+          "title": "Rezoud x² − 5x + 6 = 0",
+          "steps": [
+            "La a, a = 1, b = −5 epi c = 6.",
+            "Δ = (−5)² − 4 × 1 × 6 = 25 − 24 = 1.",
+            "Δ pozitif: gen de solisyon.",
+            "x = (5 − 1) / 2 = 2 ak x = (5 + 1) / 2 = 3."
+          ]
+        },
+        {
+          "key": "verification",
+          "type": "callout",
+          "tone": "tip",
+          "text": "Verifye chak solisyon: ranplase l nan ekwasyon depa a."
+        }
+      ],
+      "questions": [
+        {
+          "question_key": "q-discriminant",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Ki diskriminan x² + 2x + 1 = 0?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "0"
+              },
+              {
+                "id": "b",
+                "text": "8"
+              },
+              {
+                "id": "c",
+                "text": "−4"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "a"
+          },
+          "explanation": {
+            "text": "Δ = 2² − 4 × 1 × 1 = 4 − 4 = 0."
+          }
+        },
+        {
+          "question_key": "q-solutions",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Pou x² − 6x + 8 = 0, nou jwenn Δ = 4. Ki solisyon yo?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "x = 2 ak x = 4"
+              },
+              {
+                "id": "b",
+                "text": "x = −2 ak x = −4"
+              },
+              {
+                "id": "c",
+                "text": "x = 3"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "a"
+          },
+          "explanation": {
+            "text": "x = (6 − 2) / 2 = 2 ak x = (6 + 2) / 2 = 4."
+          }
+        }
+      ]
+    }
+  },
+  "probes": [
+    {
+      "id": "calcul-discriminant",
+      "kind": "reasoning",
+      "fr": "Comment calcule-t-on le discriminant ?",
+      "ht": "Kijan yo kalkile diskriminan an?",
+      "gold": [
+        "discriminant"
+      ]
+    },
+    {
+      "id": "discriminant-negatif",
+      "kind": "reasoning",
+      "fr": "Combien de solutions quand le discriminant est négatif ?",
+      "ht": "Konbyen solisyon ki genyen lè diskriminan an negatif?",
+      "gold": [
+        "cas"
+      ]
+    },
+    {
+      "id": "formule-solutions",
+      "kind": "explanation",
+      "fr": "Quelle formule donne les solutions ?",
+      "ht": "Ki fòmil ki bay solisyon yo?",
+      "gold": [
+        "formule"
+      ]
+    },
+    {
+      "id": "forme",
+      "kind": "explanation",
+      "fr": "Comment s'écrit une équation du second degré ?",
+      "ht": "Kijan yo ekri yon ekwasyon dezyèm degre?",
+      "gold": [
+        "forme"
+      ]
+    }
+  ],
+  "hint_problem": {
+    "question_key": "q-solutions",
+    "final_answer_patterns": [
+      "x\\s*=\\s*4\\b",
+      "/\\s*2\\s*=\\s*4\\b"
+    ],
+    "final_answer_text": "x = 2 et x = 4"
+  },
+  "wrong_answer": {
+    "question_key": "q-discriminant",
+    "choice": "b",
+    "misconception": "added 4ac instead of subtracting it"
+  },
+  "worked_example_block": "exemple-resolution"
+}

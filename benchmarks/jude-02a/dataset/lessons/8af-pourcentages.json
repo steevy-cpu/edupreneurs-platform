@@ -1,0 +1,306 @@
+{
+  "slug": "8af-pourcentages",
+  "grade": "8AF",
+  "subject": "mathematiques",
+  "lesson_id": "3dc34f34-7594-5072-b02d-b0bb0b13a6f0",
+  "status": "SYNTHETIC — written for benchmarking; not approved curriculum; Haitian Creole not reviewed by a native speaker",
+  "revisions": {
+    "fr": {
+      "revision_id": "9d94b09e-9650-5ac7-a33b-53fd9447dccd",
+      "revision": 1,
+      "title": "Calculer un pourcentage",
+      "blocks": [
+        {
+          "key": "sens-titre",
+          "type": "heading",
+          "text": "Que veut dire « pour cent » ?"
+        },
+        {
+          "key": "sens",
+          "type": "paragraph",
+          "text": "Un pourcentage est une fraction dont le dénominateur est 100. 25 % veut dire 25 sur 100, c'est-à-dire 25/100."
+        },
+        {
+          "key": "calcul-titre",
+          "type": "heading",
+          "text": "Calculer le pourcentage d'une quantité"
+        },
+        {
+          "key": "calcul",
+          "type": "paragraph",
+          "text": "Pour calculer un pourcentage d'une quantité, on multiplie la quantité par le pourcentage, puis on divise par 100."
+        },
+        {
+          "key": "exemple-calcul",
+          "type": "example",
+          "title": "Calculer 20 % de 150 gourdes",
+          "steps": [
+            "On multiplie : 150 × 20 = 3000.",
+            "On divise par 100 : 3000 ÷ 100 = 30.",
+            "20 % de 150 gourdes, c'est 30 gourdes."
+          ]
+        },
+        {
+          "key": "reduction-titre",
+          "type": "heading",
+          "text": "Appliquer une réduction"
+        },
+        {
+          "key": "reduction",
+          "type": "paragraph",
+          "text": "Pour trouver un prix après une réduction, on calcule d'abord le montant de la réduction, puis on le soustrait du prix de départ."
+        },
+        {
+          "key": "exemple-reduction",
+          "type": "example",
+          "title": "Un cahier coûte 200 gourdes, avec 10 % de réduction",
+          "steps": [
+            "Réduction : 200 × 10 ÷ 100 = 20 gourdes.",
+            "Nouveau prix : 200 − 20 = 180 gourdes."
+          ]
+        },
+        {
+          "key": "astuce",
+          "type": "callout",
+          "tone": "tip",
+          "text": "Astuce : 50 % d'une quantité, c'est sa moitié ; 10 %, c'est la quantité divisée par 10."
+        }
+      ],
+      "questions": [
+        {
+          "question_key": "q-calcul",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Combien font 25 % de 80 ?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "20"
+              },
+              {
+                "id": "b",
+                "text": "25"
+              },
+              {
+                "id": "c",
+                "text": "55"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "a"
+          },
+          "explanation": {
+            "text": "On multiplie 80 × 25 = 2000, puis on divise par 100 : 2000 ÷ 100 = 20."
+          }
+        },
+        {
+          "question_key": "q-reduction",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Un sac coûte 500 gourdes. Avec 20 % de réduction, quel est le nouveau prix ?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "480 gourdes"
+              },
+              {
+                "id": "b",
+                "text": "400 gourdes"
+              },
+              {
+                "id": "c",
+                "text": "100 gourdes"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "b"
+          },
+          "explanation": {
+            "text": "La réduction est 500 × 20 ÷ 100 = 100 gourdes. Le nouveau prix est 500 − 100 = 400 gourdes."
+          }
+        }
+      ]
+    },
+    "ht": {
+      "revision_id": "8ba358f7-7663-53b6-8236-45cefdb279ec",
+      "revision": 1,
+      "title": "Kalkile yon pousantaj",
+      "blocks": [
+        {
+          "key": "sens-titre",
+          "type": "heading",
+          "text": "Kisa «pou san» vle di?"
+        },
+        {
+          "key": "sens",
+          "type": "paragraph",
+          "text": "Yon pousantaj se yon fraksyon ki gen 100 kòm denominatè. 25 % vle di 25 sou 100, sa vle di 25/100."
+        },
+        {
+          "key": "calcul-titre",
+          "type": "heading",
+          "text": "Kalkile pousantaj yon kantite"
+        },
+        {
+          "key": "calcul",
+          "type": "paragraph",
+          "text": "Pou kalkile yon pousantaj nan yon kantite, nou miltipliye kantite a pa pousantaj la, epi nou divize pa 100."
+        },
+        {
+          "key": "exemple-calcul",
+          "type": "example",
+          "title": "Kalkile 20 % nan 150 goud",
+          "steps": [
+            "Nou miltipliye: 150 × 20 = 3000.",
+            "Nou divize pa 100: 3000 ÷ 100 = 30.",
+            "20 % nan 150 goud se 30 goud."
+          ]
+        },
+        {
+          "key": "reduction-titre",
+          "type": "heading",
+          "text": "Aplike yon rabè"
+        },
+        {
+          "key": "reduction",
+          "type": "paragraph",
+          "text": "Pou jwenn yon pri apre yon rabè, nou kalkile kantite rabè a anvan, epi nou soustrè l nan pri depa a."
+        },
+        {
+          "key": "exemple-reduction",
+          "type": "example",
+          "title": "Yon kaye koute 200 goud, ak 10 % rabè",
+          "steps": [
+            "Rabè: 200 × 10 ÷ 100 = 20 goud.",
+            "Nouvo pri: 200 − 20 = 180 goud."
+          ]
+        },
+        {
+          "key": "astuce",
+          "type": "callout",
+          "tone": "tip",
+          "text": "Konsèy: 50 % yon kantite se mwatye l; 10 % se kantite a divize pa 10."
+        }
+      ],
+      "questions": [
+        {
+          "question_key": "q-calcul",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Konbyen 25 % nan 80 bay?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "20"
+              },
+              {
+                "id": "b",
+                "text": "25"
+              },
+              {
+                "id": "c",
+                "text": "55"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "a"
+          },
+          "explanation": {
+            "text": "Nou miltipliye 80 × 25 = 2000, epi nou divize pa 100: 2000 ÷ 100 = 20."
+          }
+        },
+        {
+          "question_key": "q-reduction",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Yon sak koute 500 goud. Ak 20 % rabè, ki nouvo pri a?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "480 goud"
+              },
+              {
+                "id": "b",
+                "text": "400 goud"
+              },
+              {
+                "id": "c",
+                "text": "100 goud"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "b"
+          },
+          "explanation": {
+            "text": "Rabè a se 500 × 20 ÷ 100 = 100 goud. Nouvo pri a se 500 − 100 = 400 goud."
+          }
+        }
+      ]
+    }
+  },
+  "probes": [
+    {
+      "id": "sens",
+      "kind": "explanation",
+      "fr": "Que veut dire 25 % ?",
+      "ht": "Kisa 25 % vle di?",
+      "gold": [
+        "sens"
+      ]
+    },
+    {
+      "id": "calcul",
+      "kind": "reasoning",
+      "fr": "Comment calculer le pourcentage d'une quantité ?",
+      "ht": "Kijan pou m kalkile pousantaj yon kantite?",
+      "gold": [
+        "calcul",
+        "exemple-calcul"
+      ]
+    },
+    {
+      "id": "reduction",
+      "kind": "reasoning",
+      "fr": "Comment trouver le prix après une réduction ?",
+      "ht": "Kijan pou m jwenn pri a apre yon rabè?",
+      "gold": [
+        "reduction",
+        "exemple-reduction"
+      ]
+    },
+    {
+      "id": "dix-pour-cent",
+      "kind": "explanation",
+      "fr": "Comment calculer rapidement 10 % d'un nombre ?",
+      "ht": "Kijan pou m kalkile 10 % yon nonm byen vit?",
+      "gold": [
+        "astuce"
+      ]
+    }
+  ],
+  "hint_problem": {
+    "question_key": "q-reduction",
+    "final_answer_patterns": [
+      "\\b400\\b"
+    ],
+    "final_answer_text": "400"
+  },
+  "wrong_answer": {
+    "question_key": "q-reduction",
+    "choice": "c",
+    "misconception": "gave the amount of the reduction instead of the new price"
+  },
+  "worked_example_block": "exemple-reduction"
+}

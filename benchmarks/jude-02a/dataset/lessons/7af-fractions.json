@@ -1,0 +1,309 @@
+{
+  "slug": "7af-fractions",
+  "grade": "7AF",
+  "subject": "mathematiques",
+  "lesson_id": "aa09a02b-b3e7-57a4-87bd-fd18a0379ae6",
+  "status": "SYNTHETIC — written for benchmarking; not approved curriculum; Haitian Creole not reviewed by a native speaker",
+  "revisions": {
+    "fr": {
+      "revision_id": "65edc5b1-d1fb-5e6d-83f1-8f9c9531de58",
+      "revision": 1,
+      "title": "Additionner des fractions",
+      "blocks": [
+        {
+          "key": "rappel-titre",
+          "type": "heading",
+          "text": "Qu'est-ce qu'une fraction ?"
+        },
+        {
+          "key": "rappel",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout. Le nombre du bas, le dénominateur, dit en combien de parts égales le tout est coupé. Le nombre du haut, le numérateur, dit combien de parts on prend."
+        },
+        {
+          "key": "meme-titre",
+          "type": "heading",
+          "text": "Additionner avec le même dénominateur"
+        },
+        {
+          "key": "meme",
+          "type": "paragraph",
+          "text": "Quand deux fractions ont le même dénominateur, on additionne les numérateurs et on garde le dénominateur."
+        },
+        {
+          "key": "exemple-meme",
+          "type": "example",
+          "title": "Calculer 2/7 + 3/7",
+          "steps": [
+            "Les deux fractions ont le même dénominateur : 7.",
+            "On additionne les numérateurs : 2 + 3 = 5.",
+            "On garde le dénominateur : 2/7 + 3/7 = 5/7."
+          ]
+        },
+        {
+          "key": "differents-titre",
+          "type": "heading",
+          "text": "Additionner avec des dénominateurs différents"
+        },
+        {
+          "key": "differents",
+          "type": "paragraph",
+          "text": "Quand les dénominateurs sont différents, on transforme d'abord les fractions pour qu'elles aient le même dénominateur. Pour cela, on multiplie le numérateur et le dénominateur d'une fraction par le même nombre : la fraction garde la même valeur."
+        },
+        {
+          "key": "exemple-differents",
+          "type": "example",
+          "title": "Calculer 1/2 + 1/4",
+          "steps": [
+            "On cherche un dénominateur commun : 4.",
+            "On transforme 1/2 : 1/2 = 2/4.",
+            "On additionne : 2/4 + 1/4 = 3/4."
+          ]
+        },
+        {
+          "key": "erreur",
+          "type": "callout",
+          "tone": "warning",
+          "text": "Attention : on n'additionne jamais les dénominateurs entre eux. 1/2 + 1/4 ne fait pas 2/6."
+        }
+      ],
+      "questions": [
+        {
+          "question_key": "q-meme",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Combien font 3/8 + 2/8 ?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "5/16"
+              },
+              {
+                "id": "b",
+                "text": "5/8"
+              },
+              {
+                "id": "c",
+                "text": "6/8"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "b"
+          },
+          "explanation": {
+            "text": "Les dénominateurs sont identiques : on additionne les numérateurs, 3 + 2 = 5, et on garde 8. Le résultat est 5/8."
+          }
+        },
+        {
+          "question_key": "q-differents",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Combien font 1/3 + 1/6 ?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "2/9"
+              },
+              {
+                "id": "b",
+                "text": "2/6"
+              },
+              {
+                "id": "c",
+                "text": "3/6"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "c"
+          },
+          "explanation": {
+            "text": "On transforme 1/3 en 2/6, puis on additionne : 2/6 + 1/6 = 3/6."
+          }
+        }
+      ]
+    },
+    "ht": {
+      "revision_id": "ce3fdb6d-3897-54a3-a1fa-ab6d2354849d",
+      "revision": 1,
+      "title": "Adisyone fraksyon",
+      "blocks": [
+        {
+          "key": "rappel-titre",
+          "type": "heading",
+          "text": "Kisa yon fraksyon ye?"
+        },
+        {
+          "key": "rappel",
+          "type": "paragraph",
+          "text": "Yon fraksyon reprezante yon pati nan yon antye. Nonm ki anba a, denominatè a, di an konbyen pati egal yo koupe antye a. Nonm ki anwo a, nimeratè a, di konbyen pati nou pran."
+        },
+        {
+          "key": "meme-titre",
+          "type": "heading",
+          "text": "Adisyone ak menm denominatè"
+        },
+        {
+          "key": "meme",
+          "type": "paragraph",
+          "text": "Lè de fraksyon gen menm denominatè, nou adisyone nimeratè yo epi nou kenbe denominatè a."
+        },
+        {
+          "key": "exemple-meme",
+          "type": "example",
+          "title": "Kalkile 2/7 + 3/7",
+          "steps": [
+            "De fraksyon yo gen menm denominatè: 7.",
+            "Nou adisyone nimeratè yo: 2 + 3 = 5.",
+            "Nou kenbe denominatè a: 2/7 + 3/7 = 5/7."
+          ]
+        },
+        {
+          "key": "differents-titre",
+          "type": "heading",
+          "text": "Adisyone ak denominatè diferan"
+        },
+        {
+          "key": "differents",
+          "type": "paragraph",
+          "text": "Lè denominatè yo diferan, nou transfòme fraksyon yo anvan pou yo gen menm denominatè. Pou sa, nou miltipliye nimeratè a ak denominatè yon fraksyon pa menm nonm nan: fraksyon an kenbe menm valè a."
+        },
+        {
+          "key": "exemple-differents",
+          "type": "example",
+          "title": "Kalkile 1/2 + 1/4",
+          "steps": [
+            "Nou chèche yon denominatè komen: 4.",
+            "Nou transfòme 1/2: 1/2 = 2/4.",
+            "Nou adisyone: 2/4 + 1/4 = 3/4."
+          ]
+        },
+        {
+          "key": "erreur",
+          "type": "callout",
+          "tone": "warning",
+          "text": "Atansyon: nou pa janm adisyone denominatè yo youn ak lòt. 1/2 + 1/4 pa bay 2/6."
+        }
+      ],
+      "questions": [
+        {
+          "question_key": "q-meme",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Konbyen 3/8 + 2/8 bay?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "5/16"
+              },
+              {
+                "id": "b",
+                "text": "5/8"
+              },
+              {
+                "id": "c",
+                "text": "6/8"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "b"
+          },
+          "explanation": {
+            "text": "Denominatè yo menm: nou adisyone nimeratè yo, 3 + 2 = 5, epi nou kenbe 8. Rezilta a se 5/8."
+          }
+        },
+        {
+          "question_key": "q-differents",
+          "kind": "mcq",
+          "prompt": {
+            "text": "Konbyen 1/3 + 1/6 bay?"
+          },
+          "response_spec": {
+            "choices": [
+              {
+                "id": "a",
+                "text": "2/9"
+              },
+              {
+                "id": "b",
+                "text": "2/6"
+              },
+              {
+                "id": "c",
+                "text": "3/6"
+              }
+            ]
+          },
+          "answer_key": {
+            "correct_choice_id": "c"
+          },
+          "explanation": {
+            "text": "Nou transfòme 1/3 an 2/6, epi nou adisyone: 2/6 + 1/6 = 3/6."
+          }
+        }
+      ]
+    }
+  },
+  "probes": [
+    {
+      "id": "denominateur",
+      "kind": "explanation",
+      "fr": "C'est quoi le dénominateur d'une fraction ?",
+      "ht": "Kisa denominatè yon fraksyon ye?",
+      "gold": [
+        "rappel"
+      ]
+    },
+    {
+      "id": "meme-denominateur",
+      "kind": "reasoning",
+      "fr": "Comment additionner deux fractions qui ont le même dénominateur ?",
+      "ht": "Kijan pou m adisyone de fraksyon ki gen menm denominatè?",
+      "gold": [
+        "meme",
+        "exemple-meme"
+      ]
+    },
+    {
+      "id": "denominateurs-differents",
+      "kind": "reasoning",
+      "fr": "Que faire quand les dénominateurs sont différents ?",
+      "ht": "Kisa pou m fè lè denominatè yo diferan?",
+      "gold": [
+        "differents",
+        "exemple-differents"
+      ]
+    },
+    {
+      "id": "erreur-classique",
+      "kind": "explanation",
+      "fr": "Pourquoi 1/2 + 1/4 ne fait pas 2/6 ?",
+      "ht": "Poukisa 1/2 + 1/4 pa bay 2/6?",
+      "gold": [
+        "erreur",
+        "exemple-differents"
+      ]
+    }
+  ],
+  "hint_problem": {
+    "question_key": "q-differents",
+    "final_answer_patterns": [
+      "3\\s*/\\s*6"
+    ],
+    "final_answer_text": "3/6"
+  },
+  "wrong_answer": {
+    "question_key": "q-meme",
+    "choice": "a",
+    "misconception": "added the denominators as well"
+  },
+  "worked_example_block": "exemple-differents"
+}

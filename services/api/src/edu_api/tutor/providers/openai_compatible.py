@@ -11,6 +11,7 @@ category only — a provider's error text can echo the prompt.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 import httpx
@@ -35,6 +36,7 @@ class OpenAICompatibleProvider:
         *,
         name: str = "openrouter",
         path: str = "/chat/completions",
+        extra_body: Mapping[str, Any] | None = None,
     ) -> None:
         """``client`` carries the base URL and the Authorization header.
 
@@ -43,6 +45,13 @@ class OpenAICompatibleProvider:
         self.name = name
         self._client = client
         self._path = path
+        #: Fixed provider-specific fields merged into every request body, for
+        #: example OpenRouter's ``provider`` routing object (data-retention rules).
+        #: It cannot replace the fields this adapter controls.
+        self._extra_body = dict(extra_body or {})
+        reserved = {"model", "messages", "max_tokens", "stream"} & self._extra_body.keys()
+        if reserved:
+            raise ValueError(f"extra_body may not set {sorted(reserved)}")
 
     async def complete(self, request: ModelRequest) -> ModelResult:
         payload: dict[str, Any] = {
@@ -54,6 +63,7 @@ class OpenAICompatibleProvider:
         }
         if request.json_output:
             payload["response_format"] = {"type": "json_object"}
+        payload.update(self._extra_body)
         try:
             response = await self._client.post(self._path, json=payload)
         except httpx.TimeoutException:
