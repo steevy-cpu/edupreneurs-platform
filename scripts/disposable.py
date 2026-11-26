@@ -7,12 +7,14 @@ import hashlib
 import json
 import os
 import re
+import socket
 import subprocess
 import tomllib
 from pathlib import Path
 from urllib.parse import urlsplit
 from urllib.request import getproxies_environment
 
+from edu_api.config import require_canonical_settings
 from local_stack import ROOT, read_env_file
 
 CONFIG = ROOT / "supabase/config.toml"
@@ -43,6 +45,7 @@ def configure() -> None:
 
 
 def layout() -> tuple[str, int, int]:
+    require_canonical_settings(os.environ)
     if any(
         os.getenv(k)
         for k in (
@@ -82,6 +85,11 @@ def layout() -> tuple[str, int, int]:
 
 
 def validate_urls(env: dict[str, str], api: int, db: int) -> None:
+    require_canonical_settings(os.environ)
+    require_canonical_settings(env)
+    for key, configured in env.items():
+        if key.startswith(("EDU_", "LOCAL_")) and os.environ.get(key, configured) != configured:
+            raise ValueError(f"{key} conflicts with the disposable environment")
     proxies = getproxies_environment()
     excluded = {part.strip() for part in proxies.get("no", "").split(",")}
     if any(proxies.get(k) for k in ("http", "all")) and not excluded.intersection(
@@ -108,7 +116,7 @@ def validate_urls(env: dict[str, str], api: int, db: int) -> None:
             or u.username != user
             or u.query
             or u.fragment
-            or os.environ.get(key, value) != value
+            or u.netloc.count("@") != int(user is not None)
         ):
             raise ValueError(f"{key} does not match the disposable stack")
 
@@ -154,8 +162,19 @@ def verify(*, check_env: bool = False, env: dict[str, str] | None = None) -> str
                 text=True,
             )
         )
-        if {int(b["HostPort"]) for b in bindings.get(internal) or []} != {port}:
+        published = bindings.get(internal) or []
+        ipv4_loopback_bindings = {"127.0.0.1", "0.0.0.0"}  # noqa: S104
+        if {b.get("HostPort") for b in published} != {str(port)} or not any(
+            b.get("HostIp") in ipv4_loopback_bindings for b in published
+        ):
             raise ValueError(f"unexpected {component} binding")
+    # Only probe addresses after ownership of BOTH publications has been established.
+    for port in (db, api):
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=2):
+                pass
+        except OSError:
+            raise ValueError("disposable loopback publication is unreachable") from None
     return project
 
 

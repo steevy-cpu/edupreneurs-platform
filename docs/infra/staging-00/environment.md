@@ -21,6 +21,7 @@
 | `EDU_DB_CONNECT_TIMEOUT_S`, `EDU_DB_STATEMENT_TIMEOUT_MS`, `EDU_DB_DISABLE_STATEMENT_CACHE` | Defaults 3 seconds / 5000 ms / false. Direct or session pooling only. Rehearse prepared statements and startup settings on hosted Supavisor. |
 | `EDU_SYNC_MAX_OPS`, `EDU_MAX_WIRE_BODY_BYTES`, `EDU_MAX_DECODED_BODY_BYTES` | Defaults 50 operations / 20480 wire bytes / 131072 decoded bytes. |
 | `EDU_PULL_DEFAULT_LIMIT`, `EDU_PULL_MAX_LIMIT` | Defaults 100 / 200 feed rows. |
+| `WEB_CONCURRENCY` | Template sets 1. The launcher explicitly starts one worker, including on plans with a higher platform default. |
 | `PORT`, `UV_VERSION` | Port supplied by Render. Template pins uv 0.11.3, repository Python line 3.13 and `uv.lock`. Verify the resolved Python patch and OS image in the release record. |
 
 ## Operator-only material

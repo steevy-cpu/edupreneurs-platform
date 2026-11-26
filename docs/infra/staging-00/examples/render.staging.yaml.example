@@ -11,6 +11,8 @@ services:
     startCommand: .venv/bin/python scripts/staging_service.py --environment staging
     healthCheckPath: /ready
     envVars:
+      - key: WEB_CONCURRENCY
+        value: "1"
       - key: EDU_ENVIRONMENT
         value: staging
       - key: EDU_STAGING_PROJECT_REF

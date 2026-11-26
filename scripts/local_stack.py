@@ -26,6 +26,8 @@ from pathlib import Path
 from typing import NoReturn
 from urllib.parse import urlsplit
 
+from dotenv import dotenv_values
+
 ROOT = Path(__file__).resolve().parents[1]
 ENV_FILE = ROOT / ".env"
 SIGNING_KEYS = ROOT / "supabase" / "signing_keys.json"
@@ -57,13 +59,8 @@ def _require_local(url: str, what: str) -> None:
 
 
 def read_env_file() -> dict[str, str]:
-    values: dict[str, str] = {}
-    if ENV_FILE.exists():
-        for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
-            if line.strip() and not line.lstrip().startswith("#") and "=" in line:
-                key, _, value = line.partition("=")
-                values[key.strip()] = value.strip()
-    return values
+    # Use the same dotenv parser as FastAPI's pydantic-settings source.
+    return {k: v for k, v in dotenv_values(ENV_FILE).items() if v is not None}
 
 
 def stack_status() -> dict[str, str]:
