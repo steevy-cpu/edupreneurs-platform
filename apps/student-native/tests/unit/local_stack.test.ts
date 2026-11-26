@@ -157,3 +157,21 @@ describe('Android disposable backend', () => {
     } finally { fs.rmSync(dir, { recursive: true, force: true }); }
   });
 });
+
+test('concurrent device runs have private evidence and preserve a previous log', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'edu-evidence-'));
+  try {
+    const script = path.resolve(__dirname, '../../scripts/e2e-output.sh');
+    const run = (device: string) => execFileSync('bash', ['-ec',
+      '. "$1"; prepare_e2e_output >/dev/null; echo "$OUT"', 'test', script], {
+      env: { ...process.env, EDU_DEV_VOLUME: dir, PLATFORM: 'android', ROOT: dir + '/' + device, DEVICE: device,
+        E2E_OUT: '', E2E_LOG: '' }, encoding: 'utf8',
+    }).trim();
+    const first = run('emulator-5554');
+    fs.appendFileSync(path.join(first, 'journey.log'), 'first-run-sentinel');
+    const second = run('emulator-5572');
+    expect(second).not.toBe(first);
+    expect(fs.readFileSync(path.join(first, 'journey.log'), 'utf8')).toContain('first-run-sentinel');
+    expect(fs.readFileSync(path.join(second, 'journey.log'), 'utf8')).not.toContain('first-run-sentinel');
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});

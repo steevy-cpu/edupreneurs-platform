@@ -1,4 +1,4 @@
-import { ApiError } from './errors';
+import { ApiError, receivedHttpResponse } from './errors';
 import { FetchLike, requestJson } from './http';
 import type {
   CatalogResponse,
@@ -83,7 +83,7 @@ export class ApiClient {
         { timeoutMs: this.timeoutMs, sessionSignal: this.options.sessionSignal },
       ).catch((error: unknown) => {
         if (error instanceof ApiError && error.kind !== 'aborted') {
-          this.options.onReachability?.(error.kind === 'server');
+          this.options.onReachability?.(receivedHttpResponse(error));
         }
         throw error;
       });

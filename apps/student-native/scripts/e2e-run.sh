@@ -29,9 +29,8 @@ case "$PLATFORM" in
 esac
 TARGET=$(node "$APP_DIR/scripts/e2e-target.js" "${E2E_OFFLINE:-reverse}")
 read -r DB_CONTAINER KONG_CONTAINER FASTAPI_PORT AUTH_PORT <<< "$TARGET"
-OUT="${E2E_OUT:-$EDU_DEV_VOLUME/shots/mobile-02/$PLATFORM}"
-LOG="${E2E_LOG:-$EDU_DEV_VOLUME/logs/mobile02-e2e-$PLATFORM.log}"
-mkdir -p "$OUT/shots"
+. "$APP_DIR/scripts/e2e-output.sh"
+prepare_e2e_output
 
 # Own the FastAPI listener for the whole run. A pre-existing listener cannot pass the bind check.
 API_LOG=$(mktemp)
@@ -98,21 +97,20 @@ backend() { # reachable | unreachable
   echo "    backend: $1" | tee -a "$LOG"
 }
 
-# This Maestro version writes screenshots under ~/.maestro/tests/<run>/<flow>/; copy them next to the log.
-collect() {
-  local latest
-  latest="$(ls -dt "$HOME"/.maestro/tests/*/"$1"/takeScreenshot/shots 2>/dev/null | head -1)"
-  [ -n "$latest" ] && cp "$latest"/*.png "$OUT/shots/" 2>/dev/null || true
-}
-
 run() { # flow-name
+  local flow_output="$OUT/maestro/$1"
   echo "==> $1" | tee -a "$LOG"
-  (cd "$OUT" && "$MAESTRO" --device "$DEVICE" test "${ENVS[@]}" "$APP_DIR/e2e/$1.yaml") >> "$LOG" 2>&1 \
-    && { collect "$1"; echo "    PASS $1" | tee -a "$LOG"; } \
-    || { echo "    FAIL $1 (see $LOG)" | tee -a "$LOG"; backend reachable; exit 1; }
+  if ! (cd "$OUT" && "$MAESTRO" --device "$DEVICE" test --test-output-dir "$flow_output" "${ENVS[@]}" "$APP_DIR/e2e/$1.yaml") >> "$LOG" 2>&1; then
+    echo "    FAIL $1 (see $LOG)" | tee -a "$LOG"
+    backend reachable
+    exit 1
+  fi
+  if [[ -d "$flow_output/takeScreenshot/shots" ]]; then
+    cp -R "$flow_output/takeScreenshot/shots/." "$OUT/shots/"
+  fi
+  echo "    PASS $1" | tee -a "$LOG"
 }
 
-: > "$LOG"
 if [ "$#" -gt 0 ]; then
   backend reachable
   for flow in "$@"; do run "$flow"; done

@@ -1,3 +1,4 @@
+import { ApiError, receivedHttpResponse } from '../api/errors';
 import { ApiClient } from '../api/client';
 import type { LessonResponse, Locale } from '../api/types';
 import { validateLessonSnapshot } from '../api/validate';
@@ -135,7 +136,9 @@ function reasonOf(error: unknown): 'offline' | 'service' | 'not_found' | 'sessio
   const kind = (error as { kind?: string } | null)?.kind;
   const status = (error as { status?: number | null } | null)?.status;
   if (kind === 'server' || kind === 'timeout') return 'service';
-  if (kind === 'network') return 'offline';
+  if (kind === 'network') {
+    return error instanceof ApiError && receivedHttpResponse(error) ? 'invalid' : 'offline';
+  }
   if (kind === 'auth_required' || kind === 'aborted') return 'session';
   if (status === 404) return 'not_found';
   return 'invalid';

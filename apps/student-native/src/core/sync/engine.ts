@@ -1,5 +1,5 @@
 import { ApiClient } from '../api/client';
-import { ApiError, errorCode, isAborted, isAuthRequired, isTransient } from '../api/errors';
+import { ApiError, errorCode, isAborted, isAuthRequired, isTransient, receivedHttpResponse } from '../api/errors';
 import { AccountStore, PendingOperation } from '../db/accountStore';
 
 export type SyncOutcome = 'ok' | 'offline' | 'auth_required' | 'aborted' | 'error';
@@ -20,7 +20,7 @@ export interface SyncReport {
   serverAnswered?: boolean;
 }
 
-/** The last run could not reach the server at all (no reply, timeout, proxy/portal page). */
+/** The last run could not reach the server at all (no HTTP reply). */
 export function wasUnreachable(report: SyncReport | null | undefined): boolean {
   return report?.outcome === 'offline' && report.serverAnswered !== true;
 }
@@ -127,8 +127,7 @@ export class SyncEngine {
         report.outcome = 'auth_required';
       } else if (isTransient(error)) {
         report.outcome = 'offline';
-        // A 5xx whose body is the API's own error JSON proves the server is reachable; a bare gateway error does not.
-        report.serverAnswered = error instanceof ApiError && error.kind === 'server' && error.code !== 'bad_gateway';
+        report.serverAnswered = error instanceof ApiError && receivedHttpResponse(error);
       } else {
         report.outcome = 'error';
       }
