@@ -1,0 +1,1859 @@
+openapi: 3.1.0
+info:
+  title: Edupreneurs Social API (DRAFT — design only, not implemented)
+  version: 0.1.0-draft
+  summary: Proposed /v1/social/* contract for the community module.
+  description: |
+    Social-00 design artefact. Nothing here is served by the API yet, and this
+    file is deliberately NOT merged into `packages/contracts/openapi.json`
+    (that file is generated from the running application and checked in CI).
+
+    Conventions shared with the existing learning API (`docs/API_CONTRACT.md`):
+
+    * `Authorization: Bearer <Supabase Auth access token>` on every route.
+    * The caller's identity comes ONLY from the token. No request accepts the
+      caller's own user id; unknown fields are rejected (422).
+    * One error shape: `{"error": {"code", "message", "request_id", "details"?}}`.
+    * Request bodies may be gzip-encoded; body limits are enforced before parsing.
+
+    Conventions specific to the social module:
+
+    * Nothing a learner writes is visible to anyone else until a moderator has
+      approved it. A successful submission returns `202` with
+      `status: "pending_review"`, never `201`.
+    * Submissions carry a `client_op_id` (a UUID made by the phone when the
+      learner taps "send"). Sending the same request again returns the first
+      answer (`replayed: true`) and creates nothing new.
+    * Lists use opaque cursors. Treat a cursor as a string; never build one.
+    * "Not found", "not visible to you", "removed" and "written by someone you
+      blocked or who blocked you" are deliberately the same `404`.
+    * Milestone markers: `x-milestone` says in which milestone a route is built.
+servers:
+  - url: http://127.0.0.1:8000
+    description: Local development only. No hosted environment exists.
+security:
+  - bearerAuth: []
+tags:
+  - name: me
+    description: The caller's own social status, profile and settings.
+  - name: communities
+  - name: feed
+  - name: posts
+  - name: comments
+  - name: reactions
+  - name: safety
+    description: Reports and blocks.
+  - name: notifications
+  - name: moderation
+    description: Social staff only. Served from a separate database role and connection pool.
+  - name: admin
+    description: Enrolment and community administration. Social staff only.
+  - name: guardianship
+    description: Authorised adults managing a learner's social settings (Social-04).
+
+paths:
+  /v1/social/me:
+    get:
+      tags: [me]
+      operationId: getSocialMe
+      x-milestone: Social-02
+      summary: Am I enrolled, what may I do, and what is waiting for me?
+      description: |
+        The first call the app makes. If `enrolment.status` is not `active`, the
+        app hides every community entry point. Small and safe to call on every
+        app start; supports `If-None-Match`.
+      responses:
+        "200":
+          description: Social status of the caller. Returned even when not enrolled.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SocialMe" }
+        "304": { $ref: "#/components/responses/NotModified" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  /v1/social/me/profile:
+    patch:
+      tags: [me]
+      operationId: updateSocialProfile
+      x-milestone: Social-02
+      summary: Change avatar, or ask for a new display name.
+      description: A new display name is user-written text, so it waits for moderator approval before anyone sees it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProfileUpdate" }
+      responses:
+        "200":
+          description: Avatar changed and/or name queued for review.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [display_name_status]
+                properties:
+                  display_name_status: { type: string, enum: [unchanged, pending_review] }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "422": { $ref: "#/components/responses/Invalid" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/social/me/settings:
+    get:
+      tags: [me]
+      operationId: getSocialSettings
+      x-milestone: Social-02
+      summary: The caller's safety settings.
+      responses:
+        "200":
+          description: Current settings.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SafetySettings" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+    patch:
+      tags: [me]
+      operationId: updateSocialSettings
+      x-milestone: Social-02
+      summary: Change own settings.
+      description: When `locked_by` is `adult` or `staff`, capabilities can only be switched off (403 `settings_locked` otherwise).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SafetySettingsUpdate" }
+      responses:
+        "200":
+          description: Updated settings.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SafetySettings" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /v1/social/me/guidelines-acceptance:
+    post:
+      tags: [me]
+      operationId: acceptGuidelines
+      x-milestone: Social-02
+      summary: Record that the learner read and accepted the community rules.
+      description: Writing is refused (403 `guidelines_not_accepted`) until the current version is accepted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [version]
+              properties:
+                version: { type: string, maxLength: 40 }
+      responses:
+        "204": { description: Accepted. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "409":
+          description: "`guidelines_outdated` — a newer version exists; fetch it and ask again."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /v1/social/me/submissions:
+    get:
+      tags: [me]
+      operationId: listMySubmissions
+      x-milestone: Social-02
+      summary: My own posts and comments in every state, newest first.
+      description: This is where a learner sees "waiting for review", "published" or "not accepted (reason)".
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: A page of the caller's submissions.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmissionPage" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "410": { $ref: "#/components/responses/CursorInvalid" }
+
+  /v1/social/guidelines:
+    get:
+      tags: [me]
+      operationId: getGuidelines
+      x-milestone: Social-02
+      summary: The community rules, in French or Haitian Creole.
+      description: Static, versioned text. Cache it; supports `If-None-Match`.
+      parameters:
+        - $ref: "#/components/parameters/Locale"
+      responses:
+        "200":
+          description: The current rules.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [version, locale, sections, report_contact]
+                properties:
+                  version: { type: string }
+                  locale: { $ref: "#/components/schemas/LocaleCode" }
+                  sections:
+                    type: array
+                    items:
+                      type: object
+                      required: [title, text]
+                      properties:
+                        title: { type: string }
+                        text: { type: string }
+                  report_contact:
+                    type: string
+                    description: Published contact for safety concerns (store requirement).
+        "304": { $ref: "#/components/responses/NotModified" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /v1/social/communities:
+    get:
+      tags: [communities]
+      operationId: listCommunities
+      x-milestone: Social-02
+      summary: My communities, my pending requests, and listed communities I am eligible for.
+      description: At most a few dozen rows; not paginated. There is no search and no public directory.
+      parameters:
+        - $ref: "#/components/parameters/Locale"
+      responses:
+        "200":
+          description: Communities visible to the caller.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [communities]
+                properties:
+                  communities:
+                    type: array
+                    maxItems: 60
+                    items: { $ref: "#/components/schemas/Community" }
+        "304": { $ref: "#/components/responses/NotModified" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+
+  /v1/social/communities/join:
+    post:
+      tags: [communities]
+      operationId: joinCommunity
+      x-milestone: Social-02
+      summary: Ask to join a community with an invite code.
+      description: |
+        A valid code creates a REQUEST (`pending_approval`); a teacher of the
+        group or staff must approve it. Every failure is the same 404
+        `invite_invalid`. Limited to 5 attempts per hour, failed ones included.
+        Safe to retry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [invite_code]
+              properties:
+                invite_code:
+                  type: string
+                  pattern: "^[0-9A-HJKMNP-TV-Za-hjkmnp-tv-z]{8,12}$"
+                  description: Crockford base-32, case-insensitive. Hashed by the API; never stored in clear.
+      responses:
+        "202":
+          description: Request recorded (or already existed).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [community_id, status, replayed]
+                properties:
+                  community_id: { type: string, format: uuid }
+                  status: { type: string, enum: [pending_approval, active] }
+                  replayed: { type: boolean }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: "`limit_reached` — already in the maximum number of communities."
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422": { $ref: "#/components/responses/Invalid" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/social/communities/{community_id}:
+    parameters:
+      - $ref: "#/components/parameters/CommunityId"
+    get:
+      tags: [communities]
+      operationId: getCommunity
+      x-milestone: Social-02
+      summary: One community.
+      parameters:
+        - $ref: "#/components/parameters/Locale"
+      responses:
+        "200":
+          description: The community.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Community" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/social/communities/{community_id}/leave:
+    parameters:
+      - $ref: "#/components/parameters/CommunityId"
+    post:
+      tags: [communities]
+      operationId: leaveCommunity
+      x-milestone: Social-02
+      summary: Leave a community or withdraw a join request. Safe to retry.
+      responses:
+        "204": { description: Done (also when the caller was not a member). }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /v1/social/communities/{community_id}/members:
+    parameters:
+      - $ref: "#/components/parameters/CommunityId"
+    get:
+      tags: [communities]
+      operationId: listCommunityMembers
+      x-milestone: Social-02
+      summary: Members and join requests — for the group's teacher(s) and social staff only.
+      description: Ordinary members have no member directory. They get 404.
+      responses:
+        "200":
+          description: Members and pending requests.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [members]
+                properties:
+                  members:
+                    type: array
+                    maxItems: 500
+                    items: { $ref: "#/components/schemas/Member" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/social/communities/{community_id}/join-requests/{user_id}:
+    parameters:
+      - $ref: "#/components/parameters/CommunityId"
+      - $ref: "#/components/parameters/UserId"
+    put:
+      tags: [communities]
+      operationId: decideJoinRequest
+      x-milestone: Social-02
+      summary: Approve or decline a join request (teacher of the group, or staff).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [approve, decline] }
+      responses:
+        "200":
+          description: Decision applied.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status: { type: string, enum: [active, removed] }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "409": { $ref: "#/components/responses/InvalidState" }
+
+  /v1/social/feed:
+    get:
+      tags: [feed]
+      operationId: getHomeFeed
+      x-milestone: Social-02
+      summary: Newest published posts across all my communities.
+      description: |
+        Text only. Each item carries an excerpt of at most 280 characters; the
+        full text comes from `GET /v1/social/posts/{post_id}`. Default 10 items,
+        maximum 20. With no cursor and an `If-None-Match` header the server
+        answers `304` when nothing changed.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/FeedLimit"
+      responses:
+        "200":
+          description: A page of posts, newest first.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FeedPage" }
+        "304": { $ref: "#/components/responses/NotModified" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "410": { $ref: "#/components/responses/CursorInvalid" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  /v1/social/communities/{community_id}/feed:
+    parameters:
+      - $ref: "#/components/parameters/CommunityId"
+    get:
+      tags: [feed]
+      operationId: getCommunityFeed
+      x-milestone: Social-02
+      summary: Newest published posts of one community.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/FeedLimit"
+      responses:
+        "200":
+          description: A page of posts, newest first.
+          headers:
+            ETag: { $ref: "#/components/headers/ETag" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FeedPage" }
+        "304": { $ref: "#/components/responses/NotModified" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "410": { $ref: "#/components/responses/CursorInvalid" }
+
+  /v1/social/communities/{community_id}/posts:
+    parameters:
+      - $ref: "#/components/parameters/CommunityId"
+    post:
+      tags: [posts]
+      operationId: submitPost
+      x-milestone: Social-02
+      summary: Submit a post for review.
+      description: |
+        Returns `202`: the post is stored as `pending_review` and is visible only
+        to its author until a moderator approves it. Safe to retry with the same
+        `client_op_id`. Limits: 5 posts per day, at most 3 waiting for review.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PostSubmission" }
+      responses:
+        "202":
+          description: Stored, waiting for review.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmissionReceipt" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/IdempotencyConflict" }
+        "413": { $ref: "#/components/responses/TooLarge" }
+        "422": { $ref: "#/components/responses/ContentInvalid" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+        "503": { $ref: "#/components/responses/Unavailable" }
+
+  /v1/social/posts/{post_id}:
+    parameters:
+      - $ref: "#/components/parameters/PostId"
+    get:
+      tags: [posts]
+      operationId: getPost
+      x-milestone: Social-02
+      summary: One post with its full text.
+      description: Others' posts only when published. The author also sees their own post in any state.
+      responses:
+        "200":
+          description: The post.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Post" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      tags: [posts]
+      operationId: deleteOwnPost
+      x-milestone: Social-02
+      summary: Delete my own post. Safe to retry.
+      responses:
+        "204": { description: Deleted (or already gone). }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/social/posts/{post_id}/comments:
+    parameters:
+      - $ref: "#/components/parameters/PostId"
+    get:
+      tags: [comments]
+      operationId: listComments
+      x-milestone: Social-02
+      summary: Published comments of a post, oldest first.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: A page of comments.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommentPage" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "410": { $ref: "#/components/responses/CursorInvalid" }
+    post:
+      tags: [comments]
+      operationId: submitComment
+      x-milestone: Social-02
+      summary: Submit a comment (or a reply to a top-level comment) for review.
+      description: Same rules as posts. Limits — 30 comments per day, at most 10 waiting for review.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CommentSubmission" }
+      responses:
+        "202":
+          description: Stored, waiting for review.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmissionReceipt" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/IdempotencyConflict" }
+        "413": { $ref: "#/components/responses/TooLarge" }
+        "422": { $ref: "#/components/responses/ContentInvalid" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/social/comments/{comment_id}:
+    parameters:
+      - $ref: "#/components/parameters/CommentId"
+    delete:
+      tags: [comments]
+      operationId: deleteOwnComment
+      x-milestone: Social-02
+      summary: Delete my own comment. Safe to retry.
+      responses:
+        "204": { description: Deleted (or already gone). }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/social/posts/{post_id}/reaction:
+    parameters:
+      - $ref: "#/components/parameters/PostId"
+    put:
+      tags: [reactions]
+      operationId: setPostReaction
+      x-milestone: Social-02
+      summary: Set (or change) my reaction to a post. PUT is naturally safe to retry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReactionSet" }
+      responses:
+        "200": { $ref: "#/components/responses/ReactionState" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    delete:
+      tags: [reactions]
+      operationId: clearPostReaction
+      x-milestone: Social-02
+      summary: Remove my reaction from a post.
+      responses:
+        "200": { $ref: "#/components/responses/ReactionState" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/social/comments/{comment_id}/reaction:
+    parameters:
+      - $ref: "#/components/parameters/CommentId"
+    put:
+      tags: [reactions]
+      operationId: setCommentReaction
+      x-milestone: Social-02
+      summary: Set (or change) my reaction to a comment.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReactionSet" }
+      responses:
+        "200": { $ref: "#/components/responses/ReactionState" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+    delete:
+      tags: [reactions]
+      operationId: clearCommentReaction
+      x-milestone: Social-02
+      summary: Remove my reaction from a comment.
+      responses:
+        "200": { $ref: "#/components/responses/ReactionState" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/social/reports:
+    post:
+      tags: [safety]
+      operationId: fileReport
+      x-milestone: Social-02
+      summary: Report a post, a comment or a display name.
+      description: |
+        Always answered the same way, whether or not the content was hidden as a
+        result, so the report cannot be used to probe moderation. One report per
+        person and subject; sending it again returns the first one. The app must
+        queue a report made offline and send it as soon as it can.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReportSubmission" }
+      responses:
+        "202":
+          description: Report recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [replayed]
+                properties:
+                  report_id: { type: [string, "null"], format: uuid }
+                  replayed: { type: boolean }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+
+  /v1/social/blocks:
+    get:
+      tags: [safety]
+      operationId: listBlocks
+      x-milestone: Social-02
+      summary: People I have blocked.
+      responses:
+        "200":
+          description: The caller's block list (at most 200).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [blocks]
+                properties:
+                  blocks:
+                    type: array
+                    maxItems: 200
+                    items:
+                      type: object
+                      required: [user_id, blocked_at]
+                      properties:
+                        user_id: { type: string, format: uuid }
+                        blocked_at: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /v1/social/blocks/{user_id}:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    put:
+      tags: [safety]
+      operationId: blockUser
+      x-milestone: Social-02
+      summary: Block someone. Each of you stops seeing the other's posts and comments.
+      description: Teachers and staff cannot be blocked (409 `cannot_block_staff`); they can be reported.
+      responses:
+        "204": { description: Blocked (or already blocked). }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/InvalidState" }
+    delete:
+      tags: [safety]
+      operationId: unblockUser
+      x-milestone: Social-02
+      summary: Unblock someone.
+      responses:
+        "204": { description: Unblocked (or was not blocked). }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /v1/social/notifications:
+    get:
+      tags: [notifications]
+      operationId: listNotifications
+      x-milestone: Social-02
+      summary: My notification events, newest first.
+      description: Events carry ids only, never text. The app opens the content through the normal endpoints.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: A page of notification events.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NotificationPage" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "410": { $ref: "#/components/responses/CursorInvalid" }
+
+  /v1/social/notifications/read:
+    post:
+      tags: [notifications]
+      operationId: markNotificationsRead
+      x-milestone: Social-02
+      summary: Mark everything up to an id as read. Safe to retry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [up_to_id]
+              properties:
+                up_to_id: { type: integer, format: int64, minimum: 1 }
+      responses:
+        "204": { description: Marked. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /v1/social/updates:
+    get:
+      tags: [feed]
+      operationId: getUpdates
+      x-milestone: Social-02
+      summary: One small poll — what changed since my cursor?
+      description: |
+        The only "polling" call. The app makes it when the community area comes
+        to the foreground (and at most every 2 minutes while it stays open; never
+        in the background). It returns: the unread notification count, how many
+        of my submissions changed state, and the ids of posts/comments whose
+        visibility changed — so a removed post disappears from the phone's cache.
+        If more than 200 changes are waiting, `cache_reset` is true and the app
+        simply drops its social cache.
+      parameters:
+        - name: since
+          in: query
+          required: false
+          description: The `next` value of the previous call. Omit on first use.
+          schema: { type: string, maxLength: 200 }
+      responses:
+        "200":
+          description: Changes since the cursor.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Updates" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/SocialForbidden" }
+        "410": { $ref: "#/components/responses/CursorInvalid" }
+
+  # --------------------------------------------------------------------------
+  # Moderation (social staff; second factor required; separate database role)
+  # --------------------------------------------------------------------------
+  /v1/social/moderation/queue:
+    get:
+      tags: [moderation]
+      operationId: getModerationQueue
+      x-milestone: Social-02
+      summary: Queue size by priority, oldest waiting item, and items past their deadline.
+      responses:
+        "200":
+          description: Queue overview.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QueueOverview" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/StaffForbidden" }
+
+  /v1/social/moderation/queue/claim:
+    post:
+      tags: [moderation]
+      operationId: claimNextItem
+      x-milestone: Social-02
+      summary: Take the most urgent waiting item (15-minute lease).
+      description: Never returns the moderator's own content. `204` when the queue is empty.
+      responses:
+        "200":
+          description: The claimed item with the content to review.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ModerationItem" }
+        "204": { description: Nothing to review. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/StaffForbidden" }
+
+  /v1/social/moderation/items/{item_id}:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      tags: [moderation]
+      operationId: getModerationItem
+      x-milestone: Social-02
+      summary: One item with content, screening flags, reports and the author's recent history.
+      responses:
+        "200":
+          description: The item.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ModerationItem" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/StaffForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/social/moderation/items/{item_id}/decision:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [moderation]
+      operationId: decideItem
+      x-milestone: Social-02
+      summary: Approve / reject (new content) or dismiss / remove (reported content).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ModerationDecision" }
+      responses:
+        "200":
+          description: Decision applied.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [resolution]
+                properties:
+                  resolution: { type: string, enum: [approved, rejected, dismissed, removed, stale] }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/StaffForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/InvalidState" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /v1/social/moderation/items/{item_id}/escalation:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    post:
+      tags: [moderation]
+      operationId: escalateItem
+      x-milestone: Social-02
+      summary: Escalate to the safety lead (or, by the safety lead, to family/school or an authority).
+      description: Places an evidence hold on the content and its reports.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [level, summary]
+              properties:
+                level: { type: string, enum: [safety_lead, guardian_or_school, external_authority] }
+                summary: { type: string, minLength: 1, maxLength: 1000 }
+      responses:
+        "201":
+          description: Escalation opened.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [escalation_id]
+                properties:
+                  escalation_id: { type: string, format: uuid }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/StaffForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/InvalidState" }
+
+  /v1/social/moderation/users/{user_id}:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    get:
+      tags: [moderation]
+      operationId: getUserModerationHistory
+      x-milestone: Social-02
+      summary: A participant's sanctions and past moderation decisions (no private learning data).
+      responses:
+        "200":
+          description: Moderation history.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UserModerationHistory" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/StaffForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/social/moderation/users/{user_id}/sanctions:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    post:
+      tags: [moderation]
+      operationId: imposeSanction
+      x-milestone: Social-02
+      summary: Warn, mute, suspend or ban.
+      description: Moderators — warning, mute, suspension up to 7 days, learners only. Safety lead — everything else.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SanctionRequest" }
+      responses:
+        "201":
+          description: Sanction recorded; effective immediately.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Sanction" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/StaffForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /v1/social/moderation/sanctions/{sanction_id}:
+    parameters:
+      - name: sanction_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [moderation]
+      operationId: liftSanction
+      x-milestone: Social-02
+      summary: Lift a sanction (bans — safety lead only).
+      parameters:
+        - name: reason_code
+          in: query
+          required: true
+          schema: { $ref: "#/components/schemas/ReasonCode" }
+      responses:
+        "204": { description: Lifted. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/StaffForbidden" }
+        "409": { $ref: "#/components/responses/InvalidState" }
+
+  /v1/social/moderation/metrics:
+    get:
+      tags: [moderation]
+      operationId: getModerationMetrics
+      x-milestone: Social-03
+      summary: Operating numbers — review times, queue age, reports per 100 members, deadline misses.
+      parameters:
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 90, default: 7 }
+      responses:
+        "200":
+          description: Aggregates only; no content, no names.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ModerationMetrics" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/StaffForbidden" }
+
+  # --------------------------------------------------------------------------
+  # Administration (social_admin / safety_lead). Database functions for these
+  # are SPECIFIED in 03-sql-migration-plan.md but not yet drafted.
+  # --------------------------------------------------------------------------
+  /v1/social/admin/enrollments:
+    post:
+      tags: [admin]
+      operationId: enrolParticipant
+      x-milestone: Social-02
+      summary: Enrol a learner, teacher or staff account in the social module and record consent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EnrollmentRequest" }
+      responses:
+        "201": { description: Enrolled. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/StaffForbidden" }
+        "409": { $ref: "#/components/responses/InvalidState" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /v1/social/admin/communities:
+    post:
+      tags: [admin]
+      operationId: createCommunity
+      x-milestone: Social-02
+      summary: Create a community (starts as `draft`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CommunityCreate" }
+      responses:
+        "201":
+          description: Created.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Community" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/StaffForbidden" }
+        "422": { $ref: "#/components/responses/Invalid" }
+
+  /v1/social/admin/communities/{community_id}/status:
+    parameters:
+      - $ref: "#/components/parameters/CommunityId"
+    put:
+      tags: [admin]
+      operationId: setCommunityStatus
+      x-milestone: Social-02
+      summary: Open, freeze (read-only) or archive a community.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [status]
+              properties:
+                status: { type: string, enum: [open, frozen, archived] }
+      responses:
+        "204": { description: Status changed. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/StaffForbidden" }
+        "409": { $ref: "#/components/responses/InvalidState" }
+
+  /v1/social/admin/communities/{community_id}/invites:
+    parameters:
+      - $ref: "#/components/parameters/CommunityId"
+    post:
+      tags: [admin]
+      operationId: createInvite
+      x-milestone: Social-02
+      summary: Create an invite code. The code is shown ONCE in this response and never stored in clear.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expires_in_days]
+              properties:
+                expires_in_days: { type: integer, minimum: 1, maximum: 30 }
+                max_uses: { type: integer, minimum: 1, maximum: 500, default: 60 }
+      responses:
+        "201":
+          description: Invite created.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [invite_id, invite_code, expires_at]
+                properties:
+                  invite_id: { type: string, format: uuid }
+                  invite_code: { type: string }
+                  expires_at: { type: string, format: date-time }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/StaffForbidden" }
+
+  /v1/social/admin/config:
+    patch:
+      tags: [admin]
+      operationId: updateSocialConfig
+      x-milestone: Social-02
+      summary: Global kill switch and limits (safety lead only).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                submissions_open: { type: boolean }
+                max_posts_per_day: { type: integer, minimum: 1, maximum: 100 }
+                max_comments_per_day: { type: integer, minimum: 1, maximum: 500 }
+                auto_hide_report_threshold: { type: integer, minimum: 1, maximum: 20 }
+      responses:
+        "204": { description: Updated. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/StaffForbidden" }
+
+  /v1/social/admin/users/{user_id}/erasure:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    post:
+      tags: [admin]
+      operationId: eraseSocialData
+      x-milestone: Social-03
+      summary: Erase a participant's social data (the social half of account deletion).
+      description: Refused with 409 `blocked_by_evidence_hold` while evidence is on hold.
+      responses:
+        "200":
+          description: Erased.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [posts_erased, comments_erased]
+                properties:
+                  posts_erased: { type: integer }
+                  comments_erased: { type: integer }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "403": { $ref: "#/components/responses/StaffForbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/InvalidState" }
+
+  # --------------------------------------------------------------------------
+  # Guardianship (Social-04; requires the legal answers in doc 10 first)
+  # --------------------------------------------------------------------------
+  /v1/social/guardianship/learners:
+    get:
+      tags: [guardianship]
+      operationId: listLinkedLearners
+      x-milestone: Social-04
+      summary: Learners this adult is verified to manage.
+      responses:
+        "200":
+          description: Linked learners with their social status (no content, no learning data).
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [learners]
+                properties:
+                  learners:
+                    type: array
+                    items: { $ref: "#/components/schemas/LinkedLearner" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+
+  /v1/social/guardianship/learners/{user_id}/settings:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    patch:
+      tags: [guardianship]
+      operationId: updateLearnerSettings
+      x-milestone: Social-04
+      summary: Change and lock a linked learner's capabilities.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SafetySettingsUpdate" }
+      responses:
+        "200":
+          description: Updated settings.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SafetySettings" }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /v1/social/guardianship/learners/{user_id}/consent:
+    parameters:
+      - $ref: "#/components/parameters/UserId"
+    delete:
+      tags: [guardianship]
+      operationId: withdrawConsent
+      x-milestone: Social-04
+      summary: Withdraw consent. The learner's social access pauses immediately.
+      responses:
+        "204": { description: Consent withdrawn; enrolment paused. }
+        "401": { $ref: "#/components/responses/Unauthenticated" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Supabase Auth access token (ES256). Moderation and admin routes additionally require a second-factor session (`aal2`).
+
+  headers:
+    ETag:
+      description: Opaque version of this response for the caller. Send it back as `If-None-Match`.
+      schema: { type: string }
+    RetryAfter:
+      description: Seconds to wait before trying again.
+      schema: { type: integer, minimum: 1 }
+
+  parameters:
+    CommunityId:
+      name: community_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    PostId:
+      name: post_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CommentId:
+      name: comment_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    UserId:
+      name: user_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    ItemId:
+      name: item_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque. Use the `next_cursor` of the previous page; omit for the first page.
+      schema: { type: string, maxLength: 200 }
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+    FeedLimit:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 20, default: 10 }
+    Locale:
+      name: locale
+      in: query
+      required: false
+      schema: { $ref: "#/components/schemas/LocaleCode" }
+
+  responses:
+    NotModified:
+      description: Nothing changed since the `If-None-Match` version. No body.
+    Unauthenticated:
+      description: "`unauthenticated` — token missing, expired or invalid. Refresh the token; if that fails, sign in again."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    SocialForbidden:
+      description: |
+        The caller is known but may not do this. `code` is one of:
+        `social_not_enrolled`, `social_not_active` (consent pending or withdrawn),
+        `social_suspended`, `social_muted`, `guidelines_not_accepted`,
+        `submissions_closed`, `community_read_only`, `capability_disabled`,
+        `posting_restricted`, `settings_locked`, `not_allowed`, `forbidden`.
+        The app shows a fixed, translated explanation per code and stops retrying.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    StaffForbidden:
+      description: "`forbidden` — not social staff, role insufficient, no second factor, or own content (`self_moderation_forbidden`)."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: "`content_not_found`, `community_not_found`, `user_not_found`, `invite_invalid` or `item_not_found`. Identical for unknown, invisible, removed and blocked."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    IdempotencyConflict:
+      description: "`idempotency_conflict` — this `client_op_id` was already used with different content. A client bug; do not retry unchanged."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    InvalidState:
+      description: "`invalid_state`, `item_not_claimed`, `limit_reached`, `cannot_block_staff` or `blocked_by_evidence_hold`."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    CursorInvalid:
+      description: "`social_cursor_invalid` — discard the cursor and start again from the first page."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TooLarge:
+      description: "`payload_too_large` — body over the wire or decoded limit."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Invalid:
+      description: "`validation_error` — the request shape is wrong. A client bug; do not retry unchanged."
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ContentInvalid:
+      description: |
+        `validation_error` (shape) or `content_not_allowed` (the local safety
+        screen refused the text before it was stored). For the second,
+        `details[].type` names the rule so the app can help the learner fix it:
+        `contains_contact_info`, `contains_link`, `too_long`, `empty_after_cleanup`,
+        `unsupported_characters`. The text itself is never echoed back.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RateLimited:
+      description: "`rate_limited` (daily or hourly limit) or `pending_limit_reached` (too many items waiting for review)."
+      headers:
+        Retry-After: { $ref: "#/components/headers/RetryAfter" }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unavailable:
+      description: "`dependency_unavailable` — database or key service unreachable. Retry later with the SAME `client_op_id`."
+      headers:
+        Retry-After: { $ref: "#/components/headers/RetryAfter" }
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ReactionState:
+      description: The resulting reaction state.
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [my_reaction]
+            properties:
+              my_reaction:
+                oneOf:
+                  - $ref: "#/components/schemas/ReactionKind"
+                  - type: "null"
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, request_id]
+          properties:
+            code: { type: string }
+            message: { type: string, description: "English, for developers. The app shows its own translated text per code." }
+            request_id: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  loc: { type: array, items: { type: [string, integer] } }
+                  msg: { type: string }
+                  type: { type: string }
+
+    LocaleCode: { type: string, enum: [fr, ht] }
+    ReactionKind: { type: string, enum: [helpful, thanks, encourage] }
+    ReasonCode:
+      type: string
+      pattern: "^[a-z_]{3,40}$"
+      description: A fixed code from the moderation reason list (doc 06). Never free text.
+    ContentStatus:
+      type: string
+      enum: [pending_review, published, hidden, rejected, removed, deleted]
+      description: |
+        `pending_review` waiting for a moderator · `published` visible to the
+        community · `hidden` temporarily hidden after reports · `rejected` not
+        accepted · `removed` taken down by a moderator · `deleted` by its author.
+        Only the author ever sees a state other than `published`.
+
+    SocialMe:
+      type: object
+      required: [enrolment, capabilities, unread_notifications, pending_submissions, guidelines]
+      properties:
+        enrolment:
+          type: object
+          required: [status]
+          properties:
+            status: { type: string, enum: [not_enrolled, pending, active, paused, closed] }
+            consent_status: { type: string, enum: [pending, granted, withdrawn, not_required] }
+        profile:
+          oneOf:
+            - $ref: "#/components/schemas/OwnProfile"
+            - type: "null"
+        capabilities:
+          type: object
+          required: [can_read, can_post, can_comment, can_react]
+          properties:
+            can_read: { type: boolean }
+            can_post: { type: boolean }
+            can_comment: { type: boolean }
+            can_react: { type: boolean }
+            blocked_reason:
+              type: [string, "null"]
+              description: The error code that would be returned for a write, when writing is not possible.
+        sanctions:
+          type: array
+          items: { $ref: "#/components/schemas/OwnSanction" }
+        guidelines:
+          type: object
+          required: [current_version, accepted]
+          properties:
+            current_version: { type: string }
+            accepted: { type: boolean }
+        unread_notifications: { type: integer, minimum: 0 }
+        pending_submissions: { type: integer, minimum: 0 }
+
+    PublicProfile:
+      type: object
+      description: Everything another member can ever see about a person.
+      required: [user_id, display_name, avatar_key, badge]
+      properties:
+        user_id: { type: string, format: uuid }
+        display_name:
+          type: [string, "null"]
+          description: Null until a name is approved; the app shows a neutral placeholder.
+        avatar_key: { type: string }
+        badge: { type: string, enum: [learner, teacher, staff] }
+
+    OwnProfile:
+      allOf:
+        - $ref: "#/components/schemas/PublicProfile"
+        - type: object
+          properties:
+            pending_display_name: { type: [string, "null"] }
+            grade_band: { type: [string, "null"], enum: ["7AF-9AF", "NS1-NS4", null] }
+
+    ProfileUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        display_name: { type: string, minLength: 2, maxLength: 40 }
+        avatar_key: { type: string, pattern: "^[a-z0-9_-]{1,40}$" }
+
+    SafetySettings:
+      type: object
+      required: [can_post, can_comment, can_react, notifications_enabled, locked_by]
+      properties:
+        can_post: { type: boolean }
+        can_comment: { type: boolean }
+        can_react: { type: boolean }
+        notifications_enabled: { type: boolean }
+        locked_by: { type: string, enum: [none, adult, staff] }
+
+    SafetySettingsUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        can_post: { type: boolean }
+        can_comment: { type: boolean }
+        can_react: { type: boolean }
+        notifications_enabled: { type: boolean }
+
+    OwnSanction:
+      type: object
+      required: [kind, reason_code, starts_at]
+      properties:
+        kind: { type: string, enum: [warning, mute, suspension, ban] }
+        community_id: { type: [string, "null"], format: uuid }
+        reason_code: { $ref: "#/components/schemas/ReasonCode" }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: [string, "null"], format: date-time }
+
+    Community:
+      type: object
+      required: [id, slug, kind, name, grade_band, status, my_membership]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        kind: { type: string, enum: [class_group, subject_forum, announcements] }
+        name: { type: string, description: "In the requested locale, French as fallback." }
+        description: { type: [string, "null"] }
+        grade_band: { type: string, enum: ["7AF-9AF", "NS1-NS4", staff_only] }
+        status: { type: string, enum: [draft, open, frozen, archived], description: "`frozen` = read-only." }
+        posting: { type: string, enum: [members, staff_only] }
+        my_membership:
+          type: object
+          required: [status]
+          properties:
+            status: { type: string, enum: [none, pending_approval, active] }
+            role: { type: string, enum: [member, teacher] }
+
+    Member:
+      type: object
+      required: [profile, role, status, requested_at]
+      properties:
+        profile: { $ref: "#/components/schemas/PublicProfile" }
+        role: { type: string, enum: [member, teacher] }
+        status: { type: string, enum: [pending_approval, active] }
+        requested_at: { type: string, format: date-time }
+
+    PostSubmission:
+      type: object
+      additionalProperties: false
+      required: [client_op_id, locale, body]
+      properties:
+        client_op_id: { type: string, format: uuid }
+        kind: { type: string, enum: [discussion, question, announcement], default: discussion }
+        locale: { $ref: "#/components/schemas/LocaleCode" }
+        body:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Plain text. No markup, no links, no phone numbers or other contact details.
+
+    CommentSubmission:
+      type: object
+      additionalProperties: false
+      required: [client_op_id, locale, body]
+      properties:
+        client_op_id: { type: string, format: uuid }
+        parent_comment_id:
+          type: [string, "null"]
+          format: uuid
+          description: Reply to a TOP-LEVEL comment of the same post. Replies to replies are refused.
+        locale: { $ref: "#/components/schemas/LocaleCode" }
+        body: { type: string, minLength: 1, maxLength: 1000 }
+
+    SubmissionReceipt:
+      type: object
+      required: [id, status, replayed]
+      properties:
+        id: { type: string, format: uuid }
+        status: { $ref: "#/components/schemas/ContentStatus" }
+        replayed: { type: boolean, description: "True when this client_op_id had already been accepted." }
+
+    PostSummary:
+      type: object
+      required: [id, community_id, kind, locale, author, excerpt, truncated, comment_count, reaction_count, my_reaction, published_at]
+      properties:
+        id: { type: string, format: uuid }
+        community_id: { type: string, format: uuid }
+        kind: { type: string, enum: [discussion, question, announcement] }
+        locale: { $ref: "#/components/schemas/LocaleCode" }
+        author:
+          oneOf:
+            - $ref: "#/components/schemas/PublicProfile"
+            - type: "null"
+          description: Null when the author's account was erased.
+        excerpt: { type: string, maxLength: 280 }
+        truncated: { type: boolean }
+        comment_count: { type: integer, minimum: 0 }
+        reaction_count: { type: integer, minimum: 0, description: "A total only. Nobody can see who reacted." }
+        my_reaction:
+          oneOf:
+            - $ref: "#/components/schemas/ReactionKind"
+            - type: "null"
+        published_at: { type: string, format: date-time }
+
+    Post:
+      allOf:
+        - $ref: "#/components/schemas/PostSummary"
+        - type: object
+          required: [body, status]
+          properties:
+            body: { type: [string, "null"], description: "Null once erased." }
+            status: { $ref: "#/components/schemas/ContentStatus" }
+            moderation_reason_code:
+              oneOf:
+                - $ref: "#/components/schemas/ReasonCode"
+                - type: "null"
+              description: Present only for the author, when rejected or removed.
+
+    FeedPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/PostSummary" }
+        next_cursor: { type: [string, "null"], description: "Null on the last page." }
+
+    Comment:
+      type: object
+      required: [id, post_id, author, body, reaction_count, my_reaction, published_at]
+      properties:
+        id: { type: string, format: uuid }
+        post_id: { type: string, format: uuid }
+        parent_comment_id: { type: [string, "null"], format: uuid }
+        locale: { $ref: "#/components/schemas/LocaleCode" }
+        author:
+          oneOf:
+            - $ref: "#/components/schemas/PublicProfile"
+            - type: "null"
+        body: { type: string, maxLength: 1000 }
+        reaction_count: { type: integer, minimum: 0 }
+        my_reaction:
+          oneOf:
+            - $ref: "#/components/schemas/ReactionKind"
+            - type: "null"
+        published_at: { type: string, format: date-time }
+
+    CommentPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/Comment" }
+        next_cursor: { type: [string, "null"] }
+
+    Submission:
+      type: object
+      required: [kind, id, client_op_id, community_id, status, submitted_at]
+      properties:
+        kind: { type: string, enum: [post, comment] }
+        id: { type: string, format: uuid }
+        client_op_id: { type: string, format: uuid, description: "Lets the app match this row with its local outbox entry." }
+        community_id: { type: string, format: uuid }
+        post_id: { type: [string, "null"], format: uuid }
+        excerpt: { type: [string, "null"], maxLength: 280 }
+        status: { $ref: "#/components/schemas/ContentStatus" }
+        moderation_reason_code:
+          oneOf:
+            - $ref: "#/components/schemas/ReasonCode"
+            - type: "null"
+        submitted_at: { type: string, format: date-time }
+        status_changed_at: { type: string, format: date-time }
+
+    SubmissionPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/Submission" }
+        next_cursor: { type: [string, "null"] }
+
+    ReactionSet:
+      type: object
+      additionalProperties: false
+      required: [kind]
+      properties:
+        kind: { $ref: "#/components/schemas/ReactionKind" }
+
+    ReportSubmission:
+      type: object
+      additionalProperties: false
+      required: [subject, category]
+      properties:
+        subject:
+          type: object
+          additionalProperties: false
+          required: [type, id]
+          properties:
+            type: { type: string, enum: [post, comment, profile] }
+            id: { type: string, format: uuid }
+        category:
+          type: string
+          enum: [bullying_harassment, sexual_content, child_safety, violence_threat, self_harm, hate, personal_info, spam_scam, impersonation, other]
+        note: { type: string, minLength: 1, maxLength: 500 }
+
+    Notification:
+      type: object
+      required: [id, kind, actor_count, created_at, read]
+      properties:
+        id: { type: integer, format: int64 }
+        kind:
+          type: string
+          enum: [post_approved, post_rejected, comment_approved, comment_rejected, content_removed, comment_on_post, reply_to_comment, membership_approved, membership_declined, name_approved, name_rejected, sanction_notice, announcement]
+        post_id: { type: [string, "null"], format: uuid }
+        comment_id: { type: [string, "null"], format: uuid }
+        community_id: { type: [string, "null"], format: uuid }
+        actor_count: { type: integer, minimum: 1 }
+        created_at: { type: string, format: date-time }
+        read: { type: boolean }
+
+    NotificationPage:
+      type: object
+      required: [items, next_cursor, unread]
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/Notification" }
+        next_cursor: { type: [string, "null"] }
+        unread: { type: integer, minimum: 0 }
+
+    Updates:
+      type: object
+      required: [next, cache_reset, unread_notifications, submissions_changed, changes]
+      properties:
+        next: { type: string, description: "Store it and send it as `since` next time." }
+        cache_reset: { type: boolean, description: "True — drop the whole social cache and reload." }
+        unread_notifications: { type: integer, minimum: 0 }
+        submissions_changed: { type: integer, minimum: 0 }
+        changes:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            required: [type, id, community_id, visible]
+            properties:
+              type: { type: string, enum: [post, comment] }
+              id: { type: string, format: uuid }
+              post_id: { type: string, format: uuid }
+              community_id: { type: string, format: uuid }
+              visible: { type: boolean, description: "False — remove it from the local cache now." }
+
+    QueueOverview:
+      type: object
+      required: [open_by_priority, claimed, escalated, overdue]
+      properties:
+        open_by_priority:
+          type: object
+          additionalProperties: { type: integer }
+          description: Keys "0".."3".
+        claimed: { type: integer }
+        escalated: { type: integer }
+        overdue: { type: integer }
+        oldest_open_at: { type: [string, "null"], format: date-time }
+
+    ModerationItem:
+      type: object
+      required: [id, subject_kind, reason, priority, status, opened_at, due_at]
+      properties:
+        id: { type: string, format: uuid }
+        subject_kind: { type: string, enum: [post, comment, profile_name] }
+        reason: { type: string, enum: [pre_publication, reported] }
+        priority: { type: integer, minimum: 0, maximum: 3 }
+        status: { type: string, enum: [open, claimed, escalated, resolved] }
+        lease_until: { type: [string, "null"], format: date-time }
+        opened_at: { type: string, format: date-time }
+        due_at: { type: string, format: date-time }
+        community: { type: [object, "null"], properties: { id: { type: string, format: uuid }, name: { type: string } } }
+        content:
+          type: object
+          description: The text under review, with enough context to judge it.
+          properties:
+            text: { type: [string, "null"] }
+            locale: { $ref: "#/components/schemas/LocaleCode" }
+            parent_post_excerpt: { type: [string, "null"] }
+            screening_flags: { type: array, items: { type: string } }
+        author:
+          type: object
+          properties:
+            user_id: { type: string, format: uuid }
+            display_name: { type: [string, "null"] }
+            badge: { type: string, enum: [learner, teacher, staff] }
+            age_band: { type: string, enum: [unknown, under_13, "13_15", "16_17", "18_plus"] }
+            active_sanctions: { type: integer }
+            removals_last_90_days: { type: integer }
+        reports:
+          type: array
+          items:
+            type: object
+            properties:
+              category: { type: string }
+              note: { type: [string, "null"] }
+              created_at: { type: string, format: date-time }
+              reporter_ref:
+                type: string
+                description: A per-item pseudonym. The reporter's identity is resolved by the safety lead only.
+
+    ModerationDecision:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [approve, reject, dismiss, remove] }
+        reason_code: { $ref: "#/components/schemas/ReasonCode" }
+        note: { type: string, maxLength: 1000, description: "Internal. Never shown to learners." }
+
+    SanctionRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, reason_code]
+      properties:
+        kind: { type: string, enum: [warning, mute, suspension, ban] }
+        community_id: { type: [string, "null"], format: uuid, description: "Null — everywhere." }
+        reason_code: { $ref: "#/components/schemas/ReasonCode" }
+        hours: { type: integer, minimum: 1, maximum: 8760 }
+        item_id: { type: [string, "null"], format: uuid }
+        note: { type: string, maxLength: 1000 }
+
+    Sanction:
+      type: object
+      required: [sanction_id, kind]
+      properties:
+        sanction_id: { type: string, format: uuid }
+        kind: { type: string, enum: [warning, mute, suspension, ban] }
+        ends_at: { type: [string, "null"], format: date-time }
+
+    UserModerationHistory:
+      type: object
+      required: [user_id, sanctions, actions]
+      properties:
+        user_id: { type: string, format: uuid }
+        badge: { type: string, enum: [learner, teacher, staff] }
+        sanctions: { type: array, items: { $ref: "#/components/schemas/OwnSanction" } }
+        actions:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            properties:
+              action: { type: string }
+              reason_code: { type: [string, "null"] }
+              created_at: { type: string, format: date-time }
+
+    ModerationMetrics:
+      type: object
+      properties:
+        days: { type: integer }
+        submitted: { type: integer }
+        approved: { type: integer }
+        rejected: { type: integer }
+        median_review_minutes: { type: number }
+        p90_review_minutes: { type: number }
+        reports: { type: integer }
+        reports_actioned: { type: integer }
+        overdue_items: { type: integer }
+        median_severe_report_minutes: { type: [number, "null"] }
+
+    EnrollmentRequest:
+      type: object
+      additionalProperties: false
+      required: [user_id, account_kind, age_band]
+      properties:
+        user_id: { type: string, format: uuid, description: "The person being enrolled — never the caller." }
+        account_kind: { type: string, enum: [learner, teacher, staff] }
+        grade_band: { type: [string, "null"], enum: ["7AF-9AF", "NS1-NS4", null] }
+        age_band: { type: string, enum: [under_13, "13_15", "16_17", "18_plus"] }
+        consent:
+          type: object
+          additionalProperties: false
+          required: [method]
+          properties:
+            method: { type: string, enum: [school_agreement, guardian_paper, guardian_in_app] }
+
+    CommunityCreate:
+      type: object
+      additionalProperties: false
+      required: [slug, kind, names, grade_band]
+      properties:
+        slug: { type: string, pattern: "^[a-z0-9-]{3,80}$" }
+        kind: { type: string, enum: [class_group, subject_forum, announcements] }
+        names:
+          type: object
+          required: [fr]
+          properties:
+            fr: { type: string, maxLength: 80 }
+            ht: { type: string, maxLength: 80 }
+        grade_band: { type: string, enum: ["7AF-9AF", "NS1-NS4", staff_only] }
+        listing: { type: string, enum: [invite_only, listed_to_eligible], default: invite_only }
+        posting: { type: string, enum: [members, staff_only], default: members }
+        member_limit: { type: integer, minimum: 2, maximum: 500, default: 60 }
+
+    LinkedLearner:
+      type: object
+      required: [user_id, enrolment_status, settings]
+      properties:
+        user_id: { type: string, format: uuid }
+        display_name: { type: [string, "null"] }
+        enrolment_status: { type: string, enum: [pending, active, paused, closed] }
+        settings: { $ref: "#/components/schemas/SafetySettings" }
+        active_sanctions: { type: integer }
