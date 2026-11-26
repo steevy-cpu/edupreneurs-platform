@@ -40,6 +40,37 @@ def pending_versions(expected: list[str], applied: list[str]) -> list[str]:
     return expected[len(applied) :]
 
 
+async def check_session(
+    db: asyncpg.Connection, login: str, expected: list[str], *, plan: bool = False
+) -> None:
+    if await db.fetchval("SELECT current_user") != login:
+        raise ValueError("unexpected audit session identity")
+    if login == "edu_staging_auditor" and not await db.fetchval("""
+        SELECT NOT (rolsuper OR rolbypassrls OR rolcreatedb OR rolcreaterole
+                    OR rolreplication)
+            AND NOT EXISTS (SELECT FROM pg_auth_members WHERE member = r.oid)
+            AND NOT has_database_privilege(r.oid, current_database(), 'CREATE,TEMP')
+            AND NOT has_schema_privilege(r.oid, 'app', 'USAGE')
+            AND NOT has_schema_privilege(r.oid, 'auth', 'USAGE')
+        FROM pg_roles r WHERE rolname = current_user
+    """):
+        raise ValueError("excessive audit login privileges")
+    rows = await db.fetch(
+        "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version"
+    )
+    applied = [r["version"] for r in rows]
+    pending = pending_versions(expected, applied)
+    if plan:
+        print("Pending versions:", *pending)
+        return
+    if pending:
+        raise ValueError("pending migrations")
+    result = await db.fetchrow(SECURITY_SQL)
+    failed = [key for key, value in result.items() if value is not True]
+    if failed:
+        raise ValueError("database assertions failed: " + ", ".join(failed))
+
+
 async def audit(environment: str, *, plan: bool = False) -> None:
     expected = versions()
     tls: ssl.SSLContext | bool = False
@@ -59,32 +90,7 @@ async def audit(environment: str, *, plan: bool = False) -> None:
     db = await asyncpg.connect(url, ssl=tls, timeout=5, command_timeout=8)
     try:
         async with db.transaction(readonly=True, isolation="repeatable_read"):
-            if await db.fetchval("SELECT current_user") != login:
-                raise ValueError("unexpected audit session identity")
-            if environment == "staging" and not await db.fetchval("""
-                SELECT NOT (rolsuper OR rolbypassrls OR rolcreatedb OR rolcreaterole
-                            OR rolreplication)
-                    AND NOT EXISTS (SELECT FROM pg_auth_members WHERE member = r.oid)
-                    AND NOT has_database_privilege(r.oid, current_database(), 'CREATE,TEMP')
-                    AND NOT has_schema_privilege(r.oid, 'app', 'USAGE')
-                    AND NOT has_schema_privilege(r.oid, 'auth', 'USAGE')
-                FROM pg_roles r WHERE rolname = current_user
-            """):
-                raise ValueError("excessive audit login privileges")
-            rows = await db.fetch(
-                "SELECT version FROM supabase_migrations.schema_migrations ORDER BY version"
-            )
-            applied = [r["version"] for r in rows]
-            pending = pending_versions(expected, applied)
-            if plan:
-                print("Pending versions:", *pending)
-                return
-            if pending:
-                raise ValueError("pending migrations")
-            result = await db.fetchrow(SECURITY_SQL)
-            failed = [key for key, value in result.items() if value is not True]
-            if failed:
-                raise ValueError("database assertions failed: " + ", ".join(failed))
+            await check_session(db, login, expected, plan=plan)
     finally:
         await db.close()
 

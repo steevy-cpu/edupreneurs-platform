@@ -49,6 +49,7 @@ SELECT
         has_column_privilege('edu_api_login', t.oid, a.attnum, 'UPDATE,REFERENCES') OR
         (has_column_privilege('edu_api_login', t.oid, a.attnum, 'INSERT') AND
          (t.relname, a.attname) <> ('learner_profiles','user_id'))))
-    AND has_column_privilege('edu_api_login','app.learner_profiles','user_id','INSERT')
+    AND EXISTS (SELECT FROM app_tables WHERE relname = 'learner_profiles'
+                AND has_column_privilege('edu_api_login', oid, 'user_id', 'INSERT'))
     AS column_writes,
     current_setting('server_version_num')::int / 10000 = 17 AS pg_major
