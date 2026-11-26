@@ -9,8 +9,8 @@ assert lang in {"fr", "ht"}
 fr = lang == "fr"
 
 
-def reach(selector):
-    return {"scrollUntilVisible": {"element": selector, "direction": "DOWN", "timeout": 15000}}
+def reach(selector, timeout=60000):
+    return {"scrollUntilVisible": {"element": selector, "direction": "DOWN", "timeout": timeout}}
 
 
 commands = [
@@ -65,7 +65,7 @@ commands.extend(
             }
         },
         shot("reader"),
-        reach({"text": practice}),
+        reach({"text": practice}, timeout=120000),
         {"tapOn": practice},
         reach({"text": "x = 7"}),
         {"tapOn": "x = 7"},
