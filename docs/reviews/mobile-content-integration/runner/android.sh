@@ -14,15 +14,40 @@ test -n "$PASS_A"
 echo "::add-mask::$PASS_A"
 export PASS_A
 image='system-images;android-24;default;x86_64'
+export ANDROID_AVD_HOME="$RUNNER_TEMP/avd"
+mkdir -p "$ANDROID_AVD_HOME"
 sdkmanager "$image" 'platform-tools' 'emulator'
 printf 'no\n' | avdmanager create avd --name qa24 --package "$image"
 sudo chmod a+rw /dev/kvm
-"$ANDROID_HOME/emulator/emulator" -avd qa24 -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+adb start-server
+"$ANDROID_HOME/emulator/emulator" -list-avds | grep -Fx qa24
+df -h "$ANDROID_AVD_HOME"
+# API 24 has no use for Vulkan. Force headless software rendering.
+"$ANDROID_HOME/emulator/emulator" -avd qa24 -port 5554 -memory 1024 -cores 2 \
+  -no-window -no-audio -no-boot-anim -no-snapshot -no-metrics -feature -Vulkan \
+  -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
 emulator_pid=$!
-trap 'kill "$emulator_pid" 2>/dev/null || true' EXIT
+api_pid=''
+cleanup() {
+  rc=$?
+  if (( rc != 0 )); then
+    tail -80 "$RUNNER_TEMP/emulator.log"
+    adb devices -l
+  fi
+  kill "$emulator_pid" 2>/dev/null || true
+  if [[ -n "$api_pid" ]]; then kill "$api_pid" 2>/dev/null || true; fi
+}
+trap cleanup EXIT
+export ANDROID_SERIAL=emulator-5554
+for ((i=0; i<150; i++)); do
+  kill -0 "$emulator_pid" || { echo 'Emulator exited during boot'; exit 1; }
+  if [[ $(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r') == 1 ]]; then break; fi
+  sleep 2
+done
+test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1
+test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = 24
 uv run uvicorn edu_api.main:create_app --factory --host 127.0.0.1 --port 41000 > "$RUNNER_TEMP/qa-api.log" 2>&1 &
 api_pid=$!
-trap 'kill "$api_pid" "$emulator_pid" 2>/dev/null || true' EXIT
 (
   cd apps/student-native
   ./node_modules/.bin/expo prebuild --platform android --no-install
@@ -31,9 +56,6 @@ trap 'kill "$api_pid" "$emulator_pid" 2>/dev/null || true' EXIT
 )
 kill -0 "$api_pid"
 curl -fsS "$EXPO_PUBLIC_API_URL/ready" >/dev/null
-timeout 240 adb wait-for-device
-timeout 240 bash -c 'until adb shell getprop sys.boot_completed | grep -q 1; do sleep 2; done'
-test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = 24
 adb shell wm size 640x1066
 adb shell wm density 320
 adb shell input keyevent 82
