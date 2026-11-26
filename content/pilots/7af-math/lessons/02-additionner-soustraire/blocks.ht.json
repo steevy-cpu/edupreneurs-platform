@@ -1,0 +1,87 @@
+[
+  {
+    "key": "objectifs",
+    "type": "paragraph",
+    "text": "Lè leson sa a fini, w ap konn fè adisyon ak soustraksyon ak nonb antye an kolòn ak nan tèt ou, epi verifye rezilta w."
+  },
+  {
+    "key": "intro",
+    "type": "paragraph",
+    "text": "Yon lekòl gen 348 elèv nan maten. Nan midi, 275 lòt elèv vini pou yon fèt. Konbyen elèv ki genyen an total ? Nou fè yon adisyon: 348 + 275."
+  },
+  {
+    "key": "sens",
+    "type": "paragraph",
+    "text": "Adisyone, se rasanble kantite yo: rezilta a rele som. Soustraksyon, se wete yon kantite oswa chèche diferans ant de nonb: rezilta a rele diferans."
+  },
+  {
+    "key": "posee-titre",
+    "type": "heading",
+    "text": "Kalkile an kolòn"
+  },
+  {
+    "key": "posee",
+    "type": "paragraph",
+    "text": "Nou ekri nonb yo youn anba lòt: inite anba inite, dizèn anba dizèn, santèn anba santèn. Nou kalkile kòmanse sou bò dwat. Lè yon kolòn depase 9 nan yon adisyon, nou retni 1 nan kolòn ki vini apre a."
+  },
+  {
+    "key": "exemple-addition",
+    "type": "example",
+    "title": "Kalkile 348 + 275",
+    "steps": [
+      "Inite: 8 + 5 = 13. Nou ekri 3 epi nou retni 1.",
+      "Dizèn: 4 + 7 + 1 = 12. Nou ekri 2 epi nou retni 1.",
+      "Santèn: 3 + 2 + 1 = 6.",
+      "348 + 275 = 623"
+    ]
+  },
+  {
+    "key": "exemple-soustraction",
+    "type": "example",
+    "title": "Kalkile 623 − 275",
+    "steps": [
+      "Inite: 3 − 5 pa posib. Nou chanje yon dizèn pou 10 inite: 13 − 5 = 8.",
+      "Dizèn: li rete 1 dizèn. Nou chanje yon santèn pou 10 dizèn: 11 − 7 = 4.",
+      "Santèn: li rete 5 santèn. 5 − 2 = 3.",
+      "623 − 275 = 348"
+    ]
+  },
+  {
+    "key": "mental-titre",
+    "type": "heading",
+    "text": "Kalkile nan tèt ou"
+  },
+  {
+    "key": "mental",
+    "type": "paragraph",
+    "text": "Pou kalkile vit, nou ka ponye sou yon nonb won. Pou 98 + 47, nou pati de 100, paske 98 toupre 100."
+  },
+  {
+    "key": "exemple-mental",
+    "type": "example",
+    "title": "Kalkile 98 + 47 nan tèt ou",
+    "steps": [
+      "98 toupre 100: 100 + 47 = 147.",
+      "Nou ajoute 2 twòp (100 olye de 98): 147 − 2 = 145.",
+      "98 + 47 = 145"
+    ]
+  },
+  {
+    "key": "verification",
+    "type": "callout",
+    "tone": "tip",
+    "text": "Verifye yon soustraksyon ak yon adisyon: si 623 − 275 = 348, alò 348 + 275 dwe bay 623."
+  },
+  {
+    "key": "piege",
+    "type": "callout",
+    "tone": "warning",
+    "text": "Atansyon: ak nonb antye natirèl, nou toujou wete ti nonb la nan gwo nonb la. 275 − 623 pa posib."
+  },
+  {
+    "key": "retenir",
+    "type": "callout",
+    "tone": "remember",
+    "text": "Som: rezilta yon adisyon. Diferans: rezilta yon soustraksyon. Adisyon ak soustraksyon se operasyon ki kontrè."
+  }
+]

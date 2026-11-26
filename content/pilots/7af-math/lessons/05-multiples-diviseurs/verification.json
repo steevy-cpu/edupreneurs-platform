@@ -1,0 +1,95 @@
+{
+  "questions": {
+    "multiple-de-6": {
+      "mode": "truth",
+      "choices": {
+        "a": "16 % 6 == 0",
+        "b": "26 % 6 == 0",
+        "c": "36 % 6 == 0",
+        "d": "46 % 6 == 0"
+      }
+    },
+    "diviseurs-de-10": {
+      "mode": "truth",
+      "choices": {
+        "a": "[d for d in range(1, 11) if 10 % d == 0] == [1, 2, 5, 10]",
+        "b": "[d for d in range(1, 11) if 10 % d == 0] == [1, 2, 3, 5, 10]",
+        "c": "[d for d in range(1, 11) if 10 % d == 0] == [2, 5, 10]",
+        "d": "[d for d in range(1, 11) if 10 % d == 0] == [1, 5, 10]"
+      }
+    },
+    "divisible-par-8": {
+      "mode": "truth",
+      "choices": {
+        "a": "24 % 8 == 0 and 8 * 3 == 24",
+        "b": "24 % 8 == 8",
+        "c": "24 % 8 != 0",
+        "d": "24 + 8 == 32 and 24 % 8 != 0"
+      }
+    },
+    "nombre-de-diviseurs-de-7": {
+      "mode": "value",
+      "compute": "len([d for d in range(1, 8) if 7 % d == 0])",
+      "choices": {
+        "a": 1,
+        "b": 2,
+        "c": 3,
+        "d": 7
+      }
+    },
+    "rangees-de-livres": {
+      "mode": "value",
+      "compute": "min([n for n in (2, 3, 4, 6) if 18 % n != 0])",
+      "choices": {
+        "a": 2,
+        "b": 3,
+        "c": 4,
+        "d": 6
+      }
+    }
+  },
+  "examples": [
+    {
+      "block": "exemple-multiples",
+      "checks": [
+        {
+          "expr": "7 * 4",
+          "equals": 28,
+          "must_appear": "7×4=28"
+        },
+        {
+          "expr": "28 % 7",
+          "equals": 0,
+          "must_appear": "28"
+        }
+      ]
+    },
+    {
+      "block": "exemple-diviseurs",
+      "checks": [
+        {
+          "expr": "12 // 5",
+          "equals": 2,
+          "must_appear": "12÷5=2"
+        },
+        {
+          "expr": "12 % 5",
+          "equals": 2,
+          "must_appear": "2"
+        },
+        {
+          "expr": "[d for d in range(1, 13) if 12 % d == 0]",
+          "equals": [
+            1,
+            2,
+            3,
+            4,
+            6,
+            12
+          ],
+          "must_appear": "1,2,3,4,6,12"
+        }
+      ]
+    }
+  ]
+}

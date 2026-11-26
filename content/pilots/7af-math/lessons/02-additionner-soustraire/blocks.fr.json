@@ -1,0 +1,87 @@
+[
+  {
+    "key": "objectifs",
+    "type": "paragraph",
+    "text": "À la fin de cette leçon, tu sauras additionner et soustraire des nombres entiers en colonnes et dans ta tête, et vérifier ton résultat."
+  },
+  {
+    "key": "intro",
+    "type": "paragraph",
+    "text": "Une école a 348 élèves le matin. À midi, 275 autres élèves arrivent pour une fête. Combien d'élèves y a-t-il en tout ? On additionne : 348 + 275."
+  },
+  {
+    "key": "sens",
+    "type": "paragraph",
+    "text": "Additionner, c'est réunir des quantités : le résultat s'appelle la somme. Soustraire, c'est enlever une quantité ou chercher l'écart entre deux nombres : le résultat s'appelle la différence."
+  },
+  {
+    "key": "posee-titre",
+    "type": "heading",
+    "text": "Calculer en colonnes"
+  },
+  {
+    "key": "posee",
+    "type": "paragraph",
+    "text": "On écrit les nombres l'un sous l'autre : unités sous unités, dizaines sous dizaines, centaines sous centaines. On calcule en commençant par la droite. Quand une colonne dépasse 9 dans une addition, on retient 1 dans la colonne suivante."
+  },
+  {
+    "key": "exemple-addition",
+    "type": "example",
+    "title": "Calculer 348 + 275",
+    "steps": [
+      "Unités : 8 + 5 = 13. On écrit 3 et on retient 1.",
+      "Dizaines : 4 + 7 + 1 = 12. On écrit 2 et on retient 1.",
+      "Centaines : 3 + 2 + 1 = 6.",
+      "348 + 275 = 623"
+    ]
+  },
+  {
+    "key": "exemple-soustraction",
+    "type": "example",
+    "title": "Calculer 623 − 275",
+    "steps": [
+      "Unités : 3 − 5 est impossible. On échange une dizaine contre 10 unités : 13 − 5 = 8.",
+      "Dizaines : il reste 1 dizaine. On échange une centaine contre 10 dizaines : 11 − 7 = 4.",
+      "Centaines : il reste 5 centaines. 5 − 2 = 3.",
+      "623 − 275 = 348"
+    ]
+  },
+  {
+    "key": "mental-titre",
+    "type": "heading",
+    "text": "Calculer dans sa tête"
+  },
+  {
+    "key": "mental",
+    "type": "paragraph",
+    "text": "Pour calculer vite, on peut s'appuyer sur un nombre rond. Pour 98 + 47, on part de 100, car 98 est tout près de 100."
+  },
+  {
+    "key": "exemple-mental",
+    "type": "example",
+    "title": "Calculer 98 + 47 dans sa tête",
+    "steps": [
+      "98 est proche de 100 : 100 + 47 = 147.",
+      "On a ajouté 2 de trop (100 au lieu de 98) : 147 − 2 = 145.",
+      "98 + 47 = 145"
+    ]
+  },
+  {
+    "key": "verification",
+    "type": "callout",
+    "tone": "tip",
+    "text": "Vérifie une soustraction avec une addition : si 623 − 275 = 348, alors 348 + 275 doit donner 623."
+  },
+  {
+    "key": "piege",
+    "type": "callout",
+    "tone": "warning",
+    "text": "Attention : avec des entiers naturels, on enlève toujours le petit nombre au grand nombre. 275 − 623 n'est pas possible."
+  },
+  {
+    "key": "retenir",
+    "type": "callout",
+    "tone": "remember",
+    "text": "Somme : résultat d'une addition. Différence : résultat d'une soustraction. L'addition et la soustraction sont des opérations contraires."
+  }
+]

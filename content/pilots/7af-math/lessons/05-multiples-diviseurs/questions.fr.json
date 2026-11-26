@@ -1,0 +1,167 @@
+[
+  {
+    "question_key": "multiple-de-6",
+    "position": 1,
+    "prompt": {
+      "text": "Lequel de ces nombres est un multiple de 6 ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "16"
+        },
+        {
+          "id": "b",
+          "text": "26"
+        },
+        {
+          "id": "c",
+          "text": "36"
+        },
+        {
+          "id": "d",
+          "text": "46"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "c"
+    },
+    "explanation": {
+      "text": "6 × 6 = 36, donc 36 est dans la table de 6. Les autres nombres ont un reste quand on les divise par 6."
+    }
+  },
+  {
+    "question_key": "diviseurs-de-10",
+    "position": 2,
+    "prompt": {
+      "text": "Quels sont tous les diviseurs de 10 ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "1, 2, 5, 10"
+        },
+        {
+          "id": "b",
+          "text": "1, 2, 3, 5, 10"
+        },
+        {
+          "id": "c",
+          "text": "2, 5, 10"
+        },
+        {
+          "id": "d",
+          "text": "1, 5, 10"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "a"
+    },
+    "explanation": {
+      "text": "10 ÷ 1 = 10, 10 ÷ 2 = 5, 10 ÷ 5 = 2 et 10 ÷ 10 = 1 tombent juste. 3 n'est pas un diviseur de 10 : 10 ÷ 3 = 3, reste 1."
+    }
+  },
+  {
+    "question_key": "divisible-par-8",
+    "position": 3,
+    "prompt": {
+      "text": "Le nombre 24 est-il divisible par 8 ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "Oui, car 8 × 3 = 24"
+        },
+        {
+          "id": "b",
+          "text": "Non, car il reste 8"
+        },
+        {
+          "id": "c",
+          "text": "Non, car 24 est plus grand que 8"
+        },
+        {
+          "id": "d",
+          "text": "Oui, car 24 + 8 = 32"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "a"
+    },
+    "explanation": {
+      "text": "8 × 3 = 24, donc 24 ÷ 8 = 3 et le reste est 0 : 24 est divisible par 8."
+    }
+  },
+  {
+    "question_key": "nombre-de-diviseurs-de-7",
+    "position": 4,
+    "prompt": {
+      "text": "Combien de diviseurs le nombre 7 a-t-il ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "1"
+        },
+        {
+          "id": "b",
+          "text": "2"
+        },
+        {
+          "id": "c",
+          "text": "3"
+        },
+        {
+          "id": "d",
+          "text": "7"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "7 est seulement divisible par 1 et par 7 : il a 2 diviseurs."
+    }
+  },
+  {
+    "question_key": "rangees-de-livres",
+    "position": 5,
+    "prompt": {
+      "text": "On veut ranger 18 livres en rangées égales, sans livre en trop. Parmi ces nombres de livres par rangée, lequel est impossible : 2, 3, 4 ou 6 ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "2"
+        },
+        {
+          "id": "b",
+          "text": "3"
+        },
+        {
+          "id": "c",
+          "text": "4"
+        },
+        {
+          "id": "d",
+          "text": "6"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "c"
+    },
+    "explanation": {
+      "text": "18 ÷ 4 = 4, reste 2 : la division ne tombe pas juste. Avec 2, 3 ou 6 livres par rangée, il ne reste rien."
+    }
+  }
+]

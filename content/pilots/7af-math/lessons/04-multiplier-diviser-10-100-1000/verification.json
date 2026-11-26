@@ -1,0 +1,121 @@
+{
+  "questions": {
+    "fois-100": {
+      "mode": "value",
+      "compute": "35 * 100",
+      "choices": {
+        "a": 350,
+        "b": 3500,
+        "c": 35000,
+        "d": 135
+      }
+    },
+    "divise-10": {
+      "mode": "value",
+      "compute": "6200 // 10",
+      "choices": {
+        "a": 62,
+        "b": 620,
+        "c": 6200,
+        "d": 62000
+      }
+    },
+    "convertir-km": {
+      "mode": "value",
+      "compute": "8 * 1000",
+      "choices": {
+        "a": 80,
+        "b": 800,
+        "c": 8000,
+        "d": 80000
+      }
+    },
+    "paquets-de-feuilles": {
+      "mode": "value",
+      "compute": "24 * 100",
+      "choices": {
+        "a": 240,
+        "b": 2400,
+        "c": 24000,
+        "d": 124
+      }
+    },
+    "divise-1000": {
+      "mode": "value",
+      "compute": "48000 // 1000",
+      "choices": {
+        "a": 480,
+        "b": 48,
+        "c": 4800,
+        "d": 8
+      }
+    }
+  },
+  "examples": [
+    {
+      "block": "exemple-multiplier",
+      "checks": [
+        {
+          "expr": "36 * 10",
+          "equals": 360,
+          "must_appear": "36×10=360"
+        },
+        {
+          "expr": "36 * 100",
+          "equals": 3600,
+          "must_appear": "36×100=3600"
+        },
+        {
+          "expr": "36 * 1000",
+          "equals": 36000,
+          "must_appear": "36×1000=36000"
+        }
+      ]
+    },
+    {
+      "block": "exemple-diviser",
+      "checks": [
+        {
+          "expr": "4500 // 10",
+          "equals": 450,
+          "must_appear": "4500÷10=450"
+        },
+        {
+          "expr": "4500 // 100",
+          "equals": 45,
+          "must_appear": "4500÷100=45"
+        },
+        {
+          "expr": "12000 // 1000",
+          "equals": 12,
+          "must_appear": "12000÷1000=12"
+        },
+        {
+          "expr": "4500 % 10 == 0 and 4500 % 100 == 0",
+          "equals": true,
+          "must_appear": "4500÷100"
+        }
+      ]
+    },
+    {
+      "block": "exemple-unites",
+      "checks": [
+        {
+          "expr": "7 * 100",
+          "equals": 700,
+          "must_appear": "7×100=700"
+        },
+        {
+          "expr": "3 * 1000",
+          "equals": 3000,
+          "must_appear": "3×1000=3000"
+        },
+        {
+          "expr": "900 // 100",
+          "equals": 9,
+          "must_appear": "900÷100=9"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "questions": {
+    "addition-posee": {
+      "mode": "value",
+      "compute": "456 + 378",
+      "choices": {
+        "a": 824,
+        "b": 834,
+        "c": 744,
+        "d": 934
+      }
+    },
+    "soustraction-posee": {
+      "mode": "value",
+      "compute": "702 - 345",
+      "choices": {
+        "a": 457,
+        "b": 367,
+        "c": 357,
+        "d": 443
+      }
+    },
+    "probleme-camion": {
+      "mode": "value",
+      "compute": "1250 - 480",
+      "choices": {
+        "a": 730,
+        "b": 770,
+        "c": 1730,
+        "d": 870
+      }
+    },
+    "calcul-mental": {
+      "mode": "value",
+      "compute": "99 + 36",
+      "choices": {
+        "a": 125,
+        "b": 135,
+        "c": 145,
+        "d": 136
+      }
+    },
+    "verifier-soustraction": {
+      "mode": "truth",
+      "choices": {
+        "a": "280 + 260 == 540",
+        "b": "280 - 260 == 540",
+        "c": "540 + 260 == 280",
+        "d": "260 - 280 == 540"
+      }
+    }
+  },
+  "examples": [
+    {
+      "block": "exemple-addition",
+      "checks": [
+        {
+          "expr": "8 + 5",
+          "equals": 13,
+          "must_appear": "8+5=13"
+        },
+        {
+          "expr": "4 + 7 + 1",
+          "equals": 12,
+          "must_appear": "4+7+1=12"
+        },
+        {
+          "expr": "3 + 2 + 1",
+          "equals": 6,
+          "must_appear": "3+2+1=6"
+        },
+        {
+          "expr": "348 + 275",
+          "equals": 623,
+          "must_appear": "348+275=623"
+        }
+      ]
+    },
+    {
+      "block": "exemple-soustraction",
+      "checks": [
+        {
+          "expr": "13 - 5",
+          "equals": 8,
+          "must_appear": "13−5=8"
+        },
+        {
+          "expr": "11 - 7",
+          "equals": 4,
+          "must_appear": "11−7=4"
+        },
+        {
+          "expr": "5 - 2",
+          "equals": 3,
+          "must_appear": "5−2=3"
+        },
+        {
+          "expr": "623 - 275",
+          "equals": 348,
+          "must_appear": "623−275=348"
+        }
+      ]
+    },
+    {
+      "block": "exemple-mental",
+      "checks": [
+        {
+          "expr": "100 + 47",
+          "equals": 147,
+          "must_appear": "100+47=147"
+        },
+        {
+          "expr": "147 - 2",
+          "equals": 145,
+          "must_appear": "147−2=145"
+        },
+        {
+          "expr": "98 + 47",
+          "equals": 145,
+          "must_appear": "98+47=145"
+        }
+      ]
+    }
+  ]
+}

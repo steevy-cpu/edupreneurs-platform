@@ -1,0 +1,546 @@
+{
+  "pilot_id": "7af-math-pilot",
+  "descriptor_version": "pilot-descriptor-0",
+  "grade": "7AF",
+  "subject": "mathematiques",
+  "proposal_status": "Pilote PROPOSÉ (7AF mathématiques) : choix non approuvé par le propriétaire ; contenu = brouillons non relus.",
+  "locales": [
+    "fr",
+    "ht"
+  ],
+  "unit": {
+    "id": "8875adbe-7f9a-5798-8f98-17630ac69e1b",
+    "slug": "nombres-entiers-naturels",
+    "titles": {
+      "fr": "Les nombres entiers naturels : lire, calculer, diviser",
+      "ht": "Nonb antye natirèl yo: li, kalkile, divize"
+    },
+    "curriculum_domain": "Nombres et calculs"
+  },
+  "sources": [
+    {
+      "id": "S1",
+      "title": "Programme du 3e cycle de l'enseignement fondamental (7e à 9e AF) — Mathématiques (« Tous Droits Réservés - 2024-2025 », MENFP / Direction de l'Enseignement Fondamental)",
+      "issuer": "MENFP — Direction de l'Enseignement Fondamental",
+      "kind": "official_curriculum",
+      "url": "https://www.editions-jpl.com/_files/ugd/28b65f_7f7bb36133ec4f28837548f716aa384b.pdf",
+      "retrieved": "2026-11-26",
+      "rights_status": "all_rights_reserved_reference_only",
+      "verification": "read_in_full_for_relevant_part",
+      "notes": "PDF de 60 pages hébergé par un éditeur (page de téléchargement : editions-jpl.com/programmes-officiels-menfp-3e-cycle-fondamental), pas par le MENFP. Lu : sommaire, partie « Domaine des mathématiques » et unités « Nombres et calculs » (7e-9e année, p. imprimées 38-42). INCERTAIN : (a) l'hébergement par un tiers ne prouve pas que ce soit la version finale validée ; le préambule du PDF dit encore « Introduction politique à réaliser quand les programmes seront validés » ; (b) aucune page du MENFP lui-même n'a été trouvée ; (c) aucun texte n'est reproduit dans ce dépôt, seulement des références de lieu."
+    },
+    {
+      "id": "S2",
+      "title": "Programme à compétences minimales — 7ème année fondamentale (novembre 2019)",
+      "issuer": "MENFP — Direction de l'Enseignement Fondamental",
+      "kind": "official_curriculum",
+      "url": "https://www.haiti-now.org/wp-content/uploads/2021/02/7eme-AF.pdf",
+      "retrieved": "2026-11-26",
+      "rights_status": "unknown_reference_only",
+      "verification": "read_in_full_for_relevant_part",
+      "notes": "PDF de 82 pages (copie hébergée par haiti-now.org). Mathématiques : p. 4-15 du PDF. Le texte lui-même précise qu'il s'agit d'une mesure pour 2019-2020 qui « ne peut en aucun cas être substitué[e] aux objectifs globaux prévus dans les programmes officiels valides depuis mars 1989 ». INCERTAIN : statut actuel (probablement dépassé par S1), droits non indiqués, copie tierce. Utilisé seulement pour repérer des recoupements ; aucun texte reproduit."
+    },
+    {
+      "id": "S3",
+      "title": "Décision ministérielle D-2(1)384 du 9 janvier 2026 : généralisation progressive des nouveaux programmes du 3e cycle (début en 7e AF en 2027-2028)",
+      "issuer": "MENFP (décision) ; rapportée par Le Placentin (12 janv. 2026) et Le National (14 janv. 2026)",
+      "kind": "press_report",
+      "url": "https://leplacentin.com/post/12-01-2026-haiti-generalisation-progressive-des-nouveaux-programmes-du-3ecycle-de-lenseignement-fondamental",
+      "retrieved": "2026-11-26",
+      "rights_status": "not_used",
+      "verification": "secondary_report_only",
+      "notes": "Lu seulement via la presse ; le texte de la décision n'a pas été obtenu. Le rapport indique que les 7 autres disciplines (dont, présumément, les mathématiques) seront généralisées en 7e AF à partir de 2027-2028, en 8e AF en 2028-2029, en 9e AF en 2029-2030. INCERTAIN : la presse ne dit pas explicitement que les mathématiques suivent ce calendrier ; vérifier le texte de la décision auprès du MENFP."
+    },
+    {
+      "id": "S4",
+      "title": "Cadre d'orientation curriculaire pour le système éducatif haïtien (MENFP, 2021)",
+      "issuer": "MENFP",
+      "kind": "framework",
+      "url": "https://mit-ayiti.net/wp-content/uploads/2023/06/Cadre-d_Orientation-Curriculaire-MENFP-2021-.pdf",
+      "retrieved": null,
+      "rights_status": "unknown_reference_only",
+      "verification": "located_not_read",
+      "notes": "Localisé, non lu. Cité par S1 comme texte d'orientation commun. Une version « COC 2024 » est mentionnée par la presse : laquelle fait foi n'est pas vérifié."
+    },
+    {
+      "id": "S5",
+      "title": "Séquences modèles de mathématiques, 7e année — portail MENFP / Projet Nectar (menfp.reseau-canope.fr)",
+      "issuer": "MENFP / Projet Nectar",
+      "kind": "teaching_resource",
+      "url": "https://menfp.reseau-canope.fr/mod/url/view.php?id=1491",
+      "retrieved": null,
+      "rights_status": "not_used",
+      "verification": "located_not_read",
+      "notes": "Localisé (séquences sur les fractions, aires et périmètres, droites remarquables, traitement des données), non consulté : aucun contenu n'en est repris. À examiner pour Content-02B (fractions)."
+    },
+    {
+      "id": "S6",
+      "title": "Programmes officiels du fondamental en vigueur depuis mars 1989",
+      "issuer": "MENFP",
+      "kind": "official_curriculum",
+      "url": null,
+      "retrieved": null,
+      "rights_status": "unknown_reference_only",
+      "verification": "not_located",
+      "notes": "Cités par S2 comme référence légale. Non localisés : aucun alignement avec eux n'est revendiqué."
+    }
+  ],
+  "lessons": [
+    {
+      "id": "a54081a5-abcb-54a5-a278-56f21f45f4cc",
+      "slug": "lire-ecrire-comparer-entiers",
+      "position": 1,
+      "titles": {
+        "fr": "Lire, écrire et comparer des nombres entiers",
+        "ht": "Li, ekri ak konpare nonb antye"
+      },
+      "objectives": {
+        "fr": [
+          "Lire et écrire un nombre entier naturel jusqu'à 999 999.",
+          "Dire la valeur de chaque chiffre selon sa place.",
+          "Comparer et ranger des nombres entiers avec les signes <, > et =."
+        ],
+        "ht": [
+          "Li ak ekri yon nonb antye natirèl jouk 999 999.",
+          "Di ki valè chak chif genyen dapre plas li.",
+          "Konpare ak ranje nonb antye ak siy yo <, > ak =."
+        ]
+      },
+      "curriculum_refs": [
+        {
+          "source": "S1",
+          "locator": "p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « Lire, écrire et représenter les nombres entiers naturels » ; « Classer (situer, ordonner, comparer) les nombres entiers naturels »",
+          "relation": "partial",
+          "note": "Entiers naturels seulement : fractions et décimaux de ces mêmes items ne sont pas traités ici. Pas de demi-droite graduée (le format v1 n'a pas d'image)."
+        },
+        {
+          "source": "S2",
+          "locator": "PDF p. 9 (janvier, semaine 3), Algèbre 2.6.1 « Comparer et ordonner des entiers naturels »",
+          "relation": "direct",
+          "note": "Programme à compétences minimales 2019-2020 : mesure temporaire, ne remplace pas les programmes de 1989."
+        }
+      ],
+      "provenance": {
+        "authoring": "ai_assisted_original",
+        "authored_on": "2026-11-26",
+        "derived_from_third_party": false,
+        "translation": "ai_drafted_separately_from_french"
+      },
+      "rights": {
+        "origin": "original",
+        "third_party_material": false,
+        "licence_status": "unassigned_owner_decision",
+        "notes": "Texte, exemples et exercices écrits pour ce pilote avec l'aide d'une IA ; aucun passage copié d'un manuel, d'un programme ou d'un prototype. La licence de publication reste à décider par le propriétaire."
+      },
+      "files": {
+        "blocks": {
+          "fr": "lessons/01-lire-ecrire-comparer-entiers/blocks.fr.json",
+          "ht": "lessons/01-lire-ecrire-comparer-entiers/blocks.ht.json"
+        },
+        "questions": {
+          "fr": "lessons/01-lire-ecrire-comparer-entiers/questions.fr.json",
+          "ht": "lessons/01-lire-ecrire-comparer-entiers/questions.ht.json"
+        },
+        "verification": "lessons/01-lire-ecrire-comparer-entiers/verification.json"
+      },
+      "review": {
+        "fr": {
+          "status": "draft_unreviewed",
+          "required_approvals": [
+            "mathematics_teacher",
+            "native_speaker"
+          ],
+          "approvals": []
+        },
+        "ht": {
+          "status": "draft_unreviewed",
+          "required_approvals": [
+            "mathematics_teacher",
+            "native_speaker"
+          ],
+          "approvals": []
+        }
+      }
+    },
+    {
+      "id": "d3c1f476-2dcf-5c1f-8ac0-7a0c553eb19c",
+      "slug": "additionner-soustraire",
+      "position": 2,
+      "titles": {
+        "fr": "Additionner et soustraire",
+        "ht": "Fè adisyon ak soustraksyon"
+      },
+      "objectives": {
+        "fr": [
+          "Additionner et soustraire des nombres entiers en colonnes.",
+          "Calculer dans sa tête en s'appuyant sur un nombre rond.",
+          "Vérifier une soustraction avec une addition."
+        ],
+        "ht": [
+          "Fè adisyon ak soustraksyon ak nonb antye an kolòn.",
+          "Kalkile nan tèt ou lè w sèvi ak yon nonb won.",
+          "Verifye yon soustraksyon ak yon adisyon."
+        ]
+      },
+      "curriculum_refs": [
+        {
+          "source": "S1",
+          "locator": "p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « Donner un sens aux opérations sur les nombres » ; « Savoir effectuer des opérations (addition, soustraction, multiplication et division) sous les trois formes de calcul (mental, à la main et instrumentée) »",
+          "relation": "partial",
+          "note": "Calcul mental et à la main seulement ; le calcul instrumenté (calculatrice) n'est pas traité."
+        },
+        {
+          "source": "S2",
+          "locator": "PDF p. 6 (décembre, semaine 3), Algèbre 2.1.1 « Calculer mentalement et par écrit des sommes, produits, différences, quotients d'entiers naturels »",
+          "relation": "direct",
+          "note": "Programme à compétences minimales 2019-2020."
+        }
+      ],
+      "provenance": {
+        "authoring": "ai_assisted_original",
+        "authored_on": "2026-11-26",
+        "derived_from_third_party": false,
+        "translation": "ai_drafted_separately_from_french"
+      },
+      "rights": {
+        "origin": "original",
+        "third_party_material": false,
+        "licence_status": "unassigned_owner_decision",
+        "notes": "Texte, exemples et exercices écrits pour ce pilote avec l'aide d'une IA ; aucun passage copié d'un manuel, d'un programme ou d'un prototype. La licence de publication reste à décider par le propriétaire."
+      },
+      "files": {
+        "blocks": {
+          "fr": "lessons/02-additionner-soustraire/blocks.fr.json",
+          "ht": "lessons/02-additionner-soustraire/blocks.ht.json"
+        },
+        "questions": {
+          "fr": "lessons/02-additionner-soustraire/questions.fr.json",
+          "ht": "lessons/02-additionner-soustraire/questions.ht.json"
+        },
+        "verification": "lessons/02-additionner-soustraire/verification.json"
+      },
+      "review": {
+        "fr": {
+          "status": "draft_unreviewed",
+          "required_approvals": [
+            "mathematics_teacher",
+            "native_speaker"
+          ],
+          "approvals": []
+        },
+        "ht": {
+          "status": "draft_unreviewed",
+          "required_approvals": [
+            "mathematics_teacher",
+            "native_speaker"
+          ],
+          "approvals": []
+        }
+      }
+    },
+    {
+      "id": "fd4d8565-c927-5c27-a14e-ab50e6a6fed7",
+      "slug": "multiplier-diviser",
+      "position": 3,
+      "titles": {
+        "fr": "Multiplier et diviser",
+        "ht": "Miltipliye ak divize"
+      },
+      "objectives": {
+        "fr": [
+          "Multiplier un nombre entier par un nombre à un chiffre.",
+          "Faire une division avec reste et nommer dividende, diviseur, quotient et reste.",
+          "Vérifier une division avec la multiplication."
+        ],
+        "ht": [
+          "Miltipliye yon nonb antye pa yon nonb ki gen yon sèl chif.",
+          "Fè yon divizyon ki gen rès epi non dividand, divizè, kosyan ak rès.",
+          "Verifye yon divizyon ak miltiplikasyon."
+        ]
+      },
+      "curriculum_refs": [
+        {
+          "source": "S1",
+          "locator": "p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « Savoir effectuer des opérations (addition, soustraction, multiplication et division) » ; « Quotient, multiples et diviseurs de nombres entiers »",
+          "relation": "partial",
+          "note": "Multiplication par un nombre à un chiffre et division avec reste sur de petits nombres seulement ; division posée par un diviseur à plusieurs chiffres non traitée."
+        },
+        {
+          "source": "S2",
+          "locator": "PDF p. 6 (décembre, semaine 3), Algèbre 2.1.1 « … sommes, produits, différences, quotients d'entiers naturels »",
+          "relation": "direct",
+          "note": "Programme à compétences minimales 2019-2020."
+        }
+      ],
+      "provenance": {
+        "authoring": "ai_assisted_original",
+        "authored_on": "2026-11-26",
+        "derived_from_third_party": false,
+        "translation": "ai_drafted_separately_from_french"
+      },
+      "rights": {
+        "origin": "original",
+        "third_party_material": false,
+        "licence_status": "unassigned_owner_decision",
+        "notes": "Texte, exemples et exercices écrits pour ce pilote avec l'aide d'une IA ; aucun passage copié d'un manuel, d'un programme ou d'un prototype. La licence de publication reste à décider par le propriétaire."
+      },
+      "files": {
+        "blocks": {
+          "fr": "lessons/03-multiplier-diviser/blocks.fr.json",
+          "ht": "lessons/03-multiplier-diviser/blocks.ht.json"
+        },
+        "questions": {
+          "fr": "lessons/03-multiplier-diviser/questions.fr.json",
+          "ht": "lessons/03-multiplier-diviser/questions.ht.json"
+        },
+        "verification": "lessons/03-multiplier-diviser/verification.json"
+      },
+      "review": {
+        "fr": {
+          "status": "draft_unreviewed",
+          "required_approvals": [
+            "mathematics_teacher",
+            "native_speaker"
+          ],
+          "approvals": []
+        },
+        "ht": {
+          "status": "draft_unreviewed",
+          "required_approvals": [
+            "mathematics_teacher",
+            "native_speaker"
+          ],
+          "approvals": []
+        }
+      }
+    },
+    {
+      "id": "72358982-dc5b-57db-baa8-76e2378074a8",
+      "slug": "multiplier-diviser-10-100-1000",
+      "position": 4,
+      "titles": {
+        "fr": "Multiplier et diviser par 10, 100, 1 000",
+        "ht": "Miltipliye ak divize pa 10, 100, 1 000"
+      },
+      "objectives": {
+        "fr": [
+          "Multiplier un nombre entier par 10, 100 ou 1 000.",
+          "Diviser par 10, 100 ou 1 000 un nombre qui se termine par assez de zéros.",
+          "Changer d'unité de mesure (m en cm, km en m) avec ces calculs."
+        ],
+        "ht": [
+          "Miltipliye yon nonb antye pa 10, 100 oswa 1 000.",
+          "Divize pa 10, 100 oswa 1 000 yon nonb ki fini ak ase zewo.",
+          "Chanje inite mezi (m an cm, km an m) ak kalkil sa yo."
+        ]
+      },
+      "curriculum_refs": [
+        {
+          "source": "S1",
+          "locator": "p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « Multiplier ou diviser un nombre décimal par 10 ; 100 ; 1 000 ; 0,1 ; 0,01 ; 0,001 »",
+          "relation": "partial",
+          "note": "Seulement les entiers naturels : la multiplication et la division de nombres décimaux (et par 0,1 ; 0,01 ; 0,001) sont renvoyées à Content-02B."
+        },
+        {
+          "source": "S2",
+          "locator": "PDF p. 6 (décembre, semaine 3), Mesures 1.1.2 « Passer d'une unité de mesure à une autre »",
+          "relation": "context",
+          "note": "Aucun item de ce programme ne traite directement de ×10/×100/×1 000 ; le lien se fait par les conversions d'unités."
+        }
+      ],
+      "provenance": {
+        "authoring": "ai_assisted_original",
+        "authored_on": "2026-11-26",
+        "derived_from_third_party": false,
+        "translation": "ai_drafted_separately_from_french"
+      },
+      "rights": {
+        "origin": "original",
+        "third_party_material": false,
+        "licence_status": "unassigned_owner_decision",
+        "notes": "Texte, exemples et exercices écrits pour ce pilote avec l'aide d'une IA ; aucun passage copié d'un manuel, d'un programme ou d'un prototype. La licence de publication reste à décider par le propriétaire."
+      },
+      "files": {
+        "blocks": {
+          "fr": "lessons/04-multiplier-diviser-10-100-1000/blocks.fr.json",
+          "ht": "lessons/04-multiplier-diviser-10-100-1000/blocks.ht.json"
+        },
+        "questions": {
+          "fr": "lessons/04-multiplier-diviser-10-100-1000/questions.fr.json",
+          "ht": "lessons/04-multiplier-diviser-10-100-1000/questions.ht.json"
+        },
+        "verification": "lessons/04-multiplier-diviser-10-100-1000/verification.json"
+      },
+      "review": {
+        "fr": {
+          "status": "draft_unreviewed",
+          "required_approvals": [
+            "mathematics_teacher",
+            "native_speaker"
+          ],
+          "approvals": []
+        },
+        "ht": {
+          "status": "draft_unreviewed",
+          "required_approvals": [
+            "mathematics_teacher",
+            "native_speaker"
+          ],
+          "approvals": []
+        }
+      }
+    },
+    {
+      "id": "73f7960b-c811-555d-89f1-4a3e59dfe9f8",
+      "slug": "multiples-diviseurs",
+      "position": 5,
+      "titles": {
+        "fr": "Multiples et diviseurs",
+        "ht": "Miltip ak divizè"
+      },
+      "objectives": {
+        "fr": [
+          "Reconnaître un multiple d'un nombre avec sa table de multiplication.",
+          "Trouver tous les diviseurs d'un petit nombre.",
+          "Dire quand une division tombe juste (reste égal à 0)."
+        ],
+        "ht": [
+          "Rekonèt yon miltip yon nonb ak tab miltiplikasyon li.",
+          "Jwenn tout divizè yon ti nonb.",
+          "Di ki lè yon divizyon egzat (rès la egal ak 0)."
+        ]
+      },
+      "curriculum_refs": [
+        {
+          "source": "S1",
+          "locator": "p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « Quotient, multiples et diviseurs de nombres entiers »",
+          "relation": "direct",
+          "note": "Limité aux petits nombres ; nombres premiers, PGCD et PPCM relèvent de la 9e année dans ce programme et ne sont pas traités."
+        },
+        {
+          "source": "S2",
+          "locator": "PDF p. 9 (janvier, semaine 3), Algèbre 2.5 « Divisibilité par 2, 3, 4, 5, 9, 10, 11 »",
+          "relation": "context",
+          "note": "Les notions de multiple et de diviseur sont le préalable des critères de divisibilité (leçon 6)."
+        }
+      ],
+      "provenance": {
+        "authoring": "ai_assisted_original",
+        "authored_on": "2026-11-26",
+        "derived_from_third_party": false,
+        "translation": "ai_drafted_separately_from_french"
+      },
+      "rights": {
+        "origin": "original",
+        "third_party_material": false,
+        "licence_status": "unassigned_owner_decision",
+        "notes": "Texte, exemples et exercices écrits pour ce pilote avec l'aide d'une IA ; aucun passage copié d'un manuel, d'un programme ou d'un prototype. La licence de publication reste à décider par le propriétaire."
+      },
+      "files": {
+        "blocks": {
+          "fr": "lessons/05-multiples-diviseurs/blocks.fr.json",
+          "ht": "lessons/05-multiples-diviseurs/blocks.ht.json"
+        },
+        "questions": {
+          "fr": "lessons/05-multiples-diviseurs/questions.fr.json",
+          "ht": "lessons/05-multiples-diviseurs/questions.ht.json"
+        },
+        "verification": "lessons/05-multiples-diviseurs/verification.json"
+      },
+      "review": {
+        "fr": {
+          "status": "draft_unreviewed",
+          "required_approvals": [
+            "mathematics_teacher",
+            "native_speaker"
+          ],
+          "approvals": []
+        },
+        "ht": {
+          "status": "draft_unreviewed",
+          "required_approvals": [
+            "mathematics_teacher",
+            "native_speaker"
+          ],
+          "approvals": []
+        }
+      }
+    },
+    {
+      "id": "e2b13eab-dcaa-5712-a3a5-b9c9686086dc",
+      "slug": "criteres-de-divisibilite",
+      "position": 6,
+      "titles": {
+        "fr": "Les critères de divisibilité",
+        "ht": "Kritè divizibilite yo"
+      },
+      "objectives": {
+        "fr": [
+          "Utiliser les critères de divisibilité par 2, 5 et 10 (dernier chiffre).",
+          "Utiliser les critères de divisibilité par 3 et 9 (somme des chiffres) et par 4 (deux derniers chiffres).",
+          "Vérifier une conclusion avec une division."
+        ],
+        "ht": [
+          "Sèvi ak kritè divizibilite pa 2, 5 ak 10 (dènye chif la).",
+          "Sèvi ak kritè divizibilite pa 3 ak 9 (som chif yo) epi pa 4 (de dènye chif yo).",
+          "Verifye yon konklizyon ak yon divizyon."
+        ]
+      },
+      "curriculum_refs": [
+        {
+          "source": "S1",
+          "locator": "p. imprimée 38 (PDF p. 39), unité « Nombres et calculs », 7e année : « critères de divisibilité par 2, 3, 4, 5, 9, 10 »",
+          "relation": "direct",
+          "note": "Couvre exactement la liste 2, 3, 4, 5, 9, 10 de ce programme."
+        },
+        {
+          "source": "S2",
+          "locator": "PDF p. 9 (janvier, semaine 3), Algèbre 2.5.1 « Appliquer les critères de divisibilité par : 2, 3, 4, 5, 9, 10, 11 »",
+          "relation": "partial",
+          "note": "Le critère de 11, présent seulement dans ce programme de 2019, n'est pas traité."
+        }
+      ],
+      "provenance": {
+        "authoring": "ai_assisted_original",
+        "authored_on": "2026-11-26",
+        "derived_from_third_party": false,
+        "translation": "ai_drafted_separately_from_french"
+      },
+      "rights": {
+        "origin": "original",
+        "third_party_material": false,
+        "licence_status": "unassigned_owner_decision",
+        "notes": "Texte, exemples et exercices écrits pour ce pilote avec l'aide d'une IA ; aucun passage copié d'un manuel, d'un programme ou d'un prototype. La licence de publication reste à décider par le propriétaire."
+      },
+      "files": {
+        "blocks": {
+          "fr": "lessons/06-criteres-de-divisibilite/blocks.fr.json",
+          "ht": "lessons/06-criteres-de-divisibilite/blocks.ht.json"
+        },
+        "questions": {
+          "fr": "lessons/06-criteres-de-divisibilite/questions.fr.json",
+          "ht": "lessons/06-criteres-de-divisibilite/questions.ht.json"
+        },
+        "verification": "lessons/06-criteres-de-divisibilite/verification.json"
+      },
+      "review": {
+        "fr": {
+          "status": "draft_unreviewed",
+          "required_approvals": [
+            "mathematics_teacher",
+            "native_speaker"
+          ],
+          "approvals": []
+        },
+        "ht": {
+          "status": "draft_unreviewed",
+          "required_approvals": [
+            "mathematics_teacher",
+            "native_speaker"
+          ],
+          "approvals": []
+        }
+      }
+    }
+  ]
+}

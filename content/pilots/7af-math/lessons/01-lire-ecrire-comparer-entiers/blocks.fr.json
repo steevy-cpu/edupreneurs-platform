@@ -1,0 +1,79 @@
+[
+  {
+    "key": "objectifs",
+    "type": "paragraph",
+    "text": "À la fin de cette leçon, tu sauras lire et écrire un nombre entier jusqu'à 999 999, dire ce que vaut chaque chiffre, et comparer deux nombres."
+  },
+  {
+    "key": "intro",
+    "type": "paragraph",
+    "text": "Un stade peut accueillir 2 450 personnes. Un autre stade en accueille 1 980. Lequel est le plus grand ? Pour répondre, il faut savoir lire et comparer des nombres."
+  },
+  {
+    "key": "valeur-titre",
+    "type": "heading",
+    "text": "Chaque chiffre a une valeur selon sa place"
+  },
+  {
+    "key": "valeur",
+    "type": "paragraph",
+    "text": "Dans un nombre, un chiffre vaut plus ou moins selon sa place. De la droite vers la gauche, on trouve les unités, les dizaines, les centaines, puis les milliers. Dans 4 305, le chiffre 4 est à la place des milliers : il vaut 4 000. Le chiffre 3 vaut 300. Le chiffre 0 montre qu'il n'y a aucune dizaine."
+  },
+  {
+    "key": "exemple-decomposition",
+    "type": "example",
+    "title": "Décomposer 4 305",
+    "steps": [
+      "4 305 = 4 000 + 300 + 0 + 5",
+      "4 milliers, 3 centaines, 0 dizaine et 5 unités",
+      "On lit : quatre mille trois cent cinq"
+    ]
+  },
+  {
+    "key": "lire",
+    "type": "paragraph",
+    "text": "Pour lire un grand nombre, on le coupe en tranches de trois chiffres en partant de la droite. 12 480 se lit « douze mille quatre cent quatre-vingts »."
+  },
+  {
+    "key": "comparer-titre",
+    "type": "heading",
+    "text": "Comparer deux nombres"
+  },
+  {
+    "key": "comparer",
+    "type": "paragraph",
+    "text": "Pour comparer deux nombres, on compte d'abord leurs chiffres : celui qui a le plus de chiffres est le plus grand. S'ils ont autant de chiffres, on compare les chiffres de gauche à droite et on s'arrête au premier chiffre qui n'est pas le même."
+  },
+  {
+    "key": "exemple-comparer-1",
+    "type": "example",
+    "title": "Comparer 2 450 et 1 980",
+    "steps": [
+      "Les deux nombres ont 4 chiffres.",
+      "On compare les milliers : 2 et 1.",
+      "2 est plus grand que 1, donc 2 450 > 1 980."
+    ]
+  },
+  {
+    "key": "exemple-comparer-2",
+    "type": "example",
+    "title": "Comparer 7 382 et 7 391",
+    "steps": [
+      "Les deux nombres ont 4 chiffres, le même chiffre des milliers (7) et le même chiffre des centaines (3).",
+      "Chiffre des dizaines : 8 et 9. Comme 8 < 9, on conclut :",
+      "7 382 < 7 391"
+    ]
+  },
+  {
+    "key": "piege",
+    "type": "callout",
+    "tone": "warning",
+    "text": "Attention : ne compare pas seulement le dernier chiffre. Le nombre 1 999 est plus petit que 2 000, même si 9 est plus grand que 0."
+  },
+  {
+    "key": "retenir",
+    "type": "callout",
+    "tone": "remember",
+    "text": "Le signe < ou > s'ouvre du côté du plus grand nombre : 3 < 5 et 5 > 3."
+  }
+]

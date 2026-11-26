@@ -1,0 +1,80 @@
+[
+  {
+    "key": "objectifs",
+    "type": "paragraph",
+    "text": "À la fin de cette leçon, tu sauras multiplier un nombre par un nombre à un chiffre, faire une division avec reste, et vérifier ton résultat."
+  },
+  {
+    "key": "intro",
+    "type": "paragraph",
+    "text": "Une marchande range 12 mangues dans chaque panier. Elle a 6 paniers. Combien de mangues a-t-elle en tout ? On calcule 6 × 12."
+  },
+  {
+    "key": "sens-fois",
+    "type": "paragraph",
+    "text": "Multiplier, c'est additionner plusieurs fois le même nombre : 6 × 12, c'est 12 + 12 + 12 + 12 + 12 + 12. Le résultat s'appelle le produit. On gagne du temps en connaissant bien les tables de multiplication."
+  },
+  {
+    "key": "exemple-multiplication",
+    "type": "example",
+    "title": "Calculer 6 × 12",
+    "steps": [
+      "Unités : 6 × 2 = 12. On écrit 2 et on retient 1.",
+      "Dizaines : 6 × 1 = 6, puis 6 + 1 = 7.",
+      "6 × 12 = 72"
+    ]
+  },
+  {
+    "key": "division-titre",
+    "type": "heading",
+    "text": "Diviser"
+  },
+  {
+    "key": "division",
+    "type": "paragraph",
+    "text": "Diviser, c'est partager en parts égales ou chercher combien de fois un nombre est contenu dans un autre. Dans 17 ÷ 5, le nombre 17 est le dividende, 5 est le diviseur et le résultat est le quotient. Parfois il reste quelque chose : c'est le reste."
+  },
+  {
+    "key": "exemple-division-1",
+    "type": "example",
+    "title": "Calculer 17 ÷ 5",
+    "steps": [
+      "Dans 17, combien de fois 5 ? 3 fois, car 5 × 3 = 15.",
+      "Il reste 17 − 15 = 2.",
+      "17 = 5 × 3 + 2 : le quotient est 3 et le reste est 2."
+    ]
+  },
+  {
+    "key": "reste",
+    "type": "paragraph",
+    "text": "Le reste est toujours plus petit que le diviseur. Si le reste est 0, la division est exacte."
+  },
+  {
+    "key": "exemple-division-2",
+    "type": "example",
+    "title": "Partager 85 crayons dans 4 boîtes",
+    "steps": [
+      "4 × 20 = 80, et il reste 85 − 80 = 5 crayons.",
+      "Dans 5, il y a encore 1 fois 4 : 4 × 1 = 4, et il reste 1.",
+      "Chaque boîte reçoit 20 + 1 = 21 crayons et il reste 1 crayon : 85 = 4 × 21 + 1."
+    ]
+  },
+  {
+    "key": "verification",
+    "type": "callout",
+    "tone": "tip",
+    "text": "Vérifie une division : diviseur × quotient + reste doit donner le dividende."
+  },
+  {
+    "key": "piege",
+    "type": "callout",
+    "tone": "warning",
+    "text": "Attention : on ne peut pas diviser par 0."
+  },
+  {
+    "key": "retenir",
+    "type": "callout",
+    "tone": "remember",
+    "text": "Produit : résultat d'une multiplication. Quotient : résultat d'une division. Dividende = diviseur × quotient + reste, avec un reste plus petit que le diviseur."
+  }
+]

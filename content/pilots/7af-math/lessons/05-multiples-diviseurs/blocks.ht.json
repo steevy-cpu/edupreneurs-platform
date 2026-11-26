@@ -1,0 +1,74 @@
+[
+  {
+    "key": "objectifs",
+    "type": "paragraph",
+    "text": "Lè leson sa a fini, w ap konn rekonèt yon miltip yon nonb, jwenn divizè yon ti nonb, epi di ki lè yon divizyon egzat."
+  },
+  {
+    "key": "intro",
+    "type": "paragraph",
+    "text": "Yon komèsan vle ranje 12 boutèy an ranje egal, san gen boutèy ki rete. Li ka fè 1 ranje 12, 2 ranje 6, 3 ranje 4, 4 ranje 3, 6 ranje 2 oswa 12 ranje 1. Nonb 1, 2, 3, 4, 6 ak 12 yo se divizè 12 yo."
+  },
+  {
+    "key": "multiples-titre",
+    "type": "heading",
+    "text": "Miltip yo"
+  },
+  {
+    "key": "multiples",
+    "type": "paragraph",
+    "text": "Miltip yon nonb se rezilta tab miltiplikasyon li. Miltip 4 yo se 4, 8, 12, 16, 20, epi konsa: nou pa janm rive nan dènye a."
+  },
+  {
+    "key": "exemple-multiples",
+    "type": "example",
+    "title": "Rekonèt yon miltip 7",
+    "steps": [
+      "Nou chèche si 28 nan tab 7 la.",
+      "7 × 4 = 28, donk 28 se yon miltip 7.",
+      "Nou di tou 7 se yon divizè 28 epi 28 divizib pa 7."
+    ]
+  },
+  {
+    "key": "diviseurs-titre",
+    "type": "heading",
+    "text": "Divizè yo"
+  },
+  {
+    "key": "diviseurs",
+    "type": "paragraph",
+    "text": "Yon nonb b se yon divizè yon nonb a lè divizyon a pa b egzat, sa vle di lè rès la se 0. Nou di tou a divizib pa b, oswa a se yon miltip b."
+  },
+  {
+    "key": "exemple-diviseurs",
+    "type": "example",
+    "title": "Jwenn tout divizè 12",
+    "steps": [
+      "12 ÷ 1 = 12, rès 0: 1 se yon divizè.",
+      "12 ÷ 2 = 6, rès 0: 2 se yon divizè.",
+      "12 ÷ 3 = 4, rès 0: 3 se yon divizè.",
+      "12 ÷ 4 = 3, rès 0: 4 se yon divizè.",
+      "12 ÷ 5 = 2, rès 2: 5 pa yon divizè.",
+      "12 ÷ 6 = 2, rès 0: 6 se yon divizè, epi 12 ÷ 12 = 1: 12 tou.",
+      "Divizè 12 yo: 1, 2, 3, 4, 6, 12"
+    ]
+  },
+  {
+    "key": "astuce",
+    "type": "callout",
+    "tone": "tip",
+    "text": "Pou jwenn divizè yo, chèche koup nonb ki gen pwodui yo se nonb lan: 12 = 1 × 12 = 2 × 6 = 3 × 4."
+  },
+  {
+    "key": "piege",
+    "type": "callout",
+    "tone": "warning",
+    "text": "Atansyon: 1 ak nonb lan menm toujou se divizè. Yon divizè yon nonb ki pa zewo pa janm pi gwo pase nonb sa a."
+  },
+  {
+    "key": "retenir",
+    "type": "callout",
+    "tone": "remember",
+    "text": "b se yon divizè a, a se yon miltip b epi a divizib pa b: twa fason pou di divizyon a pa b gen yon rès ki egal ak 0."
+  }
+]

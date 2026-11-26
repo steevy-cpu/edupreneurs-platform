@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.mon-edupreneur.local/content-pilot/pilot.schema.json",
+  "title": "Content pilot descriptor (authoring metadata, NOT a production pack format)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["pilot_id", "descriptor_version", "grade", "subject", "proposal_status", "locales", "unit", "sources", "lessons"],
+  "properties": {
+    "pilot_id": {"type": "string", "pattern": "^[a-z0-9-]{3,64}$"},
+    "descriptor_version": {"const": "pilot-descriptor-0"},
+    "grade": {"type": "string"},
+    "subject": {"type": "string"},
+    "proposal_status": {"type": "string", "minLength": 10},
+    "locales": {"const": ["fr", "ht"]},
+    "unit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "slug", "titles", "curriculum_domain"],
+      "properties": {
+        "id": {"type": "string", "format": "uuid"},
+        "slug": {"type": "string", "pattern": "^[a-z0-9-]{3,64}$"},
+        "titles": {"$ref": "#/$defs/localized"},
+        "curriculum_domain": {"type": "string", "minLength": 3}
+      }
+    },
+    "sources": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/source"}},
+    "lessons": {"type": "array", "minItems": 4, "maxItems": 8, "items": {"$ref": "#/$defs/lesson"}}
+  },
+  "$defs": {
+    "localized": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fr", "ht"],
+      "properties": {"fr": {"type": "string", "minLength": 1, "maxLength": 200}, "ht": {"type": "string", "minLength": 1, "maxLength": 200}}
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "issuer", "kind", "url", "retrieved", "rights_status", "verification", "notes"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^S[0-9]{1,2}$"},
+        "title": {"type": "string"},
+        "issuer": {"type": "string"},
+        "kind": {"enum": ["official_curriculum", "official_decision", "press_report", "framework", "teaching_resource", "third_party_copy"]},
+        "url": {"type": ["string", "null"]},
+        "retrieved": {"type": ["string", "null"], "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+        "rights_status": {"enum": ["all_rights_reserved_reference_only", "unknown_reference_only", "not_used"]},
+        "verification": {"enum": ["read_in_full_for_relevant_part", "located_not_read", "secondary_report_only", "not_located"]},
+        "notes": {"type": "string"}
+      }
+    },
+    "curriculum_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "locator", "relation", "note"],
+      "properties": {
+        "source": {"type": "string", "pattern": "^S[0-9]{1,2}$"},
+        "locator": {"type": "string", "minLength": 3},
+        "relation": {"enum": ["direct", "partial", "context"]},
+        "note": {"type": "string"}
+      }
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "required_approvals", "approvals"],
+      "properties": {
+        "status": {"enum": ["draft_unreviewed", "in_review", "changes_requested", "approved", "rejected"]},
+        "required_approvals": {"type": "array", "items": {"enum": ["mathematics_teacher", "native_speaker"]}, "minItems": 2, "uniqueItems": true},
+        "approvals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["role", "name", "date", "decision_ref"],
+            "properties": {
+              "role": {"enum": ["mathematics_teacher", "native_speaker"]},
+              "name": {"type": "string", "minLength": 2},
+              "date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+              "decision_ref": {"type": "string", "minLength": 3}
+            }
+          }
+        }
+      }
+    },
+    "lesson": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "slug", "position", "titles", "objectives", "curriculum_refs", "provenance", "rights", "files", "review"],
+      "properties": {
+        "id": {"type": "string", "format": "uuid"},
+        "slug": {"type": "string", "pattern": "^[a-z0-9-]{3,64}$"},
+        "position": {"type": "integer", "minimum": 1},
+        "titles": {"$ref": "#/$defs/localized"},
+        "objectives": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fr", "ht"],
+          "properties": {
+            "fr": {"type": "array", "minItems": 2, "maxItems": 5, "items": {"type": "string", "minLength": 5, "maxLength": 200}},
+            "ht": {"type": "array", "minItems": 2, "maxItems": 5, "items": {"type": "string", "minLength": 5, "maxLength": 200}}
+          }
+        },
+        "curriculum_refs": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/curriculum_ref"}},
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["authoring", "authored_on", "derived_from_third_party", "translation"],
+          "properties": {
+            "authoring": {"const": "ai_assisted_original"},
+            "authored_on": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+            "derived_from_third_party": {"const": false},
+            "translation": {"enum": ["ai_drafted_separately_from_french", "none"]}
+          }
+        },
+        "rights": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["origin", "third_party_material", "licence_status", "notes"],
+          "properties": {
+            "origin": {"const": "original"},
+            "third_party_material": {"type": "boolean"},
+            "licence_status": {"enum": ["unassigned_owner_decision", "assigned"]},
+            "licence": {"type": "string"},
+            "notes": {"type": "string"}
+          }
+        },
+        "files": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["blocks", "questions", "verification"],
+          "properties": {
+            "blocks": {"$ref": "#/$defs/perLocaleFile"},
+            "questions": {"$ref": "#/$defs/perLocaleFile"},
+            "verification": {"type": "string"}
+          }
+        },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fr", "ht"],
+          "properties": {"fr": {"$ref": "#/$defs/review"}, "ht": {"$ref": "#/$defs/review"}}
+        }
+      }
+    },
+    "perLocaleFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fr", "ht"],
+      "properties": {"fr": {"type": "string"}, "ht": {"type": "string"}}
+    }
+  }
+}

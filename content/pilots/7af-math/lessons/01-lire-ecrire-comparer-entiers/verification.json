@@ -1,0 +1,85 @@
+{
+  "questions": {
+    "valeur-du-chiffre": {
+      "mode": "value",
+      "compute": "5723 // 100 % 10 * 100",
+      "choices": {
+        "a": 7,
+        "b": 70,
+        "c": 700,
+        "d": 7000
+      }
+    },
+    "ecrire-en-chiffres": {
+      "mode": "value",
+      "compute": "32 * 1000 + 506",
+      "choices": {
+        "a": 32056,
+        "b": 32506,
+        "c": 3256,
+        "d": 32560
+      }
+    },
+    "comparer-deux-nombres": {
+      "mode": "truth",
+      "choices": {
+        "a": "6054 < 6540",
+        "b": "6054 > 6540",
+        "c": "6054 == 6540",
+        "d": "False"
+      }
+    },
+    "plus-grand-nombre": {
+      "mode": "value",
+      "compute": "max(9870, 10002, 9999, 987)",
+      "choices": {
+        "a": 9870,
+        "b": 10002,
+        "c": 9999,
+        "d": 987
+      }
+    },
+    "chiffre-des-centaines": {
+      "mode": "value",
+      "compute": "3480 // 100 % 10",
+      "choices": {
+        "a": 3,
+        "b": 4,
+        "c": 8,
+        "d": 0
+      }
+    }
+  },
+  "examples": [
+    {
+      "block": "exemple-decomposition",
+      "checks": [
+        {
+          "expr": "4000 + 300 + 0 + 5",
+          "equals": 4305,
+          "must_appear": "4305=4000+300+0+5"
+        }
+      ]
+    },
+    {
+      "block": "exemple-comparer-1",
+      "checks": [
+        {
+          "expr": "2450 > 1980",
+          "equals": true,
+          "must_appear": "2450>1980"
+        }
+      ]
+    },
+    {
+      "block": "exemple-comparer-2",
+      "checks": [
+        {
+          "expr": "7382 < 7391",
+          "equals": true,
+          "must_appear": "7382<7391"
+        }
+      ]
+    }
+  ]
+}

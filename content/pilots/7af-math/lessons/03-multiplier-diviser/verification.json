@@ -1,0 +1,135 @@
+{
+  "questions": {
+    "multiplication": {
+      "mode": "value",
+      "compute": "8 * 14",
+      "choices": {
+        "a": 102,
+        "b": 112,
+        "c": 122,
+        "d": 22
+      }
+    },
+    "probleme-chaises": {
+      "mode": "value",
+      "compute": "9 * 15",
+      "choices": {
+        "a": 125,
+        "b": 135,
+        "c": 145,
+        "d": 24
+      }
+    },
+    "quotient": {
+      "mode": "value",
+      "compute": "56 // 7",
+      "choices": {
+        "a": 7,
+        "b": 8,
+        "c": 9,
+        "d": 49
+      }
+    },
+    "reste-division": {
+      "mode": "value",
+      "compute": "47 % 6",
+      "choices": {
+        "a": 1,
+        "b": 5,
+        "c": 6,
+        "d": 7
+      }
+    },
+    "egalite-division": {
+      "mode": "truth",
+      "choices": {
+        "a": "29 == 4 * 7 + 1",
+        "b": "29 == 4 * 7 - 1",
+        "c": "29 == 7 * 1 + 4",
+        "d": "29 == 4 * 1 + 7"
+      }
+    }
+  },
+  "examples": [
+    {
+      "block": "exemple-multiplication",
+      "checks": [
+        {
+          "expr": "6 * 2",
+          "equals": 12,
+          "must_appear": "6×2=12"
+        },
+        {
+          "expr": "6 * 1 + 1",
+          "equals": 7,
+          "must_appear": "6+1=7"
+        },
+        {
+          "expr": "6 * 12",
+          "equals": 72,
+          "must_appear": "6×12=72"
+        }
+      ]
+    },
+    {
+      "block": "exemple-division-1",
+      "checks": [
+        {
+          "expr": "5 * 3",
+          "equals": 15,
+          "must_appear": "5×3=15"
+        },
+        {
+          "expr": "17 - 15",
+          "equals": 2,
+          "must_appear": "17−15=2"
+        },
+        {
+          "expr": "5 * 3 + 2",
+          "equals": 17,
+          "must_appear": "17=5×3+2"
+        },
+        {
+          "expr": "17 // 5",
+          "equals": 3,
+          "must_appear": "3"
+        },
+        {
+          "expr": "17 % 5",
+          "equals": 2,
+          "must_appear": "2"
+        }
+      ]
+    },
+    {
+      "block": "exemple-division-2",
+      "checks": [
+        {
+          "expr": "4 * 20",
+          "equals": 80,
+          "must_appear": "4×20=80"
+        },
+        {
+          "expr": "85 - 80",
+          "equals": 5,
+          "must_appear": "85−80=5"
+        },
+        {
+          "expr": "4 * 21 + 1",
+          "equals": 85,
+          "must_appear": "85=4×21+1"
+        },
+        {
+          "expr": "85 // 4",
+          "equals": 21,
+          "must_appear": "21"
+        },
+        {
+          "expr": "85 % 4",
+          "equals": 1,
+          "must_appear": "1"
+        }
+      ]
+    }
+  ]
+}

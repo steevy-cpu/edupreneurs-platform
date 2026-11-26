@@ -1,0 +1,167 @@
+[
+  {
+    "question_key": "multiple-de-6",
+    "position": 1,
+    "prompt": {
+      "text": "Ki nan nonb sa yo ki yon miltip 6 ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "16"
+        },
+        {
+          "id": "b",
+          "text": "26"
+        },
+        {
+          "id": "c",
+          "text": "36"
+        },
+        {
+          "id": "d",
+          "text": "46"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "c"
+    },
+    "explanation": {
+      "text": "6 × 6 = 36, donk 36 nan tab 6 la. Lòt nonb yo gen yon rès lè nou divize yo pa 6."
+    }
+  },
+  {
+    "question_key": "diviseurs-de-10",
+    "position": 2,
+    "prompt": {
+      "text": "Ki se tout divizè 10 yo ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "1, 2, 5, 10"
+        },
+        {
+          "id": "b",
+          "text": "1, 2, 3, 5, 10"
+        },
+        {
+          "id": "c",
+          "text": "2, 5, 10"
+        },
+        {
+          "id": "d",
+          "text": "1, 5, 10"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "a"
+    },
+    "explanation": {
+      "text": "10 ÷ 1 = 10, 10 ÷ 2 = 5, 10 ÷ 5 = 2 ak 10 ÷ 10 = 1 egzat. 3 pa yon divizè 10: 10 ÷ 3 = 3, rès 1."
+    }
+  },
+  {
+    "question_key": "divisible-par-8",
+    "position": 3,
+    "prompt": {
+      "text": "Èske nonb 24 divizib pa 8 ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "Wi, paske 8 × 3 = 24"
+        },
+        {
+          "id": "b",
+          "text": "Non, paske li rete 8"
+        },
+        {
+          "id": "c",
+          "text": "Non, paske 24 pi gwo pase 8"
+        },
+        {
+          "id": "d",
+          "text": "Wi, paske 24 + 8 = 32"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "a"
+    },
+    "explanation": {
+      "text": "8 × 3 = 24, donk 24 ÷ 8 = 3 epi rès la se 0: 24 divizib pa 8."
+    }
+  },
+  {
+    "question_key": "nombre-de-diviseurs-de-7",
+    "position": 4,
+    "prompt": {
+      "text": "Konbyen divizè nonb 7 genyen ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "1"
+        },
+        {
+          "id": "b",
+          "text": "2"
+        },
+        {
+          "id": "c",
+          "text": "3"
+        },
+        {
+          "id": "d",
+          "text": "7"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "7 divizib sèlman pa 1 ak pa 7: li gen 2 divizè."
+    }
+  },
+  {
+    "question_key": "rangees-de-livres",
+    "position": 5,
+    "prompt": {
+      "text": "Nou vle ranje 18 liv an ranje egal, san liv ki rete. Nan nonb liv pa ranje sa yo, ki yon sèl ki enposib: 2, 3, 4 oswa 6 ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "2"
+        },
+        {
+          "id": "b",
+          "text": "3"
+        },
+        {
+          "id": "c",
+          "text": "4"
+        },
+        {
+          "id": "d",
+          "text": "6"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "c"
+    },
+    "explanation": {
+      "text": "18 ÷ 4 = 4, rès 2: divizyon an pa egzat. Ak 2, 3 oswa 6 liv pa ranje, pa gen anyen ki rete."
+    }
+  }
+]

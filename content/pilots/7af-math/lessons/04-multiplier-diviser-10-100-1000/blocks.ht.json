@@ -1,0 +1,74 @@
+[
+  {
+    "key": "objectifs",
+    "type": "paragraph",
+    "text": "Lè leson sa a fini, w ap konn miltipliye yon nonb antye pa 10, 100 oswa 1 000, epi divize pa 10, 100 oswa 1 000 yon nonb ki fini ak ase zewo."
+  },
+  {
+    "key": "intro",
+    "type": "paragraph",
+    "text": "1 mèt fè 100 santimèt. Pou chanje 7 mèt an santimèt, nou miltipliye 7 pa 100. Miltiplikasyon ak divizyon pa 10, 100 ak 1 000 fèt byen vit: se sèlman pou konn valè chif yo byen."
+  },
+  {
+    "key": "multiplier-titre",
+    "type": "heading",
+    "text": "Miltipliye pa 10, 100 oswa 1 000"
+  },
+  {
+    "key": "multiplier",
+    "type": "paragraph",
+    "text": "Lè nou miltipliye pa 10, chak chif vo 10 fwa plis: li avanse yon plas sou bò gòch. Nou ekri yon zewo sou bò dwat nonb lan. Pa 100, nou ekri de zewo. Pa 1 000, nou ekri twa zewo."
+  },
+  {
+    "key": "exemple-multiplier",
+    "type": "example",
+    "title": "Miltipliye 36",
+    "steps": [
+      "36 × 10 = 360",
+      "36 × 100 = 3 600",
+      "36 × 1 000 = 36 000"
+    ]
+  },
+  {
+    "key": "diviser-titre",
+    "type": "heading",
+    "text": "Divize pa 10, 100 oswa 1 000"
+  },
+  {
+    "key": "diviser",
+    "type": "paragraph",
+    "text": "Divize pa 10, se kontrè a: chak chif vo 10 fwa mwens. Si nonb lan fini ak yon zewo, nou wete zewo sa a. Pa 100, nou wete de zewo. Pa 1 000, nou wete twa zewo."
+  },
+  {
+    "key": "exemple-diviser",
+    "type": "example",
+    "title": "Divize 4 500 ak 12 000",
+    "steps": [
+      "4 500 ÷ 10 = 450",
+      "4 500 ÷ 100 = 45",
+      "12 000 ÷ 1 000 = 12"
+    ]
+  },
+  {
+    "key": "exemple-unites",
+    "type": "example",
+    "title": "Chanje inite mezi",
+    "steps": [
+      "1 m = 100 cm, donk 7 m = 7 × 100 = 700 cm.",
+      "1 km = 1 000 m, donk 3 km = 3 × 1 000 = 3 000 m.",
+      "900 cm = 900 ÷ 100 = 9 m."
+    ]
+  },
+  {
+    "key": "piege",
+    "type": "callout",
+    "tone": "warning",
+    "text": "Atansyon: « ajoute yon zewo » mache sèlman pou miltipliye yon nonb antye pa 10. 7 × 10 = 70, men 7 + 10 = 17. Epi nou pa ka wete zewo si yo pa nan fen nonb lan: 4 050 ÷ 100 pa yon nonb antye."
+  },
+  {
+    "key": "retenir",
+    "type": "callout",
+    "tone": "remember",
+    "text": "× 10, × 100, × 1 000: nou ajoute 1, 2 oswa 3 zewo. ÷ 10, ÷ 100, ÷ 1 000: nou wete 1, 2 oswa 3 zewo, lè gen ase nan fen nonb lan."
+  }
+]

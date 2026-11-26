@@ -1,0 +1,167 @@
+[
+  {
+    "question_key": "multiplication",
+    "position": 1,
+    "prompt": {
+      "text": "Kalkile: 8 × 14"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "102"
+        },
+        {
+          "id": "b",
+          "text": "112"
+        },
+        {
+          "id": "c",
+          "text": "122"
+        },
+        {
+          "id": "d",
+          "text": "22"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "8 × 4 = 32: nou ekri 2 epi nou retni 3. 8 × 1 = 8, answit 8 + 3 = 11. Donk 8 × 14 = 112."
+    }
+  },
+  {
+    "question_key": "probleme-chaises",
+    "position": 2,
+    "prompt": {
+      "text": "Yon sal gen 9 ranje ki gen 15 chèz chak. Konbyen chèz ki genyen an total ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "125"
+        },
+        {
+          "id": "b",
+          "text": "135"
+        },
+        {
+          "id": "c",
+          "text": "145"
+        },
+        {
+          "id": "d",
+          "text": "24"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "Nou kalkile 9 × 15 = 135. Gen 135 chèz."
+    }
+  },
+  {
+    "question_key": "quotient",
+    "position": 3,
+    "prompt": {
+      "text": "Ki kosyan 56 ÷ 7 la ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "7"
+        },
+        {
+          "id": "b",
+          "text": "8"
+        },
+        {
+          "id": "c",
+          "text": "9"
+        },
+        {
+          "id": "d",
+          "text": "49"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "7 × 8 = 56, donk 56 ÷ 7 = 8."
+    }
+  },
+  {
+    "question_key": "reste-division",
+    "position": 4,
+    "prompt": {
+      "text": "Nou divize 47 pa 6. Ki rès la ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "1"
+        },
+        {
+          "id": "b",
+          "text": "5"
+        },
+        {
+          "id": "c",
+          "text": "6"
+        },
+        {
+          "id": "d",
+          "text": "7"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "b"
+    },
+    "explanation": {
+      "text": "6 × 7 = 42 epi 47 − 42 = 5. Kosyan an se 7 epi rès la se 5."
+    }
+  },
+  {
+    "question_key": "egalite-division",
+    "position": 5,
+    "prompt": {
+      "text": "Divizyon 29 pa 4 bay yon kosyan 7 ak yon rès 1. Ki egalite ki vre ?"
+    },
+    "response_spec": {
+      "choices": [
+        {
+          "id": "a",
+          "text": "29 = 4 × 7 + 1"
+        },
+        {
+          "id": "b",
+          "text": "29 = 4 × 7 − 1"
+        },
+        {
+          "id": "c",
+          "text": "29 = 7 × 1 + 4"
+        },
+        {
+          "id": "d",
+          "text": "29 = 4 × 1 + 7"
+        }
+      ]
+    },
+    "answer_key": {
+      "correct_choice_id": "a"
+    },
+    "explanation": {
+      "text": "Dividand = divizè × kosyan + rès: 4 × 7 + 1 = 29."
+    }
+  }
+]

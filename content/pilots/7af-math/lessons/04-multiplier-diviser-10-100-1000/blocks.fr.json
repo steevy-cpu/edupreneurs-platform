@@ -1,0 +1,74 @@
+[
+  {
+    "key": "objectifs",
+    "type": "paragraph",
+    "text": "À la fin de cette leçon, tu sauras multiplier un nombre entier par 10, 100 ou 1 000, et diviser par 10, 100 ou 1 000 un nombre qui se termine par assez de zéros."
+  },
+  {
+    "key": "intro",
+    "type": "paragraph",
+    "text": "1 mètre fait 100 centimètres. Pour changer 7 mètres en centimètres, on multiplie 7 par 100. Les multiplications et les divisions par 10, 100 et 1 000 se font très vite : il suffit de bien connaître la valeur des chiffres."
+  },
+  {
+    "key": "multiplier-titre",
+    "type": "heading",
+    "text": "Multiplier par 10, 100 ou 1 000"
+  },
+  {
+    "key": "multiplier",
+    "type": "paragraph",
+    "text": "Quand on multiplie par 10, chaque chiffre vaut 10 fois plus : il avance d'une place vers la gauche. On écrit un zéro à la droite du nombre. Par 100, on écrit deux zéros. Par 1 000, on écrit trois zéros."
+  },
+  {
+    "key": "exemple-multiplier",
+    "type": "example",
+    "title": "Multiplier 36",
+    "steps": [
+      "36 × 10 = 360",
+      "36 × 100 = 3 600",
+      "36 × 1 000 = 36 000"
+    ]
+  },
+  {
+    "key": "diviser-titre",
+    "type": "heading",
+    "text": "Diviser par 10, 100 ou 1 000"
+  },
+  {
+    "key": "diviser",
+    "type": "paragraph",
+    "text": "Diviser par 10, c'est l'inverse : chaque chiffre vaut 10 fois moins. Si le nombre se termine par un zéro, on enlève ce zéro. Par 100, on enlève deux zéros. Par 1 000, on enlève trois zéros."
+  },
+  {
+    "key": "exemple-diviser",
+    "type": "example",
+    "title": "Diviser 4 500 et 12 000",
+    "steps": [
+      "4 500 ÷ 10 = 450",
+      "4 500 ÷ 100 = 45",
+      "12 000 ÷ 1 000 = 12"
+    ]
+  },
+  {
+    "key": "exemple-unites",
+    "type": "example",
+    "title": "Changer d'unité de mesure",
+    "steps": [
+      "1 m = 100 cm, donc 7 m = 7 × 100 = 700 cm.",
+      "1 km = 1 000 m, donc 3 km = 3 × 1 000 = 3 000 m.",
+      "900 cm = 900 ÷ 100 = 9 m."
+    ]
+  },
+  {
+    "key": "piege",
+    "type": "callout",
+    "tone": "warning",
+    "text": "Attention : « ajouter un zéro » ne marche que pour multiplier un nombre entier par 10. 7 × 10 = 70, mais 7 + 10 = 17. Et on ne peut enlever des zéros que s'ils sont à la fin du nombre : 4 050 ÷ 100 n'est pas un nombre entier."
+  },
+  {
+    "key": "retenir",
+    "type": "callout",
+    "tone": "remember",
+    "text": "× 10, × 100, × 1 000 : on ajoute 1, 2 ou 3 zéros. ÷ 10, ÷ 100, ÷ 1 000 : on enlève 1, 2 ou 3 zéros, quand il y en a assez à la fin."
+  }
+]
