@@ -58,18 +58,20 @@ Rules enforced **in the database**:
 | `notify.enqueue(p_recipient uuid, p_kind text, p_refs jsonb, p_dedupe_key text, p_channels text[] = '{in_app}', p_deliver_after timestamptz = now, p_expires_at timestamptz = null) → uuid` | `edu_worker` | Background jobs through the worker login; other schemas' definer functions (run as owner; need no grant). Never `edu_api`, never `edu_staff` |
 | `notify.claim_due(p_channel text, p_limit int = 20, p_lease_seconds int = 60) → setof notify.claimed` | `edu_worker` | Delivery worker |
 | `notify.record_attempt(p_outbox_id uuid, p_channel text, p_lease_token uuid, p_outcome text, p_error_code text = null) → text` | `edu_worker` | Delivery worker |
+| `notify.recheck_lease(p_outbox_id uuid, p_channel text, p_lease_token uuid) → text` (`send` / `deferred` / `stale`) | `edu_worker` | Delivery worker, just before each adapter call: lease still held and unexpired, quiet hours not begun since the claim (migration `20261125000100`) |
 | `notify.erase_learner(p_user_id uuid) → jsonb` | **nobody** | `account` erasure orchestrator (as owner) |
 | `notify._claim_due_at`, `notify._record_attempt_at`, `notify._settle` | nobody, **never to be granted** | Internal; the `_at` twins take an explicit clock for tests |
 | `notify.quiet_until`, `notify.window_end`, `notify.refs_are_ids` | nobody | Internal helpers |
 
-**Search path (ruling R-03).** All 11 functions pin
+**Search path (ruling R-03).** All 12 functions pin
 `search_path = pg_catalog, pg_temp` and qualify every non-catalog object;
 `240_notify_structure.sql` asserts it and that every function is owned by
 `postgres`. No application code path creates a temporary object.
 
 **Worker role (closed seam).** After merging staff B1 (`7c3d2fb`), migration
 `20261124080200_notify_worker_grants.sql` grants `edu_worker` USAGE on the schema
-and EXECUTE on `claim_due`, `record_attempt` and `enqueue` — no table privilege.
+and EXECUTE on `claim_due`, `record_attempt` and `enqueue` (and, from `20261125000100`,
+`recheck_lease`) — no table privilege.
 The delivery tests log in as the real `edu_worker_login`
 (`tests/integration/test_notify_worker_role.py`, `243_notify_worker_role.sql`):
 the worker claims and reports, two worker sessions never lease the same
@@ -202,6 +204,40 @@ No title, no body: the app renders the words from `kind` + `refs`.
 - The in-app list and preferences are not part of offline sync; the app must
   cache them itself.
 - Quiet hours use one product time zone; a learner abroad gets Haiti hours.
+
+---
+
+## Open findings (independent review, 2026-11-25) — status
+
+Fixed on `review/fix-notify-review-findings` (each with a regression test):
+
+- **M-1** `X-Forwarded-For` on several header lines: all lines are now joined in
+  order before the trusted-hop entry is chosen (`ratelimit.client_address`).
+- **L-1** JSON log mode and uvicorn: uvicorn's own handlers did not pass through the
+  third-party filter, so per-connection INFO records (refused WebSocket handshake:
+  peer address, raw path and query string) were written. Only uvicorn's fixed
+  lifecycle messages are kept at INFO now; the rest from WARNING up. Test drives a
+  real uvicorn server.
+- **L-2** Delivery pass after the lease: rows with less lease left than the adapter
+  timeout are skipped, and `notify.recheck_lease` re-checks lease and quiet hours on
+  the database clock before each attempt (a deferral gives the attempt back).
+- **L-3** Flag off: the routes no longer match at all (`_FlagGatedRoute`), so a
+  malformed body or a wrong method gets the standard 404, before the body is read.
+- **N-3** stale `notify/worker.py` docstring.
+
+Open, not fixed here:
+
+- **L-4** Address-wide bucket for requests without a valid token (carrier NAT). A
+  learner with an expired token counts in the shared bucket and may receive 429
+  instead of the 401 that tells the app to refresh. **Mitigation: keep
+  `EDU_RATE_LIMIT_ENABLED` off until the mobile app refreshes its session from the
+  token's own expiry time (before it expires) and on a 429 when the local token is
+  past expiry.** Hand-over to the native lane.
+- **L-5** When the verified-key store is full of unrefilled buckets, new learners
+  share one overflow bucket. Needs on the order of `max_keys/2` busy accounts;
+  recovers by itself. Export the `overflowed` counter and size `max_keys` to several
+  times the active learner count before enabling the limiter in production.
+- Other review notes (N-1, N-2, N-4 to N-10) are unchanged.
 
 ---
 

@@ -143,6 +143,9 @@ class FakePort:
         batch, self.deliveries = self.deliveries[:limit], self.deliveries[limit:]
         return batch
 
+    async def recheck_lease(self, delivery: ClaimedDelivery) -> str:
+        return "send"
+
     async def record_attempt(
         self, delivery: ClaimedDelivery, outcome: str, error_code: str | None
     ) -> str:
@@ -175,6 +178,59 @@ async def test_an_adapter_crash_becomes_a_retry_not_a_lost_delivery() -> None:
     port = FakePort([claimed()])
     summary = await deliver_due(port, ExplodingAdapter())
     assert summary.retried == 1 and port.reports[0][1:] == ("retry", "adapter_error")
+
+
+class ClockedPort(FakePort):
+    """FakePort whose recheck answers can be scripted per row."""
+
+    def __init__(
+        self, deliveries: list[ClaimedDelivery], verdicts: list[str] | None = None
+    ) -> None:
+        super().__init__(deliveries)
+        self.verdicts = verdicts or []
+        self.rechecked = 0
+
+    async def recheck_lease(self, delivery: ClaimedDelivery) -> str:
+        self.rechecked += 1
+        return self.verdicts.pop(0) if self.verdicts else "send"
+
+
+class SlowAdapter(DummyLocalAdapter):
+    """Each delivery takes ``seconds`` of (fake) time, without sleeping."""
+
+    def __init__(self, now: list[float], seconds: float) -> None:
+        super().__init__()
+        self._now = now
+        self._seconds = seconds
+
+    async def deliver(self, recipient_id: uuid.UUID, payload: Any) -> DeliveryResult:
+        self._now[0] += self._seconds
+        return await super().deliver(recipient_id, payload)
+
+
+async def test_rows_whose_lease_is_too_short_for_the_adapter_are_not_attempted() -> None:
+    """Review L-2: claimed rows share one lease but are attempted one by one. With a
+    slow adapter the later rows' lease has (almost) run out: attempting them would
+    overlap another worker's pass. They are skipped and left to their lease."""
+    now = [1000.0]
+    port = ClockedPort([claimed(), claimed(), claimed(), claimed()])
+    adapter = SlowAdapter(now, seconds=25.0)  # lease 60 s -> adapter timeout 30 s
+    summary = await deliver_due(port, adapter, limit=10, lease_seconds=60, clock=lambda: now[0])
+    # t=0: 60 s left, attempt (-> t=25). t=25: 35 s left, attempt (-> t=50).
+    # t=50: 10 s left < 30 s: skipped; same for the fourth row.
+    assert (summary.claimed, summary.delivered, summary.skipped) == (4, 2, 2)
+    assert len(adapter.records) == 2 and len(port.reports) == 2
+    assert port.rechecked == 2
+
+
+async def test_quiet_hours_that_began_after_the_claim_stop_the_attempt() -> None:
+    """Review L-2: the database re-checks quiet hours at delivery time. 'deferred'
+    (and 'stale') mean nothing is sent and no outcome is reported."""
+    port = ClockedPort([claimed(), claimed(), claimed()], verdicts=["deferred", "stale", "send"])
+    adapter = DummyLocalAdapter()
+    summary = await deliver_due(port, adapter, limit=10)
+    assert (summary.claimed, summary.delivered, summary.skipped, summary.stale) == (3, 1, 1, 1)
+    assert len(adapter.records) == 1 and len(port.reports) == 1
 
 
 # ------------------------------------------------------------------- cursor

@@ -141,13 +141,13 @@ def create_app(
     app.include_router(account.build_router())
     app.include_router(entitlements.build_router())
     app.include_router(staff_billing.build_router())
+    app.include_router(staff.router)
     # Always registered (ruling R-01); every route answers 404 while the flag is off.
     if notify_database is not None:
         app.state.notify_db = notify_database
     app.include_router(notifications.router)
     app.include_router(rewards.router)
     app.include_router(leaderboard.router)
-    app.include_router(staff.router)
     app.include_router(daily_word_router)  # 404 unless EDU_DAILY_WORD_ENABLED (ruling R-01)
     app.include_router(staff_vocab_router)
     return app

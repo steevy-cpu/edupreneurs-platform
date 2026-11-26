@@ -101,14 +101,14 @@ SELECT is((SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p
 SELECT is((SELECT array_agg(p.proname || '>' || pg_get_userbyid(a.grantee) ORDER BY (p.proname || '>' || pg_get_userbyid(a.grantee)) COLLATE "C")
            FROM pg_proc p, aclexplode(p.proacl) a
            WHERE p.pronamespace = 'notify'::regnamespace AND a.grantee <> p.proowner),
-    ARRAY['claim_due>edu_worker','enqueue>edu_worker','record_attempt>edu_worker','set_preferences>edu_api'],
-    'the only EXECUTE grants in notify: set_preferences to edu_api; claim_due, record_attempt, enqueue to edu_worker');
+    ARRAY['claim_due>edu_worker','enqueue>edu_worker','recheck_lease>edu_worker','record_attempt>edu_worker','set_preferences>edu_api'],
+    'the only EXECUTE grants in notify: set_preferences to edu_api; claim_due, record_attempt, recheck_lease, enqueue to edu_worker');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'notify'::regnamespace
            AND (SELECT array_agg(c) FROM unnest(p.proconfig) c WHERE c LIKE 'search_path=%')
                IS DISTINCT FROM ARRAY['search_path=pg_catalog, pg_temp']), 0,
     'every notify function pins exactly search_path = pg_catalog, pg_temp (ruling R-03)');
-SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'notify'::regnamespace AND p.prosecdef), 8,
-    '8 SECURITY DEFINER functions exist in notify');
+SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'notify'::regnamespace AND p.prosecdef), 9,
+    '9 SECURITY DEFINER functions exist in notify');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'notify'::regnamespace
            AND pg_get_userbyid(p.proowner) <> 'postgres'), 0,
     'every notify function is owned by the migration owner (postgres)');

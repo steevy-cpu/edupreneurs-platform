@@ -390,8 +390,34 @@ and `tests/unit/test_staff_content_models.py`.
   paragraph, callout, example title and steps, question prompt, choices, explanation) and the
   free-text fields `source_title`, `rights_notes` and review `notes` refuse control characters
   (Unicode category Cc: U+0000–U+001F, U+007F–U+009F) with 422 `validation_error`. Tab and line
-  feed stay allowed. **Carriage return is refused**, so a client must send `\n`, not `\r\n`.
-  This is stricter than the published JSON schemas, which do not express it.
+  feed stay allowed. This is stricter than the published JSON schemas, which do not express it.
+  (The first version of this fix also refused carriage return, which broke Windows clients; see
+  the text rule below, which replaces it. `source_uri` was missed by that fix and still gave 500
+  for U+0000, NF-3; also fixed below.)
+
+**Text rule for staff input (after the second review, NF-3 and the CR note)**
+
+- *Multi-line text* (paragraph, callout, example steps, question prompt, choice text, explanation,
+  rights notes, review notes): CRLF and a lone CR are first turned into LF (the stored text and the
+  length limits see the LF form), then every Unicode category Cc character except tab and LF is
+  refused with 422 `validation_error`.
+- *Single-line fields* (revision title, heading text, example title, `source_title`, `source_uri`):
+  every Cc character is refused, CR, LF and tab included.
+- Never 500: `source_uri` now goes through the same check (its `\S` pattern matches U+0000).
+- Code: `edu_api/staff/content.py` (`LineEndingsToLF`, `NoControlCharacters`, `SingleLine`).
+  Tests: `tests/unit/test_staff_content_models.py`, `tests/integration/test_staff_review_fixes.py`.
+  The old tests that expected `\r` to be refused were changed to expect normalisation.
+
+**Open: format characters (owner / editorial decision, deliberately NOT decided here)**
+
+- Not Cc, so accepted today in lesson text: bidirectional overrides (U+202A-U+202E,
+  U+2066-U+2069), zero-width characters (U+200B-U+200D), line and paragraph separators
+  (U+2028, U+2029) and a byte-order mark (U+FEFF). Reviewer's evidence (final verification,
+  2026-11-25, at 33aa2e2): U+2028, U+202E (right-to-left override), a paragraph made only of
+  U+200B and a leading BOM all returned 201 and were stored. Same class as identity finding L-5.
+- Why it matters: text shown to minors can be visually reordered or can look empty. Options for
+  the owner: refuse bidi overrides and isolates, refuse empty-looking text, strip BOM/zero-width,
+  or accept for languages that need ZWNJ/ZWJ. Not changed by this fix.
 
 **Open (not fixed)**
 

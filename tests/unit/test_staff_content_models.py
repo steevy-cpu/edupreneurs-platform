@@ -214,7 +214,7 @@ def test_stored_json_is_exactly_what_the_contract_describes() -> None:
 
 # --- control characters (review finding L-B2-1): stricter than the schema on purpose ---
 @pytest.mark.parametrize(
-    "bad", ["\u0000", "\u0001", "\u0008", "\u000b", "\u000c", "\r", "\u001f", "\u007f", "\u009f"]
+    "bad", ["\u0000", "\u0001", "\u0008", "\u000b", "\u000c", "\u001f", "\u007f", "\u009f"]
 )
 def test_control_characters_are_refused_in_every_text(bad: str) -> None:
     text = f"a{bad}b"
@@ -240,3 +240,44 @@ def test_tab_line_feed_and_ordinary_unicode_are_accepted(fine: str) -> None:
     question = copy.deepcopy(GOOD_QUESTION)
     question["prompt"]["text"] = fine
     assert model_accepts_question(question)
+
+
+# --- line endings: CRLF and CR become LF in multi-line text; single-line fields refuse them ---
+@pytest.mark.parametrize(
+    ("raw", "stored"), [("a\r\nb", "a\nb"), ("a\rb", "a\nb"), ("a\r\n\rb", "a\n\nb")]
+)
+def test_crlf_and_lone_cr_become_lf_in_multi_line_text(raw: str, stored: str) -> None:
+    content = RevisionContent.model_validate(
+        {
+            "title": "t",
+            "blocks": [{"key": "p", "type": "paragraph", "text": raw}],
+            "questions": [
+                {
+                    "question_key": "q1",
+                    "prompt": {"text": raw},
+                    "response_spec": {
+                        "choices": [{"id": "a", "text": raw}, {"id": "b", "text": "2"}]
+                    },
+                    "answer_key": {"correct_choice_id": "b"},
+                    "explanation": {"text": raw},
+                }
+            ],
+        }
+    )
+    assert content.blocks_json()[0]["text"] == stored
+    question = content.questions_json()[0]
+    assert question["prompt"]["text"] == stored
+    assert question["explanation"]["text"] == stored
+    assert question["response_spec"]["choices"][0]["text"] == stored
+
+
+def test_a_control_character_next_to_a_carriage_return_is_still_refused() -> None:
+    assert not model_accepts_blocks(blocks_with(1, text="a\r\n\u0000b"))
+
+
+@pytest.mark.parametrize("bad", ["a\rb", "a\nb", "a\r\nb", "a\tb", "a\u0000b"])
+def test_titles_are_single_line(bad: str) -> None:
+    assert not model_accepts_blocks(blocks_with(0, text=bad))
+    assert not model_accepts_blocks(blocks_with(2, title=bad))
+    with pytest.raises(ValidationError):
+        RevisionContent.model_validate({"title": bad, "blocks": GOOD_BLOCKS})

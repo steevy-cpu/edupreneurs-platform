@@ -238,6 +238,21 @@ def _header(scope: Scope, name: bytes) -> str | None:
     return None
 
 
+def _header_joined(scope: Scope, name: bytes) -> str | None:
+    """Every line of a repeatable header, in order, joined with ``,``.
+
+    HTTP lets a sender (or a proxy) put one header on several lines; the values
+    are equivalent to one comma-joined line. Reading only the first line would let
+    a client choose the entry a proxy appended on a later line.
+    """
+    values = [
+        bytes(value).decode("latin-1")
+        for key, value in scope.get("headers", [])
+        if key.lower() == name
+    ]
+    return ",".join(values) if values else None
+
+
 async def resolve_verified_user_id(
     scope: Scope, verifier: TokenVerifier | MemoVerifier
 ) -> uuid.UUID | None:
@@ -289,7 +304,7 @@ def client_address(scope: Scope, trusted_proxy_hops: int) -> str:
     client = scope.get("client")
     peer = client[0] if client else None
     if trusted_proxy_hops > 0:
-        forwarded = _header(scope, b"x-forwarded-for")
+        forwarded = _header_joined(scope, b"x-forwarded-for")
         if forwarded:
             entries = [part.strip() for part in forwarded.split(",") if part.strip()]
             if len(entries) >= trusted_proxy_hops:
