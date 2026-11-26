@@ -56,3 +56,48 @@ cat > "$tmp/expected" <<'EXPECTED'
 EXPECTED
 diff -u "$tmp/expected" "$QA_ADB_RECORD"
 cat "$QA_ADB_RECORD"
+
+# Run the production evidence helper and flow collection against a recording Maestro.
+# The two simulated checkouts share a temporary volume and invoke the same flow name.
+unset E2E_OUT E2E_LOG
+EDU_DEV_VOLUME="$tmp/volume"
+PLATFORM=android
+APP_DIR="$app"
+ENVS=(-e QA_RECORDING=1)
+MAESTRO="$tmp/record-maestro"
+cat > "$MAESTRO" <<'MAESTRO'
+#!/usr/bin/env bash
+set -eu
+test "$1" = --device
+test "$3" = test
+test "$4" = --test-output-dir
+mkdir -p "$5/takeScreenshot/shots"
+printf '%s\n' "$2" > "$5/takeScreenshot/shots/review.png"
+MAESTRO
+chmod +x "$MAESTRO"
+. "$app/scripts/e2e-output.sh"
+sed -n '/^run() {/,/^}/p' "$app/scripts/e2e-run.sh" > "$tmp/run-function.sh"
+. "$tmp/run-function.sh"
+
+DEVICE=qa-device-one
+ROOT="$tmp/checkout-one"
+prepare_e2e_output
+first_out=$OUT
+first_log=$LOG
+run shared-flow
+printf '%s\n' sentinel >> "$first_log"
+DEVICE=qa-device-two
+ROOT="$tmp/checkout-two"
+prepare_e2e_output
+test "$OUT" != "$first_out"
+test "$LOG" != "$first_log"
+run shared-flow
+grep -Fxq sentinel "$first_log"
+test "$(cat "$first_out/shots/review.png")" = qa-device-one
+test "$(cat "$OUT/shots/review.png")" = qa-device-two
+# Explicit log overrides append, including when multiple invocations share a log.
+E2E_LOG="$tmp/explicit.log"
+printf '%s\n' sentinel > "$E2E_LOG"
+prepare_e2e_output
+grep -Fxq sentinel "$E2E_LOG"
+echo 'Distinct default logs and captures verified. Explicit log sentinel preserved.'
