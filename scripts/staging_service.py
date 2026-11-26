@@ -9,7 +9,7 @@ import os
 
 import uvicorn
 
-from edu_api.config import Settings
+from edu_api.config import Settings, require_canonical_settings
 from edu_api.db.staging import validate_runtime
 from edu_api.main import create_app
 
@@ -39,6 +39,7 @@ if __name__ == "__main__":
     if os.environ.get("EDU_ENVIRONMENT") != args.environment:
         parser.error("explicit environment must match EDU_ENVIRONMENT")
     try:
+        require_canonical_settings(os.environ)
         settings = Settings(_env_file=None)
         validate_runtime(settings)
         port = int(os.environ["PORT"])
@@ -53,6 +54,7 @@ if __name__ == "__main__":
         create_app(settings),
         host="0.0.0.0",  # noqa: S104
         port=port,
+        workers=1,
         log_config=None,
         access_log=False,
         proxy_headers=False,

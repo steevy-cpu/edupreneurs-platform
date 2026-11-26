@@ -13,7 +13,7 @@ import subprocess
 import asyncpg
 
 from disposable import verify
-from edu_api.config import Settings
+from edu_api.config import Settings, require_canonical_settings
 from edu_api.db.staging import SECURITY_SQL, validate_hosted_dsn, validate_runtime
 from local_stack import ROOT, read_env_file
 
@@ -52,6 +52,18 @@ async def check_session(
             AND NOT has_database_privilege(r.oid, current_database(), 'CREATE,TEMP')
             AND NOT has_schema_privilege(r.oid, 'app', 'USAGE')
             AND NOT has_schema_privilege(r.oid, 'auth', 'USAGE')
+            AND NOT has_schema_privilege(r.oid, 'supabase_migrations', 'CREATE')
+            AND NOT has_table_privilege(r.oid, 'supabase_migrations.schema_migrations',
+                                        'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN')
+            AND NOT has_any_column_privilege(r.oid, 'supabase_migrations.schema_migrations',
+                                             'INSERT,UPDATE,REFERENCES')
+            AND NOT EXISTS (
+                SELECT FROM pg_attribute a
+                WHERE a.attrelid = 'supabase_migrations.schema_migrations'::regclass
+                  AND a.attnum > 0 AND NOT a.attisdropped
+                  AND (has_column_privilege(r.oid, a.attrelid, a.attnum, 'SELECT WITH GRANT OPTION')
+                       OR (a.attname <> 'version'
+                           AND has_column_privilege(r.oid, a.attrelid, a.attnum, 'SELECT'))))
         FROM pg_roles r WHERE rolname = current_user
     """):
         raise ValueError("excessive audit login privileges")
@@ -82,6 +94,7 @@ async def audit(environment: str, *, plan: bool = False) -> None:
     else:
         if os.environ.get("EDU_ENVIRONMENT") != "staging":
             raise ValueError("explicit staging environment required")
+        require_canonical_settings(os.environ)
         settings = Settings(_env_file=None)
         validate_runtime(settings)
         url = os.environ["STAGING_AUDIT_DATABASE_URL"]

@@ -7,6 +7,7 @@ the same variables.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from functools import lru_cache
 from typing import Literal
 
@@ -17,6 +18,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 #: PUBLIC key and can verify tokens but never mint them. Shared-secret HS256 is
 #: deliberately unsupported: it would make the API able to forge any identity.
 SUPPORTED_JWT_ALGORITHMS = frozenset({"ES256", "RS256"})
+
+
+def require_canonical_settings(names: Iterable[str]) -> None:
+    for key in names:
+        if key.upper().startswith(("EDU_", "LOCAL_")) and key != key.upper():
+            raise ValueError("use uppercase environment setting names")
 
 
 class Settings(BaseSettings):

@@ -30,6 +30,14 @@ SELECT
       WHERE has_schema_privilege(r,'app','USAGE')) AS schemas,
   (SELECT count(*) = 22 AND bool_and(relrowsecurity AND NOT pg_has_role(
     'edu_api_login', relowner, 'MEMBER')) FROM app_tables) AS row_security,
+  NOT EXISTS (
+    SELECT FROM unnest(ARRAY['grades','subjects','courses','units','lessons',
+      'lesson_revisions','question_revisions','pack_releases','pack_items','pack_current',
+      'learner_profiles','lesson_progress','practice_attempts','account_sync_state',
+      'sync_receipts','account_change_feed']) AS required(name)
+    LEFT JOIN app_tables t ON t.relname = required.name
+    WHERE t.oid IS NULL OR NOT has_table_privilege('edu_api_login', t.oid, 'SELECT')
+  ) AS required_reads,
   NOT EXISTS (SELECT FROM app_tables WHERE has_table_privilege(
     'edu_api_login', oid, 'INSERT,UPDATE,DELETE,TRUNCATE,TRIGGER,REFERENCES')) AND
     NOT EXISTS (SELECT FROM app_tables WHERE relname IN

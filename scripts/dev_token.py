@@ -13,11 +13,11 @@ from __future__ import annotations
 
 import secrets
 import sys
-from urllib.parse import urlsplit
 
 import httpx
 
-from local_stack import LOCAL_HOSTS, read_env_file
+from disposable import verify
+from local_stack import read_env_file
 
 SEED_ACCOUNTS = {
     "student_a": ("a0000000-0000-4000-8000-000000000001", "student.a@edupreneur.test"),
@@ -28,14 +28,13 @@ SEED_ACCOUNTS = {
 
 
 def issue_token(account: str, env: dict[str, str] | None = None) -> str:
-    env = env or read_env_file()
-    base = env["LOCAL_SUPABASE_URL"].rstrip("/")
-    if urlsplit(base).hostname not in LOCAL_HOSTS:
-        raise SystemExit("error: LOCAL_SUPABASE_URL is not this machine. Refusing to continue.")
+    env = read_env_file() if env is None else env
+    verify(env=env)
+    base = env["LOCAL_SUPABASE_URL"]
     user_id, email = SEED_ACCOUNTS[account]
     password = secrets.token_urlsafe(32)
     secret_key = env["LOCAL_SUPABASE_SECRET_KEY"]
-    with httpx.Client(timeout=10) as client:
+    with httpx.Client(timeout=10, trust_env=False) as client:
         client.put(
             f"{base}/auth/v1/admin/users/{user_id}",
             headers={"apikey": secret_key, "Authorization": f"Bearer {secret_key}"},

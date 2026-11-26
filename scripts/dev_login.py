@@ -13,19 +13,18 @@ from __future__ import annotations
 
 import secrets
 import sys
-from urllib.parse import urlsplit
 
 import httpx
 
 from dev_token import SEED_ACCOUNTS
-from local_stack import LOCAL_HOSTS, read_env_file
+from disposable import verify
+from local_stack import read_env_file
 
 
 def main(account: str) -> None:
     env = read_env_file()
-    base = env["LOCAL_SUPABASE_URL"].rstrip("/")
-    if urlsplit(base).hostname not in LOCAL_HOSTS:
-        raise SystemExit("error: LOCAL_SUPABASE_URL is not this machine. Refusing to continue.")
+    verify(env=env)
+    base = env["LOCAL_SUPABASE_URL"]
     user_id, email = SEED_ACCOUNTS[account]
     password = secrets.token_urlsafe(12)
     secret_key = env["LOCAL_SUPABASE_SECRET_KEY"]
@@ -34,6 +33,7 @@ def main(account: str) -> None:
         headers={"apikey": secret_key, "Authorization": f"Bearer {secret_key}"},
         json={"password": password},
         timeout=10,
+        trust_env=False,
     ).raise_for_status()
     print(f"e-mail:   {email}")
     print(f"password: {password}")
