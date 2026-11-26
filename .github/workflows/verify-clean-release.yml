@@ -1,0 +1,58 @@
+name: Clean Android release bundle verification
+on:
+  push:
+    branches: [verify/mobile-learning-clean-bundle-54321c1]
+permissions:
+  contents: read
+jobs:
+  clean-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: apps/student-native
+    env:
+      NODE_ENV: production
+      EXPO_NO_DOTENV: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_URL: http://127.0.0.1:41000
+      EXPO_PUBLIC_SUPABASE_URL: http://127.0.0.1:41001
+      EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: isolated-cache-probe
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 54321c1755db7d9258a351710665e620a88e1831
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Generate the native release project from the correction head
+        run: |
+          test "$(git rev-parse HEAD)" = 54321c1755db7d9258a351710665e620a88e1831
+          npm ci --include=dev --no-fund --no-audit
+          ./node_modules/.bin/expo prebuild --platform android --no-install
+      - name: Bundle with experimental flags enabled
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          export EXPO_PUBLIC_FF_ONBOARDING=1 EXPO_PUBLIC_FF_TOUR=1 EXPO_PUBLIC_FF_ONBOARDING_SYNC=1
+          export EXPO_PUBLIC_FF_DAILY_WORD=1 EXPO_PUBLIC_FF_REWARDS=1 EXPO_PUBLIC_FF_LEADERBOARD_REVIEW=1
+          cd android
+          ./gradlew :app:createBundleReleaseJsAndAssets -PreactNativeArchitectures=x86_64 --max-workers=2
+          bundle=$(find app/build/generated/assets -name index.android.bundle -type f)
+          test -f "$bundle"
+          cp "$bundle" "$RUNNER_TEMP/flags-on.bundle"
+      - name: Assemble and inspect clean flags-off APK
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          cd android
+          ./gradlew clean --max-workers=2
+          ./gradlew :app:assembleRelease --no-build-cache -PreactNativeArchitectures=x86_64 --max-workers=2
+          apk=app/build/outputs/apk/release/app-release.apk
+          unzip -p "$apk" assets/index.android.bundle > "$RUNNER_TEMP/flags-off.bundle"
+          test -s "$RUNNER_TEMP/flags-off.bundle"
+          sha256sum "$RUNNER_TEMP"/flags-{on,off}.bundle "$apk"
+          if cmp -s "$RUNNER_TEMP"/flags-{on,off}.bundle; then echo 'The flags-on bundle was reused'; exit 1; fi
+          ./gradlew :app:createBundleReleaseJsAndAssets --rerun-tasks --no-build-cache -PreactNativeArchitectures=x86_64 --max-workers=2
+          bundle=$(find app/build/generated/assets -name index.android.bundle -type f)
+          cmp "$bundle" "$RUNNER_TEMP/flags-off.bundle"
+          echo "The packaged bundle matches the forced flags-off rebuild."
