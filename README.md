@@ -117,7 +117,7 @@ uv run python scripts/disposable.py configure
 make setup
 ```
 
-This one command: installs the pinned tools, generates a local Auth signing key,
+The setup target installs the pinned tools, generates a local Auth signing key,
 starts the local stack in Docker, rebuilds the database from the migrations and
 seed, writes a git-ignored `.env`, and creates the API's least-privilege database login.
 The first run downloads about 1.5 GB of Docker images.
@@ -190,7 +190,7 @@ Details: `docs/ARCHITECTURE.md` and `docs/SECURITY.md`.
 | Symptom | Fix |
 |---|---|
 | `Cannot connect to the Docker daemon` | Start Docker Desktop / OrbStack, then `make start` |
-| `port is already allocated` (54321/54322) | Another local Supabase project is running: `npx supabase stop` in that project, or stop the container using the port |
+| `port is already allocated` | Pick a fresh disposable worktree with a different port lane. Confirm the project and bindings before retrying. |
 | Tests fail with `.env is missing [...]` | The stack was never set up: `make setup` |
 | API returns 503 `dependency_unavailable` | The database is not running (`make start`) or `.env` is stale (`make db-reset`) |
 | `password authentication failed for user "edu_api_login"` | The login role is gone after a rebuild: `make db-reset` (re-creates it) |
