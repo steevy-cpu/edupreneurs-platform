@@ -40,7 +40,7 @@ export function BlockEditor({ blocks, onChange, issues, disabled }: Props) {
         const mine = issues.filter((x) => x.index === i);
         const n = i + 1;
         return (
-          <section key={i} className={`block-edit ${mine.length ? 'invalid' : ''}`} aria-label={`Bloc ${n}, ${TYPE_LABEL[b.type]}`}>
+          <section key={i} className={`block-edit ${mine.length ? 'invalid' : ''}`} aria-label={`Bloc ${n}, ${TYPE_LABEL[b.type]}`} aria-describedby={mine.length ? mine.map((_, k) => `bloc-${n}-erreur-${k}`).join(' ') : undefined}>
             <header>
               <strong>Bloc {n} · {TYPE_LABEL[b.type]}</strong>
               {!disabled && (
@@ -77,7 +77,7 @@ export function BlockEditor({ blocks, onChange, issues, disabled }: Props) {
                   <label className="field">Étapes (une par ligne)<textarea value={b.steps.join('\n')} disabled={disabled} onChange={(e) => set(i, { ...b, steps: e.target.value.split('\n') })} aria-label={`Étapes du bloc ${n}`} /></label>
                 </>
               )}
-              {mine.map((x, k) => <p key={k} className="issue" role="alert"><code>{x.code}</code> {x.message}</p>)}
+              {mine.map((x, k) => <p id={`bloc-${n}-erreur-${k}`} key={k} className="issue" role="alert"><code>{x.code}</code> {x.message}</p>)}
             </div>
           </section>
         );

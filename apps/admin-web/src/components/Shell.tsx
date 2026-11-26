@@ -27,7 +27,7 @@ function RolePreviewSelector() {
       <label htmlFor="rp-select">Aperçu de rôle (synthétique, pas une connexion)</label>
       <select id="rp-select" value={persona.id} onChange={(e) => setPersonaId(e.target.value)}>
         {PERSONAS.map((p) => (
-          <option key={p.id} value={p.id}>{p.name} — {p.roles.map((r) => ROLE_INFO[r].label).join(' + ')}</option>
+          <option key={p.id} value={p.id}>{p.name} — {p.roles.map((r) => ROLE_INFO[r].label + (ROLE_INFO[r].state === 'proposed' ? ' (proposé)' : '')).join(' + ')}</option>
         ))}
       </select>
       <span className="roles">
@@ -44,11 +44,16 @@ export function Shell() {
   const [openPath, setOpenPath] = useState<string | null>(null);
   const open = openPath === loc.pathname;
   const first = useRef(true);
+  const menu = useRef<HTMLButtonElement>(null);
+  const sidebar = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (open) sidebar.current?.querySelector<HTMLElement>('nav a')?.focus();
+  }, [open]);
 
   // Move focus to the page title on every navigation (keyboard and screen-reader users).
   useEffect(() => {
     if (first.current) { first.current = false; return; }
-    document.getElementById('page-title')?.focus();
+    (document.getElementById('page-title') ?? document.getElementById('main'))?.focus();
   }, [loc.pathname]);
 
   const visible = MODULES.filter((m) => sectionLevel(persona.roles, m.id) !== 'none');
@@ -56,8 +61,14 @@ export function Shell() {
 
   return (
     <div className="shell">
-      <a className="skip-link" href="#main">Aller au contenu</a>
-      <aside className="sidebar" data-open={open} id="sidebar">
+      <a className="skip-link" href="#main" onClick={event => { event.preventDefault(); document.getElementById('main')?.focus(); }}>Aller au contenu</a>
+      <aside className="sidebar" data-open={open} id="sidebar" ref={sidebar}
+        onBlur={event => {
+          if (open && !event.currentTarget.contains(event.relatedTarget) && event.relatedTarget !== menu.current) setOpenPath(null);
+        }}
+        onKeyDown={event => {
+          if (open && event.key === 'Escape') { setOpenPath(null); menu.current?.focus(); }
+        }}>
         <div className="brand">
           <span className="brand-mark" aria-hidden="true">E</span>
           <span>Edupreneurs Admin<small>Prototype AD-1 · synthétique</small></span>
@@ -66,7 +77,7 @@ export function Shell() {
           <ul className="nav">
             {visible.map((m) => (
               <li key={m.id}>
-                <NavLink to={m.path} end={m.path === '/'}>
+                <NavLink onClick={() => setOpenPath(null)} to={m.path} end={m.path === '/'}>
                   <Icon name={m.id} />
                   <span>{m.label}</span>
                   {m.state !== 'fixture' && <span className="state">{m.state === 'partial' ? 'partiel' : m.state === 'unavailable' ? 'indispo.' : 'à venir'}</span>}
@@ -84,7 +95,7 @@ export function Shell() {
       <div className="main-col">
         <EnvironmentBanner />
         <div className="topbar">
-          <button type="button" className="btn menu-toggle" aria-expanded={open} aria-controls="sidebar" onClick={() => setOpenPath(open ? null : loc.pathname)}>
+          <button type="button" className="btn menu-toggle" ref={menu} aria-expanded={open} aria-controls="sidebar" onClick={() => setOpenPath(open ? null : loc.pathname)}>
             {open ? 'Fermer le menu' : 'Menu'}
           </button>
           <RolePreviewSelector />

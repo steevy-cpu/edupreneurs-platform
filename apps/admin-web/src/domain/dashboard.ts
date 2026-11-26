@@ -21,10 +21,10 @@ export interface DashboardData {
   m6: DayCount[];
   m7: { percent: number; sample: number };
   m8: { grades: string[]; subjects: string[]; k: number; cells: HeatCell[] };
-  m9: { gold7d: number; achievements7d: number };
+  m9: { goldByDay: DayCount[]; achievements7d: number };
   m12: { days: SyncDay[]; rejectionCodes: { code: string; count: number }[] };
   m15: CoverageDay[];
   m16: { medianDaysToPublish: number };
-  m17: { delivered: number; failed: number };
+  m17: { kind: string; delivered: number; failed: number }[];
   m18: HealthCheck[];
 }

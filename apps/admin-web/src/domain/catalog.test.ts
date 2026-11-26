@@ -19,7 +19,7 @@ describe('metric catalog (Admin-00 doc 3 is the source of truth)', () => {
       const def = METRIC_BY_ID[id];
       const tier = cells[cells.length - 3]!; // … | Tier | Avail. |
       const avail = cells[cells.length - 2]!;
-      if (tier.startsWith('T')) expect(tier, `${id} tier`).toContain(def.tier);
+      expect(def.tier, `${id} tier`).toBe(tier.split(' → ')[0]);
       const glyph = avail.startsWith('✅') ? 'existing' : avail.startsWith('🔧') ? 'queries' : 'new-event';
       expect(def.readiness, `${id} availability`).toBe(glyph);
     }

@@ -11,7 +11,7 @@ describe('responsive CSS contract', () => {
     expect(css).toMatch(/\.menu-toggle \{ display: inline-flex; \}/);
   });
   it('stacks the editor and two-column layouts on narrow screens', () => {
-    expect(css).toMatch(/max-width: 1180px[\s\S]*\.editor-grid \{ grid-template-columns: 1fr; \}/);
+    expect(css).toMatch(/max-width: 1180px[\s\S]*\.editor-grid \{ grid-template-columns: minmax\(0, 1fr\); \}/);
     expect(css).toMatch(/\.two-col \{ grid-template-columns: 1fr; \}/);
   });
   it('keeps tables scrollable inside their own region instead of scrolling the page', () => {

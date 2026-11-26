@@ -6,6 +6,7 @@ import { Badge, SyntheticBadge } from './ui';
 
 interface Props {
   id: MetricId;
+  scopeUnavailable?: boolean;
   /** The demo's fixed "now" (Haiti), used for freshness. */
   now: Date;
   /** Refresh instant of the aggregate behind this value (ISO). Absent for unavailable metrics. */
@@ -19,11 +20,11 @@ interface Props {
  * One metric, always with: definition, period, freshness and availability (Admin-00 doc 1 §A, doc 3).
  * `unavailable` is a first-class state — never a zero and never a guess.
  */
-export function MetricTile({ id, now, asOf, children, className = '' }: Props) {
+export function MetricTile({ id, now, asOf, children, scopeUnavailable, className = '' }: Props) {
   const def = METRIC_BY_ID[id];
   const { persona } = useRolePreview();
   const restricted = def.adminOnly === true && !persona.roles.includes('admin');
-  const available = def.refreshHours !== null && children !== undefined && !restricted;
+  const available = def.refreshHours !== null && children !== undefined && !restricted && !scopeUnavailable;
   const stale = available && asOf !== undefined && isStale(new Date(asOf), def.refreshHours, now);
   const state = restricted ? 'restricted' : !available ? 'unavailable' : stale ? 'stale' : 'fixture';
 
@@ -49,7 +50,7 @@ export function MetricTile({ id, now, asOf, children, className = '' }: Props) {
         <>
           <div className="tile-value dash" aria-label="Valeur indisponible">—</div>
           <p className="tile-reason">
-            {restricted ? 'Vue individuelle (T2) réservée au rôle administrateur, avec motif et audit. Aucune donnée individuelle n’est affichée dans ce prototype.' : def.unavailableReason ?? 'Aucune donnée.'}
+            {restricted ? 'Vue individuelle (T2) réservée au rôle administrateur, avec motif et audit. Aucune donnée individuelle n’est affichée dans ce prototype.' : scopeUnavailable ? 'Aucune donnée synthétique attribuable à votre contenu pour cet indicateur.' : def.unavailableReason ?? 'Aucune donnée.'}
           </p>
         </>
       )}
@@ -58,7 +59,7 @@ export function MetricTile({ id, now, asOf, children, className = '' }: Props) {
         <dt>Période</dt><dd>{def.period}</dd>
         <dt>Données au</dt>
         <dd>
-          {available && asOf ? (<>{fmtDateTime(asOf)} <span className="muted">({fmtAge(asOf, now)})</span>{stale && <span className="stale-note"> · plus de 2× l’intervalle de {def.refreshHours} h</span>}</>) : 'Aucune actualisation : pas de source'}
+          {available && asOf ? (<>{fmtDateTime(asOf)} <span className="muted">({fmtAge(asOf, now)})</span>{stale && <span className="stale-note"> · plus de 2× l’intervalle de {def.refreshHours} h</span>}</>) : 'Aucune valeur disponible'}
         </dd>
         <dt>Source</dt><dd>{READINESS_GLYPH[def.readiness]} {READINESS_LABEL[def.readiness]}</dd>
       </dl>

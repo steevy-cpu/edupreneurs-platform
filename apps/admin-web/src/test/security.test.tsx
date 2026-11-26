@@ -23,8 +23,10 @@ describe('scanners catch what they must', () => {
     }
   });
   it('validates the CSP of a built page', () => {
-    const good = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">`;
+    const good = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">`;
     expect(checkCsp(good)).toEqual([]);
+    expect(checkCsp(good.replace("script-src 'self'", "script-src 'self' https://example.test"))).not.toEqual([]);
+    expect(checkCsp(good.replace("connect-src 'none'", "connect-src 'self'; connect-src 'none'"))).not.toEqual([]);
     expect(checkCsp('<html></html>')).toHaveLength(1);
     expect(checkCsp(good.replace("connect-src 'none'", "connect-src *"))).not.toEqual([]);
     expect(checkCsp(good + '<script>alert(1)</script>')).toContain('inline <script> in built html');

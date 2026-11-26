@@ -35,7 +35,7 @@ export function scanSecrets(text, file) {
   const out = [];
   for (const [rule, re] of SECRET_PATTERNS) {
     const m = text.match(re);
-    if (m) out.push({ file, rule, sample: m[0].slice(0, 60) });
+    if (m) out.push({ file, rule, sample: '[redacted]' });
   }
   return out;
 }
@@ -44,7 +44,7 @@ export function scanSecrets(text, file) {
 export function scanUrls(text, file, allowed = ALLOWED_URL_PREFIXES) {
   const out = [];
   for (const m of text.matchAll(/https?:\/\/[^\s"'`)<>\\]+/g)) {
-    if (!ALLOWED_URL_EXACT.includes(m[0]) && !allowed.some((p) => m[0].startsWith(p))) out.push({ file, rule: 'unexpected-url', sample: m[0].slice(0, 80) });
+    if (!ALLOWED_URL_EXACT.includes(m[0]) && !allowed.some((p) => m[0].startsWith(p))) out.push({ file, rule: 'unexpected-url', sample: '[redacted URL]' });
   }
   return out;
 }
@@ -75,9 +75,11 @@ export function checkCsp(html) {
   const m = decoded.match(/http-equiv="Content-Security-Policy"\s+content="([^"]*)"/);
   if (!m) return ['Content-Security-Policy meta missing'];
   const csp = m[1];
-  for (const need of ["default-src 'none'", "connect-src 'none'", "script-src 'self'", "base-uri 'none'", "form-action 'none'"]) {
-    if (!csp.includes(need)) problems.push(`CSP lacks ${need}`);
+  const expected = new Set(["default-src 'none'", "script-src 'self'", "style-src 'self'", "img-src 'self' data:", "font-src 'self'", "connect-src 'none'", "base-uri 'none'", "form-action 'none'"]);
+  for (const directive of csp.split(';').map(s => s.trim().replace(/\s+/g, ' ')).filter(Boolean)) {
+    if (!expected.delete(directive)) problems.push('Unexpected or repeated CSP directive');
   }
+  for (const missing of expected) problems.push(`CSP lacks ${missing}`);
   if (/unsafe-inline|unsafe-eval|\*/.test(csp)) problems.push('CSP allows unsafe-inline/unsafe-eval/wildcard');
   if (/<script(?![^>]*\bsrc=)[^>]*>/i.test(decoded)) problems.push('inline <script> in built html');
   return problems;

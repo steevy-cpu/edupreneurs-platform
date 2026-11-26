@@ -7,7 +7,7 @@ import { RightsBadge, StatusBadge } from '../components/StatusBadge';
 import { Badge, Notice, PageHeader } from '../components/ui';
 import { diffBlocks, validateBlocks, type Block } from '../domain/blocks';
 import {
-  canEditDraft, canPublish, canReview, canSubmit, canWithdraw, findRevision, lessonTitle, revisionsOfLesson,
+  canEditDraft, canPublish, canReview, canSubmit, canWithdraw, findRevision, lessonTitle, revisionsOfLesson, rollbackTarget,
   sourcesReady, type Affordance, type Locale, type Result, type Revision, type RightsStatus, type SourceRef,
 } from '../domain/editorial';
 import { fmtDateTime } from '../i18n/format';
@@ -22,7 +22,7 @@ export function RevisionPage() {
   const rev = findRevision(state, id);
   if (!rev) {
     return (
-      <div className="card"><p className="empty">Révision introuvable. <Link to="/contenu">Retour au catalogue</Link></p></div>
+      <div className="card"><PageHeader title="Révision introuvable" /><p className="empty"> <Link to="/contenu">Retour au catalogue</Link></p></div>
     );
   }
   return <RevisionView key={rev.id} rev={rev} />;
@@ -40,12 +40,13 @@ function RevisionView({ rev }: { rev: Revision }) {
   const saved = rev.blocks[locale];
   const working = useMemo<Block[]>(() => (editable.allowed ? drafts[locale] : saved) ?? [], [editable.allowed, drafts, locale, saved]);
   const issues = useMemo(() => (working.length || saved ? validateBlocks(working) : []), [working, saved]);
+  const localeDirty = editable.allowed && JSON.stringify(drafts[locale]) !== JSON.stringify(saved);
   const dirty = editable.allowed && JSON.stringify(drafts) !== JSON.stringify(rev.blocks);
 
   const lessonRevs = revisionsOfLesson(state, rev.lessonId);
   const previous = lessonRevs.find((r) => r.number < rev.number);
   const diff = previous && rev.blocks.fr && previous.blocks.fr ? diffBlocks(previous.blocks.fr, rev.blocks.fr) : null;
-  const hasRollback = rev.status === 'published' && lessonRevs.some((r) => r.status === 'superseded');
+  const target = rollbackTarget(state, rev);
 
   const aff: Record<Action, Affordance> = {
     submit: dirty ? { allowed: false, reason: 'Enregistrer d’abord les modifications.' } : canSubmit(persona, rev),
@@ -53,7 +54,7 @@ function RevisionView({ rev }: { rev: Revision }) {
     changes: canReview(persona, rev),
     publish: canPublish(persona, rev),
     withdraw: canWithdraw(persona, rev),
-    rollback: hasRollback ? canWithdraw(persona, { ...rev, status: 'published' }) : { allowed: false, reason: 'Aucune version antérieure à rétablir.' },
+    rollback: target ? (target.authorId === persona.id ? { allowed: false, reason: 'L’auteur ne peut pas republier sa propre révision.' } : canWithdraw(persona, rev)) : { allowed: false, reason: 'Aucune version antérieure à rétablir.' },
   };
 
   const run = (a: Action, reason: string): Result => {
@@ -109,15 +110,15 @@ function RevisionView({ rev }: { rev: Revision }) {
               </div>
             </div>
             {locale === 'ht' && <p className="small muted">Version créole : brouillon synthétique, non relu par un éducateur.</p>}
-            {working.length === 0 && saved === undefined ? (
+            {!editable.allowed && working.length === 0 && saved === undefined ? (
               <p className="empty">Aucune version dans cette langue pour cette révision.</p>
             ) : (
               <BlockEditor blocks={working} onChange={setBlocks} issues={issues} disabled={!editable.allowed} />
             )}
             {editable.allowed && (
               <div className="row">
-                <button type="button" className="btn primary" disabled={!dirty} onClick={() => store.dispatch({ type: 'update_blocks', revisionId: rev.id, locale, blocks: drafts[locale] ?? [] }, persona)}>Enregistrer le brouillon (synthétique)</button>
-                {dirty ? <Badge tone="warn">Modifications non enregistrées</Badge> : <Badge tone="outline">Enregistré</Badge>}
+                <button type="button" className="btn primary" disabled={!localeDirty} onClick={() => store.dispatch({ type: 'update_blocks', revisionId: rev.id, locale, blocks: drafts[locale] ?? [] }, persona)}>Enregistrer le brouillon (synthétique)</button>
+                {localeDirty ? <Badge tone="warn">Modifications non enregistrées</Badge> : <Badge tone="outline">Enregistré</Badge>}
                 {issues.length > 0 && <Badge tone="danger">{issues.length} erreur{issues.length > 1 ? 's' : ''} de validation</Badge>}
               </div>
             )}
@@ -180,7 +181,7 @@ function RevisionView({ rev }: { rev: Revision }) {
       {action && (
         <ConfirmDialog
           title={DIALOG[action].title}
-          object={`${title}, version ${rev.number} (${rev.id})`}
+          object={`${title}, version ${rev.number} (${rev.id})${action === 'rollback' && target ? ` → version ${target.number} (${target.id})` : ''}`}
           reasonLabel={DIALOG[action].label}
           reasonRequired={DIALOG[action].required}
           confirmLabel={DIALOG[action].confirm}

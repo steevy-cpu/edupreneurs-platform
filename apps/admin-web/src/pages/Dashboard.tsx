@@ -44,7 +44,8 @@ export function Dashboard() {
   const now = new Date(data.now);
   const show = (id: MetricId) => level === 'full' || LIMITED_VIEW.has(id);
   const asOf = (id: MetricId) => data.asOf[id];
-  const counts = pipelineCounts(editorial);
+  const ownContent = level === 'limited' && persona.roles.includes('editor') && !persona.roles.some(r => r === 'publisher' || r === 'reviewer');
+  const counts = pipelineCounts(ownContent ? { ...editorial, revisions: editorial.revisions.filter(r => r.authorId === persona.id) } : editorial);
   const waiting = counts.in_review;
 
   const withValue = METRICS.filter((m) => m.refreshHours !== null && !m.adminOnly).length;
@@ -58,11 +59,11 @@ export function Dashboard() {
 
       <Notice tone="warn" title="Rien ici n’est réel.">
         Valeurs fabriquées pour la démonstration, date de référence fixe : {fmtDay(data.now.slice(0, 10))} 2026 (Haïti). {withValue} indicateurs ont un aperçu synthétique,
-        {' '}{without} sont indisponibles faute de source dans le backend. Aucun enregistrement individuel d’élève n’est affiché ; les groupes de moins de K = {data.m8.k} sont masqués (valeur provisoire, décision du propriétaire).
+        {' '}{without} n’ont pas de valeur affichable dans cet aperçu. Aucun enregistrement individuel d’élève n’est affiché ; les groupes de moins de K = {data.m8.k} sont masqués (valeur provisoire, décision du propriétaire).
       </Notice>
       {level === 'limited' && (
         <Notice tone="violet" title="Accès limité (◐).">
-          Le rôle de {persona.name} voit des statistiques limitées. Ici : M5, M7, M8, M16. La limite réelle (par exemple « son contenu ») sera appliquée par le serveur.
+          Le rôle de {persona.name} voit des statistiques limitées. Ici : M5, M7, M8, M16. {ownContent ? 'Seules vos révisions sont comptées. Les agrégats sans attribution restent indisponibles.' : 'Cet aperçu présente un sous-ensemble synthétique.'}
         </Notice>
       )}
 
@@ -89,7 +90,7 @@ export function Dashboard() {
       <Section id="apprentissage" title="Apprentissage" hint="leçons, exercices, précision">
         <div className="grid">
           {show('M5') && (
-            <MetricTile id="M5" now={now} asOf={asOf('M5')}>
+            <MetricTile id="M5" scopeUnavailable={ownContent} now={now} asOf={asOf('M5')}>
               <div className="tile-value">{fmtNumber(data.m5.total7d)}<small>leçons terminées</small></div>
               <BarChart title="Leçons terminées par jour" unit="Leçons" points={dayPoints(data.m5.byDay)} />
             </MetricTile>
@@ -101,9 +102,9 @@ export function Dashboard() {
             </MetricTile>
           )}
           {show('M7') && (
-            <MetricTile id="M7" now={now} asOf={asOf('M7')}>
+            <MetricTile id="M7" scopeUnavailable={ownContent} now={now} asOf={asOf('M7')}>
               <div className="tile-value">{fmtPercent(data.m7.percent)}<small>correctes (notes serveur)</small></div>
-              <p className="muted">Sur {fmtNumber(data.m7.sample)} réponses. Jamais affiché par apprenant.</p>
+              <p className="muted">Classe synthétique de 7AF · {fmtNumber(data.m7.sample)} réponses. Jamais affiché par apprenant.</p>
             </MetricTile>
           )}
         </div>
@@ -111,7 +112,7 @@ export function Dashboard() {
 
       {show('M8') && (
         <Section id="engagement" title="Engagement par classe et matière">
-          <MetricTile id="M8" now={now} asOf={asOf('M8')}>
+          <MetricTile id="M8" scopeUnavailable={ownContent} now={now} asOf={asOf('M8')}>
             <Heatmap grades={data.m8.grades} subjects={data.m8.subjects} cells={data.m8.cells} k={data.m8.k} />
           </MetricTile>
         </Section>
@@ -124,9 +125,20 @@ export function Dashboard() {
               {(() => {
                 const t = data.m12.days.reduce((a, d) => a + d.accepted + d.duplicate + d.rejected + d.conflict, 0);
                 const rej = data.m12.days.reduce((a, d) => a + d.rejected, 0);
-                return <div className="tile-value">{fmtPercent((rej / t) * 100)}<small>opérations rejetées</small></div>;
+                return <div className="tile-value">{t ? fmtPercent((rej / t) * 100) : 'Indisponible'}<small>opérations rejetées</small></div>;
               })()}
               <BarChart title="Opérations rejetées par jour" unit="Rejetées" points={data.m12.days.map((d) => ({ label: fmtDay(d.date), value: d.rejected }))} tone="warn" />
+              <TableWrap label="Résultats de synchronisation par jour">
+                <table className="data">
+                  <caption>Part des opérations par résultat</caption>
+                  <thead><tr>{['Jour', 'Acceptées', 'Doublons', 'Rejetées', 'Conflits'].map(label => <th key={label} scope="col">{label}</th>)}</tr></thead>
+                  <tbody>{data.m12.days.map(d => {
+                    const outcomes = [d.accepted, d.duplicate, d.rejected, d.conflict];
+                    const total = outcomes.reduce((a, b) => a + b, 0);
+                    return <tr key={d.date}><th scope="row">{fmtDay(d.date)}</th>{outcomes.map((n, i) => <td key={i}>{total ? fmtPercent(100 * n / total) : 'Indisponible'}</td>)}</tr>;
+                  })}</tbody>
+                </table>
+              </TableWrap>
               <TableWrap label="Codes de rejet">
                 <table className="data">
                   <caption>Codes de rejet (7 jours)</caption>
@@ -146,7 +158,7 @@ export function Dashboard() {
             <MetricTile id="M16" now={now} asOf={asOf('M16')}>
               <div className="tile-value">{waiting}<small>en attente de relecture</small></div>
               <SegmentBar label="Révisions par statut" segments={STATUS_ORDER.map((s) => ({ key: s, label: STATUS_LABEL[s], value: counts[s] }))} />
-              <p className="muted small">Calculé en direct sur l’aperçu éditorial : une action dans <Link to="/contenu">Contenu</Link> change ce graphique. Durée médiane brouillon → publié : {data.m16.medianDaysToPublish} j (fixture).</p>
+              <p className="muted small">Calculé en direct sur l’aperçu éditorial : une action dans <Link to="/contenu">Contenu</Link> change ce graphique. Durée médiane brouillon → publié : {ownContent ? 'indisponible pour ce périmètre' : `${data.m16.medianDaysToPublish} j (synthétique)`}.</p>
             </MetricTile>
           )}
           {level === 'full' && (
@@ -184,15 +196,16 @@ export function Dashboard() {
                 </ul>
               </MetricTile>
               <MetricTile id="M17" now={now} asOf={asOf('M17')}>
-                <div className="tile-value">{data.m17.delivered} / {data.m17.failed}<small>livrées / en échec</small></div>
+                <ul>{data.m17.map(n => <li key={n.kind}>{n.kind} · {n.delivered} livrées / {n.failed} en échec</li>)}</ul>
               </MetricTile>
             </div>
           </Section>
 
-          <Section id="autres" title="Autres indicateurs du catalogue" hint="sans source aujourd’hui, sauf M9">
+          <Section id="autres" title="Autres indicateurs du catalogue" hint="disponibilité selon l’indicateur">
             <div className="grid">
               <MetricTile id="M9" now={now} asOf={asOf('M9')}>
-                <div className="tile-value">{fmtNumber(data.m9.gold7d)}<small>pièces d’or (7 j)</small></div>
+                <div className="tile-value">{fmtNumber(data.m9.goldByDay.reduce((sum, d) => sum + d.count, 0))}<small>pièces d’or (7 j)</small></div>
+                <BarChart title="Or attribué par jour" unit="Pièces d’or" points={dayPoints(data.m9.goldByDay)} />
                 <p className="muted">{fmtNumber(data.m9.achievements7d)} succès attribués</p>
               </MetricTile>
               {(['M10', 'M11', 'M14', 'M19', 'M20', 'M21'] as MetricId[]).map((id) => <MetricTile key={id} id={id} now={now} />)}

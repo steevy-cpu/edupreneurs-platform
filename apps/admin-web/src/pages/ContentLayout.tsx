@@ -1,19 +1,20 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useMatch } from 'react-router-dom';
 import { Notice, PageHeader } from '../components/ui';
 import { pipelineCounts } from '../domain/editorial';
 import { useEditorial } from '../state/Services';
 
 export function ContentLayout() {
+  const revision = useMatch('/contenu/revision/:id');
   const { state, store } = useEditorial();
   const counts = pipelineCounts(state);
   return (
     <>
-      <PageHeader
+      {!revision && <PageHeader
         title="Contenu éducatif"
         actions={<button type="button" className="btn" onClick={() => store.reset()}>Réinitialiser les fixtures</button>}
       >
         Aperçu du flux éditorial sur des leçons <strong>synthétiques</strong> au format de blocs v1 (titre, paragraphe, exemple, encadré).
-      </PageHeader>
+      </PageHeader>}
       <Notice tone="warn" title="Aucune publication réelle.">
         Approuver, publier ou retirer ne change que la mémoire de cette page ; le rechargement restaure les fixtures. Les règles de rôle sont
         reproduites pour la démonstration : <strong>FastAPI décidera réellement</strong>. Les formats de blocs v2 (images, formules, audio) ne sont

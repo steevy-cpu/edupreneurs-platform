@@ -20,8 +20,9 @@ export function Heatmap({ grades, subjects, cells, k }: { grades: string[]; subj
               <th scope="row">{g}</th>
               {subjects.map((s) => {
                 const c = at(g, s);
-                if (!c || c.learners === null) return <td key={s} className="suppressed">Masqué <small>groupe &lt; {k}</small></td>;
-                return <td key={s} className={`h${bucket(c.learners)}`}>{fmtNumber(c.learners)}<small>{fmtNumber(c.answers ?? 0)} réponses</small></td>;
+                if (!c) return <td key={s}>Donnée indisponible</td>;
+                if (c.learners === null || c.learners < k) return <td key={s} className="suppressed">Masqué <small>groupe &lt; {k}</small></td>;
+                return <td key={s} className={`h${bucket(c.learners)}`}>{fmtNumber(c.learners)}<small>{c.answers === null ? 'Réponses inconnues' : `${fmtNumber(c.answers)} réponses`}</small></td>;
               })}
             </tr>
           ))}

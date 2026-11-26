@@ -34,9 +34,9 @@ function heat(): HeatCell[] {
   const cells: HeatCell[] = [];
   GRADES.forEach((g, gi) => {
     SUBJECTS.forEach((s, si) => {
-      const learners = Math.round(8 + rnd(gi * 31 + si * 7 + 3) * 420 * (si === 0 ? 1.4 : 1) * (gi > 4 ? 0.5 : 1));
+      const learners = (gi === 6 && si === 5) ? 3 : Math.round(rnd(gi * 31 + si * 7 + 3) * 420 * (si === 0 ? 1.4 : 1) * (gi > 4 ? 0.5 : 1));
       // Server-side K-suppression, imitated: a group smaller than K is never sent to the browser.
-      const hidden = learners < K_FLOOR + 12 && rnd(gi * 17 + si) > 0.45;
+      const hidden = learners < K_FLOOR;
       cells.push(hidden ? { grade: g, subject: s, learners: null, answers: null } : { grade: g, subject: s, learners, answers: learners * Math.round(9 + rnd(si + gi) * 9) });
     });
   });
@@ -53,6 +53,8 @@ export function buildDashboardFixture(): DashboardData {
     const conflict = Math.round(total * 0.0015);
     return { date: d.date, accepted: total - rejected - duplicate - conflict, duplicate, rejected, conflict };
   });
+  const dailySeries = series(14, 1500, 520, 11);
+  const rejections = syncDays.reduce((sum, d) => sum + d.rejected, 0);
   const coverageDays = Array.from({ length: 14 }, (_, i) => ({ date: haitiDate(-i), covered: i < 9 || i === 11 }));
 
   return {
@@ -68,7 +70,7 @@ export function buildDashboardFixture(): DashboardData {
       weekStart: haitiDate((11 - i) * 7 + 3),
       count: Math.round(180 + i * 9 + rnd(i + 5) * 70),
     })),
-    m3: { daily: 1905, monthly: 6220, dailySeries: series(14, 1500, 520, 11) },
+    m3: { daily: dailySeries[dailySeries.length - 1]!.count, monthly: 6220, dailySeries },
     m5: (() => {
       const byDay = series(7, 1180, 420, 21);
       return { byDay, total7d: byDay.reduce((a, d) => a + d.count, 0) };
@@ -76,18 +78,18 @@ export function buildDashboardFixture(): DashboardData {
     m6: series(14, 15500, 5200, 31),
     m7: { percent: 71, sample: 184_250 },
     m8: { grades: GRADES, subjects: SUBJECTS, k: K_FLOOR, cells: heat() },
-    m9: { gold7d: 48_200, achievements7d: 1_136 },
+    m9: { goldByDay: series(7, 6200, 1400, 74), achievements7d: 1_136 },
     m12: {
       days: syncDays,
       rejectionCodes: [
         { code: 'question_unknown', count: 61 },
         { code: 'stale_revision', count: 38 },
-        { code: 'invalid_payload', count: 12 },
+        { code: 'invalid_payload', count: rejections - 61 - 38 },
       ],
     },
     m15: coverageDays,
     m16: { medianDaysToPublish: 6.5 },
-    m17: { delivered: 0, failed: 0 },
+    m17: [{ kind: 'Rappel de leçon (exemple)', delivered: 0, failed: 0 }],
     m18: [
       { id: 'api', label: 'API', state: 'ok', note: 'Réponse /health à l’instant (fixture).' },
       { id: 'db', label: 'Base de données', state: 'ok', note: 'Joignable (fixture).' },
