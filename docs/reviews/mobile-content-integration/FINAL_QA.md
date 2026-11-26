@@ -1,6 +1,25 @@
 # Independent Mobile-02 and Content-Delivery-00 QA
 
-**Verdict on 26 November 2026: hold #3 and #22 as an integration.** This draft records preliminary results while the developer prepares a candidate. The findings below apply to the immutable snapshot identified here. Final candidate verification, corrective retesting and device acceptance are pending.
+**Hold the consolidated merge.** Independent verification targets [PR #25 at 3ed9a197164fa177d8a353aa71e0b52c69eddd1e](https://github.com/steevy-cpu/edupreneurs-platform/commit/3ed9a197164fa177d8a353aa71e0b52c69eddd1e). The existing live suites passed. Five additional probes failed, including two ways a replacement download can leave a learner with the wrong or unreadable offline revision.
+
+## Published candidate results
+
+| Gate | Independent evidence on the pinned SHA |
+| --- | --- |
+| Database and isolation | New GitHub-hosted VM with project `edu-qa-45840800322-1`. The QA wrapper verified the database and gateway container bindings and effective service/Auth URLs before the suites. The #20 harness reported DB port 41002, gateway 41001 and API 41000. The shared override was unset. A separate dry check still found QA-7, so the isolated execution cannot certify arbitrary harness configurations. |
+| PostgreSQL and backend | 215 pgTAP assertions passed, 148 pytest cases passed, and all 215 pgTAP assertions passed again after pytest. |
+| Mobile static checks and real stack | Generated API types fresh, app and test TypeScript passed, all 441 cases in 30 mobile Jest suites passed. These include real Auth, SQLite, restart/reconnect, server scoring, lost-response recovery, account isolation, download removal and real withdrawal. |
+| Independent negative and privacy cases | 6 passed, 5 failed. Home and Réviser displayed the online lesson title, omitted catalog entries were identified as unlisted, late response bodies were discarded, queued work stayed account-specific, and a late Auth refresh could not restore learner A after learner B signed in. QA-2, QA-3, QA-5, QA-6 and QA-7 reproduced. |
+| Local cross-check | Across component, unit, experience, delivery and independent probes, 399 passed and 8 failed. Five were the same product/harness findings. The other three were local socket-bind denials; those three passed on GitHub. |
+| Android device acceptance | Independent run in progress; see the final device evidence below. |
+
+[Independent run and jobs](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45840800322) · [Stack log](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45840800322/job/139981680977) · [Stack results artifact](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45840800322/artifacts/15128201631) · [Review on #25](https://github.com/steevy-cpu/edupreneurs-platform/pull/25#pullrequestreview-6076012498).
+
+### Device evidence from the candidate
+
+I inspected the 19 original 480×800 screenshots committed by the implementer. At scale 2.0 the French and Creole path screenshots show the separate read and download buttons, including their text. The online answer screenshot shows a durable local confirmation; the review and profile screenshots distinguish pending from acknowledged work. These captures come from the implementer's emulator session. [Screenshot directory](https://github.com/steevy-cpu/edupreneurs-platform/tree/3ed9a197164fa177d8a353aa71e0b52c69eddd1e/docs/mobile-integration-2026-11-26/screenshots).
+
+**QA-9 · Medium, stale connectivity message after recovery.** In the reconnect flow, take the backend offline, attempt the online reader, restore the backend, then retry successfully before the next sync. Screenshot 28 shows the reloaded reader labeled “En ligne · non téléchargée” and simultaneously “Hors ligne”. The shared header derives its connectivity badge from the previous sync report in `src/ui/shell.tsx`. Distinguish last-sync status from current reader reachability, or clear the stale indication on confirmed service contact. Add a recovery screen assertion covering the interval between successful retrieval and subsequent sync. [Reconnect screenshot](https://github.com/steevy-cpu/edupreneurs-platform/blob/3ed9a197164fa177d8a353aa71e0b52c69eddd1e/docs/mobile-integration-2026-11-26/screenshots/28-online-retry-ok.png).
 
 ## Provenance
 
@@ -11,11 +30,11 @@
 | #22 | `e30c81645b528ab508b94796e7954a57fd1e9ef5` | Content delivery, based on #3. [CI passed](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45818568188) |
 | #15 | `202c12f680d0ac67cf793d39a2fbe8dcdaed3cb2` | Native corrections, based on #8. [CI passed](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45625961541) |
 | Independently tested local snapshot | `fec0920370d8f91bf975733cdbac08d5b38c3f60` | Merges #3 and #22 onto hardened main. Predates the local native reconciliation. |
-| Published consolidated candidate | Pending | Requires a GitHub ref and exact SHA. |
+| Published consolidated candidate | `3ed9a197164fa177d8a353aa71e0b52c69eddd1e` | [Draft #25](https://github.com/steevy-cpu/edupreneurs-platform/pull/25), based on hardened main. |
 
 QA used a detached checkout, its own Node dependencies, synthetic accounts, temporary SQLite files and a fake API. The QA branch contains review materials only. The platform-stabilization commit remains on its original branch. Product comparisons use the repository's Lovable inventory, Mobile-02 report and Content-Delivery-00 decisions. No live prototype comparison was performed.
 
-## Evidence by gate
+## Preliminary evidence on fec0920
 
 | Gate | Observed result |
 | --- | --- |
@@ -26,7 +45,7 @@ QA used a detached checkout, its own Node dependencies, synthetic accounts, temp
 | Real Supabase, API/Auth and offline sync suites | Blocked by sandbox denial at the OrbStack socket. End-to-end upload, server receipt, retry and reconciliation remain unverified here. |
 | API 24 at 320 dp | All six cells pending: fr and ht, each at 1.0, 1.3 and 2.0. ADB failed to bind its local listener. No screenshots, physical-device timings or layout verdict are available for this snapshot. |
 
-### Functional coverage
+### Functional coverage on fec0920
 
 1. Opening an online lesson and answering it left no permanent lesson in SQLite. The reader and quiz used the in-memory copy.
 2. A saved lesson reopened offline after closing and reopening database handles. OS process death on Android remains pending.
@@ -39,7 +58,7 @@ QA used a detached checkout, its own Node dependencies, synthetic accounts, temp
 9. The current server declares only offline practice. The runtime client accepted an unsupported assessment mode (QA-6). There is no controlled-exam implementation or evidence of an actual exam disclosure.
 10. Mock components establish wording and actions only. At 320 dp, scroll to the last answer and both catalog actions, activate each one, back out and reopen in both languages. Capture Home, Réviser, Learn, reader and quiz with the locale, scale, build SHA and API level.
 
-## Confirmed findings
+## Preliminary findings and reproductions
 
 Severity reflects effect on this slice. Each row describes one reproducible scenario, its observed result, its expected result and the regression to keep. The executable cases accompany this report.
 
@@ -67,7 +86,7 @@ On `aefbad60aeb3b1f892c1697d27b90ad6586072b0`, I populated temporary SQLite with
 
 ## Reproduction
 
-Run in a separate checkout pinned to the SHA above. Use the matching locked dependencies. Run the existing suite before copying the independent probes so the counts stay distinct.
+Use a separate checkout at the recorded snapshot. For the published run, use the full SHA in `CANDIDATE`. Use the matching locked dependencies. Run the existing suite before copying the independent probes so the counts stay distinct.
 
 ```sh
 cd apps/student-native
