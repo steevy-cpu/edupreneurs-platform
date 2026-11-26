@@ -21,6 +21,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Select this runner's disposable database project
+        run: |
+          sed -i "s/^project_id = .*/project_id = \"edu-ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}\"/" supabase/config.toml
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -78,10 +82,6 @@ jobs:
 
       - name: Mobile app — core tests (real SQLite, real local API and Auth)
         working-directory: apps/student-native
-        env:
-          # The runner's stack is disposable and uses the default project_id (mon-edupreneur), which the
-          # test harness otherwise refuses. This is the only place the override is set.
-          EDU_TEST_ALLOW_SHARED_STACK: "1"
         run: npx jest
 
       - name: Stop local stack

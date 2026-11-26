@@ -24,6 +24,11 @@ export class ApiError extends Error {
   }
 }
 
+// A proxy or service can return an unreadable body. Its HTTP status still rules out "no Internet".
+export function receivedHttpResponse(error: ApiError): boolean {
+  return error.kind === 'server' || (error.status !== null && error.status >= 100);
+}
+
 export function isTransient(error: unknown): boolean {
   return (
     error instanceof ApiError &&

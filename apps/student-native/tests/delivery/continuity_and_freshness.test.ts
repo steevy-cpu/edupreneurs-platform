@@ -262,13 +262,14 @@ describe('local schema upgrades', () => {
     await after.close();
   });
 
-  test('content v1 → v2 keeps saved lessons and questions and adds server_gone_at (null)', async () => {
+  test('content v1 → v3 keeps saved lessons and questions and adds server_gone_at (null)', async () => {
     const dbs = nodeDatabases(dir);
     const first = await ContentStore.open(await dbs('content'));
     await first.replaceLesson(lesson() as any, '2026-11-24T10:00:00.000Z');
     await first.close();
     // Simulate a phone that is still on content schema v1.
     const raw = await dbs('content');
+    await raw.run('DROP TABLE download_requests');
     await raw.run('ALTER TABLE saved_lessons DROP COLUMN server_gone_at');
     await raw.run('PRAGMA user_version = 1');
     await raw.close();

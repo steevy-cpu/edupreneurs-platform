@@ -9,7 +9,7 @@
  */
 import type { Locale } from '../api/types';
 import type { ContentStore } from '../db/contentStore';
-import { SyncReport, wasUnreachable } from '../sync/engine';
+import { SyncReport, serviceUnreachable } from '../sync/engine';
 
 export interface GradeOption {
   code: string;
@@ -62,9 +62,9 @@ export type GradeListNotice = 'none' | 'loading' | 'offline' | 'not_downloaded';
 
 export function gradeListNotice(
   fromCatalog: boolean,
-  sync: { phase: 'idle' | 'syncing' | 'waiting_to_retry'; lastReport: SyncReport | null },
+  sync: { phase: 'idle' | 'syncing' | 'waiting_to_retry'; lastReport: SyncReport | null; serviceReachable?: boolean | null },
 ): GradeListNotice {
   if (fromCatalog) return 'none';
   if (sync.phase !== 'idle') return 'loading';
-  return wasUnreachable(sync.lastReport) ? 'offline' : 'not_downloaded';
+  return serviceUnreachable(sync) ? 'offline' : 'not_downloaded';
 }

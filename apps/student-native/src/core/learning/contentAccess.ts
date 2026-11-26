@@ -1,5 +1,5 @@
+import { ApiError, receivedHttpResponse } from '../api/errors';
 import { ApiClient } from '../api/client';
-import { isTransient } from '../api/errors';
 import type { LessonResponse, Locale } from '../api/types';
 import { validateLessonSnapshot } from '../api/validate';
 import type { AccountStore } from '../db/accountStore';
@@ -128,14 +128,17 @@ export async function readOnline(
 export type OpenResult =
   | { kind: 'ready'; lesson: ReadableLesson }
   /** Online reading was asked for but failed. `downloaded` is the saved copy, if there is one, to offer instead. */
-  | { kind: 'unavailable'; reason: 'offline' | 'not_found' | 'session' | 'invalid'; downloaded: ReadableLesson | null }
+  | { kind: 'unavailable'; reason: 'offline' | 'service' | 'not_found' | 'session' | 'invalid'; downloaded: ReadableLesson | null }
   /** Opened without asking for the network and there is no saved copy. */
   | { kind: 'missing' };
 
-function reasonOf(error: unknown): 'offline' | 'not_found' | 'session' | 'invalid' {
-  if (isTransient(error)) return 'offline';
+function reasonOf(error: unknown): 'offline' | 'service' | 'not_found' | 'session' | 'invalid' {
   const kind = (error as { kind?: string } | null)?.kind;
   const status = (error as { status?: number | null } | null)?.status;
+  if (kind === 'server' || kind === 'timeout') return 'service';
+  if (kind === 'network') {
+    return error instanceof ApiError && receivedHttpResponse(error) ? 'invalid' : 'offline';
+  }
   if (kind === 'auth_required' || kind === 'aborted') return 'session';
   if (status === 404) return 'not_found';
   return 'invalid';
@@ -179,12 +182,7 @@ export async function downloadForOffline(
   locale: Locale,
   env: { now: () => Date },
 ): Promise<SaveLessonResult> {
-  try {
-    return await saveLessonOffline(api, content, lessonId, locale, env);
-  } catch (error) {
-    if (isNotPublished(error)) await content.markServerGone(lessonId, locale, env.now().toISOString());
-    throw error;
-  }
+  return saveLessonOffline(api, content, lessonId, locale, env);
 }
 
 /** The server's answer for "unknown, draft, rejected, withdrawn or unpublished": one identical 404. */

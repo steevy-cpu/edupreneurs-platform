@@ -7,6 +7,8 @@ import React from 'react';
 import Learn from '../../src/app/learn';
 import LessonReader from '../../src/app/lesson/[id]';
 import Quiz from '../../src/app/quiz/[id]';
+import { ApiClient } from '../../src/core/api/client';
+import { completeLesson } from '../../src/core/learning/actions';
 import { ApiError } from '../../src/core/api/errors';
 import type { LessonResponse, Locale } from '../../src/core/api/types';
 import { PREF_GRADE, PREF_LAST_LESSON, PREF_SUBJECT } from '../../src/core/learning/overview';
@@ -115,6 +117,42 @@ describe('read online', () => {
     await screen.press('Réessayer');
     await screen.settle();
     expect(screen.has('En ligne · non téléchargée')).toBe(true);
+  });
+
+  test.each(['fr', 'ht'] as const)('a 503 offers service retry; recovery keeps pending work (%s)', async (locale) => {
+    const app = await signIn(locale);
+    const lesson = serverLesson(locale);
+    await completeLesson(app.session.account, { lessonId: lesson.lesson_id, revisionId: lesson.revision_id }, app.services.env);
+    app.sync.lastReport = { outcome: 'offline', errorCode: 'unreachable', confirmed: 0, needsAttention: 0, pulled: 0 };
+    let status = 503;
+    app.api = new ApiClient({
+      baseUrl: 'https://unused.invalid',
+      getAccessToken: async () => 'synthetic',
+      onReachability: (reachable) => { app.sync.serviceReachable = reachable; },
+      fetchImpl: async () => {
+        if (status === 0) throw new TypeError('network unavailable');
+        return { status, text: async () => JSON.stringify(lesson) } as Response;
+      },
+    });
+    navigation.params = { id: OTHER_LESSON_ID, mode: 'online' };
+    const screen = await phone.render(<LessonReader />);
+    expect(screen.has(app.t('readerFailService'))).toBe(true);
+    expect(screen.has(app.t('readerFailOffline'))).toBe(false);
+
+    status = 0;
+    await screen.press(app.t('readerRetry'));
+    await screen.settle();
+    expect(screen.has(app.t('readerFailOffline'))).toBe(true);
+    expect(screen.has(app.t('offline'))).toBe(true);
+
+    status = 200;
+    await screen.press(app.t('readerRetry'));
+    await screen.settle();
+    expect(screen.text()).toContain(lesson.title);
+    expect(screen.has(app.t('offline'))).toBe(false);
+    expect(app.sync.serviceReachable).toBe(true);
+    expect(app.sync.lastReport.outcome).toBe('offline');
+    expect((await app.session.account.syncSummary()).pending).toBe(1);
   });
 
   test('no connection but a saved copy exists: the saved copy is offered', async () => {

@@ -195,6 +195,37 @@ describe('read online', () => {
 });
 
 describe('download for offline study', () => {
+  test('a later selection that fails still supersedes an older in-flight request', async () => {
+    const d = await device();
+    try {
+      const api = new FakeApi();
+      await downloadForOffline(api, d.content, LESSON, 'fr', env);
+      let respond!: (value: LessonResponse) => void;
+      let started!: () => void;
+      const entered = new Promise<void>((resolve) => { started = resolve; });
+      const delayed = { getLesson: () => new Promise<LessonResponse>((resolve) => { respond = resolve; started(); }) };
+      const older = downloadForOffline(delayed, d.content, LESSON, 'fr', env);
+      await entered;
+      api.mode = 'offline';
+      await expect(downloadForOffline(api, d.content, LESSON, 'fr', env)).rejects.toBeInstanceOf(ApiError);
+      respond(lesson(REV2, 2));
+      expect((await older).outcome).toBe('superseded');
+      expect((await d.content.getLesson(LESSON, 'fr'))?.revisionId).toBe(REV1);
+    } finally { await d.close(); }
+  });
+
+  test('an explicit later selection can restore an editorially rolled-back revision', async () => {
+    const d = await device();
+    try {
+      const api = new FakeApi();
+      api.body = lesson(REV2, 2);
+      await downloadForOffline(api, d.content, LESSON, 'fr', env);
+      api.body = lesson(REV1, 1);
+      expect((await downloadForOffline(api, d.content, LESSON, 'fr', env)).outcome).toBe('updated');
+      expect((await d.content.getLesson(LESSON, 'fr'))?.revisionId).toBe(REV1);
+    } finally { await d.close(); }
+  });
+
   test('downloaded lesson opens with no network after a full restart', async () => {
     let d = await device();
     const api = new FakeApi();
