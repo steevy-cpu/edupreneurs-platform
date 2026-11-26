@@ -6,6 +6,8 @@ on:
       - 'docs/reviews/mobile-content-integration/CANDIDATE'
       - 'docs/reviews/mobile-content-integration/runner/**'
       - 'docs/reviews/mobile-content-integration/acceptance.test.tsx'
+      - 'docs/reviews/mobile-content-integration/recovery.test.tsx'
+      - 'docs/reviews/mobile-content-integration/record-android-target.sh'
 permissions:
   contents: read
 jobs:
@@ -29,8 +31,13 @@ jobs:
           file="$dir/CANDIDATE"
           suites='["stack","android"]'
           if [[ "$PREVIOUS" =~ ^[0-9a-f]{40}$ ]] && git cat-file -e "$PREVIOUS^{commit}" 2>/dev/null; then
-            if git diff --quiet "$PREVIOUS" HEAD -- "$file" "$dir/runner" "$dir/acceptance.test.tsx" .github/workflows/mobile-content-qa.yml; then exit 0; fi
-            if git diff --quiet "$PREVIOUS" HEAD -- "$file" "$dir/runner/stack.sh" "$dir/acceptance.test.tsx"; then suites='["android"]'; fi
+            probes=("$dir/acceptance.test.tsx" "$dir/recovery.test.tsx" "$dir/record-android-target.sh")
+            if git diff --quiet "$PREVIOUS" HEAD -- "$file" "$dir/runner" "${probes[@]}" .github/workflows/mobile-content-qa.yml; then exit 0; fi
+            if git diff --quiet "$PREVIOUS" HEAD -- "$file" "$dir/runner/stack.sh" "${probes[@]}"; then
+              suites='["android"]'
+            elif git diff --quiet "$PREVIOUS" HEAD -- "$file" "$dir/runner/android.sh" "$dir/runner/flow.py"; then
+              suites='["stack"]'
+            fi
           fi
           echo "suites=$suites" >> "$GITHUB_OUTPUT"
           if test -f "$file"; then
@@ -95,6 +102,16 @@ jobs:
         run: |
           cp "$QA/acceptance.test.tsx" tests/delivery/qa.acceptance.test.tsx
           ./node_modules/.bin/jest -c jest.delivery.config.js --runInBand --runTestsByPath tests/delivery/qa.acceptance.test.tsx --json --outputFile="$EVIDENCE/probes.json"
+      - name: Record the candidate Android adapter with nondefault ports
+        if: matrix.suite == 'stack' && !cancelled() && steps.mobiledeps.outcome == 'success'
+        working-directory: app
+        run: bash "$QA/record-android-target.sh" "$PWD"
+      - name: Recovery and malformed-response checks in French and Haitian Creole
+        if: matrix.suite == 'stack' && !cancelled() && steps.mobiledeps.outcome == 'success'
+        working-directory: app/apps/student-native
+        run: |
+          cp "$QA/recovery.test.tsx" tests/delivery/qa.profile-recovery.test.tsx
+          ./node_modules/.bin/jest -c jest.delivery.config.js --runInBand --runTestsByPath tests/delivery/qa.profile-recovery.test.tsx --json --outputFile="$EVIDENCE/recovery.json"
       - name: Build Android application and run six acceptance cells
         if: matrix.suite == 'android'
         working-directory: app
