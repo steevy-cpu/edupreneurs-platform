@@ -1,8 +1,87 @@
 # Independent Mobile-02 and Content-Delivery-00 QA
 
-**Hold the consolidated merge.** Independent verification targets [PR #25 at 3ed9a197164fa177d8a353aa71e0b52c69eddd1e](https://github.com/steevy-cpu/edupreneurs-platform/commit/3ed9a197164fa177d8a353aa71e0b52c69eddd1e). All six Android configurations and the existing live suites passed. Five additional probes failed, including two ways a replacement download can leave a learner with the wrong or unreadable offline revision.
+**Ready for owner approval on the corrected integration.** Independent QA closes QA-1 through QA-11 on `ff1b4d88`. The real-stack gates passed, and the unchanged emulator rerun passed all six French and Haitian Creole configurations. The first device attempt and its interruption remain documented below.
 
-## Published candidate results
+## Final corrective re-review
+
+The final review target is [PR #26 at ff1b4d88e9082167dd7419eff6d6563d47a1a65c](https://github.com/steevy-cpu/edupreneurs-platform/commit/ff1b4d88e9082167dd7419eff6d6563d47a1a65c), based on [PR #25 at 3ed9a197164fa177d8a353aa71e0b52c69eddd1e](https://github.com/steevy-cpu/edupreneurs-platform/pull/25). It includes the original corrections and the follow-up fixes for QA-10 and QA-11. Both QA probe sources matched the copies committed by the implementer byte for byte. No implementation changes were made by the reviewer.
+
+| Gate | Independent result on ff1b4d88 |
+| --- | --- |
+| Isolation | New GitHub-hosted VM and Supabase project for each job. Shared override unset. Database and gateway container bindings, API service DSN, Auth issuer/JWKS and loopback ports verified. Separate guarded tests rejected inconsistent targets. |
+| Database and backend | 215/215 pgTAP assertions before pytest, 148/148 pytest tests, 215/215 pgTAP assertions after pytest. |
+| Mobile regression | Generated API types fresh. Application and test TypeScript passed. 477/477 Jest tests passed in 32 suites on real API, Auth and SQLite. Covered reading without a permanent download, offline reopening, eventual sync, deletion, transaction rollback, withdrawals, late responses and account switching. |
+| Original and follow-up probes | 11/11 original cases and 4/4 recovery/invalid-response cases passed separately. These 15 are included in the 477. A separate detached local run also passed all 26 selected component and QA cases. |
+| Device and evidence isolation | The recording adapter accepted the intended serial, rejected a wrong serial, and added and removed only ports 41400 and 41401. Two invocations of the same Maestro flow on different synthetic serials produced distinct default logs and captured each serial's own file. The first log and an explicitly shared log kept their original sentinel. |
+| API 24, 320 dp | 6/6 on the fresh-runner retry, with 30/30 checkpoints and captures. The interrupted first attempt completed 2/6. |
+
+[Live stack and recording-adapter job](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45869164441/job/140079815004) · [Machine-readable stack results](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45869164441/artifacts/15141732114).
+
+### Final Android evidence
+
+On the first attempt, both 1.0 cells completed. French 1.3 reached Home, then the next Maestro invocation hit the 240-second process timeout before emitting a flow banner. The remaining invocations stopped before a UI assertion. The ADB captures show the same French Home screen before and after the timeout and through subsequent attempted launches. This localizes the interruption to the interval before the driver exercised the next action. The logs do not establish its underlying cause. A fresh hosted job retried the same SHA with the same commands. [First job](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45869164441/job/140079815010) · [First attempt original PNGs and CSV](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45869164441/artifacts/15142653354) · [Home before and after the timeout](screenshots/ff1b4d8-attempt1.jpg).
+
+Each matrix link shows Home, the learning path, the online reader, a saved practice answer and the lesson in Réviser/Revize after a process restart. The hosted API 24 release build ran with 1 GB RAM and a 320 dp viewport. Each cell began with cleared app data and used the same synthetic server account. At 2.0 the learner had to scroll through the lesson to reach practice. Both languages completed it. Device connectivity stayed available during these six journeys; the live integration suite separately exercised network loss and offline reopening.
+
+| Language | Font 1.0 | Font 1.3 | Font 2.0 |
+| --- | --- | --- | --- |
+| French | [Pass · 5 captures](screenshots/ff1b4d8/fr-1.0.jpg) | [Pass · 5 captures](screenshots/ff1b4d8/fr-1.3.jpg) | [Pass · 5 captures](screenshots/ff1b4d8/fr-2.0.jpg) |
+| Haitian Creole | [Pass · 5 captures](screenshots/ff1b4d8/ht-1.0.jpg) | [Pass · 5 captures](screenshots/ff1b4d8/ht-1.3.jpg) | [Pass · 5 captures](screenshots/ff1b4d8/ht-2.0.jpg) |
+
+[Passing device job](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45869164441/job/140089491996) · [30 original PNGs, settings, SHA and results CSV](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45869164441/artifacts/15143688552).
+
+### Disposition of the findings
+
+| Findings | Evidence on the final correction |
+| --- | --- |
+| QA-1, QA-4 · Online progress and catalog truth | Home and Réviser showed the online lesson with zero downloads. A lesson missing from a fresh catalog returned unlisted. |
+| QA-2, QA-3 · Offline replacement | Releasing an older download after a newer explicit choice retained the selected revision. A well-formed response containing an incomplete paragraph left the readable copy intact. |
+| QA-5, QA-9, QA-10 · Connectivity and recovery | HTTP 503, transport loss, a malformed HTTP 200 body and a successful retry were distinguished in the bilingual reader/Profile checks. A successful authenticated read removed stale offline advice without acknowledging pending operations. |
+| QA-6 · Assessment contract | The runtime refused an unknown assessment mode before saving practice content. No controlled-exam implementation was exercised. |
+| QA-7, QA-8, QA-11 · Isolation | The gate rejected conflicting endpoints. The recorder verified scoped forwarding, unique evidence directories and correct capture ownership. |
+
+### Merge-readiness verdict
+
+| Target | Owner action |
+| --- | --- |
+| #26 onto #25 | Ready for owner approval at `ff1b4d88`. All original and follow-up findings passed independent retest. |
+| #3 Mobile-02 and #22 Content-Delivery-00 | Their integrated behavior is ready for owner approval through corrected #25. The standalone heads predate the corrections. Land #26 into #25 first, then verify the resulting tree and CI before advancing the consolidated PR. |
+| Student release | Use a clean release assembly after changing feature flags. The verified incremental cache hazard remains open. Physical-device startup and low-storage behavior were outside the measured gates. |
+
+In the implementer’s separate clean-release experiment, the incremental flags-off build retained flags-on bytes. A clean flags-off assembly matched a forced rebuild. [Exact-SHA bundle comparison](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45872662951/job/140096286664).
+
+The remaining product decisions concern retention of previously downloaded withdrawn lessons, classification of future controlled exams, and educator review of Haitian Creole wording. Current tests cover the existing practice-only contract and truthful catalog states.
+
+## Earlier correction at 54321c1
+
+The first reviewed correction was [54321c1755db7d9258a351710665e620a88e1831](https://github.com/steevy-cpu/edupreneurs-platform/commit/54321c1755db7d9258a351710665e620a88e1831), stacked directly on [#25 at 3ed9a197164fa177d8a353aa71e0b52c69eddd1e](https://github.com/steevy-cpu/edupreneurs-platform/commit/3ed9a197164fa177d8a353aa71e0b52c69eddd1e). A separate detached checkout and fresh GitHub-hosted stacks exercised the exact correction. The correction's copy of the original independent suite matched the QA source byte for byte.
+
+| Gate | Result on #26 |
+| --- | --- |
+| Static and database | Generated API types and both TypeScript checks passed. All 215 pgTAP assertions passed before and after 148 passing pytest cases. |
+| Mobile real stack | 472/472 passed across 31 suites, including the original 11 now carried by the candidate. Includes SQLite, real API/Auth, online-only answers, restart/reconnect, deletion, withdrawal, lost responses and cross-account isolation. |
+| Original QA suite rerun in isolation | 11/11 passed. QA-2, QA-3, QA-5, QA-6 and QA-7 changed from red on #25 to green. QA-1 and QA-4 stayed green. This repeat is already represented within the 472. |
+| QA-8 device target | The recording adapter verified both selected serial and forward/remove operations on 41400 and 41401, refused the wrong serial, and rejected a second disposable DB port and a conflicting mobile Auth endpoint. It made zero network or ADB connections. |
+| QA-9 service recovery | The independent rerun of the two localized reader tests traversed HTTP 503, lost connection and successful retry with one queued completion. Two additional localized Profile checks retained both pending operation payloads and their IDs after an unrelated authenticated read recovered. No sync receipt or last-sync time was manufactured. |
+| Additional cases | A completely received malformed HTTP 200 response produced a false offline diagnosis in French and Haitian Creole (QA-10). The workstation runner can also mix or erase evidence from parallel worktrees (QA-11). |
+| API 24 acceptance | Six of six French and Haitian Creole cells passed at API 24, 320 dp and font scales 1.0, 1.3 and 2.0. [Device job for this intermediate SHA](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45867547383/job/140074215633). |
+
+[Supplemental checks showing QA-10 before the fix](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45868623383/job/140077946437) · [Correction stack job](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45867547383/job/140074215357) · [Original probes](acceptance.test.tsx) · [Recording adapter](record-android-target.sh) · [Supplemental recovery and response checks](recovery.test.tsx).
+
+### Follow-up findings first confirmed on 54321c1, corrected on ff1b4d88
+
+| Finding | Reproduction and evidence | Expected behavior, minimal fix and regression |
+| --- | --- | --- |
+| QA-10 · Medium, misleading connectivity diagnosis | Return HTTP 200 with the fully received text `temporarily unavailable` to the real API client while opening an uncached online lesson. Both localized reader checks showed the no-Internet message and the offline badge. Retry was available and SQLite contained no permanent copy. `src/core/api/http.ts` emits `invalid_response` as a network error, `src/core/api/client.ts` reports unreachable, and `reasonOf` in `src/core/learning/contentAccess.ts` chooses offline. | Distinguish an undecodable completed HTTP response from transport failure, show the existing invalid-content or service-retry message, and avoid deriving device connectivity from the parse result. Keep both localized assertions in `recovery.test.tsx`. This extends the original passing 503 and recovery scenarios. |
+| QA-11 · Medium, local test evidence collision | Run the default `OUT`, `LOG` and log initialization lines from `apps/student-native/scripts/e2e-run.sh` in two temporary checkout directories with different serials, one temporary volume and no output overrides. After the first writes a sentinel and the second initializes, the paths are identical and the first log is zero bytes. The screenshot collector also chooses the latest matching flow in the user's global Maestro directory. The hosted QA job used one VM and run-specific evidence per job. | Default logs and screenshots to a run-specific directory and give that run its own Maestro artifact root. Preserve explicit output overrides. Add a two-run test that keeps the first log and associates each capture with its serial. |
+
+On the final SHA the implementer separately verified that an incremental flags-off build reused flags-on bytes. After Gradle clean, the packaged flags-off bundle matched the forced rebuild byte for byte. I checked the job SHA and result. Independent device acceptance used fresh VMs. [Implementer’s clean-release comparison](https://github.com/steevy-cpu/edupreneurs-platform/actions/runs/45872662951/job/140096286664). [Candidate build-cache note](https://github.com/steevy-cpu/edupreneurs-platform/blob/54321c1755db7d9258a351710665e620a88e1831/docs/mobile-integration-2026-11-26/BUILD_CACHE.md).
+
+## Parent evidence on PR #25
+
+The parent had two ways for a replacement download to leave a learner with the wrong or unreadable offline revision. Both were corrected and independently retested above.
+
+### Results on the #25 head
 
 | Gate | Independent evidence on the pinned SHA |
 | --- | --- |
@@ -133,7 +212,7 @@ cp "$QA_REPORT_DIR/acceptance.test.tsx" tests/delivery/qa.acceptance.test.tsx
 
 `QA_REPORT_DIR` is the absolute directory containing this report in the QA checkout. The probes use disposable SQLite files only. For the full integration gate, use fresh project, database, gateway, API listener, PID/log paths and account credentials; verify actual port ownership and all effective endpoints first. Leave the shared-stack override unset. Use a dedicated emulator or AVD, install the candidate build, and verify its endpoint configuration before starting it.
 
-## Decisions and merge gates
+## Historical disposition of #25 before the corrective PR
 
 | Review target | Verdict on the recorded revisions | Evidence needed for approval |
 | --- | --- | --- |
