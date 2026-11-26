@@ -36,11 +36,12 @@ shape). Nothing in the rest of the API imports the tutor.
 | `types.py` | The public contract: `TutorRequest`, `TutorResponse`, enums | pydantic |
 | `errors.py` | Typed failures with stable codes and HTTP statuses | — |
 | `content.py` | `LessonSource` protocol; `SqlLessonSource` (RLS); in-memory double | `db.session` |
-| `text.py` | Normalisation, tokenisation, conservative token estimate | — |
+| `text.py` | Normalisation, tokenisation | — |
+| `metering.py` | The token bound a hold is sized with, and the check of reported usage against it | `providers` |
 | `retrieval.py` | `Ranker` protocol, BM25, char-trigram, fusion, `LessonRetriever` | `content`, `text` |
 | `evaluation.py` | Repeatable ranker comparison on synthetic questions | `retrieval` |
 | `prompts.py` | Versioned `PromptTemplate`, fingerprint, DATA envelope | `retrieval` |
-| `safety.py` | Message screen, contact-detail redaction, output checks, fixed messages | `text` |
+| `safety.py` | Message screen, removal of contact details and self-introductions, output checks, fixed messages (unreviewed) | `text` |
 | `validation.py` | Model output → validated answer with real references | `safety`, `retrieval` |
 | `providers/` | `ModelProvider` protocol and adapters | httpx (adapter only) |
 | `gateway.py` | One place that calls a provider: bounded, metered | `providers`, `budget` |

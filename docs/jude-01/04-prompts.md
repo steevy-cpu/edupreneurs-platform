@@ -106,7 +106,7 @@ Ids are then replaced by the server's `LessonReference` objects. A citation a
 student sees can therefore only point at a passage that was really in the prompt.
 
 For `insufficient_context`, `declined` and `safety_support` the model's text is
-discarded and a reviewed fixed message is shown instead.
+discarded and a fixed message is shown instead.
 
 ## The three grounding outcomes
 
@@ -114,7 +114,7 @@ discarded and a reviewed fixed message is shown instead.
 |---|---|
 | Grounded in the supplied lesson | `status: answered`, `grounding: lesson`, ≥ 1 reference |
 | General explanation beyond the lesson | `status: answered`, `grounding: general`, notice `general_knowledge_beyond_lesson`; references optional (the rule a new example follows). Can be disabled with `EDU_TUTOR_ALLOW_GENERAL_ANSWERS=false`. |
-| Not enough verified information | `status: insufficient_context`, `source: reviewed_template`, no references |
+| Not enough verified information | `status: insufficient_context`, `source: fixed_template`, no references |
 
 ## Limits of what is proven
 

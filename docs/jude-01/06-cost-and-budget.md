@@ -32,45 +32,61 @@ only literal is the mock's own id.
 | Per-learner monthly cost | `LEARNER_MONTHLY_MICRO` | ledger, at reservation |
 | Global monthly ceiling | `GLOBAL_MONTHLY_MICRO` | ledger, at reservation |
 | Concurrency per learner / overall | `MAX_CONCURRENT_PER_LEARNER`, `MAX_CONCURRENT_GLOBAL` | ledger, at reservation |
-| Kill switch | `PAUSED` (static) and the ledger's `paused` flag (runtime, audited) | before anything else and again inside the reservation |
+| Kill switch | `PAUSED` (static) and the ledger's `paused` flag (runtime, audited) | before anything else, inside the reservation, and before **every** provider call |
+| Reservation bound framing | `INPUT_FRAMING_TOKENS_PER_MESSAGE`, `INPUT_FRAMING_TOKENS_PER_REQUEST` | sizing of every hold |
+| Provider-side limit (attested) | `PROVIDER_SIDE_MONTHLY_LIMIT_MICRO` | wiring: no live provider without it |
 | Reservation lifetime | `RESERVATION_TTL_S` | ledger; must exceed the longest possible request, checked at start-up |
 
 Days and months roll over in `America/Port-au-Prince`, not UTC, so a learner's
 allowance resets at their midnight.
 
-## Reserve → call → settle
+## Reserve → authorise → call → settle
 
-1. **Estimate the worst case.** Input tokens are over-estimated (one token per
-   three UTF-8 bytes), output is the cap, and both are multiplied by every call
-   the gateway may make, at each route's price.
+> Corrected after the independent review (J-02, J-03, J-04, J-05). The earlier
+> text claimed a worst case from "one token per three bytes"; that was an
+> average, not a bound. See [12](12-security-corrections.md).
+
+1. **Size the hold from an explicit bound** (`metering.py`): input ≤ UTF-8 bytes
+   of the message contents + a framing allowance per message and per call;
+   output ≤ `max_tokens`; multiplied by every call the gateway may make, each at
+   its own route's price. This is an **assumption** about the provider's meter.
+   It is checked against every reported usage; it is not a guarantee.
 2. **Reserve atomically.** The reservation succeeds only if, for the learner's
    day, the learner's month and the global month,
    `spent + reserved + estimate ≤ limit`. Money held by requests still in flight
    counts, so parallel requests cannot each see "room for one more". If it is
    refused, **no provider call happens**.
-3. **Call** the provider (bounded).
+3. **Authorise, then call**, for every call: the kill switch and the hold are
+   re-checked and the dispatch is counted on the hold.
 4. **Settle exactly once** with the real cost: provider-reported tokens × price,
-   summed over attempts. An attempt whose cost is unknown (timeout, connection
-   lost, cancelled mid-call, adapter crash) is charged at its worst case. If
-   provably nothing was spent, the hold is released.
+   summed over attempts and recorded per attempt. An attempt whose cost is
+   unknown (timeout, connection lost, cancelled mid-call, adapter crash,
+   unreadable metering) is charged at the bound. The hold is released only if
+   no call that could be billed was made. A reported usage above the bound is
+   recorded in full, kept as `overage_micro`, audited, and pauses the tutor.
 5. **Expire.** A reservation nobody settled (crashed worker) is charged in full
    when its lifetime ends — by the learner's next request or by a sweeper job.
 
-Invariant, for every counter, at all times: **`spent + reserved ≤ limit`**, and
-recorded spend ≥ real spend.
+Invariant, for every counter, under any concurrency: **`spent + reserved ≤
+limit`** — as long as no provider bills above the bound. If one does, the
+ledger shows the excess instead of hiding it, and stops dispatch. **The only
+hard dollar ceiling for a live provider is a limit set on the provider's
+side**; a live provider cannot be wired without the owner stating it.
 
 ## Idempotency
 
-The client generates `idempotency_key` per question. `(learner, key)` is unique
-in the ledger:
+The client generates `idempotency_key` per question. A key has at most one
+*live* admission; every admission is its own row with its own reservation id,
+which is never reused:
 
 | State of that key | A repeat gets |
 |---|---|
 | In flight | `tutor_request_in_progress` (409) |
 | Settled or expired | `tutor_duplicate_request` (409) — not charged again, no second provider call |
-| Released (nothing was spent) | accepted as a fresh attempt |
+| Released (no billable call was made) | accepted as a **new** reservation; the released row stays as history |
 
-Settlement is idempotent: settling or releasing twice changes nothing.
+Settlement is idempotent: settling or releasing twice changes nothing, and a
+late call for an earlier admission of the same key cannot touch a newer one.
 
 ## Atomicity: what is and is not proven
 
@@ -84,9 +100,9 @@ Settlement is idempotent: settling or releasing twice changes nothing.
 | Through the whole service, with a slow provider | 30 learners: provider calls = admitted; refused requests never reach the provider; final spend ≤ ceiling |
 
 How PostgreSQL provides it (`sql/tutor_schema.sql`): each of `reserve`,
-`settle`, `release` is one transaction that takes row locks on the counters in
-one fixed order — global month, learner month, learner day — before reading or
-writing. The functions require `READ COMMITTED` and refuse to run otherwise
+`authorize_dispatch`, `settle`, `release` is one transaction that takes row
+locks in one fixed order — policy row, global month, learner month, learner
+day, request row — before reading or writing. The functions require `READ COMMITTED` and refuse to run otherwise
 (tested), because the check relies on seeing what the previous lock holder
 committed.
 
@@ -101,12 +117,13 @@ later optimisation if measurement asks for it. No load test was run.
 - A fallback route exists only if `FALLBACK_MODEL` is set.
 - A fallback that costs more than the primary is refused at wiring time unless
   `ALLOW_COSTLIER_FALLBACK=true` — a named, explicit decision.
-- The fallback gets one call, and that call is inside the reserved worst case.
+- The fallback gets one call, and that call is inside the hold, at its own price.
+- The fallback is authorised like any other call: none starts after a pause.
 - Every attempt is recorded with its provider, model and price version.
 
 ## What a request costs (synthetic numbers only)
 
 With the placeholder price of the mock model (0.50 USD/Mtok in, 1.50 USD/Mtok
-out) a demo answer costs about 0.001 USD (≈ 1 500 input + 150 output tokens) and
-reserves about 0.003 USD while in flight. These numbers illustrate the
+out) a demo answer costs about 0.001 USD (≈ 1 750 input + 235 output tokens) and
+holds about 0.007 USD while in flight (two permitted calls at the byte bound). These numbers illustrate the
 arithmetic; they say nothing about any real model's price.
