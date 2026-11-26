@@ -188,3 +188,38 @@ def test_auth_maintenance_checks_ownership_before_http(helper, monkeypatch):
     except (ValueError, SystemExit):
         return
     pytest.fail("expected refusal before reaching HTTP")
+
+
+@pytest.mark.xfail(
+    strict=True,
+    raises=ControlMiss,
+    reason="QA-6: guard and Pydantic resolve environment overrides with different case rules",
+)
+def test_verified_file_agrees_with_effective_factory_settings(tmp_path):
+    api, database = 31001, 31002
+    url = "postgresql+asyncpg://edu_api_login:inert@127.0.0.1:31002/postgres"
+    issuer = "http://127.0.0.1:31001/auth/v1"
+    values = {
+        "EDU_ENVIRONMENT": "local",
+        "LOCAL_ADMIN_DATABASE_URL": "postgresql://postgres:inert@127.0.0.1:31002/postgres",
+        "EDU_DATABASE_URL": url,
+        "LOCAL_SUPABASE_URL": "http://127.0.0.1:31001",
+        "EDU_AUTH_ISSUER": issuer,
+        "EDU_AUTH_JWKS_URL": issuer + "/.well-known/jwks.json",
+    }
+    dot_env = tmp_path / ".env"
+    dot_env.write_text("".join(f"{k}={v}\n" for k, v in values.items()))
+    # Resolve only. No engine, socket, DNS lookup or Auth client is created.
+    with patch.dict(
+        os.environ, {"edu_database_url": url.replace(":31002/", ":31006/")}, clear=True
+    ):
+        try:
+            disposable.validate_urls(values, api, database)
+        except ValueError:
+            return
+        effective = Settings(_env_file=dot_env)
+        validate_runtime(effective)
+        if effective.database_url.get_secret_value() != values["EDU_DATABASE_URL"]:
+            raise ControlMiss(
+                "factory resolved a different loopback database than the configuration guard"
+            )

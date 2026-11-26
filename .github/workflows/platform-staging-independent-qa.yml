@@ -1,0 +1,44 @@
+name: Independent staging acceptance
+on:
+  pull_request:
+    branches: [infra/platform-staging-00]
+permissions:
+  contents: read
+jobs:
+  acceptance:
+    if: github.head_ref == 'qa/platform-staging-00'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Confirm the reviewed implementation is unchanged
+        run: |
+          git diff --exit-code bf52dd0c779052ac25ec6c4dc209575b0671bfc0 HEAD -- . \
+            ':(exclude)docs/reviews/platform-staging-00/**' \
+            ':(exclude)tests/unit/test_platform_staging_qa.py' \
+            ':(exclude)tests/integration/test_platform_staging_qa.py' \
+            ':(exclude).github/workflows/platform-staging-independent-qa.yml'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: astral-sh/setup-uv@v5
+      - name: Prepare synthetic runner database
+        run: |
+          npm ci --no-audit --no-fund
+          uv sync --locked
+          .venv/bin/python scripts/disposable.py configure
+          make start > /dev/null
+          make db-reset
+      - name: Evaluate independent acceptance criteria without expected-failure marks
+        run: |
+          .venv/bin/pytest --runxfail --tb=short -q \
+            tests/unit/test_platform_staging_qa.py tests/integration/test_platform_staging_qa.py
+      - name: Release verified local stack
+        if: always()
+        run: |
+          if [ -x .venv/bin/python ] && .venv/bin/python scripts/disposable.py running; then
+            npx --no-install supabase stop --no-backup
+          fi
