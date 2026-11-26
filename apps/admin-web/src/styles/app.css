@@ -34,7 +34,8 @@ code { font: 0.9em ui-monospace, SFMono-Regular, Menlo, monospace; background: #
 .nav-title { color: #B9C4D6; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; padding: 1rem .7rem .3rem; }
 .nav-hidden-note { color: #B9C4D6; font-size: .78rem; padding: .8rem .7rem 0; }
 .main-col { min-width: 0; display: flex; flex-direction: column; }
-.env-banner { background: var(--amber); color: var(--navy); font-weight: 700; padding: .4rem 1rem; display: flex; flex-wrap: wrap; gap: .25rem 1rem; align-items: center; font-size: .85rem; }
+html { scroll-padding-top: 5.5rem; }
+.env-banner { position: sticky; top: 0; z-index: 20; background: var(--amber); color: var(--navy); font-weight: 700; padding: .4rem 1rem; display: flex; flex-wrap: wrap; gap: .25rem 1rem; align-items: center; font-size: .85rem; }
 .env-banner .pill { background: var(--navy); color: #fff; border-radius: 999px; padding: 0 .6rem; }
 .topbar { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem 1.25rem; padding: .75rem 1.5rem; background: var(--surface); border-bottom: 1px solid var(--border); }
 .menu-toggle { display: none; }

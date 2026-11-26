@@ -34,6 +34,10 @@ try {
       check(name + '-' + width + ' page width', await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
       check(name + '-' + width + ' primary heading', await page.locator('h1').count() === 1);
       await target.scrollIntoViewIfNeeded();
+      check(name + '-' + width + ' synthetic label visible', await page.locator('.env-banner').evaluate(el => {
+        const {top, bottom} = el.getBoundingClientRect();
+        return top >= 0 && bottom <= innerHeight && el.textContent.includes('DONNÉES SYNTHÉTIQUES');
+      }));
       await page.screenshot({ path: path.join(out, name + '-' + width + '.jpg'), type: 'jpeg', quality: 70 });
       await page.evaluate(axe);
       const issues = await page.evaluate(async () => (await window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a','wcag2aa','wcag21a','wcag21aa'] } })).violations.map(v => ({ id: v.id, impact: v.impact, nodes: v.nodes.map(n => n.target).slice(0,6) })));

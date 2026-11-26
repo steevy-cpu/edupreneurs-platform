@@ -6,6 +6,8 @@ import { useEditorial } from '../state/Services';
 
 export function ContentLayout() {
   const revision = useMatch('/contenu/revision/:id');
+  const queue = useMatch('/contenu/relecture');
+  const publication = useMatch('/contenu/publication');
   const { state, store } = useEditorial();
   const [resetCount, setResetCount] = useState(0);
   const reset = <button type="button" className="btn" onClick={() => {
@@ -16,7 +18,7 @@ export function ContentLayout() {
   return (
     <>
       {revision ? <div className="row">{reset}</div> : <PageHeader
-        title="Contenu éducatif"
+        title={queue ? 'File de relecture' : publication ? 'Publication' : 'Contenu éducatif'}
         actions={reset}
       >
         Aperçu du flux éditorial sur des leçons <strong>synthétiques</strong> au format de blocs v1 (titre, paragraphe, exemple, encadré).
