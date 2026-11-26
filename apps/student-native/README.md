@@ -49,8 +49,16 @@ make mobile-check     # generated API types are fresh + TypeScript (app and test
 make mobile-test      # 52 tests: real SQLite files, real local API and Auth
 ```
 
-`make mobile-test` starts its own copy of the API on port 8011 and resets the
+`make mobile-test` starts its own copy of the API and resets the
 local learning tables between tests. It only ever talks to `127.0.0.1`.
+The target database is derived from this checkout's `supabase/config.toml`; the harness refuses to run
+against the default shared `mon-edupreneur` stack unless `EDU_TEST_ALLOW_SHARED_STACK=1` is set deliberately
+(CI sets it on its disposable stack). Run the tests from a separate worktree with its own `project_id`.
+
+The test API port is derived per checkout (a stable value in 20000-29999 computed from the checkout path), so two
+worktrees never share one; set `EDU_MOBILE_TEST_API_PORT` to override it. If the port is already taken the harness
+refuses to start (it never talks to whatever is listening there), and it only treats the API as ready once its own
+server has logged that it bound the port.
 
 ## Run the app on a simulator / emulator / phone
 

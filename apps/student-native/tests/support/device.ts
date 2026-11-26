@@ -7,7 +7,6 @@
  *
  * Everything above the adapters is the app's real code from src/core.
  */
-import { execFileSync } from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -23,9 +22,10 @@ import { SyncEngine, SyncEngineOptions } from '../../src/core/sync/engine';
 import { FaultPlan, nodeDatabases } from './nodeSqlite';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { API_PORT, readRootEnv } = require('./localStack') as {
+const { API_PORT, readRootEnv, resetLearningState } = require('./localStack') as {
   API_PORT: number;
   readRootEnv: () => Record<string, string>;
+  resetLearningState: () => unknown;
 };
 
 const env = readRootEnv();
@@ -71,10 +71,9 @@ export async function credentials(name: AccountName): Promise<{ email: string; p
 
 /** Empty the server's learning tables in the LOCAL database so every test starts clean. */
 export function resetServerLearningState(): void {
-  execFileSync('docker', [
-    'exec', 'supabase_db_mon-edupreneur', 'psql', '-U', 'postgres', '-q', '-c',
-    'TRUNCATE app.practice_attempts, app.sync_receipts, app.account_change_feed, app.lesson_progress, app.account_sync_state',
-  ]);
+  // The target container is derived from THIS checkout's supabase/config.toml; it throws rather than
+  // touch any other stack (see tests/support/localStack.js).
+  resetLearningState();
 }
 
 export type NetworkMode =

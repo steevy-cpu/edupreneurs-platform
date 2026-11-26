@@ -2,7 +2,8 @@
 const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
-const { readRootEnv, REPO_ROOT, API_PORT, PID_FILE } = require('./localStack');
+const { readRootEnv, REPO_ROOT, API_PORT, PID_FILE, LOG_FILE, deriveRepoTarget,
+  assertPortFree, awaitOwnApi } = require('./localStack');
 
 module.exports = async function globalSetup() {
   const env = readRootEnv();
@@ -19,7 +20,16 @@ module.exports = async function globalSetup() {
     throw new Error('LOCAL_SUPABASE_URL is not this machine. Tests only run against the local stack.');
   }
 
-  const log = fs.openSync(path.join(require('node:os').tmpdir(), 'edu-mobile-test-api.log'), 'w');
+  // Refuses (throws) unless the database stack is this checkout's own and the .env matches it.
+  const target = deriveRepoTarget();
+  console.error(
+    `[mobile-test-harness] stack ${target.projectId}: db container ${target.dbContainer}, db port ${target.dbPort}, ` +
+      `Supabase ${env.LOCAL_SUPABASE_URL}, test API port ${API_PORT}, pid file ${PID_FILE}`,
+  );
+
+  await assertPortFree(API_PORT); // refuse before spawning: never share a port with another checkout
+
+  const log = fs.openSync(LOG_FILE, 'w');
   const child = spawn(
     'uv',
     ['run', 'uvicorn', 'edu_api.main:create_app', '--factory', '--host', '127.0.0.1', '--port', String(API_PORT)],
@@ -28,22 +38,16 @@ module.exports = async function globalSetup() {
   child.unref();
   fs.writeFileSync(PID_FILE, String(child.pid));
 
-  const deadline = Date.now() + 30_000;
-  for (;;) {
-    try {
-      const response = await fetch(`http://127.0.0.1:${API_PORT}/ready`);
-      if (response.ok) return;
-    } catch {
-      // not listening yet
-    }
-    if (Date.now() > deadline) {
+  await awaitOwnApi({
+    port: API_PORT,
+    readLog: () => fs.readFileSync(LOG_FILE, 'utf8'),
+    isAlive: () => child.exitCode === null && child.signalCode === null,
+    kill: () => {
       try {
         process.kill(-child.pid, 'SIGTERM'); // do not leave a half-started server behind
       } catch {
         // already gone
       }
-      throw new Error('The local API did not become ready. Is the database running? (`make start`)');
-    }
-    await new Promise((resolve) => setTimeout(resolve, 300));
-  }
+    },
+  });
 };
