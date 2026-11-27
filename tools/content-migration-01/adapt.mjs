@@ -10,14 +10,14 @@ export function adaptLesson(row, subject, mapping = {}) {
   const body=Object.fromEntries(fields.map(k=>[k,row[k]??null]));
   const fingerprint=digest({title:row.title,...body});
   // Language and unit assignments belong to the particular source version and an external register.
-  const verified=Number.isSafeInteger(row.source_revision) && row.source_revision>0 && mapping.revision===row.source_revision && mapping.source_content_sha256===fingerprint && populated(mapping.decision_ref);
+  const verified=mapping.lesson_id===row.id && mapping.subject_id===row.subject_id && Number.isSafeInteger(row.source_revision) && row.source_revision>0 && mapping.revision===row.source_revision && mapping.source_content_sha256===fingerprint && populated(mapping.decision_ref);
   const statusFields=["has_source_reviewer","scheduled_publish_at","quiz_count","activities_count","needs_quiz_regeneration","needs_activities_regeneration","last_content_validated_at","last_activities_validated_at","validation_fingerprint"];
   const supplemental={};
   const basic=new Set(["id","title","subject_id","grade_level","workflow_status","is_published","updated_at","source_revision","subject_grade","subject_series",...statusFields,...fields]);
   for(const [k,v] of Object.entries(row)) if(!basic.has(k)&&populated(v)) supplemental[k]=v;
   return {table:"lessons",id:row.id,title:row.title,subject_id:nativeId('subjects',subject.id),grade:row.grade_level,series:subject.series,
-    locale:verified?mapping.locale:null,unit_id:verified?mapping.unit_id:null,revision:row.source_revision??null,...body,
-    workflow_status:row.workflow_status,source_ref:"public.lessons/"+row.id,rights_ref:verified?mapping.rights_ref??null:null,
+    locale:verified?(mapping.locale??null):null,unit_id:verified?(mapping.unit_id??null):null,revision:row.source_revision??null,...body,
+    workflow_status:row.workflow_status??null,source_ref:"public.lessons/"+row.id,rights_ref:verified?mapping.rights_ref??null:null,
     assets:verified?mapping.assets??[]:[],legacy_metadata:{source_updated_at:row.updated_at??null,source_published:row.is_published??null,
       order_index:row.order_index??null,slug:row.slug??null,...Object.fromEntries(statusFields.map(k=>[k,row[k]??null]))},
     // Non-empty legacy fields beyond the adapter need an explicit mapping before a complete lesson is produced.

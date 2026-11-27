@@ -91,11 +91,12 @@ test("source hierarchy join and an independent fingerprint bind the assignments"
   const s=data().records[0], body=Object.fromEntries(fields.map(k=>[k,s[k]]));
   const row={...body,id:s.id,title:s.title,subject_id:subject,grade_level:"7AF",source_revision:1,subject_grade:"7AF",subject_series:null,workflow_status:"published"};
   const parent={id:subject,grade_level:"7AF",series:null};
-  const assignment={source_content_sha256:digest({title:s.title,...body}),decision_ref:"test-receipt",locale:"fr",unit_id:s.unit_id,revision:1};
+  const assignment={lesson_id:row.id,subject_id:subject,source_content_sha256:digest({title:s.title,...body}),decision_ref:"test-receipt",locale:"fr",unit_id:s.unit_id,revision:1};
   const result=adaptLesson(row,parent,assignment);
   assert.equal(result.subject_id,nativeId("subjects",subject));
   assert.deepEqual(result.supplemental_sha256,{});
   assert.equal(result.locale,"fr");
+  assert.equal(adaptLesson(row,parent,{...assignment,lesson_id:subject}).locale,null);
   assert.equal(adaptLesson({...row,title:"changed"},parent,assignment).locale,null);
   assert.throws(()=>adaptLesson({...row,subject_series:"SES"},parent,assignment));
   assert.ok(adaptLesson({...row,youtube_url:"test-ref"},parent,assignment).supplemental_sha256.youtube_url);

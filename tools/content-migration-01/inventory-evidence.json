@@ -381,5 +381,9 @@
     "actual_sections": 3,
     "actual_questions": 37,
     "invalid": 0
+  },
+  "static_math": {
+    "candidates": 19,
+    "exact_slug_candidates": 19
   }
 }

@@ -1,6 +1,5 @@
 import {readFileSync} from "node:fs";
 import {plan,reconcile,simulate,compareCensus} from "./migration.mjs";
-
 import {examDescriptor} from "./exam.mjs";
 import {lesson} from "./convert.mjs";
 
@@ -9,7 +8,6 @@ const read=path=>JSON.parse(readFileSync(path,"utf8"));
 try {
   if (!input || !["plan","reconcile","simulate","review","census"].includes(command)) throw Error("usage: node cli.mjs plan|simulate INPUT or reconcile INPUT OBSERVED [EXCLUSIONS]");
   const source=read(input);
-  
   let output;
   if(command==="census") {
     output={report:compareCensus(read(observation),source.records)};
