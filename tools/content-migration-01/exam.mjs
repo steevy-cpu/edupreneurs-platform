@@ -26,3 +26,21 @@ export function examDescriptor(table, s) {
     source_has_answer:s.has_answer===true,source_has_explanation:s.has_explanation===true,
     auto_gradable:false},issues:reasons};
 }
+
+/** Compare a sealed grading proposal with a separately authenticated decision register.
+ * The caller authenticates the register outside this offline comparison. Never return a key.
+ * This diagnostic does not activate grading or change an import decision. */
+export function compareSealedKey(proposal, register) {
+  const blocked = reason => ({mode:"quarantined",reason});
+  if (!register?.owner_accepted || register.owner_accepted!==true ||
+      !register.review_ref || !register.independent_reviewer || !proposal?.item_id ||
+      !Number.isSafeInteger(proposal.revision) || proposal.revision<1 ||
+      !/^[0-9a-f]{64}$/.test(proposal.content_sha256??"") ||
+      register.item_id!==proposal.item_id || register.revision!==proposal.revision ||
+      register.content_sha256!==proposal.content_sha256) return blocked("missing_independent_key_receipt");
+  const choices=proposal.choice_ids;
+  if (!Array.isArray(choices) || choices.length<2 || new Set(choices).size!==choices.length ||
+      !choices.every(x=>typeof x==="string" && x.trim()) || !choices.includes(proposal.correct_choice_id) ||
+      proposal.correct_choice_id!==register.correct_choice_id) return blocked("key_mismatch");
+  return {mode:"verified_auto_gradable",review_ref:register.review_ref};
+}

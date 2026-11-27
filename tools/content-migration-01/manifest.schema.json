@@ -221,6 +221,52 @@
               "type": "string",
               "minLength": 1
             }
+          },
+          "revision_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "exam_mode": {
+            "enum": [
+              null,
+              "human_marked_or_self_review",
+              "pdf_only_or_insufficient",
+              "quarantined",
+              "verified_auto_gradable"
+            ]
+          },
+          "practice_items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "position": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "revision_item_id": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+                },
+                "question_sha256": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              },
+              "required": [
+                "position",
+                "revision_item_id",
+                "question_sha256"
+              ],
+              "additionalProperties": false
+            }
           }
         },
         "required": [
@@ -239,7 +285,10 @@
           "provenance",
           "review",
           "published",
-          "issues"
+          "issues",
+          "revision_id",
+          "exam_mode",
+          "practice_items"
         ],
         "additionalProperties": false,
         "allOf": [

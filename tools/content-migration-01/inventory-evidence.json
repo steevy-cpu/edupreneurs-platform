@@ -1,0 +1,385 @@
+{
+  "snapshot": {
+    "cached_questions": 40576,
+    "exams": 128,
+    "exercises": 2284,
+    "lessons": 2832,
+    "observed_at": "2026-11-27 02:00:05.294363+00",
+    "published": 2832,
+    "subjects": 140,
+    "versions": 14191,
+    "videos": 255
+  },
+  "source_project": "14710ec1-c1bf-40aa-b397-6fddd23c28b4",
+  "editor_reference": "3110f7971aad9abbdeb3e2965afd565f5b74b520",
+  "editor_observed": "8749ddce155194e60a12830ac66a469520937c89",
+  "target": "1094eb0822759d7bc28f3162285077f30ad38969",
+  "id_census": [
+    {
+      "mapped_ids": 3,
+      "metadata_root": "f46429b557d7c2da0b1ab532f14603b9e9937735a48138aed81e7737bf798dda",
+      "rows": 3,
+      "source_table": "ebooks"
+    },
+    {
+      "mapped_ids": 2284,
+      "metadata_root": "4fdfd84746479afe9a50fcf07655955a30c07fa718aaf2aeb7371ec9b381cf13",
+      "rows": 2284,
+      "source_table": "exam_exercises"
+    },
+    {
+      "mapped_ids": 14191,
+      "metadata_root": "6f3b471f6e6b6238ed93e16b6a48192a7eaaed0d1c5d7a1c8bbec731e66dec3e",
+      "rows": 14191,
+      "source_table": "lesson_versions"
+    },
+    {
+      "mapped_ids": 255,
+      "metadata_root": "1f0cb2f5bf4ac34c96d0655ccfba1ee1bcb89ae2974ed43d8ee9fb03d1be1041",
+      "rows": 255,
+      "source_table": "lesson_videos"
+    },
+    {
+      "mapped_ids": 2832,
+      "metadata_root": "e6936fcc2e54e4df33b78147dca3da5690a74b251f2912fac7a62044a954d76a",
+      "rows": 2832,
+      "source_table": "lessons"
+    },
+    {
+      "mapped_ids": 128,
+      "metadata_root": "66b4de592bae652ec16b5de190f4ac23a05e11e30f6e985dd589c461393b6837",
+      "rows": 128,
+      "source_table": "official_exams"
+    },
+    {
+      "mapped_ids": 4555,
+      "metadata_root": "0388532b0976575c9619d8392dc4d1cf44be01ba5c2b1802ea944b550269edef",
+      "rows": 4555,
+      "source_table": "storage.objects"
+    },
+    {
+      "mapped_ids": 140,
+      "metadata_root": "67609bc04f5747aa4c1eb35424e47608ba585d8090d1219c306ca202cef06e1c",
+      "rows": 140,
+      "source_table": "subjects"
+    }
+  ],
+  "grade_series": [
+    {
+      "cached": 2946,
+      "grade_level": "7AF",
+      "lessons": 204,
+      "published": 204,
+      "series": null,
+      "subjects": 10
+    },
+    {
+      "cached": 2878,
+      "grade_level": "8AF",
+      "lessons": 197,
+      "published": 197,
+      "series": null,
+      "subjects": 6
+    },
+    {
+      "cached": 2751,
+      "grade_level": "9AF",
+      "lessons": 191,
+      "published": 191,
+      "series": null,
+      "subjects": 7
+    },
+    {
+      "cached": 3545,
+      "grade_level": "NS1",
+      "lessons": 249,
+      "published": 249,
+      "series": null,
+      "subjects": 13
+    },
+    {
+      "cached": 3566,
+      "grade_level": "NS2",
+      "lessons": 245,
+      "published": 245,
+      "series": null,
+      "subjects": 12
+    },
+    {
+      "cached": 3096,
+      "grade_level": "NS3",
+      "lessons": 218,
+      "published": 218,
+      "series": "LLA",
+      "subjects": 10
+    },
+    {
+      "cached": 2932,
+      "grade_level": "NS3",
+      "lessons": 209,
+      "published": 209,
+      "series": "SES",
+      "subjects": 10
+    },
+    {
+      "cached": 3113,
+      "grade_level": "NS3",
+      "lessons": 218,
+      "published": 218,
+      "series": "SMP",
+      "subjects": 12
+    },
+    {
+      "cached": 3224,
+      "grade_level": "NS3",
+      "lessons": 229,
+      "published": 229,
+      "series": "SVT",
+      "subjects": 12
+    },
+    {
+      "cached": 2581,
+      "grade_level": "NS4",
+      "lessons": 180,
+      "published": 180,
+      "series": "LLA",
+      "subjects": 11
+    },
+    {
+      "cached": 2648,
+      "grade_level": "NS4",
+      "lessons": 186,
+      "published": 186,
+      "series": "SES",
+      "subjects": 11
+    },
+    {
+      "cached": 3642,
+      "grade_level": "NS4",
+      "lessons": 253,
+      "published": 253,
+      "series": "SMP",
+      "subjects": 13
+    },
+    {
+      "cached": 3654,
+      "grade_level": "NS4",
+      "lessons": 253,
+      "published": 253,
+      "series": "SVT",
+      "subjects": 13
+    }
+  ],
+  "quiz": {
+    "cached": 40576,
+    "whitespace_tolerant_marker_count": 40564,
+    "rows_differing_from_cache": 10,
+    "strictly_parsed_sample_items": 37
+  },
+  "exam_tracks": [
+    {
+      "exercises": 1566,
+      "explained": 74,
+      "grade_level": "9AF",
+      "papers": 85,
+      "pdf": 85,
+      "timed": 85,
+      "with_answer": 116
+    },
+    {
+      "exercises": 718,
+      "explained": 1,
+      "grade_level": "NS4",
+      "papers": 43,
+      "pdf": 43,
+      "timed": 9,
+      "with_answer": 0
+    }
+  ],
+  "exercise_types": [
+    {
+      "exercise_type": "open_ended",
+      "json_keys": 0,
+      "keyed": 0,
+      "n": 1731,
+      "structured_options": 0,
+      "unweighted": 9
+    },
+    {
+      "exercise_type": "multiple_choice",
+      "json_keys": 0,
+      "keyed": 110,
+      "n": 547,
+      "structured_options": 18,
+      "unweighted": 0
+    },
+    {
+      "exercise_type": "open-ended",
+      "json_keys": 0,
+      "keyed": 6,
+      "n": 6,
+      "structured_options": 0,
+      "unweighted": 0
+    }
+  ],
+  "exam_rehearsal": {
+    "papers": 128,
+    "exercises": 2284,
+    "missing": 0,
+    "counts": {
+      "human_marked_or_self_review": 1737,
+      "quarantined": 547
+    },
+    "paperIssues": {
+      "unresolved_paper_reference": 128,
+      "unusable_duration": 34
+    }
+  },
+  "exam_modes": [
+    {
+      "grade_level": "9AF",
+      "mode": "human_marked_or_self_review",
+      "n": 1074
+    },
+    {
+      "grade_level": "9AF",
+      "mode": "quarantined",
+      "n": 492
+    },
+    {
+      "grade_level": "NS4",
+      "mode": "human_marked_or_self_review",
+      "n": 663
+    },
+    {
+      "grade_level": "NS4",
+      "mode": "quarantined",
+      "n": 55
+    }
+  ],
+  "literal_object_matches": [
+    {
+      "kind": "ebook_cover",
+      "literal_path_matches": 3,
+      "references_seen": 3
+    },
+    {
+      "kind": "ebook_file",
+      "literal_path_matches": 3,
+      "references_seen": 3
+    },
+    {
+      "kind": "lesson_audio",
+      "literal_path_matches": 16,
+      "references_seen": 16
+    },
+    {
+      "kind": "lesson_body_img",
+      "literal_path_matches": 3039,
+      "references_seen": 3084
+    },
+    {
+      "kind": "paper_pdf",
+      "literal_path_matches": 127,
+      "references_seen": 128
+    }
+  ],
+  "sample_proof": [
+    {
+      "category": "simple",
+      "source_id": "f60c201f-bf23-46a3-9f77-f4366781bf60",
+      "grade": "9AF",
+      "subject": "Créole",
+      "complete": false,
+      "accepted_field_projections": [
+        "objectif"
+      ],
+      "practice_projections": 10,
+      "selected_blockers": [
+        "rich_semantics_require_review",
+        "unmapped_class",
+        "locale_unverified"
+      ]
+    },
+    {
+      "category": "math",
+      "source_id": "4bdcbed0-1b70-43c9-bfbe-647341a7becb",
+      "grade": "9AF",
+      "subject": "Mathématiques",
+      "complete": false,
+      "accepted_field_projections": [
+        "activites_interactives"
+      ],
+      "practice_projections": 0,
+      "selected_blockers": [
+        "unclosed_markup",
+        "locale_unverified",
+        "unsupported_markup_or_limit"
+      ]
+    },
+    {
+      "category": "image",
+      "source_id": "79f59e3d-24de-4e3d-8ea6-2b465c3d0b77",
+      "grade": "NS3",
+      "subject": "Kreyòl",
+      "complete": false,
+      "accepted_field_projections": [],
+      "practice_projections": 15,
+      "selected_blockers": [
+        "target_text_limit",
+        "unclosed_markup",
+        "locale_unverified"
+      ]
+    },
+    {
+      "category": "interactive",
+      "source_id": "c1c64c4c-2786-46c8-8c0d-1fd3396063ef",
+      "grade": "8AF",
+      "subject": "Créole",
+      "complete": false,
+      "accepted_field_projections": [
+        "activites_interactives"
+      ],
+      "practice_projections": 0,
+      "selected_blockers": [
+        "unclosed_markup",
+        "locale_unverified",
+        "unsupported_markup_or_limit"
+      ]
+    },
+    {
+      "category": "nonstandard",
+      "source_id": "bcd4ff15-c1e6-4a31-8dc0-56133501b55f",
+      "grade": "NS4",
+      "subject": "Kreyòl",
+      "complete": false,
+      "accepted_field_projections": [],
+      "practice_projections": 12,
+      "selected_blockers": [
+        "target_text_limit",
+        "unsupported_markup_or_limit",
+        "locale_unverified"
+      ]
+    },
+    {
+      "category": "science",
+      "source_id": "5da568ad-7308-474c-89b7-ec1f0c42c08b",
+      "grade": "7AF",
+      "subject": "Sciences Sociales",
+      "complete": false,
+      "accepted_field_projections": [],
+      "practice_projections": 0,
+      "selected_blockers": [
+        "target_text_limit",
+        "unsafe_text",
+        "locale_unverified",
+        "unsupported_markup_or_limit"
+      ]
+    }
+  ],
+  "real_contract_checks": {
+    "actual_sections": 3,
+    "actual_questions": 37,
+    "invalid": 0
+  }
+}

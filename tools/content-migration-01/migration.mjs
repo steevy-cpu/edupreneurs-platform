@@ -14,10 +14,17 @@ export function canonical(x) {
   if (!x || typeof x!=="object" || ![null,Object.prototype].includes(Object.getPrototypeOf(x))) throw Error("noncanonical_value");
   return "{"+Object.keys(x).sort().map(k=>JSON.stringify(k)+":"+canonical(x[k])).join(",")+"}";
 }
+export function observeAsset(bytes, detectedMime) {
+  if (!(bytes instanceof Uint8Array) || typeof detectedMime!=="string") throw Error("invalid_asset_observation");
+  return {observed_bytes:bytes.byteLength,observed_sha256:createHash("sha256").update(bytes).digest("hex"),observed_mime:detectedMime};
+}
 export function digest(x) { return createHash("sha256").update(canonical(x),"utf8").digest("hex"); }
 export function nativeId(table,id) {
   if (!tables.has(table) || !uuid.test(id)) throw Error("invalid_source_identity");
-  const h=createHash("sha256").update("edupreneurs:legacy-v1/"+table+"/"+id).digest("hex");
+  return uuidHash("edupreneurs:legacy-v1/"+table+"/"+id);
+}
+function uuidHash(name) {
+  const h=createHash("sha256").update(name).digest("hex");
   return [h.slice(0,8),h.slice(8,12),"8"+h.slice(13,16),"8"+h.slice(17,20),h.slice(20,32)].join("-");
 }
 
@@ -26,7 +33,8 @@ export function project(s) {
   const issues=new Set(), assets=[], refs=new Map();
   const permitted=new Set(["table","id","title","revision","locale","grade","series","subject_id","unit_id","parent_id","assets","source_ref","rights_ref","workflow_status",
     "objectif","introduction","contenu","exemples_exercices","activites_interactives","quiz_final","track","pdf_ref","year","exam_type","session","duration_minutes",
-    "position","points","exercise_type","has_prompt","has_answer","has_explanation"]);
+    "position","points","exercise_type","has_prompt","has_answer","has_explanation","legacy_metadata","supplemental_sha256"]);
+  if(Object.keys(s.supplemental_sha256??{}).length) issues.add("supplemental_material_unmapped");
   if(Object.keys(s).some(k=>!permitted.has(k))) issues.add("unmapped_source_field");
   for(const a of s.assets??[]) {
     if (!a || !uuid.test(a.id) || typeof a.ref!=="string" || !a.ref || refs.has(a.ref) || assets.some(x=>x.id===a.id)) {
@@ -44,34 +52,46 @@ export function project(s) {
   if (!uuid.test(s.subject_id??"")) issues.add("missing_subject_mapping");
   if (!Number.isSafeInteger(s.revision) || s.revision<=0) issues.add("source_revision_required");
   if(s.locale!=="fr" && s.locale!=="ht") issues.add("locale_unverified");
-  let target=null;
+  let target=null, examMode=null, practiceItems=[];
   if(s.table==="lessons") {
     if(!uuid.test(s.unit_id??"")) issues.add("missing_unit_mapping");
-    if(typeof s.title!=="string" || !s.title.trim() || [...s.title].length>200) issues.add("invalid_title");
+    if(typeof s.title!=="string" || /[<>\u0000-\u001f]/u.test(s.title) || !s.title.trim() || [...s.title].length>200) issues.add("invalid_title");
+    if(typeof s.contenu!=="string" || !s.contenu.trim()) issues.add("missing_main_content");
     const parsed=lesson(s);
     parsed.issues.forEach(x=>issues.add(x));
     for(const asset of parsed.assets) if(!refs.has(asset.reference)) issues.add("unresolved_image_reference");
     target={title:s.title??null,blocks:parsed.blocks,questions:parsed.questions};
+    practiceItems=parsed.questions.map((q,i)=>({position:i+1,
+      revision_item_id:uuidHash("edupreneurs:practice-v1/"+id+"/"+s.locale+"/"+s.revision+"/"+(i+1)),
+      question_sha256:digest(q)}));
   } else if (["official_exams","exam_exercises"].includes(s.table)) {
     const p=examDescriptor(s.table,s);
     p.issues.forEach(x=>issues.add(x));
     if(s.table==="official_exams" && !refs.has(s.pdf_ref)) issues.add("unresolved_pdf");
     if(s.table==="exam_exercises" && !uuid.test(s.parent_id??"")) issues.add("missing_exam");
     target=p.descriptor;
+    examMode=p.descriptor.mode??null;
   } else issues.add("inventory_only");
   // Unknown licensing is a release blocker even for structurally convertible drafts.
   // A source field called approved/reviewed is never an approval on the target.
-  const entry={schema_version:1,transform,source_table:s.table,legacy_id:s.id,native_id:id,revision:Number.isSafeInteger(s.revision)&&s.revision>0?s.revision:null,
+  const entry={schema_version:1,transform,source_table:s.table,legacy_id:s.id,native_id:id,
+    revision_id:["ht","fr"].includes(s.locale)&&Number.isSafeInteger(s.revision)&&s.revision>0?uuidHash("edupreneurs:revision-v1/"+id+"/"+s.locale+"/"+s.revision):null,revision:Number.isSafeInteger(s.revision)&&s.revision>0?s.revision:null,
     locale:["fr","ht"].includes(s.locale)?s.locale:null,hierarchy,source_sha256:digest(s),target_sha256:issues.size?null:digest(target),
     content_sha256:digest(s.table==="lessons"?Object.fromEntries(["title","objectif","introduction","contenu","exemples_exercices","activites_interactives","quiz_final"].map(k=>[k,s[k]??null])):s),
     assets,provenance:{rights_ref:s.rights_ref??null,source_ref:s.source_ref??null,source_status:s.workflow_status??null},
-    review:"draft_unreviewed",published:false,issues:[...issues].sort()};
+    review:"draft_unreviewed",published:false,practice_items:practiceItems,exam_mode:examMode,issues:[...issues].sort()};
   return {entry,target:issues.size?null:target};
 }
 
 export function plan(source) {
   if(!source.snapshot || !/^[0-9a-f]{40}$/.test(source.snapshot.commit) || !/Z$|[+]00:00$/.test(source.snapshot.time) || !Number.isFinite(Date.parse(source.snapshot.time))) throw Error("invalid_snapshot");
   const packets=source.records.map(project);
+  const positionSlots=new Set();
+  for(const s of source.records.filter(s=>s.table==="exam_exercises")){
+    const key=canonical([s.parent_id??null,s.locale??null,s.revision??null,s.position??null]);
+    if(positionSlots.has(key)) throw Error("duplicate_exercise_position");
+    positionSlots.add(key);
+  }
   const subjects=new Map(), units=new Map();
   for(const s of source.hierarchy.subjects) {
     if(subjects.has(s.id)) throw Error("duplicate_subject"); subjects.set(s.id,s);
@@ -155,4 +175,24 @@ export function simulate(source,previous=[]) {
     }
   }
   return [...index.values()];
+}
+
+/** Compare the independent identity census with extracted rows for the same table scope.
+ * Entity cardinality is distinct from revision/locale slots in the reconciliation report. */
+export function compareCensus(expected,records) {
+  const keys=new Map();
+  for(const row of expected) {
+    const id=nativeId(row.source_table,row.legacy_id);
+    if(keys.has(id)) throw Error("duplicate_census_id");
+    keys.set(id,row.native_id===id?"missing":"changed");
+  }
+  const actual=new Set(records.map(s=>nativeId(s.table,s.id)));
+  const results=[];
+  for(const [id,state] of keys) {
+    const found=actual.delete(id);
+    results.push({id,status:state==="changed"?"changed":found?"matched":"missing"});
+  }
+  for(const id of actual) results.push({id,status:"unexpected"});
+  results.sort((a,b)=>a.id.localeCompare(b.id,"en"));
+  return {expected_entities:keys.size,results};
 }
