@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.mon-edupreneur.local/content/question-true-false.schema.json",
+  "title": "True/false practice question (content format v2)",
+  "description": "The four JSON columns of a question whose kind is 'true_false'. Scoring rule 'true-false-v1': score 1 when response.value (a JSON boolean) equals answer_key.correct, otherwise 0. A response that does not match $defs/response is not scored ('invalid_response'). CONTRACT ONLY: the server's sync function does not score this kind yet and app.question_revisions.kind does not accept 'true_false' yet.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "prompt",
+    "response_spec",
+    "answer_key",
+    "explanation"
+  ],
+  "properties": {
+    "prompt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      }
+    },
+    "response_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {}
+    },
+    "answer_key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scoring_version",
+        "correct"
+      ],
+      "properties": {
+        "scoring_version": {
+          "const": "true-false-v1"
+        },
+        "correct": {
+          "type": "boolean"
+        }
+      }
+    },
+    "explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    }
+  },
+  "$defs": {
+    "noControl": {
+      "not": {
+        "pattern": "[\\u0000-\\u001f\\u007f]"
+      }
+    },
+    "noMarkup": {
+      "not": {
+        "pattern": "<[A-Za-z/!?]"
+      }
+    },
+    "response": {
+      "description": "What the phone sends as the learner's answer.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value"
+      ],
+      "properties": {
+        "value": {
+          "type": "boolean"
+        }
+      }
+    },
+    "noInvisible": {
+      "description": "No invisible or direction-changing character: C1 controls (U+0080-U+009F), zero-width characters and direction marks (U+200B-U+200F, U+2060, U+FEFF), line and paragraph separators (U+2028, U+2029), bidirectional embeddings, overrides and isolates (U+202A-U+202E, U+2066-U+2069), and lone surrogates (U+D800-U+DFFF). The pattern must be evaluated in Unicode mode (ECMA-262 'u' flag), where the surrogate range only matches a surrogate that is not part of a pair.",
+      "not": {
+        "pattern": "[\\u0080-\\u009f\\u200b-\\u200f\\u2028-\\u202e\\u2060\\u2066-\\u2069\\ufeff\\ud800-\\udfff]"
+      }
+    }
+  }
+}

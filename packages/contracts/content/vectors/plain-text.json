@@ -1,0 +1,493 @@
+{
+  "vector_format": 1,
+  "suite": "plain-text",
+  "description": "The plain-text rule of every NEW format-2 text field (review M4): no C0 control and no DEL, no '<' directly followed by a letter, '/', '!' or '?', and no invisible or direction-changing character - C1 controls U+0080-U+009F, U+200B-U+200F, U+2028-U+202E, U+2060, U+2066-U+2069, U+FEFF, lone surrogates. For every case, put 'text' in place of the string \"@TEXT@\" in EACH document of 'targets' and validate it (lesson bodies as content format 2; questions with their 'kind'); the result must be 'expect' for every target. The four format-1 block types (heading, paragraph, example, callout) and 'mcq' questions are deliberately NOT covered: they stay exactly as in format 1 (owner decision). The same rule applies to a lesson title in a pack. Written with ASCII-only JSON escapes; lone surrogates appear as single \\ud800-style escapes.",
+  "targets": [
+    {
+      "id": "image-alt",
+      "schema": "lesson-blocks.v2.schema.json",
+      "document": [
+        {
+          "key": "i",
+          "type": "image",
+          "asset": {
+            "sha256": "abababababababababababababababababababababababababababababababab",
+            "mime": "image/png",
+            "bytes": 100,
+            "width": 16,
+            "height": 9
+          },
+          "alt": "@TEXT@"
+        }
+      ]
+    },
+    {
+      "id": "image-caption",
+      "schema": "lesson-blocks.v2.schema.json",
+      "document": [
+        {
+          "key": "i",
+          "type": "image",
+          "asset": {
+            "sha256": "abababababababababababababababababababababababababababababababab",
+            "mime": "image/png",
+            "bytes": 100,
+            "width": 16,
+            "height": 9
+          },
+          "alt": "x",
+          "caption": "@TEXT@"
+        }
+      ]
+    },
+    {
+      "id": "math-alt",
+      "schema": "lesson-blocks.v2.schema.json",
+      "document": [
+        {
+          "key": "m",
+          "type": "math",
+          "notation": "edu-math-1",
+          "source": "x",
+          "alt": "@TEXT@"
+        }
+      ]
+    },
+    {
+      "id": "list-item",
+      "schema": "lesson-blocks.v2.schema.json",
+      "document": [
+        {
+          "key": "l",
+          "type": "list",
+          "style": "bullet",
+          "items": [
+            "un",
+            "@TEXT@"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-caption",
+      "schema": "lesson-blocks.v2.schema.json",
+      "document": [
+        {
+          "key": "t",
+          "type": "table",
+          "caption": "@TEXT@",
+          "columns": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            [
+              "1",
+              "2"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-column",
+      "schema": "lesson-blocks.v2.schema.json",
+      "document": [
+        {
+          "key": "t",
+          "type": "table",
+          "caption": "c",
+          "columns": [
+            "@TEXT@",
+            "b"
+          ],
+          "rows": [
+            [
+              "1",
+              "2"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "table-cell",
+      "schema": "lesson-blocks.v2.schema.json",
+      "document": [
+        {
+          "key": "t",
+          "type": "table",
+          "caption": "c",
+          "columns": [
+            "a",
+            "b"
+          ],
+          "rows": [
+            [
+              "1",
+              "@TEXT@"
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "id": "audio-title",
+      "schema": "lesson-blocks.v2.schema.json",
+      "document": [
+        {
+          "key": "p",
+          "type": "paragraph",
+          "text": "x"
+        },
+        {
+          "key": "a",
+          "type": "audio",
+          "asset": {
+            "sha256": "abababababababababababababababababababababababababababababababab",
+            "mime": "audio/mp4",
+            "bytes": 100
+          },
+          "duration_ms": 1000,
+          "title": "@TEXT@",
+          "transcript": {
+            "block_keys": [
+              "p"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "numeric-unit",
+      "schema": "question-numeric.schema.json",
+      "kind": "numeric",
+      "document": {
+        "prompt": {
+          "text": "?"
+        },
+        "response_spec": {
+          "allow_fraction": false,
+          "unit": "@TEXT@"
+        },
+        "answer_key": {
+          "scoring_version": "numeric-v1",
+          "value": "1",
+          "tolerance": "0"
+        },
+        "explanation": {
+          "text": "."
+        }
+      }
+    },
+    {
+      "id": "short-text-accepted",
+      "schema": "question-short-text.schema.json",
+      "kind": "short_text",
+      "document": {
+        "prompt": {
+          "text": "?"
+        },
+        "response_spec": {
+          "max_length": 80,
+          "case_sensitive": false,
+          "accent_sensitive": false
+        },
+        "answer_key": {
+          "scoring_version": "short-text-v1",
+          "accepted": [
+            "@TEXT@"
+          ]
+        },
+        "explanation": {
+          "text": "."
+        }
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "x-bidi-override-rlo",
+      "description": "U+202E RIGHT-TO-LEFT OVERRIDE: the stored text reads differently from what is shown",
+      "text": "abc\u202egnp.exe",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-bidi-embedding-lre",
+      "text": "a\u202ab",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-bidi-embedding-rle",
+      "text": "a\u202bb",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-bidi-pop-pdf",
+      "text": "a\u202cb",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-bidi-override-lro",
+      "text": "a\u202db",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-bidi-isolate-lri",
+      "text": "a\u2066b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-bidi-isolate-rli",
+      "text": "a\u2067b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-bidi-isolate-fsi",
+      "text": "a\u2068b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-bidi-isolate-pdi",
+      "text": "a\u2069b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-mark-lrm",
+      "text": "a\u200eb",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-mark-rlm",
+      "text": "a\u200fb",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-zero-width-space",
+      "description": "zero-width characters take no room: the table width rule would count them",
+      "text": "a\u200bb",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-zero-width-non-joiner",
+      "text": "a\u200cb",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-zero-width-joiner",
+      "text": "a\u200db",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-word-joiner",
+      "text": "a\u2060b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-zero-width-no-break-space",
+      "description": "U+FEFF, also the byte-order mark",
+      "text": "a\ufeffb",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-line-separator",
+      "text": "a\u2028b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-paragraph-separator",
+      "text": "a\u2029b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-c1-first",
+      "text": "a\u0080b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-c1-next-line",
+      "text": "a\u0085b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-c1-last",
+      "text": "a\u009fb",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-lone-high-surrogate",
+      "description": "a surrogate that is not part of a pair (possible in JSON as an escape)",
+      "text": "a\ud800b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-lone-low-surrogate",
+      "text": "a\udfffb",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-c0-control",
+      "description": "(already refused before the review)",
+      "text": "a\u0001b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "x-markup",
+      "description": "(already refused before the review)",
+      "text": "<b>x",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "ok-accents",
+      "description": "French",
+      "text": "\u00c9t\u00e9 d\u00e9j\u00e0 no\u00ebl",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-creole",
+      "description": "Haitian Creole",
+      "text": "Kons\u00e8y ak l\u00f2t",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-no-break-space",
+      "description": "U+00A0 is allowed",
+      "text": "3\u00a0km",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-narrow-no-break-space",
+      "description": "U+202F NARROW NO-BREAK SPACE (French typography) is allowed: it is next to, not inside, the forbidden range",
+      "text": "12\u202f%",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-quotes",
+      "description": "guillemets and apostrophe",
+      "text": "\u00ab a \u00bb \u2019",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-signs",
+      "description": "'<' followed by a space; minus sign, multiplication sign",
+      "text": "3 < 5 \u2212 2 \u00d7 \u00bd",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-astral",
+      "description": "a character outside the BMP (a surrogate PAIR in UTF-16) is allowed",
+      "text": "a\ud835\udfcfb",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-just-below-c1",
+      "text": "a~b",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-just-above-c1",
+      "text": "a\u00a1b",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-soft-hyphen-free",
+      "text": "abc",
+      "expect": {
+        "valid": true
+      }
+    }
+  ]
+}

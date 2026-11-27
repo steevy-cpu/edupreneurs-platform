@@ -1,0 +1,869 @@
+{
+  "vector_format": 1,
+  "suite": "math-notation",
+  "description": "Sources of 'math' blocks in the notation edu-math-1. expect is {valid:true}, {valid:false, layer:'schema'} (rejected by the structural layer of lesson-blocks.v2.schema.json: character set, length, or the no-markup rule - no '<' directly followed by a letter, '/', '!' or '?') or {valid:false, layer:'semantic', rule:'math.*'} (the FIRST grammar error found scanning left to right). To test a full validator, wrap each source in [{key:'m', type:'math', notation:'edu-math-1', source:<source>, alt:'x'}].",
+  "cases": [
+    {
+      "id": "ok-linear",
+      "source": "x + 3 = 10",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-fraction",
+      "source": "\\frac{a}{b}",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-pythagoras",
+      "source": "x^2 + y^2 = r^2",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-root",
+      "source": "\\sqrt{x + 1}",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-cube-root",
+      "source": "\\sqrt[3]{27} = 3",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-subscripts",
+      "source": "x_1 + x_2",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-sub-and-super",
+      "source": "x_1^2 + a_{i}^{2}",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-super-then-sub",
+      "source": "x^2_1",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-group-exponent",
+      "source": "x^{n+1}",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-times",
+      "source": "2 \\times 3 = 6",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-circle-area",
+      "source": "A = \\pi r^{2}",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-quadratic",
+      "source": "x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-number-set",
+      "source": "x \\in \\mathbb{R}",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-text-with-accents",
+      "source": "\\text{aire} = \\text{côté} \\times \\text{côté}",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-text-with-punctuation",
+      "source": "\\text{si x > 0, alors l'aire est positive.}",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-set-braces",
+      "source": "\\{1, 2, 3\\}",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-percent",
+      "source": "50\\%",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-absolute-value",
+      "source": "|x| \\ge 0",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-segment",
+      "source": "\\overline{AB} = 5",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-vector",
+      "source": "\\vec{u} + \\vec{v}",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-function",
+      "source": "f(x) = 2x + 1",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-degrees",
+      "source": "\\angle ABC = 90^\\circ",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-decimal-comma",
+      "source": "3,5 + 1,5 = 5",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-thin-space",
+      "source": "a\\,b",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-depth-4",
+      "source": "{{{{x}}}}",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-symbol-exponent",
+      "source": "x^\\pi",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-interval",
+      "source": "[0; 1]",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-nested-fraction",
+      "source": "\\frac{1}{1 + \\frac{1}{x}}",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-spaces-around",
+      "source": "  x = 1  ",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-implication",
+      "source": "x > 2 \\Rightarrow x^2 > 4",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-trig",
+      "source": "\\sin^2 x + \\cos^2 x = 1",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-length-400",
+      "source": "x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+yz",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "schema-dollar",
+      "description": "'$' is not in the character set",
+      "source": "$x$",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-ampersand",
+      "source": "a & b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-hash",
+      "source": "x # y",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-tilde",
+      "source": "a~b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-double-quote",
+      "source": "\"x\"",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-empty",
+      "description": "at least one character",
+      "source": "",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-length-401",
+      "description": "at most 400 code points",
+      "source": "x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+y",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-newline",
+      "description": "one line only",
+      "source": "x\ny",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-tab",
+      "source": "x\ty",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-arrow-character",
+      "description": "use \\to",
+      "source": "x → y",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-superscript-two",
+      "description": "use x^2",
+      "source": "x²",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-at-sign",
+      "source": "a@b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-backtick",
+      "source": "`x`",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-question-mark",
+      "description": "'?' is not in the character set",
+      "source": "x = ?",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "bad-unknown-href",
+      "source": "\\href{a}{b}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.unknown_command"
+      }
+    },
+    {
+      "id": "bad-unknown-def",
+      "description": "no macro definitions",
+      "source": "\\def\\x{1}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.unknown_command"
+      }
+    },
+    {
+      "id": "bad-unknown-begin",
+      "description": "no environments",
+      "source": "\\begin{matrix}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.unknown_command"
+      }
+    },
+    {
+      "id": "bad-unknown-glued-name",
+      "description": "a command name is the longest run of letters",
+      "source": "\\timesx",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.unknown_command"
+      }
+    },
+    {
+      "id": "bad-unknown-color",
+      "source": "\\color{red}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.unknown_command"
+      }
+    },
+    {
+      "id": "bad-unknown-input",
+      "source": "\\input{file}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.unknown_command"
+      }
+    },
+    {
+      "id": "bad-frac-one-argument",
+      "source": "\\frac{a}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.missing_argument"
+      }
+    },
+    {
+      "id": "bad-frac-unbraced",
+      "description": "arguments are always braced",
+      "source": "\\frac a b",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.missing_argument"
+      }
+    },
+    {
+      "id": "bad-sqrt-no-argument",
+      "source": "\\sqrt",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.missing_argument"
+      }
+    },
+    {
+      "id": "bad-sqrt-index-only",
+      "source": "\\sqrt[3]",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.missing_argument"
+      }
+    },
+    {
+      "id": "bad-text-no-argument",
+      "source": "\\text",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.missing_argument"
+      }
+    },
+    {
+      "id": "bad-mathbb-no-argument",
+      "source": "\\mathbb R",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.missing_argument"
+      }
+    },
+    {
+      "id": "bad-open-brace",
+      "source": "{x",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.unbalanced"
+      }
+    },
+    {
+      "id": "bad-close-brace",
+      "source": "x}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.unbalanced"
+      }
+    },
+    {
+      "id": "bad-open-root-index",
+      "source": "\\sqrt[3{x}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.unbalanced"
+      }
+    },
+    {
+      "id": "bad-open-text",
+      "source": "\\text{abc",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.unbalanced"
+      }
+    },
+    {
+      "id": "bad-depth-5",
+      "description": "at most 4 nested groups",
+      "source": "{{{{{x}}}}}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.depth"
+      }
+    },
+    {
+      "id": "bad-depth-5-in-fractions",
+      "source": "\\frac{1}{\\frac{1}{\\frac{1}{\\frac{1}{\\frac{1}{x}}}}}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.depth"
+      }
+    },
+    {
+      "id": "bad-script-no-base",
+      "source": "^2",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.script"
+      }
+    },
+    {
+      "id": "bad-script-no-operand",
+      "source": "x^",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.script"
+      }
+    },
+    {
+      "id": "bad-script-doubled",
+      "source": "x^^2",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.script"
+      }
+    },
+    {
+      "id": "bad-script-twice",
+      "description": "write x^{2^3}",
+      "source": "x^2^3",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.script"
+      }
+    },
+    {
+      "id": "bad-subscript-twice",
+      "source": "x_1_2",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.script"
+      }
+    },
+    {
+      "id": "bad-script-operator-operand",
+      "source": "x^+",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.script"
+      }
+    },
+    {
+      "id": "bad-script-after-space",
+      "description": "a script follows its base directly",
+      "source": "x ^2",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.script"
+      }
+    },
+    {
+      "id": "bad-script-unbraced-command",
+      "description": "write x^{\\frac{1}{2}}",
+      "source": "x^\\frac{1}{2}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.script"
+      }
+    },
+    {
+      "id": "bad-script-escape-operand",
+      "source": "x^\\%",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.script"
+      }
+    },
+    {
+      "id": "bad-multiplication-sign-character",
+      "description": "use \\times",
+      "source": "x × y",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.text"
+      }
+    },
+    {
+      "id": "bad-accent-outside-text",
+      "description": "accented letters only inside \\text{...}",
+      "source": "é + 1",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.text"
+      }
+    },
+    {
+      "id": "bad-text-with-caret",
+      "source": "\\text{a^b}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.text"
+      }
+    },
+    {
+      "id": "bad-text-with-backslash",
+      "source": "\\text{a\\b}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.text"
+      }
+    },
+    {
+      "id": "bad-text-with-open-brace",
+      "source": "\\text{a{b}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.text"
+      }
+    },
+    {
+      "id": "bad-text-with-division-sign",
+      "source": "\\text{a ÷ b}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.text"
+      }
+    },
+    {
+      "id": "bad-empty-group",
+      "source": "{}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.syntax"
+      }
+    },
+    {
+      "id": "bad-group-of-spaces",
+      "source": "x^{ }",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.syntax"
+      }
+    },
+    {
+      "id": "bad-backslash-space",
+      "source": "x \\ y",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.syntax"
+      }
+    },
+    {
+      "id": "bad-trailing-backslash",
+      "source": "x\\",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.syntax"
+      }
+    },
+    {
+      "id": "bad-bare-percent",
+      "description": "write 50\\%",
+      "source": "50%",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.syntax"
+      }
+    },
+    {
+      "id": "bad-only-spaces",
+      "source": "   ",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.syntax"
+      }
+    },
+    {
+      "id": "bad-unknown-number-set",
+      "description": "one of N Z D Q R",
+      "source": "\\mathbb{X}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.syntax"
+      }
+    },
+    {
+      "id": "bad-two-letter-number-set",
+      "source": "\\mathbb{RR}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.syntax"
+      }
+    },
+    {
+      "id": "bad-empty-root-index",
+      "source": "\\sqrt[]{x}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.syntax"
+      }
+    },
+    {
+      "id": "bad-empty-text",
+      "source": "\\text{}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.syntax"
+      }
+    },
+    {
+      "id": "bad-first-error-wins",
+      "description": "validation stops at the first error, left to right",
+      "source": "\\foo{",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.unknown_command"
+      }
+    },
+    {
+      "id": "ok-less-than-spaced",
+      "description": "'<' followed by a space or a digit is an ordinary sign",
+      "source": "a < b",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-less-than-digit",
+      "source": "x<3",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "ok-text-less-than-spaced",
+      "source": "\\text{si a < b}",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "schema-markup-script-element",
+      "description": "No markup: '<' directly followed by a letter, '/', '!' or '?' is refused by the structural layer (review M1)",
+      "source": "<script>alert(1)</script>",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-markup-element-with-attribute",
+      "source": "<img src=x onerror=alert(1)>",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-markup-inside-text",
+      "description": "... also inside \\text{...}",
+      "source": "\\text{<b>x</b>}",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-markup-less-than-letter",
+      "description": "authors write 'a < b' with a space",
+      "source": "a<b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-markup-closing-tag",
+      "source": "x </b",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "schema-markup-bang",
+      "source": "x <!",
+      "expect": {
+        "valid": false,
+        "layer": "schema"
+      }
+    },
+    {
+      "id": "ok-root-index-four-levels",
+      "description": "A root index counts as one nesting level, like a group: four levels are the limit (review M2)",
+      "source": "\\sqrt[\\sqrt[\\sqrt[\\sqrt[2]{x}]{x}]{x}]{x}",
+      "expect": {
+        "valid": true
+      }
+    },
+    {
+      "id": "bad-depth-root-index-five-levels",
+      "source": "\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[2]{x}]{x}]{x}]{x}]{x}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.depth"
+      }
+    },
+    {
+      "id": "bad-depth-root-index-inside-groups",
+      "description": "groups and root indices share one depth counter",
+      "source": "{{{\\sqrt[\\sqrt[2]{x}]{x}}}}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.depth"
+      }
+    },
+    {
+      "id": "bad-depth-root-index-39-levels",
+      "description": "fits in 400 characters; must not be accepted",
+      "source": "\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[\\sqrt[x]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}]{x}",
+      "expect": {
+        "valid": false,
+        "layer": "semantic",
+        "rule": "math.depth"
+      }
+    }
+  ]
+}

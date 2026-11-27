@@ -1,0 +1,2403 @@
+{
+  "vector_format": 1,
+  "suite": "pack-manifest",
+  "description": "Deterministic pack manifests (pack-manifest-1, canonical JSON edu-canon-json-1). input: the pack as data, with asset files in base64 (keyed by sha256). expect: the exact manifest (manifest_utf8, to be compared byte for byte after UTF-8 encoding), its SHA-256 and size, and every other object with its key, hash and size; or {error: code} when the pack must be refused. All content and all asset bytes are synthetic; the audio bytes are a placeholder that only carries an MP4 signature.",
+  "cases": [
+    {
+      "id": "v2-pack-three-lessons",
+      "description": "A format-2 pack: one lesson with every new block type and question kind, one format-1 lesson, one lesson sharing an image with the first. Lessons are given out of order on purpose; the manifest orders them by position. The shared image appears once.",
+      "input": {
+        "content_format": 2,
+        "pack": {
+          "release_id": "f1000000-0000-4000-8000-000000000001",
+          "pack_key": "synthetic-fractions",
+          "locale": "fr",
+          "revision": 2
+        },
+        "lessons": [
+          {
+            "position": 3,
+            "lesson_id": "b1000000-0000-4000-8000-000000000003",
+            "revision_id": "c1000000-0000-4000-8000-000000000003",
+            "revision": 1,
+            "title": "Fractions d'une figure",
+            "blocks": [
+              {
+                "key": "figure-1",
+                "type": "image",
+                "asset": {
+                  "sha256": "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb",
+                  "mime": "image/png",
+                  "bytes": 221,
+                  "width": 16,
+                  "height": 9
+                },
+                "alt": "Le même rectangle : trois parts grises sur quatre."
+              },
+              {
+                "key": "figure-2",
+                "type": "image",
+                "asset": {
+                  "sha256": "7fa5ba4a50e678b7715cc2811b1d8ede0953f24d4ed124f01d9f81c7a4492837",
+                  "mime": "image/png",
+                  "bytes": 140,
+                  "width": 8,
+                  "height": 8
+                },
+                "alt": "Un carré partagé en deux parts égales."
+              },
+              {
+                "key": "liste",
+                "type": "list",
+                "style": "bullet",
+                "items": [
+                  "Première figure : 3/4",
+                  "Deuxième figure : 1/2"
+                ]
+              }
+            ],
+            "questions": []
+          },
+          {
+            "position": 1,
+            "lesson_id": "b1000000-0000-4000-8000-000000000001",
+            "revision_id": "c1000000-0000-4000-8000-000000000001",
+            "revision": 1,
+            "title": "Les fractions",
+            "blocks": [
+              {
+                "key": "intro",
+                "type": "paragraph",
+                "text": "Une fraction représente une partie d'un tout."
+              },
+              {
+                "key": "formule",
+                "type": "math",
+                "notation": "edu-math-1",
+                "source": "\\frac{3}{4} = 0,75",
+                "alt": "trois quarts égale zéro virgule soixante-quinze"
+              },
+              {
+                "key": "schema",
+                "type": "image",
+                "asset": {
+                  "sha256": "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb",
+                  "mime": "image/png",
+                  "bytes": 221,
+                  "width": 16,
+                  "height": 9
+                },
+                "alt": "Un rectangle partagé en quatre parts égales, trois parts sont grises.",
+                "caption": "Trois quarts"
+              },
+              {
+                "key": "etapes",
+                "type": "list",
+                "style": "number",
+                "items": [
+                  "Compter les parts égales.",
+                  "Compter les parts coloriées.",
+                  "Écrire la fraction."
+                ]
+              },
+              {
+                "key": "tableau",
+                "type": "table",
+                "caption": "Fractions et écritures décimales",
+                "columns": [
+                  "Fraction",
+                  "Décimal"
+                ],
+                "rows": [
+                  [
+                    "1/2",
+                    "0,5"
+                  ],
+                  [
+                    "3/4",
+                    "0,75"
+                  ]
+                ]
+              },
+              {
+                "key": "ecoute",
+                "type": "audio",
+                "asset": {
+                  "sha256": "c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329",
+                  "mime": "audio/mp4",
+                  "bytes": 124
+                },
+                "duration_ms": 12000,
+                "title": "Écouter l'explication",
+                "transcript": {
+                  "block_keys": [
+                    "intro",
+                    "etapes"
+                  ]
+                }
+              }
+            ],
+            "questions": [
+              {
+                "id": "d1000000-0000-4000-8000-000000000001",
+                "question_key": "choix",
+                "position": 1,
+                "kind": "mcq",
+                "prompt": {
+                  "text": "Quelle fraction est égale à 0,5 ?"
+                },
+                "response_spec": {
+                  "choices": [
+                    {
+                      "id": "a",
+                      "text": "1/2"
+                    },
+                    {
+                      "id": "b",
+                      "text": "1/4"
+                    }
+                  ]
+                },
+                "answer_key": {
+                  "correct_choice_id": "a"
+                },
+                "explanation": {
+                  "text": "1 divisé par 2 donne 0,5."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000002",
+                "question_key": "vrai-faux",
+                "position": 2,
+                "kind": "true_false",
+                "prompt": {
+                  "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+                },
+                "response_spec": {},
+                "answer_key": {
+                  "scoring_version": "true-false-v1",
+                  "correct": true
+                },
+                "explanation": {
+                  "text": "0,75 est plus grand que 0,5."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000003",
+                "question_key": "decimal",
+                "position": 3,
+                "kind": "numeric",
+                "prompt": {
+                  "text": "Écris 3/4 sous forme décimale."
+                },
+                "response_spec": {
+                  "allow_fraction": false
+                },
+                "answer_key": {
+                  "scoring_version": "numeric-v1",
+                  "value": "0.75",
+                  "tolerance": "0"
+                },
+                "explanation": {
+                  "text": "3 divisé par 4 donne 0,75."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000004",
+                "question_key": "mot",
+                "position": 4,
+                "kind": "short_text",
+                "prompt": {
+                  "text": "Comment s'appelle le nombre du haut d'une fraction ?"
+                },
+                "response_spec": {
+                  "max_length": 30,
+                  "case_sensitive": false,
+                  "accent_sensitive": false
+                },
+                "answer_key": {
+                  "scoring_version": "short-text-v1",
+                  "accepted": [
+                    "numérateur",
+                    "le numérateur"
+                  ]
+                },
+                "explanation": {
+                  "text": "Le numérateur compte les parts prises."
+                }
+              }
+            ]
+          },
+          {
+            "position": 2,
+            "lesson_id": "b1000000-0000-4000-8000-000000000002",
+            "revision_id": "c1000000-0000-4000-8000-000000000002",
+            "revision": 3,
+            "title": "Comparer deux fractions",
+            "blocks": [
+              {
+                "key": "regle",
+                "type": "heading",
+                "text": "Même dénominateur"
+              },
+              {
+                "key": "texte",
+                "type": "paragraph",
+                "text": "Quand deux fractions ont le même dénominateur, la plus grande est celle qui a le plus grand numérateur."
+              },
+              {
+                "key": "exemple",
+                "type": "example",
+                "title": "Exemple",
+                "steps": [
+                  "3/5 et 2/5",
+                  "3 > 2",
+                  "donc 3/5 > 2/5"
+                ]
+              },
+              {
+                "key": "rappel",
+                "type": "callout",
+                "tone": "remember",
+                "text": "On compare seulement les numérateurs."
+              }
+            ],
+            "questions": [
+              {
+                "id": "d1000000-0000-4000-8000-000000000005",
+                "question_key": "comparer",
+                "position": 1,
+                "kind": "mcq",
+                "prompt": {
+                  "text": "Laquelle est la plus grande ?"
+                },
+                "response_spec": {
+                  "choices": [
+                    {
+                      "id": "a",
+                      "text": "2/7"
+                    },
+                    {
+                      "id": "b",
+                      "text": "5/7"
+                    }
+                  ]
+                },
+                "answer_key": {
+                  "correct_choice_id": "b"
+                },
+                "explanation": {
+                  "text": "5 est plus grand que 2."
+                }
+              }
+            ]
+          }
+        ],
+        "assets_base64": {
+          "7fa5ba4a50e678b7715cc2811b1d8ede0953f24d4ed124f01d9f81c7a4492837": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAAAAADhZOFXAAAAU0lEQVR4AQFIALf/ACgvNj1ES1JZADU8Q0pRWF9mAEJJUFdeZWxzAE9WXWRrcnmAAFxjanF4f4aNAGlwd36FjJOaAHZ9hIuSmaCnAIOKkZifpq20O7UbgV57T4MAAAAASUVORK5CYII=",
+          "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAJCAAAAAAeQfPuAAAApElEQVR4AQGZAGb/AAMKERgfJi00O0JJUFdeZWwAEBceJSwzOkFIT1ZdZGtyeQAdJCsyOUBHTlVcY2pxeH+GACoxOD9GTVRbYmlwd36FjJMANz5FTFNaYWhvdn2Ei5KZoABES1JZYGdudXyDipGYn6atAFFYX2ZtdHuCiZCXnqWss7oAXmVsc3qBiI+WnaSrsrnAxwBrcnmAh46VnKOqsbi/xs3Ugts8eQyw/hgAAAAASUVORK5CYII=",
+          "c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329": "AAAAGGZ0eXBNNEEgAAAAAE00QSBtcDQyaXNvbQUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZA=="
+        }
+      },
+      "expect": {
+        "manifest_key": "packs/synthetic-fractions/fr/2/manifest.json",
+        "manifest_sha256": "f76f7ed37cb3bec1b0ca5bfaa36eda19a70ed0984806013637135b110a4580cf",
+        "manifest_bytes": 2998,
+        "manifest_utf8": "{\"assets\":[{\"bytes\":140,\"kind\":\"image\",\"mime\":\"image/png\",\"object_key\":\"assets/sha256/7f/7fa5ba4a50e678b7715cc2811b1d8ede0953f24d4ed124f01d9f81c7a4492837\",\"required\":true,\"sha256\":\"7fa5ba4a50e678b7715cc2811b1d8ede0953f24d4ed124f01d9f81c7a4492837\"},{\"bytes\":221,\"kind\":\"image\",\"mime\":\"image/png\",\"object_key\":\"assets/sha256/bd/bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb\",\"required\":true,\"sha256\":\"bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb\"},{\"bytes\":124,\"kind\":\"audio\",\"mime\":\"audio/mp4\",\"object_key\":\"assets/sha256/c4/c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329\",\"required\":false,\"sha256\":\"c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329\"}],\"content_format\":2,\"lessons\":[{\"assets\":[\"bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb\",\"c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329\"],\"bytes\":2650,\"content_format\":2,\"lesson_id\":\"b1000000-0000-4000-8000-000000000001\",\"object_key\":\"lessons/sha256/0d/0dff0cc3bf5c2e2b4c1d33f82bd6ef523134be757c7ec24a107cefb9f02dadeb.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000001\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"choix\"},{\"id\":\"d1000000-0000-4000-8000-000000000002\",\"kind\":\"true_false\",\"position\":2,\"question_key\":\"vrai-faux\"},{\"id\":\"d1000000-0000-4000-8000-000000000003\",\"kind\":\"numeric\",\"position\":3,\"question_key\":\"decimal\"},{\"id\":\"d1000000-0000-4000-8000-000000000004\",\"kind\":\"short_text\",\"position\":4,\"question_key\":\"mot\"}],\"revision\":1,\"revision_id\":\"c1000000-0000-4000-8000-000000000001\",\"sha256\":\"0dff0cc3bf5c2e2b4c1d33f82bd6ef523134be757c7ec24a107cefb9f02dadeb\",\"title\":\"Les fractions\"},{\"assets\":[],\"bytes\":969,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json\",\"position\":2,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4\",\"title\":\"Comparer deux fractions\"},{\"assets\":[\"7fa5ba4a50e678b7715cc2811b1d8ede0953f24d4ed124f01d9f81c7a4492837\",\"bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb\"],\"bytes\":803,\"content_format\":2,\"lesson_id\":\"b1000000-0000-4000-8000-000000000003\",\"object_key\":\"lessons/sha256/97/978fa45375c7ba82791c3135b322292dbe8621c117113eb83d55f105420350cf.json\",\"position\":3,\"questions\":[],\"revision\":1,\"revision_id\":\"c1000000-0000-4000-8000-000000000003\",\"sha256\":\"978fa45375c7ba82791c3135b322292dbe8621c117113eb83d55f105420350cf\",\"title\":\"Fractions d'une figure\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-fractions\",\"release_id\":\"f1000000-0000-4000-8000-000000000001\",\"revision\":2},\"totals\":{\"assets\":3,\"lesson_bytes\":4422,\"lessons\":3,\"optional_asset_bytes\":124,\"questions\":5,\"required_asset_bytes\":361}}",
+        "objects": [
+          {
+            "key": "assets/sha256/7f/7fa5ba4a50e678b7715cc2811b1d8ede0953f24d4ed124f01d9f81c7a4492837",
+            "sha256": "7fa5ba4a50e678b7715cc2811b1d8ede0953f24d4ed124f01d9f81c7a4492837",
+            "bytes": 140
+          },
+          {
+            "key": "assets/sha256/bd/bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb",
+            "sha256": "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb",
+            "bytes": 221
+          },
+          {
+            "key": "assets/sha256/c4/c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329",
+            "sha256": "c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329",
+            "bytes": 124
+          },
+          {
+            "key": "lessons/sha256/0d/0dff0cc3bf5c2e2b4c1d33f82bd6ef523134be757c7ec24a107cefb9f02dadeb.json",
+            "sha256": "0dff0cc3bf5c2e2b4c1d33f82bd6ef523134be757c7ec24a107cefb9f02dadeb",
+            "bytes": 2650
+          },
+          {
+            "key": "lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json",
+            "sha256": "33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4",
+            "bytes": 969
+          },
+          {
+            "key": "lessons/sha256/97/978fa45375c7ba82791c3135b322292dbe8621c117113eb83d55f105420350cf.json",
+            "sha256": "978fa45375c7ba82791c3135b322292dbe8621c117113eb83d55f105420350cf",
+            "bytes": 803
+          }
+        ],
+        "total_bytes": 7905
+      }
+    },
+    {
+      "id": "v1-pack-one-lesson",
+      "description": "A format-1 pack: only format-1 blocks and mcq. No assets.",
+      "input": {
+        "content_format": 1,
+        "pack": {
+          "release_id": "f1000000-0000-4000-8000-000000000002",
+          "pack_key": "synthetic-compare",
+          "locale": "fr",
+          "revision": 1
+        },
+        "lessons": [
+          {
+            "position": 1,
+            "lesson_id": "b1000000-0000-4000-8000-000000000002",
+            "revision_id": "c1000000-0000-4000-8000-000000000002",
+            "revision": 3,
+            "title": "Comparer deux fractions",
+            "blocks": [
+              {
+                "key": "regle",
+                "type": "heading",
+                "text": "Même dénominateur"
+              },
+              {
+                "key": "texte",
+                "type": "paragraph",
+                "text": "Quand deux fractions ont le même dénominateur, la plus grande est celle qui a le plus grand numérateur."
+              },
+              {
+                "key": "exemple",
+                "type": "example",
+                "title": "Exemple",
+                "steps": [
+                  "3/5 et 2/5",
+                  "3 > 2",
+                  "donc 3/5 > 2/5"
+                ]
+              },
+              {
+                "key": "rappel",
+                "type": "callout",
+                "tone": "remember",
+                "text": "On compare seulement les numérateurs."
+              }
+            ],
+            "questions": [
+              {
+                "id": "d1000000-0000-4000-8000-000000000005",
+                "question_key": "comparer",
+                "position": 1,
+                "kind": "mcq",
+                "prompt": {
+                  "text": "Laquelle est la plus grande ?"
+                },
+                "response_spec": {
+                  "choices": [
+                    {
+                      "id": "a",
+                      "text": "2/7"
+                    },
+                    {
+                      "id": "b",
+                      "text": "5/7"
+                    }
+                  ]
+                },
+                "answer_key": {
+                  "correct_choice_id": "b"
+                },
+                "explanation": {
+                  "text": "5 est plus grand que 2."
+                }
+              }
+            ]
+          }
+        ],
+        "assets_base64": {}
+      },
+      "expect": {
+        "manifest_key": "packs/synthetic-compare/fr/1/manifest.json",
+        "manifest_sha256": "dff6fd7b829b4cc6132a4dc30c989dbdd3c093bb189282d57c32cdbeabcfb0c5",
+        "manifest_bytes": 817,
+        "manifest_utf8": "{\"assets\":[],\"content_format\":1,\"lessons\":[{\"assets\":[],\"bytes\":969,\"content_format\":1,\"lesson_id\":\"b1000000-0000-4000-8000-000000000002\",\"object_key\":\"lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json\",\"position\":1,\"questions\":[{\"id\":\"d1000000-0000-4000-8000-000000000005\",\"kind\":\"mcq\",\"position\":1,\"question_key\":\"comparer\"}],\"revision\":3,\"revision_id\":\"c1000000-0000-4000-8000-000000000002\",\"sha256\":\"33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4\",\"title\":\"Comparer deux fractions\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"fr\",\"pack_key\":\"synthetic-compare\",\"release_id\":\"f1000000-0000-4000-8000-000000000002\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":969,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":1,\"required_asset_bytes\":0}}",
+        "objects": [
+          {
+            "key": "lessons/sha256/33/33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4.json",
+            "sha256": "33c726cafc5d70ac1c097e93d0e71e0c3aefc0fb4c756e57c2898075025406f4",
+            "bytes": 969
+          }
+        ],
+        "total_bytes": 1786
+      }
+    },
+    {
+      "id": "v2-pack-ht-no-assets",
+      "description": "Haitian Creole (draft wording, synthetic), a formula, no asset.",
+      "input": {
+        "content_format": 2,
+        "pack": {
+          "release_id": "f1000000-0000-4000-8000-000000000003",
+          "pack_key": "synthetic-fractions",
+          "locale": "ht",
+          "revision": 1
+        },
+        "lessons": [
+          {
+            "position": 1,
+            "lesson_id": "b1000000-0000-4000-8000-000000000001",
+            "revision_id": "c1000000-0000-4000-8000-000000000011",
+            "revision": 1,
+            "title": "Fraksyon yo",
+            "blocks": [
+              {
+                "key": "intro",
+                "type": "paragraph",
+                "text": "Yon fraksyon montre yon pati nan yon antye."
+              },
+              {
+                "key": "fomil",
+                "type": "math",
+                "notation": "edu-math-1",
+                "source": "\\frac{1}{2}",
+                "alt": "youn sou de"
+              }
+            ],
+            "questions": []
+          }
+        ],
+        "assets_base64": {}
+      },
+      "expect": {
+        "manifest_key": "packs/synthetic-fractions/ht/1/manifest.json",
+        "manifest_sha256": "866f4acb6f27f2fb51505b15a4111fa9cdc817c974dd88d25c9c427c9c800a83",
+        "manifest_bytes": 710,
+        "manifest_utf8": "{\"assets\":[],\"content_format\":2,\"lessons\":[{\"assets\":[],\"bytes\":416,\"content_format\":2,\"lesson_id\":\"b1000000-0000-4000-8000-000000000001\",\"object_key\":\"lessons/sha256/33/33937956bb5f75289519f18fa5a78739c28467dc632ec057adb306f4099eaaf2.json\",\"position\":1,\"questions\":[],\"revision\":1,\"revision_id\":\"c1000000-0000-4000-8000-000000000011\",\"sha256\":\"33937956bb5f75289519f18fa5a78739c28467dc632ec057adb306f4099eaaf2\",\"title\":\"Fraksyon yo\"}],\"manifest_version\":\"pack-manifest-1\",\"pack\":{\"locale\":\"ht\",\"pack_key\":\"synthetic-fractions\",\"release_id\":\"f1000000-0000-4000-8000-000000000003\",\"revision\":1},\"totals\":{\"assets\":0,\"lesson_bytes\":416,\"lessons\":1,\"optional_asset_bytes\":0,\"questions\":0,\"required_asset_bytes\":0}}",
+        "objects": [
+          {
+            "key": "lessons/sha256/33/33937956bb5f75289519f18fa5a78739c28467dc632ec057adb306f4099eaaf2.json",
+            "sha256": "33937956bb5f75289519f18fa5a78739c28467dc632ec057adb306f4099eaaf2",
+            "bytes": 416
+          }
+        ],
+        "total_bytes": 1126
+      }
+    },
+    {
+      "id": "x-format-1-pack-with-format-2-lesson",
+      "description": "The negotiation rule: a format-1 pack never contains format-2 content.",
+      "input": {
+        "content_format": 1,
+        "pack": {
+          "release_id": "f1000000-0000-4000-8000-000000000001",
+          "pack_key": "synthetic-fractions",
+          "locale": "fr",
+          "revision": 2
+        },
+        "lessons": [
+          {
+            "position": 3,
+            "lesson_id": "b1000000-0000-4000-8000-000000000003",
+            "revision_id": "c1000000-0000-4000-8000-000000000003",
+            "revision": 1,
+            "title": "Fractions d'une figure",
+            "blocks": [
+              {
+                "key": "figure-1",
+                "type": "image",
+                "asset": {
+                  "sha256": "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb",
+                  "mime": "image/png",
+                  "bytes": 221,
+                  "width": 16,
+                  "height": 9
+                },
+                "alt": "Le même rectangle : trois parts grises sur quatre."
+              },
+              {
+                "key": "figure-2",
+                "type": "image",
+                "asset": {
+                  "sha256": "7fa5ba4a50e678b7715cc2811b1d8ede0953f24d4ed124f01d9f81c7a4492837",
+                  "mime": "image/png",
+                  "bytes": 140,
+                  "width": 8,
+                  "height": 8
+                },
+                "alt": "Un carré partagé en deux parts égales."
+              },
+              {
+                "key": "liste",
+                "type": "list",
+                "style": "bullet",
+                "items": [
+                  "Première figure : 3/4",
+                  "Deuxième figure : 1/2"
+                ]
+              }
+            ],
+            "questions": []
+          },
+          {
+            "position": 1,
+            "lesson_id": "b1000000-0000-4000-8000-000000000001",
+            "revision_id": "c1000000-0000-4000-8000-000000000001",
+            "revision": 1,
+            "title": "Les fractions",
+            "blocks": [
+              {
+                "key": "intro",
+                "type": "paragraph",
+                "text": "Une fraction représente une partie d'un tout."
+              },
+              {
+                "key": "formule",
+                "type": "math",
+                "notation": "edu-math-1",
+                "source": "\\frac{3}{4} = 0,75",
+                "alt": "trois quarts égale zéro virgule soixante-quinze"
+              },
+              {
+                "key": "schema",
+                "type": "image",
+                "asset": {
+                  "sha256": "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb",
+                  "mime": "image/png",
+                  "bytes": 221,
+                  "width": 16,
+                  "height": 9
+                },
+                "alt": "Un rectangle partagé en quatre parts égales, trois parts sont grises.",
+                "caption": "Trois quarts"
+              },
+              {
+                "key": "etapes",
+                "type": "list",
+                "style": "number",
+                "items": [
+                  "Compter les parts égales.",
+                  "Compter les parts coloriées.",
+                  "Écrire la fraction."
+                ]
+              },
+              {
+                "key": "tableau",
+                "type": "table",
+                "caption": "Fractions et écritures décimales",
+                "columns": [
+                  "Fraction",
+                  "Décimal"
+                ],
+                "rows": [
+                  [
+                    "1/2",
+                    "0,5"
+                  ],
+                  [
+                    "3/4",
+                    "0,75"
+                  ]
+                ]
+              },
+              {
+                "key": "ecoute",
+                "type": "audio",
+                "asset": {
+                  "sha256": "c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329",
+                  "mime": "audio/mp4",
+                  "bytes": 124
+                },
+                "duration_ms": 12000,
+                "title": "Écouter l'explication",
+                "transcript": {
+                  "block_keys": [
+                    "intro",
+                    "etapes"
+                  ]
+                }
+              }
+            ],
+            "questions": [
+              {
+                "id": "d1000000-0000-4000-8000-000000000001",
+                "question_key": "choix",
+                "position": 1,
+                "kind": "mcq",
+                "prompt": {
+                  "text": "Quelle fraction est égale à 0,5 ?"
+                },
+                "response_spec": {
+                  "choices": [
+                    {
+                      "id": "a",
+                      "text": "1/2"
+                    },
+                    {
+                      "id": "b",
+                      "text": "1/4"
+                    }
+                  ]
+                },
+                "answer_key": {
+                  "correct_choice_id": "a"
+                },
+                "explanation": {
+                  "text": "1 divisé par 2 donne 0,5."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000002",
+                "question_key": "vrai-faux",
+                "position": 2,
+                "kind": "true_false",
+                "prompt": {
+                  "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+                },
+                "response_spec": {},
+                "answer_key": {
+                  "scoring_version": "true-false-v1",
+                  "correct": true
+                },
+                "explanation": {
+                  "text": "0,75 est plus grand que 0,5."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000003",
+                "question_key": "decimal",
+                "position": 3,
+                "kind": "numeric",
+                "prompt": {
+                  "text": "Écris 3/4 sous forme décimale."
+                },
+                "response_spec": {
+                  "allow_fraction": false
+                },
+                "answer_key": {
+                  "scoring_version": "numeric-v1",
+                  "value": "0.75",
+                  "tolerance": "0"
+                },
+                "explanation": {
+                  "text": "3 divisé par 4 donne 0,75."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000004",
+                "question_key": "mot",
+                "position": 4,
+                "kind": "short_text",
+                "prompt": {
+                  "text": "Comment s'appelle le nombre du haut d'une fraction ?"
+                },
+                "response_spec": {
+                  "max_length": 30,
+                  "case_sensitive": false,
+                  "accent_sensitive": false
+                },
+                "answer_key": {
+                  "scoring_version": "short-text-v1",
+                  "accepted": [
+                    "numérateur",
+                    "le numérateur"
+                  ]
+                },
+                "explanation": {
+                  "text": "Le numérateur compte les parts prises."
+                }
+              }
+            ]
+          },
+          {
+            "position": 2,
+            "lesson_id": "b1000000-0000-4000-8000-000000000002",
+            "revision_id": "c1000000-0000-4000-8000-000000000002",
+            "revision": 3,
+            "title": "Comparer deux fractions",
+            "blocks": [
+              {
+                "key": "regle",
+                "type": "heading",
+                "text": "Même dénominateur"
+              },
+              {
+                "key": "texte",
+                "type": "paragraph",
+                "text": "Quand deux fractions ont le même dénominateur, la plus grande est celle qui a le plus grand numérateur."
+              },
+              {
+                "key": "exemple",
+                "type": "example",
+                "title": "Exemple",
+                "steps": [
+                  "3/5 et 2/5",
+                  "3 > 2",
+                  "donc 3/5 > 2/5"
+                ]
+              },
+              {
+                "key": "rappel",
+                "type": "callout",
+                "tone": "remember",
+                "text": "On compare seulement les numérateurs."
+              }
+            ],
+            "questions": [
+              {
+                "id": "d1000000-0000-4000-8000-000000000005",
+                "question_key": "comparer",
+                "position": 1,
+                "kind": "mcq",
+                "prompt": {
+                  "text": "Laquelle est la plus grande ?"
+                },
+                "response_spec": {
+                  "choices": [
+                    {
+                      "id": "a",
+                      "text": "2/7"
+                    },
+                    {
+                      "id": "b",
+                      "text": "5/7"
+                    }
+                  ]
+                },
+                "answer_key": {
+                  "correct_choice_id": "b"
+                },
+                "explanation": {
+                  "text": "5 est plus grand que 2."
+                }
+              }
+            ]
+          }
+        ],
+        "assets_base64": {
+          "7fa5ba4a50e678b7715cc2811b1d8ede0953f24d4ed124f01d9f81c7a4492837": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAAAAADhZOFXAAAAU0lEQVR4AQFIALf/ACgvNj1ES1JZADU8Q0pRWF9mAEJJUFdeZWxzAE9WXWRrcnmAAFxjanF4f4aNAGlwd36FjJOaAHZ9hIuSmaCnAIOKkZifpq20O7UbgV57T4MAAAAASUVORK5CYII=",
+          "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAJCAAAAAAeQfPuAAAApElEQVR4AQGZAGb/AAMKERgfJi00O0JJUFdeZWwAEBceJSwzOkFIT1ZdZGtyeQAdJCsyOUBHTlVcY2pxeH+GACoxOD9GTVRbYmlwd36FjJMANz5FTFNaYWhvdn2Ei5KZoABES1JZYGdudXyDipGYn6atAFFYX2ZtdHuCiZCXnqWss7oAXmVsc3qBiI+WnaSrsrnAxwBrcnmAh46VnKOqsbi/xs3Ugts8eQyw/hgAAAAASUVORK5CYII=",
+          "c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329": "AAAAGGZ0eXBNNEEgAAAAAE00QSBtcDQyaXNvbQUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZA=="
+        }
+      },
+      "expect": {
+        "error": "pack.content_format"
+      }
+    },
+    {
+      "id": "x-format-1-pack-with-true-false-question",
+      "description": "A format-2 question kind also makes a lesson format 2.",
+      "input": {
+        "content_format": 1,
+        "pack": {
+          "release_id": "f1000000-0000-4000-8000-000000000002",
+          "pack_key": "synthetic-compare",
+          "locale": "fr",
+          "revision": 1
+        },
+        "lessons": [
+          {
+            "position": 1,
+            "lesson_id": "b1000000-0000-4000-8000-000000000002",
+            "revision_id": "c1000000-0000-4000-8000-000000000002",
+            "revision": 3,
+            "title": "Comparer deux fractions",
+            "blocks": [
+              {
+                "key": "regle",
+                "type": "heading",
+                "text": "Même dénominateur"
+              },
+              {
+                "key": "texte",
+                "type": "paragraph",
+                "text": "Quand deux fractions ont le même dénominateur, la plus grande est celle qui a le plus grand numérateur."
+              },
+              {
+                "key": "exemple",
+                "type": "example",
+                "title": "Exemple",
+                "steps": [
+                  "3/5 et 2/5",
+                  "3 > 2",
+                  "donc 3/5 > 2/5"
+                ]
+              },
+              {
+                "key": "rappel",
+                "type": "callout",
+                "tone": "remember",
+                "text": "On compare seulement les numérateurs."
+              }
+            ],
+            "questions": [
+              {
+                "id": "d1000000-0000-4000-8000-000000000002",
+                "question_key": "vrai-faux",
+                "position": 2,
+                "kind": "true_false",
+                "prompt": {
+                  "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+                },
+                "response_spec": {},
+                "answer_key": {
+                  "scoring_version": "true-false-v1",
+                  "correct": true
+                },
+                "explanation": {
+                  "text": "0,75 est plus grand que 0,5."
+                }
+              }
+            ]
+          }
+        ],
+        "assets_base64": {}
+      },
+      "expect": {
+        "error": "pack.content_format"
+      }
+    },
+    {
+      "id": "x-asset-file-missing",
+      "description": "Every referenced asset must be provided.",
+      "input": {
+        "content_format": 2,
+        "pack": {
+          "release_id": "f1000000-0000-4000-8000-000000000001",
+          "pack_key": "synthetic-fractions",
+          "locale": "fr",
+          "revision": 2
+        },
+        "lessons": [
+          {
+            "position": 3,
+            "lesson_id": "b1000000-0000-4000-8000-000000000003",
+            "revision_id": "c1000000-0000-4000-8000-000000000003",
+            "revision": 1,
+            "title": "Fractions d'une figure",
+            "blocks": [
+              {
+                "key": "figure-1",
+                "type": "image",
+                "asset": {
+                  "sha256": "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb",
+                  "mime": "image/png",
+                  "bytes": 221,
+                  "width": 16,
+                  "height": 9
+                },
+                "alt": "Le même rectangle : trois parts grises sur quatre."
+              },
+              {
+                "key": "figure-2",
+                "type": "image",
+                "asset": {
+                  "sha256": "7fa5ba4a50e678b7715cc2811b1d8ede0953f24d4ed124f01d9f81c7a4492837",
+                  "mime": "image/png",
+                  "bytes": 140,
+                  "width": 8,
+                  "height": 8
+                },
+                "alt": "Un carré partagé en deux parts égales."
+              },
+              {
+                "key": "liste",
+                "type": "list",
+                "style": "bullet",
+                "items": [
+                  "Première figure : 3/4",
+                  "Deuxième figure : 1/2"
+                ]
+              }
+            ],
+            "questions": []
+          },
+          {
+            "position": 1,
+            "lesson_id": "b1000000-0000-4000-8000-000000000001",
+            "revision_id": "c1000000-0000-4000-8000-000000000001",
+            "revision": 1,
+            "title": "Les fractions",
+            "blocks": [
+              {
+                "key": "intro",
+                "type": "paragraph",
+                "text": "Une fraction représente une partie d'un tout."
+              },
+              {
+                "key": "formule",
+                "type": "math",
+                "notation": "edu-math-1",
+                "source": "\\frac{3}{4} = 0,75",
+                "alt": "trois quarts égale zéro virgule soixante-quinze"
+              },
+              {
+                "key": "schema",
+                "type": "image",
+                "asset": {
+                  "sha256": "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb",
+                  "mime": "image/png",
+                  "bytes": 221,
+                  "width": 16,
+                  "height": 9
+                },
+                "alt": "Un rectangle partagé en quatre parts égales, trois parts sont grises.",
+                "caption": "Trois quarts"
+              },
+              {
+                "key": "etapes",
+                "type": "list",
+                "style": "number",
+                "items": [
+                  "Compter les parts égales.",
+                  "Compter les parts coloriées.",
+                  "Écrire la fraction."
+                ]
+              },
+              {
+                "key": "tableau",
+                "type": "table",
+                "caption": "Fractions et écritures décimales",
+                "columns": [
+                  "Fraction",
+                  "Décimal"
+                ],
+                "rows": [
+                  [
+                    "1/2",
+                    "0,5"
+                  ],
+                  [
+                    "3/4",
+                    "0,75"
+                  ]
+                ]
+              },
+              {
+                "key": "ecoute",
+                "type": "audio",
+                "asset": {
+                  "sha256": "c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329",
+                  "mime": "audio/mp4",
+                  "bytes": 124
+                },
+                "duration_ms": 12000,
+                "title": "Écouter l'explication",
+                "transcript": {
+                  "block_keys": [
+                    "intro",
+                    "etapes"
+                  ]
+                }
+              }
+            ],
+            "questions": [
+              {
+                "id": "d1000000-0000-4000-8000-000000000001",
+                "question_key": "choix",
+                "position": 1,
+                "kind": "mcq",
+                "prompt": {
+                  "text": "Quelle fraction est égale à 0,5 ?"
+                },
+                "response_spec": {
+                  "choices": [
+                    {
+                      "id": "a",
+                      "text": "1/2"
+                    },
+                    {
+                      "id": "b",
+                      "text": "1/4"
+                    }
+                  ]
+                },
+                "answer_key": {
+                  "correct_choice_id": "a"
+                },
+                "explanation": {
+                  "text": "1 divisé par 2 donne 0,5."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000002",
+                "question_key": "vrai-faux",
+                "position": 2,
+                "kind": "true_false",
+                "prompt": {
+                  "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+                },
+                "response_spec": {},
+                "answer_key": {
+                  "scoring_version": "true-false-v1",
+                  "correct": true
+                },
+                "explanation": {
+                  "text": "0,75 est plus grand que 0,5."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000003",
+                "question_key": "decimal",
+                "position": 3,
+                "kind": "numeric",
+                "prompt": {
+                  "text": "Écris 3/4 sous forme décimale."
+                },
+                "response_spec": {
+                  "allow_fraction": false
+                },
+                "answer_key": {
+                  "scoring_version": "numeric-v1",
+                  "value": "0.75",
+                  "tolerance": "0"
+                },
+                "explanation": {
+                  "text": "3 divisé par 4 donne 0,75."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000004",
+                "question_key": "mot",
+                "position": 4,
+                "kind": "short_text",
+                "prompt": {
+                  "text": "Comment s'appelle le nombre du haut d'une fraction ?"
+                },
+                "response_spec": {
+                  "max_length": 30,
+                  "case_sensitive": false,
+                  "accent_sensitive": false
+                },
+                "answer_key": {
+                  "scoring_version": "short-text-v1",
+                  "accepted": [
+                    "numérateur",
+                    "le numérateur"
+                  ]
+                },
+                "explanation": {
+                  "text": "Le numérateur compte les parts prises."
+                }
+              }
+            ]
+          },
+          {
+            "position": 2,
+            "lesson_id": "b1000000-0000-4000-8000-000000000002",
+            "revision_id": "c1000000-0000-4000-8000-000000000002",
+            "revision": 3,
+            "title": "Comparer deux fractions",
+            "blocks": [
+              {
+                "key": "regle",
+                "type": "heading",
+                "text": "Même dénominateur"
+              },
+              {
+                "key": "texte",
+                "type": "paragraph",
+                "text": "Quand deux fractions ont le même dénominateur, la plus grande est celle qui a le plus grand numérateur."
+              },
+              {
+                "key": "exemple",
+                "type": "example",
+                "title": "Exemple",
+                "steps": [
+                  "3/5 et 2/5",
+                  "3 > 2",
+                  "donc 3/5 > 2/5"
+                ]
+              },
+              {
+                "key": "rappel",
+                "type": "callout",
+                "tone": "remember",
+                "text": "On compare seulement les numérateurs."
+              }
+            ],
+            "questions": [
+              {
+                "id": "d1000000-0000-4000-8000-000000000005",
+                "question_key": "comparer",
+                "position": 1,
+                "kind": "mcq",
+                "prompt": {
+                  "text": "Laquelle est la plus grande ?"
+                },
+                "response_spec": {
+                  "choices": [
+                    {
+                      "id": "a",
+                      "text": "2/7"
+                    },
+                    {
+                      "id": "b",
+                      "text": "5/7"
+                    }
+                  ]
+                },
+                "answer_key": {
+                  "correct_choice_id": "b"
+                },
+                "explanation": {
+                  "text": "5 est plus grand que 2."
+                }
+              }
+            ]
+          }
+        ],
+        "assets_base64": {
+          "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAJCAAAAAAeQfPuAAAApElEQVR4AQGZAGb/AAMKERgfJi00O0JJUFdeZWwAEBceJSwzOkFIT1ZdZGtyeQAdJCsyOUBHTlVcY2pxeH+GACoxOD9GTVRbYmlwd36FjJMANz5FTFNaYWhvdn2Ei5KZoABES1JZYGdudXyDipGYn6atAFFYX2ZtdHuCiZCXnqWss7oAXmVsc3qBiI+WnaSrsrnAxwBrcnmAh46VnKOqsbi/xs3Ugts8eQyw/hgAAAAASUVORK5CYII=",
+          "c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329": "AAAAGGZ0eXBNNEEgAAAAAE00QSBtcDQyaXNvbQUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZA=="
+        }
+      },
+      "expect": {
+        "error": "asset.missing"
+      }
+    },
+    {
+      "id": "x-asset-file-corrupted",
+      "description": "The bytes do not hash to the name they are stored under.",
+      "input": {
+        "content_format": 2,
+        "pack": {
+          "release_id": "f1000000-0000-4000-8000-000000000001",
+          "pack_key": "synthetic-fractions",
+          "locale": "fr",
+          "revision": 2
+        },
+        "lessons": [
+          {
+            "position": 3,
+            "lesson_id": "b1000000-0000-4000-8000-000000000003",
+            "revision_id": "c1000000-0000-4000-8000-000000000003",
+            "revision": 1,
+            "title": "Fractions d'une figure",
+            "blocks": [
+              {
+                "key": "figure-1",
+                "type": "image",
+                "asset": {
+                  "sha256": "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb",
+                  "mime": "image/png",
+                  "bytes": 221,
+                  "width": 16,
+                  "height": 9
+                },
+                "alt": "Le même rectangle : trois parts grises sur quatre."
+              },
+              {
+                "key": "figure-2",
+                "type": "image",
+                "asset": {
+                  "sha256": "7fa5ba4a50e678b7715cc2811b1d8ede0953f24d4ed124f01d9f81c7a4492837",
+                  "mime": "image/png",
+                  "bytes": 140,
+                  "width": 8,
+                  "height": 8
+                },
+                "alt": "Un carré partagé en deux parts égales."
+              },
+              {
+                "key": "liste",
+                "type": "list",
+                "style": "bullet",
+                "items": [
+                  "Première figure : 3/4",
+                  "Deuxième figure : 1/2"
+                ]
+              }
+            ],
+            "questions": []
+          },
+          {
+            "position": 1,
+            "lesson_id": "b1000000-0000-4000-8000-000000000001",
+            "revision_id": "c1000000-0000-4000-8000-000000000001",
+            "revision": 1,
+            "title": "Les fractions",
+            "blocks": [
+              {
+                "key": "intro",
+                "type": "paragraph",
+                "text": "Une fraction représente une partie d'un tout."
+              },
+              {
+                "key": "formule",
+                "type": "math",
+                "notation": "edu-math-1",
+                "source": "\\frac{3}{4} = 0,75",
+                "alt": "trois quarts égale zéro virgule soixante-quinze"
+              },
+              {
+                "key": "schema",
+                "type": "image",
+                "asset": {
+                  "sha256": "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb",
+                  "mime": "image/png",
+                  "bytes": 221,
+                  "width": 16,
+                  "height": 9
+                },
+                "alt": "Un rectangle partagé en quatre parts égales, trois parts sont grises.",
+                "caption": "Trois quarts"
+              },
+              {
+                "key": "etapes",
+                "type": "list",
+                "style": "number",
+                "items": [
+                  "Compter les parts égales.",
+                  "Compter les parts coloriées.",
+                  "Écrire la fraction."
+                ]
+              },
+              {
+                "key": "tableau",
+                "type": "table",
+                "caption": "Fractions et écritures décimales",
+                "columns": [
+                  "Fraction",
+                  "Décimal"
+                ],
+                "rows": [
+                  [
+                    "1/2",
+                    "0,5"
+                  ],
+                  [
+                    "3/4",
+                    "0,75"
+                  ]
+                ]
+              },
+              {
+                "key": "ecoute",
+                "type": "audio",
+                "asset": {
+                  "sha256": "c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329",
+                  "mime": "audio/mp4",
+                  "bytes": 124
+                },
+                "duration_ms": 12000,
+                "title": "Écouter l'explication",
+                "transcript": {
+                  "block_keys": [
+                    "intro",
+                    "etapes"
+                  ]
+                }
+              }
+            ],
+            "questions": [
+              {
+                "id": "d1000000-0000-4000-8000-000000000001",
+                "question_key": "choix",
+                "position": 1,
+                "kind": "mcq",
+                "prompt": {
+                  "text": "Quelle fraction est égale à 0,5 ?"
+                },
+                "response_spec": {
+                  "choices": [
+                    {
+                      "id": "a",
+                      "text": "1/2"
+                    },
+                    {
+                      "id": "b",
+                      "text": "1/4"
+                    }
+                  ]
+                },
+                "answer_key": {
+                  "correct_choice_id": "a"
+                },
+                "explanation": {
+                  "text": "1 divisé par 2 donne 0,5."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000002",
+                "question_key": "vrai-faux",
+                "position": 2,
+                "kind": "true_false",
+                "prompt": {
+                  "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+                },
+                "response_spec": {},
+                "answer_key": {
+                  "scoring_version": "true-false-v1",
+                  "correct": true
+                },
+                "explanation": {
+                  "text": "0,75 est plus grand que 0,5."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000003",
+                "question_key": "decimal",
+                "position": 3,
+                "kind": "numeric",
+                "prompt": {
+                  "text": "Écris 3/4 sous forme décimale."
+                },
+                "response_spec": {
+                  "allow_fraction": false
+                },
+                "answer_key": {
+                  "scoring_version": "numeric-v1",
+                  "value": "0.75",
+                  "tolerance": "0"
+                },
+                "explanation": {
+                  "text": "3 divisé par 4 donne 0,75."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000004",
+                "question_key": "mot",
+                "position": 4,
+                "kind": "short_text",
+                "prompt": {
+                  "text": "Comment s'appelle le nombre du haut d'une fraction ?"
+                },
+                "response_spec": {
+                  "max_length": 30,
+                  "case_sensitive": false,
+                  "accent_sensitive": false
+                },
+                "answer_key": {
+                  "scoring_version": "short-text-v1",
+                  "accepted": [
+                    "numérateur",
+                    "le numérateur"
+                  ]
+                },
+                "explanation": {
+                  "text": "Le numérateur compte les parts prises."
+                }
+              }
+            ]
+          },
+          {
+            "position": 2,
+            "lesson_id": "b1000000-0000-4000-8000-000000000002",
+            "revision_id": "c1000000-0000-4000-8000-000000000002",
+            "revision": 3,
+            "title": "Comparer deux fractions",
+            "blocks": [
+              {
+                "key": "regle",
+                "type": "heading",
+                "text": "Même dénominateur"
+              },
+              {
+                "key": "texte",
+                "type": "paragraph",
+                "text": "Quand deux fractions ont le même dénominateur, la plus grande est celle qui a le plus grand numérateur."
+              },
+              {
+                "key": "exemple",
+                "type": "example",
+                "title": "Exemple",
+                "steps": [
+                  "3/5 et 2/5",
+                  "3 > 2",
+                  "donc 3/5 > 2/5"
+                ]
+              },
+              {
+                "key": "rappel",
+                "type": "callout",
+                "tone": "remember",
+                "text": "On compare seulement les numérateurs."
+              }
+            ],
+            "questions": [
+              {
+                "id": "d1000000-0000-4000-8000-000000000005",
+                "question_key": "comparer",
+                "position": 1,
+                "kind": "mcq",
+                "prompt": {
+                  "text": "Laquelle est la plus grande ?"
+                },
+                "response_spec": {
+                  "choices": [
+                    {
+                      "id": "a",
+                      "text": "2/7"
+                    },
+                    {
+                      "id": "b",
+                      "text": "5/7"
+                    }
+                  ]
+                },
+                "answer_key": {
+                  "correct_choice_id": "b"
+                },
+                "explanation": {
+                  "text": "5 est plus grand que 2."
+                }
+              }
+            ]
+          }
+        ],
+        "assets_base64": {
+          "7fa5ba4a50e678b7715cc2811b1d8ede0953f24d4ed124f01d9f81c7a4492837": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAAAAADhZOFXAAAAU0lEQVR4AQFIALf/ACgvNj1ES1JZADU8Q0pRWF9mAEJJUFdeZWxzAE9WXWRrcnmAAFxjanF4f4aNAGlwd36FjJOaAHZ9hIuSmaCnAIOKkZifpq20O7UbgV57T4MAAAAASUVORK5CYII=",
+          "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAJCAAAAAAeQfPuAAAApElEQVR4AQGZAGb/AAMKERgfJi00O0JJUFdeZWwAEBceJSwzOkFIT1ZdZGtyeQAdJCsyOUBHTlVcY2pxeH+GACoxOD9GTVRbYmlwd36FjJMANz5FTFNaYWhvdn2Ei5KZoABES1JZYGdudXyDipGYn6atAFFYX2ZtdHuCiZCXnqWss7oAXmVsc3qBiI+WnaSrsrnAxwBrcnmAh46VnKOqsbi/xs3Ugts8eQyw/hgAAAAASUVORK5CYAA=",
+          "c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329": "AAAAGGZ0eXBNNEEgAAAAAE00QSBtcDQyaXNvbQUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZA=="
+        }
+      },
+      "expect": {
+        "error": "asset.hash"
+      }
+    },
+    {
+      "id": "x-asset-wrong-type",
+      "description": "An HTML file declared as image/png is refused on its signature.",
+      "input": {
+        "content_format": 2,
+        "pack": {
+          "release_id": "f1000000-0000-4000-8000-000000000001",
+          "pack_key": "synthetic-fractions",
+          "locale": "fr",
+          "revision": 2
+        },
+        "lessons": [
+          {
+            "position": 3,
+            "lesson_id": "b1000000-0000-4000-8000-000000000003",
+            "revision_id": "c1000000-0000-4000-8000-000000000003",
+            "revision": 1,
+            "title": "Fractions d'une figure",
+            "blocks": [
+              {
+                "key": "figure-1",
+                "type": "image",
+                "asset": {
+                  "sha256": "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb",
+                  "mime": "image/png",
+                  "bytes": 221,
+                  "width": 16,
+                  "height": 9
+                },
+                "alt": "Le même rectangle : trois parts grises sur quatre."
+              },
+              {
+                "key": "figure-2",
+                "type": "image",
+                "asset": {
+                  "sha256": "4e20174a6af428e6a703e1e4d7c4bccb02b797760a2e21c0067767fca5617c83",
+                  "mime": "image/png",
+                  "bytes": 40,
+                  "width": 8,
+                  "height": 8
+                },
+                "alt": "Un carré partagé en deux parts égales."
+              },
+              {
+                "key": "liste",
+                "type": "list",
+                "style": "bullet",
+                "items": [
+                  "Première figure : 3/4",
+                  "Deuxième figure : 1/2"
+                ]
+              }
+            ],
+            "questions": []
+          },
+          {
+            "position": 1,
+            "lesson_id": "b1000000-0000-4000-8000-000000000001",
+            "revision_id": "c1000000-0000-4000-8000-000000000001",
+            "revision": 1,
+            "title": "Les fractions",
+            "blocks": [
+              {
+                "key": "intro",
+                "type": "paragraph",
+                "text": "Une fraction représente une partie d'un tout."
+              },
+              {
+                "key": "formule",
+                "type": "math",
+                "notation": "edu-math-1",
+                "source": "\\frac{3}{4} = 0,75",
+                "alt": "trois quarts égale zéro virgule soixante-quinze"
+              },
+              {
+                "key": "schema",
+                "type": "image",
+                "asset": {
+                  "sha256": "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb",
+                  "mime": "image/png",
+                  "bytes": 221,
+                  "width": 16,
+                  "height": 9
+                },
+                "alt": "Un rectangle partagé en quatre parts égales, trois parts sont grises.",
+                "caption": "Trois quarts"
+              },
+              {
+                "key": "etapes",
+                "type": "list",
+                "style": "number",
+                "items": [
+                  "Compter les parts égales.",
+                  "Compter les parts coloriées.",
+                  "Écrire la fraction."
+                ]
+              },
+              {
+                "key": "tableau",
+                "type": "table",
+                "caption": "Fractions et écritures décimales",
+                "columns": [
+                  "Fraction",
+                  "Décimal"
+                ],
+                "rows": [
+                  [
+                    "1/2",
+                    "0,5"
+                  ],
+                  [
+                    "3/4",
+                    "0,75"
+                  ]
+                ]
+              },
+              {
+                "key": "ecoute",
+                "type": "audio",
+                "asset": {
+                  "sha256": "c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329",
+                  "mime": "audio/mp4",
+                  "bytes": 124
+                },
+                "duration_ms": 12000,
+                "title": "Écouter l'explication",
+                "transcript": {
+                  "block_keys": [
+                    "intro",
+                    "etapes"
+                  ]
+                }
+              }
+            ],
+            "questions": [
+              {
+                "id": "d1000000-0000-4000-8000-000000000001",
+                "question_key": "choix",
+                "position": 1,
+                "kind": "mcq",
+                "prompt": {
+                  "text": "Quelle fraction est égale à 0,5 ?"
+                },
+                "response_spec": {
+                  "choices": [
+                    {
+                      "id": "a",
+                      "text": "1/2"
+                    },
+                    {
+                      "id": "b",
+                      "text": "1/4"
+                    }
+                  ]
+                },
+                "answer_key": {
+                  "correct_choice_id": "a"
+                },
+                "explanation": {
+                  "text": "1 divisé par 2 donne 0,5."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000002",
+                "question_key": "vrai-faux",
+                "position": 2,
+                "kind": "true_false",
+                "prompt": {
+                  "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+                },
+                "response_spec": {},
+                "answer_key": {
+                  "scoring_version": "true-false-v1",
+                  "correct": true
+                },
+                "explanation": {
+                  "text": "0,75 est plus grand que 0,5."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000003",
+                "question_key": "decimal",
+                "position": 3,
+                "kind": "numeric",
+                "prompt": {
+                  "text": "Écris 3/4 sous forme décimale."
+                },
+                "response_spec": {
+                  "allow_fraction": false
+                },
+                "answer_key": {
+                  "scoring_version": "numeric-v1",
+                  "value": "0.75",
+                  "tolerance": "0"
+                },
+                "explanation": {
+                  "text": "3 divisé par 4 donne 0,75."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000004",
+                "question_key": "mot",
+                "position": 4,
+                "kind": "short_text",
+                "prompt": {
+                  "text": "Comment s'appelle le nombre du haut d'une fraction ?"
+                },
+                "response_spec": {
+                  "max_length": 30,
+                  "case_sensitive": false,
+                  "accent_sensitive": false
+                },
+                "answer_key": {
+                  "scoring_version": "short-text-v1",
+                  "accepted": [
+                    "numérateur",
+                    "le numérateur"
+                  ]
+                },
+                "explanation": {
+                  "text": "Le numérateur compte les parts prises."
+                }
+              }
+            ]
+          },
+          {
+            "position": 2,
+            "lesson_id": "b1000000-0000-4000-8000-000000000002",
+            "revision_id": "c1000000-0000-4000-8000-000000000002",
+            "revision": 3,
+            "title": "Comparer deux fractions",
+            "blocks": [
+              {
+                "key": "regle",
+                "type": "heading",
+                "text": "Même dénominateur"
+              },
+              {
+                "key": "texte",
+                "type": "paragraph",
+                "text": "Quand deux fractions ont le même dénominateur, la plus grande est celle qui a le plus grand numérateur."
+              },
+              {
+                "key": "exemple",
+                "type": "example",
+                "title": "Exemple",
+                "steps": [
+                  "3/5 et 2/5",
+                  "3 > 2",
+                  "donc 3/5 > 2/5"
+                ]
+              },
+              {
+                "key": "rappel",
+                "type": "callout",
+                "tone": "remember",
+                "text": "On compare seulement les numérateurs."
+              }
+            ],
+            "questions": [
+              {
+                "id": "d1000000-0000-4000-8000-000000000005",
+                "question_key": "comparer",
+                "position": 1,
+                "kind": "mcq",
+                "prompt": {
+                  "text": "Laquelle est la plus grande ?"
+                },
+                "response_spec": {
+                  "choices": [
+                    {
+                      "id": "a",
+                      "text": "2/7"
+                    },
+                    {
+                      "id": "b",
+                      "text": "5/7"
+                    }
+                  ]
+                },
+                "answer_key": {
+                  "correct_choice_id": "b"
+                },
+                "explanation": {
+                  "text": "5 est plus grand que 2."
+                }
+              }
+            ]
+          }
+        ],
+        "assets_base64": {
+          "4e20174a6af428e6a703e1e4d7c4bccb02b797760a2e21c0067767fca5617c83": "PCFkb2N0eXBlIGh0bWw+PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==",
+          "7fa5ba4a50e678b7715cc2811b1d8ede0953f24d4ed124f01d9f81c7a4492837": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAAAAADhZOFXAAAAU0lEQVR4AQFIALf/ACgvNj1ES1JZADU8Q0pRWF9mAEJJUFdeZWxzAE9WXWRrcnmAAFxjanF4f4aNAGlwd36FjJOaAHZ9hIuSmaCnAIOKkZifpq20O7UbgV57T4MAAAAASUVORK5CYII=",
+          "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAJCAAAAAAeQfPuAAAApElEQVR4AQGZAGb/AAMKERgfJi00O0JJUFdeZWwAEBceJSwzOkFIT1ZdZGtyeQAdJCsyOUBHTlVcY2pxeH+GACoxOD9GTVRbYmlwd36FjJMANz5FTFNaYWhvdn2Ei5KZoABES1JZYGdudXyDipGYn6atAFFYX2ZtdHuCiZCXnqWss7oAXmVsc3qBiI+WnaSrsrnAxwBrcnmAh46VnKOqsbi/xs3Ugts8eQyw/hgAAAAASUVORK5CYII=",
+          "c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329": "AAAAGGZ0eXBNNEEgAAAAAE00QSBtcDQyaXNvbQUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZA=="
+        }
+      },
+      "expect": {
+        "error": "asset.mime"
+      }
+    },
+    {
+      "id": "x-asset-wrong-intrinsic-size",
+      "description": "The PNG says 16 x 9; the block claims 32 x 9.",
+      "input": {
+        "content_format": 2,
+        "pack": {
+          "release_id": "f1000000-0000-4000-8000-000000000001",
+          "pack_key": "synthetic-fractions",
+          "locale": "fr",
+          "revision": 2
+        },
+        "lessons": [
+          {
+            "position": 3,
+            "lesson_id": "b1000000-0000-4000-8000-000000000003",
+            "revision_id": "c1000000-0000-4000-8000-000000000003",
+            "revision": 1,
+            "title": "Fractions d'une figure",
+            "blocks": [
+              {
+                "key": "figure-1",
+                "type": "image",
+                "asset": {
+                  "sha256": "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb",
+                  "mime": "image/png",
+                  "bytes": 221,
+                  "width": 32,
+                  "height": 9
+                },
+                "alt": "Le même rectangle : trois parts grises sur quatre."
+              },
+              {
+                "key": "figure-2",
+                "type": "image",
+                "asset": {
+                  "sha256": "7fa5ba4a50e678b7715cc2811b1d8ede0953f24d4ed124f01d9f81c7a4492837",
+                  "mime": "image/png",
+                  "bytes": 140,
+                  "width": 8,
+                  "height": 8
+                },
+                "alt": "Un carré partagé en deux parts égales."
+              },
+              {
+                "key": "liste",
+                "type": "list",
+                "style": "bullet",
+                "items": [
+                  "Première figure : 3/4",
+                  "Deuxième figure : 1/2"
+                ]
+              }
+            ],
+            "questions": []
+          },
+          {
+            "position": 1,
+            "lesson_id": "b1000000-0000-4000-8000-000000000001",
+            "revision_id": "c1000000-0000-4000-8000-000000000001",
+            "revision": 1,
+            "title": "Les fractions",
+            "blocks": [
+              {
+                "key": "intro",
+                "type": "paragraph",
+                "text": "Une fraction représente une partie d'un tout."
+              },
+              {
+                "key": "formule",
+                "type": "math",
+                "notation": "edu-math-1",
+                "source": "\\frac{3}{4} = 0,75",
+                "alt": "trois quarts égale zéro virgule soixante-quinze"
+              },
+              {
+                "key": "schema",
+                "type": "image",
+                "asset": {
+                  "sha256": "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb",
+                  "mime": "image/png",
+                  "bytes": 221,
+                  "width": 32,
+                  "height": 9
+                },
+                "alt": "Un rectangle partagé en quatre parts égales, trois parts sont grises.",
+                "caption": "Trois quarts"
+              },
+              {
+                "key": "etapes",
+                "type": "list",
+                "style": "number",
+                "items": [
+                  "Compter les parts égales.",
+                  "Compter les parts coloriées.",
+                  "Écrire la fraction."
+                ]
+              },
+              {
+                "key": "tableau",
+                "type": "table",
+                "caption": "Fractions et écritures décimales",
+                "columns": [
+                  "Fraction",
+                  "Décimal"
+                ],
+                "rows": [
+                  [
+                    "1/2",
+                    "0,5"
+                  ],
+                  [
+                    "3/4",
+                    "0,75"
+                  ]
+                ]
+              },
+              {
+                "key": "ecoute",
+                "type": "audio",
+                "asset": {
+                  "sha256": "c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329",
+                  "mime": "audio/mp4",
+                  "bytes": 124
+                },
+                "duration_ms": 12000,
+                "title": "Écouter l'explication",
+                "transcript": {
+                  "block_keys": [
+                    "intro",
+                    "etapes"
+                  ]
+                }
+              }
+            ],
+            "questions": [
+              {
+                "id": "d1000000-0000-4000-8000-000000000001",
+                "question_key": "choix",
+                "position": 1,
+                "kind": "mcq",
+                "prompt": {
+                  "text": "Quelle fraction est égale à 0,5 ?"
+                },
+                "response_spec": {
+                  "choices": [
+                    {
+                      "id": "a",
+                      "text": "1/2"
+                    },
+                    {
+                      "id": "b",
+                      "text": "1/4"
+                    }
+                  ]
+                },
+                "answer_key": {
+                  "correct_choice_id": "a"
+                },
+                "explanation": {
+                  "text": "1 divisé par 2 donne 0,5."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000002",
+                "question_key": "vrai-faux",
+                "position": 2,
+                "kind": "true_false",
+                "prompt": {
+                  "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+                },
+                "response_spec": {},
+                "answer_key": {
+                  "scoring_version": "true-false-v1",
+                  "correct": true
+                },
+                "explanation": {
+                  "text": "0,75 est plus grand que 0,5."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000003",
+                "question_key": "decimal",
+                "position": 3,
+                "kind": "numeric",
+                "prompt": {
+                  "text": "Écris 3/4 sous forme décimale."
+                },
+                "response_spec": {
+                  "allow_fraction": false
+                },
+                "answer_key": {
+                  "scoring_version": "numeric-v1",
+                  "value": "0.75",
+                  "tolerance": "0"
+                },
+                "explanation": {
+                  "text": "3 divisé par 4 donne 0,75."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000004",
+                "question_key": "mot",
+                "position": 4,
+                "kind": "short_text",
+                "prompt": {
+                  "text": "Comment s'appelle le nombre du haut d'une fraction ?"
+                },
+                "response_spec": {
+                  "max_length": 30,
+                  "case_sensitive": false,
+                  "accent_sensitive": false
+                },
+                "answer_key": {
+                  "scoring_version": "short-text-v1",
+                  "accepted": [
+                    "numérateur",
+                    "le numérateur"
+                  ]
+                },
+                "explanation": {
+                  "text": "Le numérateur compte les parts prises."
+                }
+              }
+            ]
+          },
+          {
+            "position": 2,
+            "lesson_id": "b1000000-0000-4000-8000-000000000002",
+            "revision_id": "c1000000-0000-4000-8000-000000000002",
+            "revision": 3,
+            "title": "Comparer deux fractions",
+            "blocks": [
+              {
+                "key": "regle",
+                "type": "heading",
+                "text": "Même dénominateur"
+              },
+              {
+                "key": "texte",
+                "type": "paragraph",
+                "text": "Quand deux fractions ont le même dénominateur, la plus grande est celle qui a le plus grand numérateur."
+              },
+              {
+                "key": "exemple",
+                "type": "example",
+                "title": "Exemple",
+                "steps": [
+                  "3/5 et 2/5",
+                  "3 > 2",
+                  "donc 3/5 > 2/5"
+                ]
+              },
+              {
+                "key": "rappel",
+                "type": "callout",
+                "tone": "remember",
+                "text": "On compare seulement les numérateurs."
+              }
+            ],
+            "questions": [
+              {
+                "id": "d1000000-0000-4000-8000-000000000005",
+                "question_key": "comparer",
+                "position": 1,
+                "kind": "mcq",
+                "prompt": {
+                  "text": "Laquelle est la plus grande ?"
+                },
+                "response_spec": {
+                  "choices": [
+                    {
+                      "id": "a",
+                      "text": "2/7"
+                    },
+                    {
+                      "id": "b",
+                      "text": "5/7"
+                    }
+                  ]
+                },
+                "answer_key": {
+                  "correct_choice_id": "b"
+                },
+                "explanation": {
+                  "text": "5 est plus grand que 2."
+                }
+              }
+            ]
+          }
+        ],
+        "assets_base64": {
+          "7fa5ba4a50e678b7715cc2811b1d8ede0953f24d4ed124f01d9f81c7a4492837": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAAAAADhZOFXAAAAU0lEQVR4AQFIALf/ACgvNj1ES1JZADU8Q0pRWF9mAEJJUFdeZWxzAE9WXWRrcnmAAFxjanF4f4aNAGlwd36FjJOaAHZ9hIuSmaCnAIOKkZifpq20O7UbgV57T4MAAAAASUVORK5CYII=",
+          "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAJCAAAAAAeQfPuAAAApElEQVR4AQGZAGb/AAMKERgfJi00O0JJUFdeZWwAEBceJSwzOkFIT1ZdZGtyeQAdJCsyOUBHTlVcY2pxeH+GACoxOD9GTVRbYmlwd36FjJMANz5FTFNaYWhvdn2Ei5KZoABES1JZYGdudXyDipGYn6atAFFYX2ZtdHuCiZCXnqWss7oAXmVsc3qBiI+WnaSrsrnAxwBrcnmAh46VnKOqsbi/xs3Ugts8eQyw/hgAAAAASUVORK5CYII=",
+          "c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329": "AAAAGGZ0eXBNNEEgAAAAAE00QSBtcDQyaXNvbQUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZA=="
+        }
+      },
+      "expect": {
+        "error": "asset.size"
+      }
+    },
+    {
+      "id": "x-invalid-lesson-body",
+      "description": "A lesson that fails validation is never packed.",
+      "input": {
+        "content_format": 2,
+        "pack": {
+          "release_id": "f1000000-0000-4000-8000-000000000003",
+          "pack_key": "synthetic-fractions",
+          "locale": "ht",
+          "revision": 1
+        },
+        "lessons": [
+          {
+            "position": 1,
+            "lesson_id": "b1000000-0000-4000-8000-000000000001",
+            "revision_id": "c1000000-0000-4000-8000-000000000011",
+            "revision": 1,
+            "title": "Fraksyon yo",
+            "blocks": [
+              {
+                "key": "intro",
+                "type": "paragraph",
+                "text": "Yon fraksyon montre yon pati nan yon antye."
+              },
+              {
+                "key": "fomil",
+                "type": "math",
+                "notation": "edu-math-1",
+                "source": "\\href{a}{b}",
+                "alt": "youn sou de"
+              }
+            ],
+            "questions": []
+          }
+        ],
+        "assets_base64": {}
+      },
+      "expect": {
+        "error": "lesson.blocks"
+      }
+    },
+    {
+      "id": "x-duplicate-position",
+      "description": "Lesson positions are unique.",
+      "input": {
+        "content_format": 2,
+        "pack": {
+          "release_id": "f1000000-0000-4000-8000-000000000001",
+          "pack_key": "synthetic-fractions",
+          "locale": "fr",
+          "revision": 2
+        },
+        "lessons": [
+          {
+            "position": 3,
+            "lesson_id": "b1000000-0000-4000-8000-000000000003",
+            "revision_id": "c1000000-0000-4000-8000-000000000003",
+            "revision": 1,
+            "title": "Fractions d'une figure",
+            "blocks": [
+              {
+                "key": "figure-1",
+                "type": "image",
+                "asset": {
+                  "sha256": "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb",
+                  "mime": "image/png",
+                  "bytes": 221,
+                  "width": 16,
+                  "height": 9
+                },
+                "alt": "Le même rectangle : trois parts grises sur quatre."
+              },
+              {
+                "key": "figure-2",
+                "type": "image",
+                "asset": {
+                  "sha256": "7fa5ba4a50e678b7715cc2811b1d8ede0953f24d4ed124f01d9f81c7a4492837",
+                  "mime": "image/png",
+                  "bytes": 140,
+                  "width": 8,
+                  "height": 8
+                },
+                "alt": "Un carré partagé en deux parts égales."
+              },
+              {
+                "key": "liste",
+                "type": "list",
+                "style": "bullet",
+                "items": [
+                  "Première figure : 3/4",
+                  "Deuxième figure : 1/2"
+                ]
+              }
+            ],
+            "questions": []
+          },
+          {
+            "position": 3,
+            "lesson_id": "b1000000-0000-4000-8000-000000000001",
+            "revision_id": "c1000000-0000-4000-8000-000000000001",
+            "revision": 1,
+            "title": "Les fractions",
+            "blocks": [
+              {
+                "key": "intro",
+                "type": "paragraph",
+                "text": "Une fraction représente une partie d'un tout."
+              },
+              {
+                "key": "formule",
+                "type": "math",
+                "notation": "edu-math-1",
+                "source": "\\frac{3}{4} = 0,75",
+                "alt": "trois quarts égale zéro virgule soixante-quinze"
+              },
+              {
+                "key": "schema",
+                "type": "image",
+                "asset": {
+                  "sha256": "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb",
+                  "mime": "image/png",
+                  "bytes": 221,
+                  "width": 16,
+                  "height": 9
+                },
+                "alt": "Un rectangle partagé en quatre parts égales, trois parts sont grises.",
+                "caption": "Trois quarts"
+              },
+              {
+                "key": "etapes",
+                "type": "list",
+                "style": "number",
+                "items": [
+                  "Compter les parts égales.",
+                  "Compter les parts coloriées.",
+                  "Écrire la fraction."
+                ]
+              },
+              {
+                "key": "tableau",
+                "type": "table",
+                "caption": "Fractions et écritures décimales",
+                "columns": [
+                  "Fraction",
+                  "Décimal"
+                ],
+                "rows": [
+                  [
+                    "1/2",
+                    "0,5"
+                  ],
+                  [
+                    "3/4",
+                    "0,75"
+                  ]
+                ]
+              },
+              {
+                "key": "ecoute",
+                "type": "audio",
+                "asset": {
+                  "sha256": "c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329",
+                  "mime": "audio/mp4",
+                  "bytes": 124
+                },
+                "duration_ms": 12000,
+                "title": "Écouter l'explication",
+                "transcript": {
+                  "block_keys": [
+                    "intro",
+                    "etapes"
+                  ]
+                }
+              }
+            ],
+            "questions": [
+              {
+                "id": "d1000000-0000-4000-8000-000000000001",
+                "question_key": "choix",
+                "position": 1,
+                "kind": "mcq",
+                "prompt": {
+                  "text": "Quelle fraction est égale à 0,5 ?"
+                },
+                "response_spec": {
+                  "choices": [
+                    {
+                      "id": "a",
+                      "text": "1/2"
+                    },
+                    {
+                      "id": "b",
+                      "text": "1/4"
+                    }
+                  ]
+                },
+                "answer_key": {
+                  "correct_choice_id": "a"
+                },
+                "explanation": {
+                  "text": "1 divisé par 2 donne 0,5."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000002",
+                "question_key": "vrai-faux",
+                "position": 2,
+                "kind": "true_false",
+                "prompt": {
+                  "text": "Vrai ou faux : 3/4 est plus grand que 1/2."
+                },
+                "response_spec": {},
+                "answer_key": {
+                  "scoring_version": "true-false-v1",
+                  "correct": true
+                },
+                "explanation": {
+                  "text": "0,75 est plus grand que 0,5."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000003",
+                "question_key": "decimal",
+                "position": 3,
+                "kind": "numeric",
+                "prompt": {
+                  "text": "Écris 3/4 sous forme décimale."
+                },
+                "response_spec": {
+                  "allow_fraction": false
+                },
+                "answer_key": {
+                  "scoring_version": "numeric-v1",
+                  "value": "0.75",
+                  "tolerance": "0"
+                },
+                "explanation": {
+                  "text": "3 divisé par 4 donne 0,75."
+                }
+              },
+              {
+                "id": "d1000000-0000-4000-8000-000000000004",
+                "question_key": "mot",
+                "position": 4,
+                "kind": "short_text",
+                "prompt": {
+                  "text": "Comment s'appelle le nombre du haut d'une fraction ?"
+                },
+                "response_spec": {
+                  "max_length": 30,
+                  "case_sensitive": false,
+                  "accent_sensitive": false
+                },
+                "answer_key": {
+                  "scoring_version": "short-text-v1",
+                  "accepted": [
+                    "numérateur",
+                    "le numérateur"
+                  ]
+                },
+                "explanation": {
+                  "text": "Le numérateur compte les parts prises."
+                }
+              }
+            ]
+          },
+          {
+            "position": 2,
+            "lesson_id": "b1000000-0000-4000-8000-000000000002",
+            "revision_id": "c1000000-0000-4000-8000-000000000002",
+            "revision": 3,
+            "title": "Comparer deux fractions",
+            "blocks": [
+              {
+                "key": "regle",
+                "type": "heading",
+                "text": "Même dénominateur"
+              },
+              {
+                "key": "texte",
+                "type": "paragraph",
+                "text": "Quand deux fractions ont le même dénominateur, la plus grande est celle qui a le plus grand numérateur."
+              },
+              {
+                "key": "exemple",
+                "type": "example",
+                "title": "Exemple",
+                "steps": [
+                  "3/5 et 2/5",
+                  "3 > 2",
+                  "donc 3/5 > 2/5"
+                ]
+              },
+              {
+                "key": "rappel",
+                "type": "callout",
+                "tone": "remember",
+                "text": "On compare seulement les numérateurs."
+              }
+            ],
+            "questions": [
+              {
+                "id": "d1000000-0000-4000-8000-000000000005",
+                "question_key": "comparer",
+                "position": 1,
+                "kind": "mcq",
+                "prompt": {
+                  "text": "Laquelle est la plus grande ?"
+                },
+                "response_spec": {
+                  "choices": [
+                    {
+                      "id": "a",
+                      "text": "2/7"
+                    },
+                    {
+                      "id": "b",
+                      "text": "5/7"
+                    }
+                  ]
+                },
+                "answer_key": {
+                  "correct_choice_id": "b"
+                },
+                "explanation": {
+                  "text": "5 est plus grand que 2."
+                }
+              }
+            ]
+          }
+        ],
+        "assets_base64": {
+          "7fa5ba4a50e678b7715cc2811b1d8ede0953f24d4ed124f01d9f81c7a4492837": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAAAAADhZOFXAAAAU0lEQVR4AQFIALf/ACgvNj1ES1JZADU8Q0pRWF9mAEJJUFdeZWxzAE9WXWRrcnmAAFxjanF4f4aNAGlwd36FjJOaAHZ9hIuSmaCnAIOKkZifpq20O7UbgV57T4MAAAAASUVORK5CYII=",
+          "bd3a550ceb4ca6edfd162d003d3ab4db3dea92baebf3dbbbf283bd0d040b7aeb": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAJCAAAAAAeQfPuAAAApElEQVR4AQGZAGb/AAMKERgfJi00O0JJUFdeZWwAEBceJSwzOkFIT1ZdZGtyeQAdJCsyOUBHTlVcY2pxeH+GACoxOD9GTVRbYmlwd36FjJMANz5FTFNaYWhvdn2Ei5KZoABES1JZYGdudXyDipGYn6atAFFYX2ZtdHuCiZCXnqWss7oAXmVsc3qBiI+WnaSrsrnAxwBrcnmAh46VnKOqsbi/xs3Ugts8eQyw/hgAAAAASUVORK5CYII=",
+          "c479bcbe699d2ffa1a65e9b06d64c40f3ef29e8c1fa4817b68d9361b63aff329": "AAAAGGZ0eXBNNEEgAAAAAE00QSBtcDQyaXNvbQUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZA=="
+        }
+      },
+      "expect": {
+        "error": "pack.lessons"
+      }
+    }
+  ]
+}

@@ -18,8 +18,25 @@ from edu_api.auth.verifier import TokenVerifier
 from edu_api.config import Settings, get_settings
 from edu_api.db.session import Database, build_engine
 from edu_api.errors import install_error_handlers
+from edu_api.logging_config import AccessLogMiddleware, install_json_logging
 from edu_api.middleware import BodyLimitMiddleware, RequestIdMiddleware
-from edu_api.routers import catalog, health, me, sync
+from edu_api.ratelimit import MemoVerifier, RateLimitMiddleware, build_rate_limiter
+from edu_api.routers import (
+    account,
+    catalog,
+    entitlements,
+    health,
+    leaderboard,
+    me,
+    notifications,
+    rewards,
+    staff,
+    staff_billing,
+    sync,
+)
+from edu_api.routers.daily_word import router as daily_word_router
+from edu_api.routers.staff_vocab import router as staff_vocab_router
+from edu_api.staff.db import build_staff_database
 
 
 def create_app(
@@ -27,6 +44,8 @@ def create_app(
 ) -> FastAPI:
     settings = settings or get_settings()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    # Lane notify, Part B: opt-in JSON logs. With the default "text" nothing changes.
+    json_logging = install_json_logging() if settings.log_format == "json" else None
 
     jwks_cache: JWKSCache | None = None
     if key_provider is None:
@@ -40,11 +59,22 @@ def create_app(
 
     # Creating the engine opens no connection; the first request does.
     database = Database(build_engine(settings))
+    # The staff side has its own pool and its own database login (edu_staff_login).
+    # None when EDU_STAFF_DATABASE_URL is unset: staff routes then answer 503.
+    staff_database = build_staff_database(settings)
+    # Lane notify: only when the flag is on; its own small pool (see config.py).
+    notify_database = (
+        notifications.build_database(settings) if settings.notifications_enabled else None
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         yield
         await database.dispose()
+        if staff_database is not None:
+            await staff_database.dispose()
+        if notify_database is not None:
+            await notify_database.dispose()
         if jwks_cache is not None:
             await jwks_cache.aclose()
 
@@ -61,6 +91,7 @@ def create_app(
     )
     app.state.settings = settings
     app.state.db = database
+    app.state.staff_db = staff_database
     app.state.token_verifier = TokenVerifier(
         key_provider,
         issuer=settings.auth_issuer,
@@ -77,10 +108,46 @@ def create_app(
         max_wire_bytes=settings.max_wire_body_bytes,
         max_decoded_bytes=settings.max_decoded_body_bytes,
     )
+    # Lane notify, Part B (both opt-in, both absent by default). Added here so that
+    # they run AFTER the request id exists and BEFORE a body is read.
+    if settings.rate_limit_enabled or (
+        json_logging is not None and settings.log_actor_hash_key is not None
+    ):
+        # These features verify the token before the route does; make the route's
+        # own verification of the same token a lookup instead of a second check.
+        app.state.token_verifier = MemoVerifier(app.state.token_verifier)
+    if settings.rate_limit_enabled:
+        app.state.rate_limiter = build_rate_limiter(settings)
+        app.add_middleware(
+            RateLimitMiddleware,
+            limiter=app.state.rate_limiter,
+            verifier=app.state.token_verifier,
+            trusted_proxy_hops=settings.rate_limit_trusted_proxy_hops,
+        )
+    if json_logging is not None:
+        app.state.json_log_handler, app.state.json_logging_undo = json_logging
+        actor_key = settings.log_actor_hash_key
+        app.add_middleware(
+            AccessLogMiddleware,
+            verifier=app.state.token_verifier,
+            actor_key=actor_key.get_secret_value().encode("utf-8") if actor_key else None,
+        )
     app.add_middleware(RequestIdMiddleware)
 
     app.include_router(health.router)
     app.include_router(me.router)
     app.include_router(catalog.router)
     app.include_router(sync.router)
+    app.include_router(account.build_router())
+    app.include_router(entitlements.build_router())
+    app.include_router(staff_billing.build_router())
+    # Always registered (ruling R-01); every route answers 404 while the flag is off.
+    if notify_database is not None:
+        app.state.notify_db = notify_database
+    app.include_router(notifications.router)
+    app.include_router(rewards.router)
+    app.include_router(leaderboard.router)
+    app.include_router(staff.router)
+    app.include_router(daily_word_router)  # 404 unless EDU_DAILY_WORD_ENABLED (ruling R-01)
+    app.include_router(staff_vocab_router)
     return app

@@ -57,6 +57,103 @@ class Settings(BaseSettings):
     pull_default_limit: int = Field(default=100, ge=1)
     pull_max_limit: int = Field(default=200, ge=1)
 
+    # --- Identity lane (overnight 2026-11-24). Every flag defaults to OFF: while
+    # a flag is off its routes answer the standard 404 `not_found`.
+    #: EDU_PROFILE_EDIT_ENABLED — `PATCH /v1/me`.
+    profile_edit_enabled: bool = False
+    #: EDU_ONBOARDING_ENABLED — `GET` / `PUT /v1/me/onboarding`.
+    onboarding_enabled: bool = False
+    #: EDU_ACCOUNT_LIFECYCLE_ENABLED — deletion requests and data export. Mechanics
+    #: proven on synthetic users only; keep off until PO-04 is decided.
+    account_lifecycle_enabled: bool = False
+    # --- end identity lane ---------------------------------------------------
+    # --- Entitlements (schema `billing`; overnight lane "entitlements") --------
+    #: Switches on ``GET /v1/entitlements`` (read-only status of the caller's own
+    #: grants) and the staff routes under ``/v1/staff/billing``. Off by default:
+    #: those routes then answer 404 like any unknown path.
+    #: It never gates content — no paywall exists (BLOCKED_BY_OWNER PO-01).
+    entitlements_enabled: bool = False
+    # --- Word of the Day (lane VOCAB, overnight 2026-11-24) ----------------------
+    #: ``EDU_DAILY_WORD_ENABLED``. Off by default: ``GET /v1/daily-word`` then
+    #: answers the standard 404 ``not_found`` to everyone, as on ``main``.
+    daily_word_enabled: bool = False
+    # --- Rewards lane (overnight 2026-11-24): Gold ledger, streaks, achievements ---
+    #: OFF by default. Off = the push path and every response are exactly as
+    #: before, and /v1/rewards/* answers 404. Reward amounts are synthetic
+    #: placeholders until the owner decides PO-09.
+    rewards_enabled: bool = False
+    rewards_ledger_default_limit: int = Field(default=20, ge=1, le=100)
+    rewards_ledger_max_limit: int = Field(default=100, ge=1, le=500)
+    rewards_recent_limit: int = Field(default=5, ge=1, le=20)
+    #: Most unexamined operations healed by one summary request.
+    rewards_reconcile_limit: int = Field(default=200, ge=1, le=500)
+    # --- end rewards lane ---
+
+    # --- Leaderboard lane (overnight 2026-11-24): private rank, opt-in cohorts ---
+    #: OFF by default. Off = /v1/leaderboard/* answers 404. The learners are
+    #: minors: nothing here is a public or global ranking.
+    leaderboard_enabled: bool = False
+    #: OFF by default, and separate: the pseudonymous cohort view and the
+    #: opt-in / opt-out routes. Requires leaderboard_enabled as well.
+    leaderboard_cohorts_enabled: bool = False
+    # --- end leaderboard lane ---
+
+    # --- Staff boundary (overnight 2026-11-24, staff lane) -------------------
+    #: Optional. Must log in as ``edu_staff_login`` (member of ``edu_staff`` only).
+    #: When unset the staff side is off: every ``/v1/staff`` route answers 503.
+    staff_database_url: SecretStr | None = None
+    staff_db_pool_size: int = Field(default=2, ge=1, le=20)
+    staff_db_max_overflow: int = Field(default=3, ge=0, le=20)
+
+    # --- Notifications (lane notify; policy is product decision PO-10) ---------
+    #: Off by default: the routes answer 404 and no extra database pool is
+    #: created. Turning it on sends NOTHING; it only lets a learner read
+    #: their own in-app list and edit their own preferences.
+    notifications_enabled: bool = False
+    #: Notification routes use their OWN small pool so that a slow or broken
+    #: `notify` schema can never use up the connections lessons and sync need.
+    notify_db_pool_size: int = Field(default=2, ge=1, le=10)
+    notify_db_pool_timeout_s: float = Field(default=1.0, gt=0)
+    notify_db_statement_timeout_ms: int = Field(default=2000, ge=100)
+    notifications_default_limit: int = Field(default=20, ge=1)
+    notifications_max_limit: int = Field(default=50, ge=1)
+
+    # --- Rate limiting and structured logs (lane notify, Part B) ----------------
+    #: Off by default: no middleware is added. PER PROCESS, in memory — a hosted
+    #: multi-instance deployment still needs a gateway/shared-store limiter.
+    rate_limit_enabled: bool = False
+    #: Each budget: `burst` requests at once, refilled at `per_minute`.
+    #: Verified learners, per learner and route class:
+    rate_limit_read_burst: int = Field(default=60, ge=1, le=10_000)
+    rate_limit_read_per_minute: int = Field(default=240, ge=1, le=100_000)
+    rate_limit_write_burst: int = Field(default=20, ge=1, le=10_000)
+    rate_limit_write_per_minute: int = Field(default=60, ge=1, le=100_000)
+    #: POST /v1/sync/push. 40 batches of 50 = a 2000-operation offline backlog at once.
+    rate_limit_sync_push_burst: int = Field(default=40, ge=1, le=10_000)
+    rate_limit_sync_push_per_minute: int = Field(default=120, ge=1, le=100_000)
+    #: Requests without a VERIFIED token, per client address, all routes together.
+    rate_limit_anonymous_burst: int = Field(default=30, ge=1, le=10_000)
+    rate_limit_anonymous_per_minute: int = Field(default=60, ge=1, le=100_000)
+    #: Upper bound on buckets kept in memory (least recently used are dropped).
+    rate_limit_max_keys: int = Field(default=20_000, ge=10, le=1_000_000)
+    #: How many reverse proxies in front of the API are trusted to append to
+    #: X-Forwarded-For. 0 = ignore the header and use the socket peer.
+    rate_limit_trusted_proxy_hops: int = Field(default=0, ge=0, le=5)
+
+    #: "text" = unchanged default formatting. "json" = one JSON line per record
+    #: plus one line per request, without personal data (see logging_config.py).
+    log_format: Literal["text", "json"] = "text"
+    #: Optional key for a pseudonymous `actor` field in request lines. Unset = no
+    #: actor field at all. Never the raw user id.
+    log_actor_hash_key: SecretStr | None = None
+
+    @field_validator("log_actor_hash_key")
+    @classmethod
+    def _long_enough(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is not None and len(value.get_secret_value().encode("utf-8")) < 32:
+            raise ValueError("log_actor_hash_key must be at least 32 bytes")
+        return value
+
     @field_validator("auth_algorithms")
     @classmethod
     def _only_asymmetric(cls, value: tuple[str, ...]) -> tuple[str, ...]:
@@ -72,6 +169,19 @@ class Settings(BaseSettings):
     def _asyncpg_url(cls, value: SecretStr) -> SecretStr:
         if not value.get_secret_value().startswith("postgresql+asyncpg://"):
             raise ValueError("database_url must start with postgresql+asyncpg://")
+        return value
+
+    # --- Staff boundary (overnight 2026-11-24, staff lane) -------------------
+    @field_validator("staff_database_url", mode="before")
+    @classmethod
+    def _blank_staff_url_is_unset(cls, value: object) -> object:
+        return None if isinstance(value, str) and not value.strip() else value
+
+    @field_validator("staff_database_url")
+    @classmethod
+    def _staff_asyncpg_url(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is not None and not value.get_secret_value().startswith("postgresql+asyncpg://"):
+            raise ValueError("staff_database_url must start with postgresql+asyncpg://")
         return value
 
 

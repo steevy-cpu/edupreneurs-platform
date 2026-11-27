@@ -1,0 +1,4052 @@
+{
+  "vector_format": 1,
+  "suite": "lesson-blocks",
+  "description": "Lesson bodies (value of lesson_revisions.blocks). Each case is validated as content format 1 and as content format 2. expect.format_N is {valid:true}, {valid:false, layer:'schema'} (the JSON Schema of that format rejects it) or {valid:false, layer:'semantic', rules:[...]} (the schema accepts it; exactly this set of semantic rule codes is reported). required_format, when present, is the smallest format able to carry the document.",
+  "cases": [
+    {
+      "id": "v1-all-four-block-types",
+      "description": "A format-1 lesson is valid, unchanged, under both formats.",
+      "document": [
+        {
+          "key": "titre",
+          "type": "heading",
+          "text": "Les fractions"
+        },
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "exemple-1",
+          "type": "example",
+          "title": "Exemple",
+          "steps": [
+            "3 parts sur 4",
+            "On écrit 3/4"
+          ]
+        },
+        {
+          "key": "astuce",
+          "type": "callout",
+          "tone": "tip",
+          "text": "Le nombre du bas dit en combien de parts on coupe."
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": true
+        },
+        "format_2": {
+          "valid": true
+        }
+      },
+      "required_format": 1
+    },
+    {
+      "id": "v2-every-new-block-type",
+      "description": "Math, image, list, table and audio together. Not a format-1 document.",
+      "document": [
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "formule",
+          "type": "math",
+          "notation": "edu-math-1",
+          "source": "\\frac{3}{4}",
+          "alt": "trois quarts"
+        },
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 18432,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        },
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": [
+            "Compter les parts égales.",
+            "Compter les parts coloriées.",
+            "Écrire la fraction."
+          ]
+        },
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "Fraction",
+            "Décimal"
+          ],
+          "rows": [
+            [
+              "1/2",
+              "0,5"
+            ],
+            [
+              "1/4",
+              "0,25"
+            ],
+            [
+              "3/4",
+              "0,75"
+            ]
+          ]
+        },
+        {
+          "key": "ecoute",
+          "type": "audio",
+          "asset": {
+            "sha256": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+            "mime": "audio/mp4",
+            "bytes": 412000
+          },
+          "duration_ms": 48000,
+          "title": "Écouter l'explication",
+          "transcript": {
+            "block_keys": [
+              "intro",
+              "etapes"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": true
+        }
+      },
+      "required_format": 2
+    },
+    {
+      "id": "v2-ht-lesson",
+      "description": "Haitian Creole text (draft wording, synthetic).",
+      "document": [
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Yon fraksyon montre yon pati nan yon antye."
+        },
+        {
+          "key": "lis",
+          "type": "list",
+          "style": "bullet",
+          "items": [
+            "Nimeratè: chif anwo a",
+            "Denominatè: chif anba a"
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": true
+        }
+      },
+      "required_format": 2
+    },
+    {
+      "id": "v2-comparison-signs-are-not-markup",
+      "description": "'<' followed by a space or a digit is ordinary text.",
+      "document": [
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": [
+            "x < 3",
+            "3<5 et 5>3",
+            "a <= b"
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": true
+        }
+      },
+      "required_format": 2
+    },
+    {
+      "id": "v2-math-with-prerendered-asset",
+      "description": "A formula may carry a pre-rendered image of itself.",
+      "document": [
+        {
+          "key": "formule",
+          "type": "math",
+          "notation": "edu-math-1",
+          "source": "\\frac{3}{4}",
+          "alt": "trois quarts",
+          "asset": {
+            "sha256": "2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e2e",
+            "mime": "image/png",
+            "bytes": 2210,
+            "width": 120,
+            "height": 64
+          }
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": true
+        }
+      },
+      "required_format": 2
+    },
+    {
+      "id": "v2-same-asset-used-twice",
+      "description": "The same image may appear twice when its metadata is identical.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 18432,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        },
+        {
+          "key": "schema-2",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 18432,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": true
+        }
+      },
+      "required_format": 2
+    },
+    {
+      "id": "v2-table-empty-cell-and-row-headers",
+      "description": "Cells may be empty; the first column may be row headers.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "Fraction",
+            "Décimal"
+          ],
+          "rows": [
+            [
+              "1/2",
+              ""
+            ],
+            [
+              "1/4",
+              "0,25"
+            ]
+          ],
+          "row_headers": true
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": true
+        }
+      },
+      "required_format": 2
+    },
+    {
+      "id": "v2-table-2-columns-at-budget",
+      "description": "Longest words 16 + 16 = 32 = budget for 2 columns.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "Mot",
+            "Sens"
+          ],
+          "rows": [
+            [
+              "aaaaaaaaaaaaaaaa",
+              "bbbbbbbbbbbbbbbb"
+            ],
+            [
+              "court",
+              "mot court ici"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": true
+        }
+      },
+      "required_format": 2
+    },
+    {
+      "id": "v2-table-3-columns-at-budget",
+      "description": "Longest words 10 + 10 + 10 = 30 = budget for 3 columns.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "A",
+            "B",
+            "C"
+          ],
+          "rows": [
+            [
+              "aaaaaaaaaa",
+              "bbbbbbbbbb",
+              "cccccccccc"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": true
+        }
+      },
+      "required_format": 2
+    },
+    {
+      "id": "v2-table-4-columns-at-budget",
+      "description": "Longest words 7 + 7 + 7 + 7 = 28 = budget for 4 columns; long cells wrap at spaces.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "Colonne",
+            "B",
+            "C",
+            "D"
+          ],
+          "rows": [
+            [
+              "aaaaaaa",
+              "bbbbbbb",
+              "ccccccc",
+              "ddddddd"
+            ],
+            [
+              "un deux trois quatre cinq six",
+              "x",
+              "y",
+              "z"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": true
+        }
+      },
+      "required_format": 2
+    },
+    {
+      "id": "v2-table-budget-counts-code-points",
+      "description": "Accented letters count as one character each (7 + 7 + 7 + 7).",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ],
+          "rows": [
+            [
+              "éèêëàùç",
+              "bbbbbbb",
+              "ccccccc",
+              "ddddddd"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": true
+        }
+      },
+      "required_format": 2
+    },
+    {
+      "id": "v2-image-at-byte-and-size-limits",
+      "description": "200 000 bytes and 1600 x 1600 are the inclusive limits.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 200000,
+            "width": 1600,
+            "height": 1600
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": true
+        }
+      },
+      "required_format": 2
+    },
+    {
+      "id": "v2-images-at-lesson-budget",
+      "description": "Five distinct 200 000-byte images = 1 000 000 bytes = lesson image budget.",
+      "document": [
+        {
+          "key": "img-1",
+          "type": "image",
+          "asset": {
+            "sha256": "0101010101010101010101010101010101010101010101010101010101010101",
+            "mime": "image/webp",
+            "bytes": 200000,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        },
+        {
+          "key": "img-2",
+          "type": "image",
+          "asset": {
+            "sha256": "0202020202020202020202020202020202020202020202020202020202020202",
+            "mime": "image/webp",
+            "bytes": 200000,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        },
+        {
+          "key": "img-3",
+          "type": "image",
+          "asset": {
+            "sha256": "0303030303030303030303030303030303030303030303030303030303030303",
+            "mime": "image/webp",
+            "bytes": 200000,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        },
+        {
+          "key": "img-4",
+          "type": "image",
+          "asset": {
+            "sha256": "0404040404040404040404040404040404040404040404040404040404040404",
+            "mime": "image/webp",
+            "bytes": 200000,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        },
+        {
+          "key": "img-5",
+          "type": "image",
+          "asset": {
+            "sha256": "0505050505050505050505050505050505050505050505050505050505050505",
+            "mime": "image/webp",
+            "bytes": 200000,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": true
+        }
+      },
+      "required_format": 2
+    },
+    {
+      "id": "v2-audio-transcript-may-name-math-and-table",
+      "description": "A transcript may point at any text-bearing block.",
+      "document": [
+        {
+          "key": "formule",
+          "type": "math",
+          "notation": "edu-math-1",
+          "source": "\\frac{3}{4}",
+          "alt": "trois quarts"
+        },
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "Fraction",
+            "Décimal"
+          ],
+          "rows": [
+            [
+              "1/2",
+              "0,5"
+            ],
+            [
+              "1/4",
+              "0,25"
+            ],
+            [
+              "3/4",
+              "0,75"
+            ]
+          ]
+        },
+        {
+          "key": "ecoute",
+          "type": "audio",
+          "asset": {
+            "sha256": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+            "mime": "audio/mp4",
+            "bytes": 412000
+          },
+          "duration_ms": 48000,
+          "title": "Écouter l'explication",
+          "transcript": {
+            "block_keys": [
+              "formule",
+              "tableau"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": true
+        }
+      },
+      "required_format": 2
+    },
+    {
+      "id": "v1-duplicate-keys-are-only-a-format-2-error",
+      "description": "Format 1 never checked key uniqueness, so this stays valid as format 1; format 2 rejects it.",
+      "document": [
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Deuxième paragraphe."
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": true
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "semantic",
+          "rules": [
+            "keys.unique"
+          ]
+        }
+      }
+    },
+    {
+      "id": "x-html-block",
+      "description": "Unknown block type: HTML never enters a lesson.",
+      "document": [
+        {
+          "key": "x",
+          "type": "html",
+          "text": "<script>alert(1)</script>"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-video-block",
+      "description": "Video links are not part of format 2.",
+      "document": [
+        {
+          "key": "v",
+          "type": "video",
+          "url": "https://example.invalid/v.mp4"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-empty-document",
+      "description": "A lesson has at least one block.",
+      "document": [],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-document-is-object",
+      "description": "The document is an array of blocks.",
+      "document": {
+        "blocks": [
+          {
+            "key": "intro",
+            "type": "paragraph",
+            "text": "Une fraction représente une partie d'un tout."
+          }
+        ]
+      },
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-201-blocks",
+      "description": "At most 200 blocks.",
+      "document": [
+        {
+          "key": "p-0",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-1",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-2",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-3",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-4",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-5",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-6",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-7",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-8",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-9",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-10",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-11",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-12",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-13",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-14",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-15",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-16",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-17",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-18",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-19",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-20",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-21",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-22",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-23",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-24",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-25",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-26",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-27",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-28",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-29",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-30",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-31",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-32",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-33",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-34",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-35",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-36",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-37",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-38",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-39",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-40",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-41",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-42",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-43",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-44",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-45",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-46",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-47",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-48",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-49",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-50",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-51",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-52",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-53",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-54",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-55",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-56",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-57",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-58",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-59",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-60",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-61",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-62",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-63",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-64",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-65",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-66",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-67",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-68",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-69",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-70",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-71",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-72",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-73",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-74",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-75",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-76",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-77",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-78",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-79",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-80",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-81",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-82",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-83",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-84",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-85",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-86",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-87",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-88",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-89",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-90",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-91",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-92",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-93",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-94",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-95",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-96",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-97",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-98",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-99",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-100",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-101",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-102",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-103",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-104",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-105",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-106",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-107",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-108",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-109",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-110",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-111",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-112",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-113",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-114",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-115",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-116",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-117",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-118",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-119",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-120",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-121",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-122",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-123",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-124",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-125",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-126",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-127",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-128",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-129",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-130",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-131",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-132",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-133",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-134",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-135",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-136",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-137",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-138",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-139",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-140",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-141",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-142",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-143",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-144",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-145",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-146",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-147",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-148",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-149",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-150",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-151",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-152",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-153",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-154",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-155",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-156",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-157",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-158",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-159",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-160",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-161",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-162",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-163",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-164",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-165",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-166",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-167",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-168",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-169",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-170",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-171",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-172",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-173",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-174",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-175",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-176",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-177",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-178",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-179",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-180",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-181",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-182",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-183",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-184",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-185",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-186",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-187",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-188",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-189",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-190",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-191",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-192",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-193",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-194",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-195",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-196",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-197",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-198",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-199",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "p-200",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-key-uppercase",
+      "description": "Keys are lower-case.",
+      "document": [
+        {
+          "key": "Intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-key-missing",
+      "description": "Every block has a key.",
+      "document": [
+        {
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-unknown-property",
+      "description": "Unknown properties are rejected.",
+      "document": [
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout.",
+          "style": "bold"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-audio-autoplay",
+      "description": "There is no autoplay property; unknown properties are rejected.",
+      "document": [
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": [
+            "Compter les parts égales.",
+            "Compter les parts coloriées.",
+            "Écrire la fraction."
+          ]
+        },
+        {
+          "key": "ecoute",
+          "type": "audio",
+          "asset": {
+            "sha256": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+            "mime": "audio/mp4",
+            "bytes": 412000
+          },
+          "duration_ms": 48000,
+          "title": "Écouter l'explication",
+          "transcript": {
+            "block_keys": [
+              "intro",
+              "etapes"
+            ]
+          },
+          "autoplay": true
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-image-without-alt",
+      "description": "Alt text is mandatory.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 18432,
+            "width": 640,
+            "height": 360
+          },
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-image-empty-alt",
+      "description": "Alt text cannot be empty.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 18432,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "",
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-image-alt-301",
+      "description": "Alt text is at most 300 code points.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 18432,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-image-svg",
+      "description": "SVG is not an allowed image type.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/svg+xml",
+            "bytes": 18432,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-image-200001-bytes",
+      "description": "Per-image byte budget is 200 000.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 200001,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-image-width-1601",
+      "description": "Intrinsic size is at most 1600 pixels per side.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 18432,
+            "width": 1601,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-image-zero-height",
+      "description": "Intrinsic size is at least 1 pixel.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 18432,
+            "width": 640,
+            "height": 0
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-image-bytes-as-string",
+      "description": "Sizes are integers.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": "18432",
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-image-bytes-fractional",
+      "description": "Sizes are integers.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 18432.5,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-image-sha-uppercase",
+      "description": "Hashes are lower-case hexadecimal.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F1F",
+            "mime": "image/webp",
+            "bytes": 18432,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-image-sha-63",
+      "description": "Hashes have exactly 64 characters.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1",
+            "mime": "image/webp",
+            "bytes": 18432,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-image-url-instead-of-asset",
+      "description": "An image is referenced by hash, never by URL.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque",
+          "url": "https://example.invalid/a.png"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-image-asset-extra-property",
+      "description": "Asset references reject unknown properties.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 18432,
+            "width": 640,
+            "height": 360,
+            "url": "https://example.invalid/a.png"
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-alt-with-markup",
+      "description": "No markup in alt text.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 18432,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "<img src=x onerror=alert(1)>",
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-caption-with-tab",
+      "description": "No control characters in captions.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 18432,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "a\tb"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-list-empty",
+      "description": "A list has at least one item.",
+      "document": [
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": []
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-list-31-items",
+      "description": "A list has at most 30 items.",
+      "document": [
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": [
+            "point 0",
+            "point 1",
+            "point 2",
+            "point 3",
+            "point 4",
+            "point 5",
+            "point 6",
+            "point 7",
+            "point 8",
+            "point 9",
+            "point 10",
+            "point 11",
+            "point 12",
+            "point 13",
+            "point 14",
+            "point 15",
+            "point 16",
+            "point 17",
+            "point 18",
+            "point 19",
+            "point 20",
+            "point 21",
+            "point 22",
+            "point 23",
+            "point 24",
+            "point 25",
+            "point 26",
+            "point 27",
+            "point 28",
+            "point 29",
+            "point 30"
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-list-nested",
+      "description": "Lists are flat.",
+      "document": [
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": [
+            "un",
+            [
+              "deux",
+              "trois"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-list-style",
+      "description": "Only bullet and number.",
+      "document": [
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "roman",
+          "items": [
+            "Compter les parts égales.",
+            "Compter les parts coloriées.",
+            "Écrire la fraction."
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-list-item-markup",
+      "description": "No markup in list items.",
+      "document": [
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": [
+            "<b>gras</b>"
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-list-item-newline",
+      "description": "List items are single-line.",
+      "document": [
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": [
+            "ligne 1\nligne 2"
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-list-item-501",
+      "description": "List items are at most 500 code points.",
+      "document": [
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": [
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-table-1-column",
+      "description": "At least 2 columns.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "Seule"
+          ],
+          "rows": [
+            [
+              "a"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-table-5-columns",
+      "description": "At most 4 columns.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E"
+          ],
+          "rows": [
+            [
+              "a",
+              "b",
+              "c",
+              "d",
+              "e"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-table-21-rows",
+      "description": "At most 20 rows.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "Fraction",
+            "Décimal"
+          ],
+          "rows": [
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ],
+            [
+              "a",
+              "b"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-table-no-rows",
+      "description": "At least one row.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "Fraction",
+            "Décimal"
+          ],
+          "rows": []
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-table-header-25",
+      "description": "Header cells are at most 24 code points.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "a b a b a b a b a b a b c",
+            "B"
+          ],
+          "rows": [
+            [
+              "1/2",
+              "0,5"
+            ],
+            [
+              "1/4",
+              "0,25"
+            ],
+            [
+              "3/4",
+              "0,75"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-table-cell-81",
+      "description": "Cells are at most 80 code points.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "Fraction",
+            "Décimal"
+          ],
+          "rows": [
+            [
+              "a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a b",
+              "x"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-table-cell-script",
+      "description": "No markup in cells.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "Fraction",
+            "Décimal"
+          ],
+          "rows": [
+            [
+              "<script>x</script>",
+              "y"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-table-without-caption",
+      "description": "A table needs a caption.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "columns": [
+            "Fraction",
+            "Décimal"
+          ],
+          "rows": [
+            [
+              "1/2",
+              "0,5"
+            ],
+            [
+              "1/4",
+              "0,25"
+            ],
+            [
+              "3/4",
+              "0,75"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-table-cell-number",
+      "description": "Cells are strings.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "Fraction",
+            "Décimal"
+          ],
+          "rows": [
+            [
+              1,
+              2
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-math-other-notation",
+      "description": "Only edu-math-1.",
+      "document": [
+        {
+          "key": "formule",
+          "type": "math",
+          "notation": "latex",
+          "source": "\\frac{3}{4}",
+          "alt": "trois quarts"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-math-without-alt",
+      "description": "A formula needs its plain-language alt.",
+      "document": [
+        {
+          "key": "formule",
+          "type": "math",
+          "notation": "edu-math-1",
+          "source": "\\frac{3}{4}"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-math-dollar",
+      "description": "Characters outside the notation's character set.",
+      "document": [
+        {
+          "key": "formule",
+          "type": "math",
+          "notation": "edu-math-1",
+          "source": "$x$",
+          "alt": "trois quarts"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-math-401",
+      "description": "A formula is at most 400 code points.",
+      "document": [
+        {
+          "key": "formule",
+          "type": "math",
+          "notation": "edu-math-1",
+          "source": "x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+x+y",
+          "alt": "trois quarts"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-math-prerendered-audio",
+      "description": "A formula's asset is an image.",
+      "document": [
+        {
+          "key": "formule",
+          "type": "math",
+          "notation": "edu-math-1",
+          "source": "\\frac{3}{4}",
+          "alt": "trois quarts",
+          "asset": {
+            "sha256": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+            "mime": "audio/mp4",
+            "bytes": 412000
+          }
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-audio-duration-0",
+      "description": "Duration is at least 1 ms.",
+      "document": [
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": [
+            "Compter les parts égales.",
+            "Compter les parts coloriées.",
+            "Écrire la fraction."
+          ]
+        },
+        {
+          "key": "ecoute",
+          "type": "audio",
+          "asset": {
+            "sha256": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+            "mime": "audio/mp4",
+            "bytes": 412000
+          },
+          "duration_ms": 0,
+          "title": "Écouter l'explication",
+          "transcript": {
+            "block_keys": [
+              "intro",
+              "etapes"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-audio-duration-600001",
+      "description": "Duration is at most 10 minutes.",
+      "document": [
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": [
+            "Compter les parts égales.",
+            "Compter les parts coloriées.",
+            "Écrire la fraction."
+          ]
+        },
+        {
+          "key": "ecoute",
+          "type": "audio",
+          "asset": {
+            "sha256": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+            "mime": "audio/mp4",
+            "bytes": 412000
+          },
+          "duration_ms": 600001,
+          "title": "Écouter l'explication",
+          "transcript": {
+            "block_keys": [
+              "intro",
+              "etapes"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-audio-without-transcript",
+      "description": "A transcript reference is mandatory.",
+      "document": [
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": [
+            "Compter les parts égales.",
+            "Compter les parts coloriées.",
+            "Écrire la fraction."
+          ]
+        },
+        {
+          "key": "ecoute",
+          "type": "audio",
+          "asset": {
+            "sha256": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+            "mime": "audio/mp4",
+            "bytes": 412000
+          },
+          "duration_ms": 48000,
+          "title": "Écouter l'explication"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-audio-empty-transcript",
+      "description": "A transcript names at least one block.",
+      "document": [
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": [
+            "Compter les parts égales.",
+            "Compter les parts coloriées.",
+            "Écrire la fraction."
+          ]
+        },
+        {
+          "key": "ecoute",
+          "type": "audio",
+          "asset": {
+            "sha256": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+            "mime": "audio/mp4",
+            "bytes": 412000
+          },
+          "duration_ms": 48000,
+          "title": "Écouter l'explication",
+          "transcript": {
+            "block_keys": []
+          }
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-audio-duplicate-transcript-keys",
+      "description": "Transcript keys are unique.",
+      "document": [
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": [
+            "Compter les parts égales.",
+            "Compter les parts coloriées.",
+            "Écrire la fraction."
+          ]
+        },
+        {
+          "key": "ecoute",
+          "type": "audio",
+          "asset": {
+            "sha256": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+            "mime": "audio/mp4",
+            "bytes": 412000
+          },
+          "duration_ms": 48000,
+          "title": "Écouter l'explication",
+          "transcript": {
+            "block_keys": [
+              "intro",
+              "intro"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-audio-wav",
+      "description": "Only audio/mp4 and audio/mpeg.",
+      "document": [
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": [
+            "Compter les parts égales.",
+            "Compter les parts coloriées.",
+            "Écrire la fraction."
+          ]
+        },
+        {
+          "key": "ecoute",
+          "type": "audio",
+          "asset": {
+            "sha256": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+            "mime": "audio/wav",
+            "bytes": 412000
+          },
+          "duration_ms": 48000,
+          "title": "Écouter l'explication",
+          "transcript": {
+            "block_keys": [
+              "intro",
+              "etapes"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-audio-2000001-bytes",
+      "description": "Per-clip byte budget is 2 000 000.",
+      "document": [
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": [
+            "Compter les parts égales.",
+            "Compter les parts coloriées.",
+            "Écrire la fraction."
+          ]
+        },
+        {
+          "key": "ecoute",
+          "type": "audio",
+          "asset": {
+            "sha256": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+            "mime": "audio/mp4",
+            "bytes": 2000001
+          },
+          "duration_ms": 48000,
+          "title": "Écouter l'explication",
+          "transcript": {
+            "block_keys": [
+              "intro",
+              "etapes"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-audio-with-image-dimensions",
+      "description": "An audio asset has no width or height.",
+      "document": [
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": [
+            "Compter les parts égales.",
+            "Compter les parts coloriées.",
+            "Écrire la fraction."
+          ]
+        },
+        {
+          "key": "ecoute",
+          "type": "audio",
+          "asset": {
+            "sha256": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+            "mime": "audio/mp4",
+            "bytes": 412000,
+            "width": 1,
+            "height": 1
+          },
+          "duration_ms": 48000,
+          "title": "Écouter l'explication",
+          "transcript": {
+            "block_keys": [
+              "intro",
+              "etapes"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-callout-unknown-tone",
+      "description": "Format-1 rules still apply inside format 2.",
+      "document": [
+        {
+          "key": "c",
+          "type": "callout",
+          "tone": "danger",
+          "text": "x"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "x-block-is-string",
+      "description": "A block is an object.",
+      "document": [
+        "paragraph"
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    },
+    {
+      "id": "s-table-row-too-short",
+      "description": "A row with fewer cells than columns.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "A",
+            "B",
+            "C"
+          ],
+          "rows": [
+            [
+              "1",
+              "2",
+              "3"
+            ],
+            [
+              "1",
+              "2"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "semantic",
+          "rules": [
+            "table.row_width"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s-table-row-too-long",
+      "description": "A row with more cells than columns.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "Fraction",
+            "Décimal"
+          ],
+          "rows": [
+            [
+              "1",
+              "2",
+              "3"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "semantic",
+          "rules": [
+            "table.row_width"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s-table-2-columns-over-budget",
+      "description": "17 + 16 = 33 > 32.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "Mot",
+            "Sens"
+          ],
+          "rows": [
+            [
+              "aaaaaaaaaaaaaaaaa",
+              "bbbbbbbbbbbbbbbb"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "semantic",
+          "rules": [
+            "table.width_budget"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s-table-3-columns-over-budget",
+      "description": "11 + 10 + 10 = 31 > 30.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "A",
+            "B",
+            "C"
+          ],
+          "rows": [
+            [
+              "aaaaaaaaaaa",
+              "bbbbbbbbbb",
+              "cccccccccc"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "semantic",
+          "rules": [
+            "table.width_budget"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s-table-4-columns-over-budget",
+      "description": "The header counts too: 8 + 7 + 7 + 7 = 29 > 28.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "Colonnes",
+            "B",
+            "C",
+            "D"
+          ],
+          "rows": [
+            [
+              "aaaaaaa",
+              "bbbbbbb",
+              "ccccccc",
+              "ddddddd"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "semantic",
+          "rules": [
+            "table.width_budget"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s-table-nbsp-does-not-break",
+      "description": "A no-break space does not split a word: 'aaaaaaaaaaaaaaaa<NBSP>b' is 18 characters.",
+      "document": [
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "Mot",
+            "Sens"
+          ],
+          "rows": [
+            [
+              "aaaaaaaaaaaaaaaa b",
+              "bbbbbbbbbbbbbbbb"
+            ]
+          ]
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "semantic",
+          "rules": [
+            "table.width_budget"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s-transcript-unknown-key",
+      "description": "The transcript names a block that does not exist.",
+      "document": [
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "ecoute",
+          "type": "audio",
+          "asset": {
+            "sha256": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+            "mime": "audio/mp4",
+            "bytes": 412000
+          },
+          "duration_ms": 48000,
+          "title": "Écouter l'explication",
+          "transcript": {
+            "block_keys": [
+              "intro",
+              "absent"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "semantic",
+          "rules": [
+            "audio.transcript"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s-transcript-names-itself",
+      "description": "An audio block cannot be its own transcript.",
+      "document": [
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "ecoute",
+          "type": "audio",
+          "asset": {
+            "sha256": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+            "mime": "audio/mp4",
+            "bytes": 412000
+          },
+          "duration_ms": 48000,
+          "title": "Écouter l'explication",
+          "transcript": {
+            "block_keys": [
+              "ecoute"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "semantic",
+          "rules": [
+            "audio.transcript"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s-transcript-names-image",
+      "description": "An image is not a text equivalent.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 18432,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        },
+        {
+          "key": "ecoute",
+          "type": "audio",
+          "asset": {
+            "sha256": "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0",
+            "mime": "audio/mp4",
+            "bytes": 412000
+          },
+          "duration_ms": 48000,
+          "title": "Écouter l'explication",
+          "transcript": {
+            "block_keys": [
+              "schema-1"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "semantic",
+          "rules": [
+            "audio.transcript"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s-asset-metadata-differs",
+      "description": "Same hash, different byte size.",
+      "document": [
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 18432,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        },
+        {
+          "key": "schema-2",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 999,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "semantic",
+          "rules": [
+            "assets.consistent"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s-asset-image-and-audio-share-hash",
+      "description": "One hash cannot be both an image and an audio clip.",
+      "document": [
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "etapes",
+          "type": "list",
+          "style": "number",
+          "items": [
+            "Compter les parts égales.",
+            "Compter les parts coloriées.",
+            "Écrire la fraction."
+          ]
+        },
+        {
+          "key": "schema-1",
+          "type": "image",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "image/webp",
+            "bytes": 18432,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        },
+        {
+          "key": "ecoute",
+          "type": "audio",
+          "asset": {
+            "sha256": "1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f",
+            "mime": "audio/mp4",
+            "bytes": 412000
+          },
+          "duration_ms": 48000,
+          "title": "Écouter l'explication",
+          "transcript": {
+            "block_keys": [
+              "intro",
+              "etapes"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "semantic",
+          "rules": [
+            "assets.consistent"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s-images-over-lesson-budget",
+      "description": "Five 200 000-byte images plus one more byte-carrying image exceed 1 000 000 bytes.",
+      "document": [
+        {
+          "key": "img-1",
+          "type": "image",
+          "asset": {
+            "sha256": "0101010101010101010101010101010101010101010101010101010101010101",
+            "mime": "image/webp",
+            "bytes": 200000,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        },
+        {
+          "key": "img-2",
+          "type": "image",
+          "asset": {
+            "sha256": "0202020202020202020202020202020202020202020202020202020202020202",
+            "mime": "image/webp",
+            "bytes": 200000,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        },
+        {
+          "key": "img-3",
+          "type": "image",
+          "asset": {
+            "sha256": "0303030303030303030303030303030303030303030303030303030303030303",
+            "mime": "image/webp",
+            "bytes": 200000,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        },
+        {
+          "key": "img-4",
+          "type": "image",
+          "asset": {
+            "sha256": "0404040404040404040404040404040404040404040404040404040404040404",
+            "mime": "image/webp",
+            "bytes": 200000,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        },
+        {
+          "key": "img-5",
+          "type": "image",
+          "asset": {
+            "sha256": "0505050505050505050505050505050505050505050505050505050505050505",
+            "mime": "image/webp",
+            "bytes": 200000,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        },
+        {
+          "key": "img-6",
+          "type": "image",
+          "asset": {
+            "sha256": "0606060606060606060606060606060606060606060606060606060606060606",
+            "mime": "image/webp",
+            "bytes": 1,
+            "width": 640,
+            "height": 360
+          },
+          "alt": "Un disque partagé en quatre parts égales, trois parts sont coloriées.",
+          "caption": "Trois quarts du disque"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "semantic",
+          "rules": [
+            "assets.image_budget"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s-math-unknown-command",
+      "description": "A command outside the whitelist.",
+      "document": [
+        {
+          "key": "formule",
+          "type": "math",
+          "notation": "edu-math-1",
+          "source": "\\href{a}{b}",
+          "alt": "trois quarts"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "semantic",
+          "rules": [
+            "math.unknown_command"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s-several-rules-at-once",
+      "description": "All semantic findings are reported together.",
+      "document": [
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "Une fraction représente une partie d'un tout."
+        },
+        {
+          "key": "intro",
+          "type": "paragraph",
+          "text": "encore"
+        },
+        {
+          "key": "tableau",
+          "type": "table",
+          "caption": "Fractions et écritures décimales",
+          "columns": [
+            "Fraction",
+            "Décimal"
+          ],
+          "rows": [
+            [
+              "1",
+              "1",
+              "1"
+            ]
+          ]
+        },
+        {
+          "key": "formule",
+          "type": "math",
+          "notation": "edu-math-1",
+          "source": "x^",
+          "alt": "trois quarts"
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "semantic",
+          "rules": [
+            "keys.unique",
+            "math.script",
+            "table.row_width"
+          ]
+        }
+      }
+    },
+    {
+      "id": "x-key-trailing-line-feed",
+      "description": "Review L1. '$' in the contracts' patterns matches only at the very end (ECMA-262): a key followed by a line feed is refused. A regular-expression engine whose '$' also matches before a final line feed (Python, PCRE without D) must use an end-of-text anchor.",
+      "document": [
+        {
+          "key": "intro\n",
+          "type": "paragraph",
+          "text": "Une fraction."
+        }
+      ],
+      "expect": {
+        "format_1": {
+          "valid": false,
+          "layer": "schema"
+        },
+        "format_2": {
+          "valid": false,
+          "layer": "schema"
+        }
+      }
+    }
+  ]
+}

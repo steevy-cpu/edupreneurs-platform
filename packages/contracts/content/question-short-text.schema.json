@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.mon-edupreneur.local/content/question-short-text.schema.json",
+  "title": "Short-text practice question (content format v2)",
+  "description": "The four JSON columns of a question whose kind is 'short_text'. Scoring rule 'short-text-v1' (README.md, section 'short-text-v1'): response and every accepted answer go through the same normalisation (NFC, typographic apostrophes to ', whitespace runs to one space and trimmed, lower-casing unless case_sensitive, accent folding unless accent_sensitive); score 1 when the normalised response equals one normalised accepted answer, otherwise 0. A response longer than response_spec.max_length code points, or empty after normalisation, is not scored ('invalid_response'). Semantic rule 'short_text.accepted_fits': every accepted answer is non-empty after normalisation and no longer than max_length. CONTRACT ONLY: the server's sync function does not score this kind yet.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "prompt",
+    "response_spec",
+    "answer_key",
+    "explanation"
+  ],
+  "properties": {
+    "prompt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      }
+    },
+    "response_spec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_length",
+        "case_sensitive",
+        "accent_sensitive"
+      ],
+      "properties": {
+        "max_length": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 80
+        },
+        "case_sensitive": {
+          "type": "boolean"
+        },
+        "accent_sensitive": {
+          "type": "boolean"
+        }
+      }
+    },
+    "answer_key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scoring_version",
+        "accepted"
+      ],
+      "properties": {
+        "scoring_version": {
+          "const": "short-text-v1"
+        },
+        "accepted": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "allOf": [
+              {
+                "$ref": "#/$defs/noControl"
+              },
+              {
+                "$ref": "#/$defs/noMarkup"
+              },
+              {
+                "$ref": "#/$defs/noInvisible"
+              }
+            ]
+          }
+        }
+      }
+    },
+    "explanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      }
+    }
+  },
+  "$defs": {
+    "noControl": {
+      "not": {
+        "pattern": "[\\u0000-\\u001f\\u007f]"
+      }
+    },
+    "noMarkup": {
+      "not": {
+        "pattern": "<[A-Za-z/!?]"
+      }
+    },
+    "response": {
+      "description": "What the phone sends as the learner's answer: the text exactly as typed (at most 200 code points).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text"
+      ],
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      }
+    },
+    "noInvisible": {
+      "description": "No invisible or direction-changing character: C1 controls (U+0080-U+009F), zero-width characters and direction marks (U+200B-U+200F, U+2060, U+FEFF), line and paragraph separators (U+2028, U+2029), bidirectional embeddings, overrides and isolates (U+202A-U+202E, U+2066-U+2069), and lone surrogates (U+D800-U+DFFF). The pattern must be evaluated in Unicode mode (ECMA-262 'u' flag), where the surrogate range only matches a surrogate that is not part of a pair.",
+      "not": {
+        "pattern": "[\\u0080-\\u009f\\u200b-\\u200f\\u2028-\\u202e\\u2060\\u2066-\\u2069\\ufeff\\ud800-\\udfff]"
+      }
+    }
+  }
+}
