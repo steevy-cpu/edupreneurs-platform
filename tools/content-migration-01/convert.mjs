@@ -63,7 +63,14 @@ function plain(s) {
 
 // Accept only a complete small equality. Everything else math-like needs review.
 function math(s) {
-  if (!/[=<>≤≥≠≈＝]/u.test(s)) return;
+  if (!/[=<>≤≥≠≈＝]/u.test(s)) {
+    // Preserve an opaque formula in its source record until a supported math renderer
+    // and reviewer can establish its meaning. A bare equation fragment is not prose.
+    const onlyMath = /^[\d\s.,()+×÷*/^−–+-]+$/u.test(s) && /[+×÷*/^−–-]/u.test(s);
+    const formulaMarkup = /\\(?:frac|sqrt|begin|left|right|times|div)\b|\$[^$\n]+\$|[√∑∫]/u.test(s);
+    if ((onlyMath && !/^-?\d+(?:[.,]\d+)?$/u.test(s)) || formulaMarkup) fail("math_needs_review");
+    return;
+  }
   const m = /^(-?\d{1,12})\s*([+−×÷])\s*(-?\d{1,12})\s*=\s*(-?\d{1,12})$/u.exec(s);
   if (!m) fail("math_needs_review");
   const a = BigInt(m[1]), b = BigInt(m[3]), c = BigInt(m[4]);

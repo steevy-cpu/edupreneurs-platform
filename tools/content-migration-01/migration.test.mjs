@@ -155,3 +155,13 @@ test("two exercises cannot occupy the same paper revision position",()=>{
   s.records=[base,{...base,id:subject}];
   assert.throws(()=>plan(s),/duplicate_exercise_position/);
 });
+
+test("opaque formulas and incomplete arithmetic remain separately reviewable",()=>{
+  for(const expression of ["2 + × 3","2 ÷","3/4","√9","$x^2$"]){
+    const v=convertField("<p>"+expression+"</p>");
+    assert.ok(v.issues.includes("math_needs_review"));
+    assert.deepEqual(v.blocks,[]);
+    assert.equal(v.sourceTree.children[0].children[0],expression);
+  }
+  assert.equal(convertField("<p>-3</p>").blocks[0].text,"-3");
+});
