@@ -83,6 +83,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/lessons/{lesson_id}/videos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Teacher-approved YouTube videos for one published lesson
+         * @description Video cards for the lesson in `locale`, in teacher-chosen order.
+         *
+         *     Same 404 as `GET /v1/lessons/{id}` for an unknown or unpublished lesson. An
+         *     empty `videos` list is normal: the lesson is complete without video.
+         */
+        get: operations["get_lesson_videos_v1_lessons__lesson_id__videos_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me": {
         parameters: {
             query?: never;
@@ -333,6 +356,28 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** LessonVideosResponse */
+        LessonVideosResponse: {
+            /**
+             * Lesson Id
+             * Format: uuid
+             */
+            lesson_id: string;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "fr" | "ht";
+            /**
+             * Requires Network
+             * @description Videos are never available offline; the lesson text is.
+             * @default true
+             * @constant
+             */
+            requires_network: true;
+            /** Videos */
+            videos: components["schemas"]["VideoCard"][];
+        };
         /** MeResponse */
         MeResponse: {
             /**
@@ -495,6 +540,73 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** VideoCard */
+        VideoCard: {
+            /** Audio Language */
+            audio_language: string | null;
+            /**
+             * Channel Title
+             * @description Channel name; always displayed with the video.
+             */
+            channel_title: string;
+            /** Channel Url */
+            channel_url: string;
+            /** Duration Seconds */
+            duration_seconds: number;
+            /**
+             * Embed Url
+             * @description Official embedded player. Load only after the learner taps Watch.
+             */
+            embed_url: string;
+            /**
+             * Link Id
+             * Format: uuid
+             */
+            link_id: string;
+            /**
+             * Made For Kids
+             * @description YouTube's Made-for-Kids designation. The app adds no engagement feature (comments, likes, sharing, tracking) around any video.
+             */
+            made_for_kids: boolean;
+            /**
+             * Metadata Checked At
+             * Format: date-time
+             */
+            metadata_checked_at: string;
+            /**
+             * Provider
+             * @default youtube
+             * @constant
+             */
+            provider: "youtube";
+            /**
+             * Purpose
+             * @enum {string}
+             */
+            purpose: "explanation" | "example" | "exercise_help" | "enrichment";
+            /** Start Seconds */
+            start_seconds: number;
+            /**
+             * Thumbnail Url
+             * @description Served by YouTube; display as-is, do not store or alter.
+             */
+            thumbnail_url: string;
+            /**
+             * Title
+             * @description Title as published on YouTube; display unchanged.
+             */
+            title: string;
+            /**
+             * Video Id
+             * @description 11-character YouTube video id.
+             */
+            video_id: string;
+            /**
+             * Watch Url
+             * @description Opens the video on YouTube: the fallback when embedding fails.
+             */
+            watch_url: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -624,6 +736,67 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LessonResponse"];
+                };
+            };
+            /** @description Missing or invalid access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found (or not published). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A dependency (database or auth key service) is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_lesson_videos_v1_lessons__lesson_id__videos_get: {
+        parameters: {
+            query: {
+                /** @description Content language: `fr` (French) or `ht` (Haitian Creole). */
+                locale: "fr" | "ht";
+            };
+            header?: never;
+            path: {
+                lesson_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonVideosResponse"];
                 };
             };
             /** @description Missing or invalid access token. */

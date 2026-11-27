@@ -149,3 +149,7 @@ when a Creole label is missing.
   reading-position tracking is added, it should get its own column.
 - `practice_attempts.score` is nullable for future manually-graded kinds; today it is always set.
 - There is no retention policy for receipts, feed rows or attempts (they grow forever).
+
+## YouTube-01 (2026-11-27, behind `EDU_VIDEOS_ENABLED`, default off)
+
+Migration `20261127000200_youtube_videos.sql` adds, and alters nothing existing: `app.videos` (bounded YouTube metadata, availability, staff status, expiry at most 30 days after the check) and `app.lesson_video_links` (lesson ↔ video, locales, order, review state), two triggers (approval guard; material change → re-review) and two read policies for `edu_api`. 24 application tables in total. See `docs/youtube-01/`.

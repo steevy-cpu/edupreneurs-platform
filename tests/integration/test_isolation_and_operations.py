@@ -280,6 +280,8 @@ async def test_openapi_contract(client: httpx.AsyncClient) -> None:
         "/v1/lessons/{lesson_id}",
         "/v1/sync/push",
         "/v1/sync/pull",
+        # YouTube-01 (answers 404 while EDU_VIDEOS_ENABLED is false)
+        "/v1/lessons/{lesson_id}/videos",
     }
     error_ref = {"$ref": "#/components/schemas/ErrorResponse"}
     for path, operations in spec["paths"].items():
