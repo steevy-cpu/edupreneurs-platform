@@ -338,14 +338,17 @@ def _validate_lesson(
 
     # -- language mapping of blocks
     fr_b, ht_b = loaded["blocks"].get("fr"), loaded["blocks"].get("ht")
-    if isinstance(fr_b, list) and isinstance(ht_b, list) and all(isinstance(b, dict) for b in [*fr_b, *ht_b]):
+    blocks_ok = not any(f.code == "blocks_schema" for f in out)
+    if blocks_ok and isinstance(fr_b, list) and isinstance(ht_b, list) and all(isinstance(b, dict) for b in [*fr_b, *ht_b]):
         out += _compare_blocks(w, fr_b, ht_b)
 
     # -- questions
     for loc, questions in loaded["questions"].items():
         out += _validate_questions(w, loc, questions, mcq_v)
     fr_q, ht_q = loaded["questions"].get("fr"), loaded["questions"].get("ht")
-    if isinstance(fr_q, list) and isinstance(ht_q, list) and all(isinstance(q, dict) for q in [*fr_q, *ht_q]):
+    # Cross-language comparison reads fields the contract guarantees; it never runs on a file that failed the contract.
+    questions_ok = not any(f.code in ("question_schema", "questions_schema", "malformed_answer") for f in out)
+    if questions_ok and isinstance(fr_q, list) and isinstance(ht_q, list) and all(isinstance(q, dict) for q in [*fr_q, *ht_q]):
         out += _compare_questions(w, fr_q, ht_q)
 
     # -- mathematical verification: REQUIRED, typed, then bound to what learners read
@@ -465,14 +468,19 @@ def _validate_questions(w: str, loc: str, questions: Any, mcq_v: Draft202012Vali
         chs = _choice_list(spec)
         ids = [c.get("id") for c in chs]
         texts = [_plain(str(c.get("text", ""))).lower() for c in chs]
-        if len(set(ids)) != len(ids):
-            out.append(Finding("duplicate_choice_id", qw, "choice ids must be unique"))
-        if len(set(texts)) != len(texts):
-            out.append(Finding("duplicate_choice_text", qw, "two choices have the same text"))
         ak = q.get("answer_key")
         correct = ak.get("correct_choice_id") if isinstance(ak, dict) else None
-        if ids.count(correct) != 1:
-            out.append(Finding("malformed_answer", qw, f"correct_choice_id {correct!r} must match exactly one choice id {ids}"))
+        if not all(isinstance(i, str) for i in ids):
+            # Identifiers are compared, counted and used as keys below: anything but a string stops here, by field.
+            bad = [n for n, i in enumerate(ids) if not isinstance(i, str)]
+            out.append(Finding("question_schema", f"{qw}:response_spec/choices", f"choice id must be a string (choice index {bad})"))
+        else:
+            if len(set(ids)) != len(ids):
+                out.append(Finding("duplicate_choice_id", qw, "choice ids must be unique"))
+            if not isinstance(correct, str) or ids.count(correct) != 1:
+                out.append(Finding("malformed_answer", qw, f"correct_choice_id {correct!r} must match exactly one choice id {ids}"))
+        if len(set(texts)) != len(texts):
+            out.append(Finding("duplicate_choice_text", qw, "two choices have the same text"))
         out.extend(_text_findings({k: q[k] for k in ("prompt", "response_spec", "explanation") if k in q}, qw))
         out.extend(_math_in({k: q[k] for k in ("prompt", "explanation") if k in q}, qw))
     return out

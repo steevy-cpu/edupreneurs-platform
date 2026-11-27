@@ -56,6 +56,7 @@ KIND_FR = {
     "unit": "à côté d'une unité de mesure",
     "named_unit": "formule ou décomposition écrite avec des mots",
     "fragment": "relation sans nombres des deux côtés (signe cité, formule)",
+    "unsupported_relation": "relation écrite avec un signe que l'outil ne lit pas (par exemple ≈)",
 }
 
 

@@ -36,6 +36,9 @@ def main(argv: list[str] | None = None) -> int:
     except OSError as exc:
         print(f"error [file_unsafe]: {exc.strerror or exc}", file=sys.stderr)
         return 2
+    except Exception as exc:  # last resort: content that reaches an unguarded path must still fail in a controlled way
+        print(f"error [internal_error]: unexpected {type(exc).__name__} while reading the pilot content; nothing was written", file=sys.stderr)
+        return 2
 
 
 def _differs(directory: Path, name: str, text: str) -> bool:

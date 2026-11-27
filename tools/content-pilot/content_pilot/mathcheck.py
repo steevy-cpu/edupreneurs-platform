@@ -34,6 +34,7 @@ so `12 ÷ 4 = 3, reste 1` is false even though `12 ÷ 4 = 3` is true. Division b
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass
 from fractions import Fraction
 
@@ -42,17 +43,24 @@ MAX_DIGITS = 18  # numbers longer than this are not interpreted (and are reporte
 MAX_TOKENS = 80  # per statement
 MAX_STATEMENTS = 400  # per text
 
+# Digits are ASCII only: a fullwidth or other Unicode digit is NOT a number here (it becomes an unsupported symbol).
 _TOKEN = re.compile(
-    rf"(?P<dec>\d+(?:{NBSP}\d{{3}})*[.,]\d+)|(?P<num>\d+(?:{NBSP}\d{{3}})*)|(?P<op>[+−×÷=≠<>≤≥()])"
-    rf"|(?P<sym>[/^*%√∕⁄·²³¼½¾\u2150-\u215e])"
-    r"|(?P<glue>(?<=\d)(?![mglMGL])[A-Za-z](?![A-Za-z])|(?<![A-Za-z])(?![mglMGL])[A-Za-z](?=\d))"  # `2x`, `x2`: a variable
+    rf"(?P<dec>[0-9]+(?:{NBSP}[0-9]{{3}})*[.,][0-9]+)|(?P<num>[0-9]+(?:{NBSP}[0-9]{{3}})*)|(?P<op>[+−×÷=≠<>≤≥()])"
+    r"|(?P<glue>(?<=[0-9])(?![mglMGL])[A-Za-z](?![A-Za-z])|(?<![A-Za-z])(?![mglMGL])[A-Za-z](?=[0-9]))"  # `2x`, `x2`
     rf"|(?P<space>[ {NBSP}]+)|(?P<other>.)",
     re.S,
 )
 _REL = {"=", "≠", "<", ">", "≤", "≥"}
 _UNIT_AFTER = re.compile(r"^\s*(?:km|cm|mm|kg|g|m|l|dl|cl)\b", re.I)
 _UNIT_BEFORE = re.compile(r"\b(?:km|cm|mm|kg|g|m|l|dl|cl)\s*$", re.I)
-_REMAINDER = re.compile(rf"^\s*[,;]?\s*(?:reste|rès)\s+(\d+(?:{NBSP}\d{{3}})*)(?!\d)", re.I)
+_REM_KEY = re.compile(r"^\s*[,;]?\s*(?:reste|rès)(?![^\W\d_])", re.I)  # the keyword alone, as a whole word
+_REMAINDER = re.compile(rf"^\s*[,;]?\s*(?:reste|rès)[ {NBSP}]+([0-9]+(?:{NBSP}[0-9]{{3}})*)", re.I)
+_SUPPORTED = set("0123456789+−×÷=≠<>≤≥()")
+_EXTRA_SYMBOLS = set("/^*%·")  # mathematical in practice although Unicode files them under punctuation or modifiers
+_OPERATOR_LIKE = set("+−×÷±∓∗∙⋅∘√∛∜∕⁄/*^%·-")  # unsupported symbols that act as operators, not as relations
+# What may legitimately stand next to a complete statement: prose letters and ordinary punctuation. Anything else
+# (a zero-width character, a currency or degree sign, an emoji...) means the statement could not be isolated.
+_BOUNDARY_PUNCT = set(".,;:!?'\"()[]«»“”‘’…\n\r\t")
 _OPS = set("+−×÷")
 _SIDE_OPEN = set("+−×÷(")
 _LETTER = re.compile(r"[^\W\d_]")
@@ -83,8 +91,45 @@ def _next_char(text: str, pos: int) -> str:
     return text[i] if i < len(text) else ""
 
 
+def _is_arrow(c: str) -> bool:
+    return "\u2190" <= c <= "\u21ff" or "\u27f0" <= c <= "\u27ff" or "\u2900" <= c <= "\u297f"
+
+
+def _is_relation_like(c: str) -> bool:
+    """An unsupported mathematical symbol that states a relation (≈, ≡, ＝, ∼ ...) rather than an operation."""
+    if unicodedata.category(c) != "Sm" or c in _SUPPORTED or _is_arrow(c):
+        return False
+    folded = unicodedata.normalize("NFKC", c)
+    return c not in _OPERATOR_LIKE and not (folded and all(f in _OPERATOR_LIKE for f in folded))
+
+
+def _is_lookalike(c: str) -> bool:
+    """A compatibility form of a supported character (fullwidth ＝, ＋, １ ...): never accepted in its place."""
+    folded = unicodedata.normalize("NFKC", c)
+    return folded != c and bool(folded) and all(f in _SUPPORTED for f in folded)
+
+
+def _is_unsupported_symbol(text: str, c: str, start: int, end: int) -> bool:
+    """Characters that belong to mathematical notation this tool does not read. They JOIN the surrounding run, so a
+    statement containing one is reported as a whole instead of being cut into a verifiable-looking suffix."""
+    if c in _EXTRA_SYMBOLS:
+        return True
+    category = unicodedata.category(c)
+    if category == "Sm":
+        return not _is_arrow(c)  # every mathematical symbol outside the supported set; arrows are prose connectors
+    if category in ("Nd", "No", "Nl"):
+        return True  # non-ASCII digits, superscripts, vulgar fractions
+    if category == "Zs":
+        return True  # any space other than the ordinary space and the no-break space (matched earlier)
+    if category == "Pd":
+        return _is_math_dash(text, start, end)
+    if c in "xX":
+        return _is_times_letter(text, start, end)
+    return False
+
+
 def _is_math_dash(text: str, start: int, end: int) -> bool:
-    """An ASCII hyphen or en dash that plays the part of a minus: next to a number or parenthesis, and not a list bullet."""
+    """A hyphen or dash (any Unicode dash) that plays the part of a minus: next to a number or parenthesis, and not a list bullet."""
     line_start = text.rfind("\n", 0, start) + 1
     if not text[line_start:start].strip() and text[end : end + 1].isspace():
         return False  # "- item": a bullet
@@ -105,9 +150,7 @@ def _tokens(text: str) -> list[tuple[str, str, int, int]]:
         kind = m.lastgroup or "other"
         if kind == "space":
             continue
-        if kind == "other" and (
-            (m.group() in "-–" and _is_math_dash(text, m.start(), m.end())) or (m.group() in "xX" and _is_times_letter(text, m.start(), m.end()))
-        ):
+        if kind == "other" and _is_unsupported_symbol(text, m.group(), m.start(), m.end()):
             kind = "sym"
         out.append((kind, m.group(), m.start(), m.end()))
     return out
@@ -187,7 +230,7 @@ def _holds(rel: str, a: Fraction, b: Fraction) -> bool:
 class Skipped:
     """A relation the tool deliberately did not interpret (so nothing may call it "checked")."""
 
-    kind: str  # unit | named_unit | fragment
+    kind: str  # unit | named_unit | fragment | unsupported_relation
     text: str  # the run, with a little context
 
 
@@ -241,6 +284,22 @@ def _euclid(sides: list[list[tuple[str, str]] | str], remainder: int) -> tuple[b
     return True, "euclidean division with remainder"
 
 
+def _clean_remainder_end(tail: str, end: int) -> bool:
+    """True when the remainder number is followed by a legitimate end: nothing, punctuation, or a new word."""
+    rest = tail[end:]
+    if not rest:
+        return True
+    c = rest[0]
+    if c in ".,":
+        return not rest[1:2].isdigit()  # `0,5` and `1.5` are decimals, not a remainder followed by punctuation
+    if c in ";:!?)»\"'…\n":
+        return True
+    if c in f" {NBSP}":
+        nxt = rest.lstrip(f" {NBSP}")[:1]
+        return nxt == "" or bool(_LETTER.match(nxt)) or nxt in '.,;:!?()«»"…\n'
+    return False
+
+
 def analyze(text: str) -> Analysis:
     """Every arithmetic statement in `text`, what could not be interpreted, and what was deliberately skipped.
 
@@ -271,26 +330,58 @@ def analyze(text: str) -> Analysis:
         sentence = " ".join(text[start:end].split())
         return sentence if len(sentence) <= 160 else sentence[:157] + "…"
 
+    def without_prose_parentheses(tokens: list[tuple[str, str, int, int]]) -> list[tuple[str, str, int, int]]:
+        """`(3 + 4 = 7)` and `(13 ÷ 4 = 3, reste 1)`: parentheses of the SENTENCE around a statement are not part of
+        it. An edge parenthesis is dropped only when its partner really exists (inside the run, enclosing all of it
+        and a relation, or in the surrounding text). An unmatched `(2 + 3 = 5` stays malformed and is reported."""
+        while len(tokens) > 2 and any(v in _REL for _, v, _, _ in tokens):
+            depth, closes_at = 0, None
+            for i, (_, v, _, _) in enumerate(tokens):
+                depth += (v == "(") - (v == ")")
+                if depth == 0 and tokens[0][1] == "(" and closes_at is None:
+                    closes_at = i
+            balance = depth
+            if tokens[0][1] == "(" and closes_at == len(tokens) - 1:
+                inner_depth, wraps_relation = 0, False
+                for _, v, _, _ in tokens[1:-1]:
+                    inner_depth += (v == "(") - (v == ")")
+                    wraps_relation = wraps_relation or (v in _REL and inner_depth == 0)
+                if not wraps_relation:
+                    break
+                tokens = tokens[1:-1]
+            elif tokens[0][1] == "(" and balance > 0 and ")" in text[tokens[-1][3] :].split("(", 1)[0]:
+                tokens = tokens[1:]
+            elif tokens[-1][1] == ")" and balance < 0 and "(" in text[: tokens[0][2]].rsplit(")", 1)[-1]:
+                tokens = tokens[:-1]
+            else:
+                break
+        return tokens
+
     def judge(index: int) -> None:
         nonlocal overflow
-        current = runs[index]
+        current = without_prose_parentheses(runs[index])
         nxt = runs[index + 1] if index + 1 < len(runs) else None
         prev_end = runs[index - 1][-1][3] if index else 0
         first, last = current[0], current[-1]
         shown = text[first[2] : last[3]]
         values_ = [v for _, v, _, _ in current]
         has_rel = any(v in _REL for v in values_)
+        rel_like = [v for k, v, _, _ in current if k == "sym" and _is_relation_like(v)]
+        has_number = any(k in ("num", "dec") for k, _, _, _ in current)
+        tail_text = text[last[3] :]
+        remainder_follows = has_rel and bool(_REM_KEY.match(tail_text))
 
         def skip(kind: str) -> None:
-            if has_rel:
+            if has_rel or rel_like:
                 skipped.append(Skipped(kind, context(first[2], last[3])))
 
         # "3 480 = 3 milliers + 4 centaines": numbers split by words around operators are a decomposition into named
         # units, not a numeric equality.
         gap_after = text[last[3] : nxt[0][2]].strip() if nxt else ""
         gap_before = text[prev_end : first[2]].strip() if index else ""
-        if (nxt and nxt[0][1] in _OPS and gap_after and gap_after not in ",;.:") or (
-            first[1] in _OPS and _LETTER.search(gap_before) and not _REMAINDER.match(gap_before)
+        if not remainder_follows and (
+            (nxt and nxt[0][1] in _OPS and gap_after and gap_after not in ",;.:")
+            or (first[1] in _OPS and _LETTER.search(gap_before) and not _REM_KEY.match(gap_before))
         ):
             skip("named_unit")
             return
@@ -320,12 +411,32 @@ def analyze(text: str) -> Analysis:
             text[last[3] : last[3] + 1] and _LETTER.match(text[last[3] : last[3] + 1])
         )
         unsupported = sorted({v for k, v, _, _ in current if k in ("sym", "dec", "glue")})
+
+        def name(c: str) -> str:
+            return c if len(c) > 1 or (c.isprintable() and not c.isspace()) else f"U+{ord(c):04X}"
+
         if has_rel and (unsupported or glued):
-            what = ", ".join(unsupported) if unsupported else "letters attached to a number"
+            what = ", ".join(name(u) for u in unsupported) if unsupported else "letters attached to a number"
             problems.append(f"{shown!r}: unsupported notation ({what}); the statement cannot be verified and is not treated as true")
+            return
+        if rel_like:
+            if any(_is_lookalike(v) for k, v, _, _ in current if k == "sym"):
+                # `1 ＝ 2`: a lookalike of a supported sign must be written with the real sign, never guessed at.
+                problems.append(f"{shown!r}: a lookalike character stands in for a supported sign; rewrite it with the standard symbol")
+            elif has_number:
+                skip("unsupported_relation")  # `1 ≈ 200`: a relation the tool cannot judge, left to a human reviewer
             return
         if unsupported or (not has_rel and len(current) < 2):
             return  # no relation, or a lone number: there is no claim to verify
+        if has_rel:
+            # The statement must be delimited by prose or ordinary punctuation. Any other neighbour (a zero-width
+            # character, a currency or degree sign...) means part of the written claim was not read.
+            for neighbour in (_prev_char(text, first[2]), _next_char(text, last[3])):
+                if neighbour and not (
+                    _LETTER.match(neighbour) or neighbour in _BOUNDARY_PUNCT or _is_arrow(neighbour) or unicodedata.category(neighbour) == "Pd"
+                ):
+                    problems.append(f"{shown!r}: next to an unsupported character ({name(neighbour)}); the complete statement cannot be isolated")
+                    return
         if len(current) > MAX_TOKENS:
             problems.append(f"{shown[:40]!r}…: statement longer than {MAX_TOKENS} tokens is not interpreted")
             return
@@ -344,7 +455,12 @@ def analyze(text: str) -> Analysis:
                     problems.append(f"{shown!r}: {exc}")
             return
         sides = _split_relations(simple)
-        tail = _REMAINDER.match(text[last[3] :])
+        tail = _REMAINDER.match(tail_text) if remainder_follows else None
+        if remainder_follows and (tail is None or not _clean_remainder_end(tail_text, tail.end())):
+            # The keyword announces a Euclidean division: the remainder must be ONE complete whole number. A decimal,
+            # a sign, an expression or nothing at all is reported; the plain equality is never used instead.
+            problems.append(f"{shown!r}: the remainder after it is missing or is not a single whole number")
+            return
         try:
             if tail:
                 ok, detail = _euclid(sides, int(tail.group(1).replace(NBSP, "")))
