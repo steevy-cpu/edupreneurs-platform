@@ -149,3 +149,13 @@ when a Creole label is missing.
   reading-position tracking is added, it should get its own column.
 - `practice_attempts.score` is nullable for future manually-graded kinds; today it is always set.
 - There is no retention policy for receipts, feed rows or attempts (they grow forever).
+
+## ExamHub-01 (2026-11-27, behind `EDU_EXAMS_ENABLED`, default off)
+
+Migration `20261127000100_examhub.sql` adds, and alters nothing existing:
+
+* tables `app.exams`, `app.exam_questions`, `app.exam_attempts`, `app.exam_answers` (26 application tables in total);
+* functions `exam_start_attempt`, `exam_submit_answer`, `exam_finish_attempt`, `exam_attempt_review` (callable by `edu_api`) and the internal `exam_close_attempt`;
+* triggers guarding publication (second-person approval, cleared rights, valid keys) and the immutability of published questions.
+
+The API role has column-level `SELECT` on questions that excludes `answer_key` and `explanation`, and no write privilege on any exam table. See `docs/examhub-01/README.md`.

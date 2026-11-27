@@ -57,6 +57,11 @@ class Settings(BaseSettings):
     pull_default_limit: int = Field(default=100, ge=1)
     pull_max_limit: int = Field(default=200, ge=1)
 
+    # --- Feature flags (default off) -------------------------------------------
+    #: ExamHub-01. While false, every /v1/exams and /v1/exam-attempts route
+    #: answers 404, exactly as if it did not exist.
+    exams_enabled: bool = False
+
     @field_validator("auth_algorithms")
     @classmethod
     def _only_asymmetric(cls, value: tuple[str, ...]) -> tuple[str, ...]:

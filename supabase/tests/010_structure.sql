@@ -3,14 +3,15 @@ BEGIN;
 SELECT * FROM no_plan();
 
 -- ---- tables, keys, RLS -------------------------------------------------------
-SELECT is((SELECT count(*)::int FROM pg_tables WHERE schemaname = 'app'), 22,
-    'exactly 22 application tables');
+SELECT is((SELECT count(*)::int FROM pg_tables WHERE schemaname = 'app'), 26,
+    'exactly 26 application tables');
 SELECT tables_are('app', ARRAY[
     'learner_profiles','staff_roles','grades','subjects','courses','units','lessons',
     'lesson_revisions','question_revisions','content_sources','lesson_revision_sources',
     'editorial_reviews','pack_releases','pack_items','pack_current','lesson_progress',
     'practice_attempts','account_sync_state','sync_receipts','account_change_feed',
-    'background_jobs','audit_events'], 'the 22 tables are the intended ones');
+    'background_jobs','audit_events',
+    'exams','exam_questions','exam_attempts','exam_answers'], 'the 26 tables are the intended ones');
 
 SELECT is((SELECT count(*)::int FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
            WHERE n.nspname = 'app' AND c.relkind = 'r' AND NOT c.relrowsecurity), 0,
@@ -20,8 +21,8 @@ SELECT is((SELECT count(*)::int FROM pg_class c JOIN pg_namespace n ON n.oid = c
              AND NOT EXISTS (SELECT 1 FROM pg_constraint k WHERE k.conrelid = c.oid AND k.contype = 'p')), 0,
     'every app table has a primary key');
 SELECT is((SELECT count(*)::int FROM pg_constraint
-           WHERE connamespace = 'app'::regnamespace AND contype = 'f'), 28,
-    '28 foreign keys exist');
+           WHERE connamespace = 'app'::regnamespace AND contype = 'f'), 38,
+    '38 foreign keys exist');
 SELECT is((SELECT count(*)::int FROM pg_constraint
            WHERE connamespace = 'app'::regnamespace AND contype = 'f'
              AND confrelid = 'auth.users'::regclass AND confdeltype NOT IN ('r','n')), 0,
@@ -53,7 +54,7 @@ SELECT is((SELECT count(*)::int FROM pg_auth_members m JOIN pg_roles u ON u.oid 
            WHERE u.rolname = 'edu_api'), 0, 'edu_api is not a member of any other role');
 
 -- ---- policies -----------------------------------------------------------------
-SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname = 'app'), 17, '17 policies exist');
+SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname = 'app'), 21, '21 policies exist');
 SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname = 'app' AND roles <> ARRAY['edu_api']::name[]), 0,
     'every policy applies to edu_api only (none to public, anon or authenticated)');
 SELECT is((SELECT count(*)::int FROM pg_policies WHERE schemaname = 'app' AND cmd NOT IN ('SELECT','INSERT')), 0,
@@ -96,8 +97,9 @@ SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'app'::reg
     'no app function is executable by PUBLIC, anon or authenticated');
 SELECT is((SELECT array_agg(p.proname::text ORDER BY p.proname) FROM pg_proc p
            WHERE p.pronamespace = 'app'::regnamespace AND has_function_privilege('edu_api', p.oid, 'EXECUTE')),
-    ARRAY['current_actor_id','sync_apply_operation'],
-    'edu_api may execute exactly current_actor_id and sync_apply_operation');
+    ARRAY['current_actor_id','exam_attempt_review','exam_finish_attempt','exam_start_attempt',
+          'exam_submit_answer','sync_apply_operation'],
+    'edu_api may execute exactly the actor function, the sync function and the four exam functions');
 SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'app'::regnamespace
            AND NOT COALESCE(p.proconfig @> ARRAY['search_path=""'], false)), 0,
     'every app function pins an empty search_path');
@@ -105,8 +107,8 @@ SELECT is((SELECT count(*)::int FROM pg_proc p WHERE p.pronamespace = 'app'::reg
            AND p.prosecdef AND pg_get_userbyid(p.proowner) <> 'postgres'), 0,
     'SECURITY DEFINER functions are owned by the migration owner (postgres)');
 SELECT is((SELECT count(*)::int FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid
-           WHERE c.relnamespace = 'app'::regnamespace AND NOT t.tgisinternal), 16,
-    '16 integrity triggers are installed');
+           WHERE c.relnamespace = 'app'::regnamespace AND NOT t.tgisinternal), 18,
+    '18 integrity triggers are installed');
 
 SELECT * FROM finish();
 ROLLBACK;

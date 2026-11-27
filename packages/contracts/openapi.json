@@ -1,6 +1,160 @@
 {
   "components": {
     "schemas": {
+      "Attempt": {
+        "properties": {
+          "counts_as_exam_score": {
+            "description": "True only for a timed attempt. A practice attempt is never an exam score.",
+            "title": "Counts As Exam Score",
+            "type": "boolean"
+          },
+          "exam_id": {
+            "format": "uuid",
+            "title": "Exam Id",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Timed attempts only. Server time after which answers are refused.",
+            "title": "Expires At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "fr",
+              "ht"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "max_points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Points"
+          },
+          "mode": {
+            "enum": [
+              "practice",
+              "timed"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "score_points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null until the attempt is closed.",
+            "title": "Score Points"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "in_progress",
+              "finished",
+              "expired"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "exam_id",
+          "locale",
+          "mode",
+          "status",
+          "started_at",
+          "expires_at",
+          "finished_at",
+          "score_points",
+          "max_points",
+          "counts_as_exam_score"
+        ],
+        "title": "Attempt",
+        "type": "object"
+      },
+      "AttemptDetailResponse": {
+        "properties": {
+          "attempt": {
+            "$ref": "#/components/schemas/Attempt"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "server_time": {
+            "format": "date-time",
+            "title": "Server Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "attempt",
+          "server_time",
+          "items"
+        ],
+        "title": "AttemptDetailResponse",
+        "type": "object"
+      },
+      "AttemptHistoryResponse": {
+        "properties": {
+          "attempts": {
+            "items": {
+              "$ref": "#/components/schemas/Attempt"
+            },
+            "title": "Attempts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "attempts"
+        ],
+        "title": "AttemptHistoryResponse",
+        "type": "object"
+      },
       "CatalogCourse": {
         "properties": {
           "grade": {
@@ -243,6 +397,167 @@
           "error"
         ],
         "title": "ErrorResponse",
+        "type": "object"
+      },
+      "ExamCatalogResponse": {
+        "properties": {
+          "exams": {
+            "items": {
+              "$ref": "#/components/schemas/ExamSummary"
+            },
+            "title": "Exams",
+            "type": "array"
+          },
+          "locale": {
+            "enum": [
+              "fr",
+              "ht"
+            ],
+            "title": "Locale",
+            "type": "string"
+          }
+        },
+        "required": [
+          "locale",
+          "exams"
+        ],
+        "title": "ExamCatalogResponse",
+        "type": "object"
+      },
+      "ExamQuestion": {
+        "description": "A question as delivered during an attempt: never with its key or explanation.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "mcq",
+              "open"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "points": {
+            "title": "Points",
+            "type": "integer"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "prompt": {
+            "additionalProperties": true,
+            "title": "Prompt",
+            "type": "object"
+          },
+          "response_spec": {
+            "additionalProperties": true,
+            "title": "Response Spec",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "position",
+          "kind",
+          "points",
+          "prompt",
+          "response_spec"
+        ],
+        "title": "ExamQuestion",
+        "type": "object"
+      },
+      "ExamSummary": {
+        "properties": {
+          "duration_minutes": {
+            "title": "Duration Minutes",
+            "type": "integer"
+          },
+          "exam_type": {
+            "enum": [
+              "official",
+              "model",
+              "practice",
+              "rattrapage"
+            ],
+            "title": "Exam Type",
+            "type": "string"
+          },
+          "grade": {
+            "$ref": "#/components/schemas/LabelledCode"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "max_points": {
+            "description": "Points that can be scored automatically (multiple choice).",
+            "title": "Max Points",
+            "type": "integer"
+          },
+          "question_count": {
+            "description": "Questions available in the requested language.",
+            "title": "Question Count",
+            "type": "integer"
+          },
+          "series": {
+            "anyOf": [
+              {
+                "enum": [
+                  "SMP",
+                  "SES",
+                  "SVT",
+                  "LLA"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Series"
+          },
+          "session_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Year"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "subject": {
+            "$ref": "#/components/schemas/LabelledSlug"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "title",
+          "grade",
+          "subject",
+          "series",
+          "exam_type",
+          "session_year",
+          "duration_minutes",
+          "question_count",
+          "max_points"
+        ],
+        "title": "ExamSummary",
         "type": "object"
       },
       "GradeRef": {
@@ -649,6 +964,250 @@
         "title": "ReadyResponse",
         "type": "object"
       },
+      "ReviewItem": {
+        "properties": {
+          "answer_key": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Key"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation"
+          },
+          "is_correct": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Correct"
+          },
+          "kind": {
+            "enum": [
+              "mcq",
+              "open"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "points": {
+            "title": "Points",
+            "type": "integer"
+          },
+          "points_awarded": {
+            "title": "Points Awarded",
+            "type": "integer"
+          },
+          "position": {
+            "title": "Position",
+            "type": "integer"
+          },
+          "prompt": {
+            "additionalProperties": true,
+            "title": "Prompt",
+            "type": "object"
+          },
+          "question_id": {
+            "format": "uuid",
+            "title": "Question Id",
+            "type": "string"
+          },
+          "response": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response"
+          },
+          "response_spec": {
+            "additionalProperties": true,
+            "title": "Response Spec",
+            "type": "object"
+          },
+          "revealed": {
+            "description": "False while the key of this question is still withheld.",
+            "title": "Revealed",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "question_id",
+          "position",
+          "kind",
+          "points",
+          "prompt",
+          "response_spec",
+          "response",
+          "is_correct",
+          "points_awarded",
+          "revealed",
+          "answer_key",
+          "explanation"
+        ],
+        "title": "ReviewItem",
+        "type": "object"
+      },
+      "StartAttemptRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "locale": {
+            "default": "fr",
+            "enum": [
+              "fr",
+              "ht"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "mode": {
+            "enum": [
+              "practice",
+              "timed"
+            ],
+            "title": "Mode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "title": "StartAttemptRequest",
+        "type": "object"
+      },
+      "StartAttemptResponse": {
+        "properties": {
+          "attempt": {
+            "$ref": "#/components/schemas/Attempt"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/ExamQuestion"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "resumed": {
+            "description": "True when an open timed attempt was returned instead of a new one.",
+            "title": "Resumed",
+            "type": "boolean"
+          },
+          "server_time": {
+            "format": "date-time",
+            "title": "Server Time",
+            "type": "string"
+          }
+        },
+        "required": [
+          "attempt",
+          "resumed",
+          "server_time",
+          "questions"
+        ],
+        "title": "StartAttemptResponse",
+        "type": "object"
+      },
+      "SubmitAnswerRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "question_id": {
+            "format": "uuid",
+            "title": "Question Id",
+            "type": "string"
+          },
+          "response": {
+            "additionalProperties": true,
+            "description": "`{\"choice_id\": \"...\"}` (multiple choice) or `{\"text\": \"...\"}` (open answer).",
+            "title": "Response",
+            "type": "object"
+          }
+        },
+        "required": [
+          "question_id",
+          "response"
+        ],
+        "title": "SubmitAnswerRequest",
+        "type": "object"
+      },
+      "SubmitAnswerResponse": {
+        "properties": {
+          "answer_key": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer Key"
+          },
+          "explanation": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Explanation"
+          },
+          "feedback_available": {
+            "description": "True in practice mode. In timed mode nothing is revealed before finishing.",
+            "title": "Feedback Available",
+            "type": "boolean"
+          },
+          "is_correct": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Null in timed mode and for open answers (not scored automatically).",
+            "title": "Is Correct"
+          },
+          "recorded": {
+            "const": true,
+            "default": true,
+            "title": "Recorded",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "feedback_available"
+        ],
+        "title": "SubmitAnswerResponse",
+        "type": "object"
+      },
       "SyncOperation": {
         "additionalProperties": false,
         "properties": {
@@ -836,6 +1395,715 @@
         "summary": "Published courses, units and lessons for one language",
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/v1/exam-attempts": {
+      "get": {
+        "operationId": "list_attempts_v1_exam_attempts_get",
+        "parameters": [
+          {
+            "description": "Only attempts of this exam.",
+            "in": "query",
+            "name": "exam_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only attempts of this exam.",
+              "title": "Exam Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttemptHistoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found (or not published)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A dependency (database or auth key service) is unavailable."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "The signed-in learner's attempts, newest first",
+        "tags": [
+          "exams"
+        ]
+      }
+    },
+    "/v1/exam-attempts/{attempt_id}": {
+      "get": {
+        "description": "While a timed attempt is open, `answer_key` and `explanation` are null for every question.",
+        "operationId": "get_attempt_v1_exam_attempts__attempt_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attempt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttemptDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found (or not published)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A dependency (database or auth key service) is unavailable."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "One of the learner's own attempts, with what may be revealed so far",
+        "tags": [
+          "exams"
+        ]
+      }
+    },
+    "/v1/exam-attempts/{attempt_id}/answers": {
+      "post": {
+        "description": "Practice: the verdict, the key and the explanation come back, and the answer is final.\n\nTimed: the answer is recorded (it may be changed until the attempt is\nfinished) and nothing is revealed. After `expires_at` the answer is refused\nwith `409 attempt_expired`.",
+        "operationId": "submit_answer_v1_exam_attempts__attempt_id__answers_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attempt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitAnswerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitAnswerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found (or not published)."
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A dependency (database or auth key service) is unavailable."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Submit one answer; the server decides whether it is correct",
+        "tags": [
+          "exams"
+        ]
+      }
+    },
+    "/v1/exam-attempts/{attempt_id}/finish": {
+      "post": {
+        "description": "Safe to repeat: finishing a closed attempt returns the same result.",
+        "operationId": "finish_attempt_v1_exam_attempts__attempt_id__finish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attempt_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Attempt Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttemptDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found (or not published)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A dependency (database or auth key service) is unavailable."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Finish an attempt: the server scores it and reveals keys and explanations",
+        "tags": [
+          "exams"
+        ]
+      }
+    },
+    "/v1/exams": {
+      "get": {
+        "description": "Only published exams that have at least one question in `locale`.",
+        "operationId": "list_exams_v1_exams_get",
+        "parameters": [
+          {
+            "description": "Content language: `fr` (French) or `ht` (Haitian Creole).",
+            "in": "query",
+            "name": "locale",
+            "required": true,
+            "schema": {
+              "description": "Content language: `fr` (French) or `ht` (Haitian Creole).",
+              "enum": [
+                "fr",
+                "ht"
+              ],
+              "title": "Locale",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Grade code, e.g. `9AF` or `NS4`.",
+            "in": "query",
+            "name": "grade",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Grade code, e.g. `9AF` or `NS4`.",
+              "title": "Grade"
+            }
+          },
+          {
+            "description": "Subject slug.",
+            "in": "query",
+            "name": "subject",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 80,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Subject slug.",
+              "title": "Subject"
+            }
+          },
+          {
+            "description": "Baccalauréat series.",
+            "in": "query",
+            "name": "series",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "SMP",
+                    "SES",
+                    "SVT",
+                    "LLA"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Baccalauréat series.",
+              "title": "Series"
+            }
+          },
+          {
+            "description": "Kind of paper.",
+            "in": "query",
+            "name": "exam_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "official",
+                    "model",
+                    "practice",
+                    "rattrapage"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Kind of paper.",
+              "title": "Exam Type"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamCatalogResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found (or not published)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A dependency (database or auth key service) is unavailable."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Published exams available in one language",
+        "tags": [
+          "exams"
+        ]
+      }
+    },
+    "/v1/exams/{exam_id}": {
+      "get": {
+        "description": "Metadata only. Questions are delivered when an attempt is started.",
+        "operationId": "get_exam_v1_exams__exam_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Exam Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Content language: `fr` (French) or `ht` (Haitian Creole).",
+            "in": "query",
+            "name": "locale",
+            "required": true,
+            "schema": {
+              "description": "Content language: `fr` (French) or `ht` (Haitian Creole).",
+              "enum": [
+                "fr",
+                "ht"
+              ],
+              "title": "Locale",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExamSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found (or not published)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A dependency (database or auth key service) is unavailable."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "One published exam (no questions)",
+        "tags": [
+          "exams"
+        ]
+      }
+    },
+    "/v1/exams/{exam_id}/attempts": {
+      "post": {
+        "description": "Timed attempts need a live connection and are bounded by `expires_at` (server clock).\n\nStarting a timed attempt while one is still open returns the open one\n(`resumed: true`): a learner cannot hold two clocks on the same exam.",
+        "operationId": "start_attempt_v1_exams__exam_id__attempts_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "exam_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Exam Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartAttemptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StartAttemptResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found (or not published)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A dependency (database or auth key service) is unavailable."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Start (or resume) an attempt and receive the questions without keys",
+        "tags": [
+          "exams"
         ]
       }
     },
