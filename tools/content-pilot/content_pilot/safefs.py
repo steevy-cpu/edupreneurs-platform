@@ -1,18 +1,33 @@
 """The only way the tool touches the filesystem and parses JSON.
 
-Everything the pilot descriptor names is untrusted: it may be an absolute path, contain `..`, or point at a symbolic
-link. These helpers confine every read and write to a root directory, refuse symbolic links and non-regular files,
-bound the bytes read BEFORE parsing, and parse JSON strictly (UTF-8 only, no duplicate members, no NaN/Infinity).
+THREAT MODEL (what is and is not claimed)
+
+* The OPERATOR names two kinds of directory: the pilot root (`--root`) and, optionally, an output directory.
+  Both are TRUSTED inputs: their own ancestors are resolved once by the operator's choice. Run the tool on a checked-out
+  tree you control, writing to a private directory. It is not designed to run on a tree another user can modify
+  while it runs, and nothing here defends against a hostile process with write access to those directories.
+* Everything BELOW the pilot root (descriptor file names, lesson files, extra files) is UNTRUSTED data. It is read
+  by directory handle: each component is opened relative to the previous handle with no-follow, so a symbolic link
+  planted at any level below the root is refused and no name is ever re-resolved after it was checked. Directory
+  enumeration is streamed and bounded (entries, depth, bytes) and counts directories, links and other entries too.
+* Output directories fail CLOSED: if any ancestor of an explicit output directory is a symbolic link (for example
+  `/tmp` on macOS), the tool refuses and asks for the real path. Files are written through a temporary file created
+  and renamed by directory handle, so an existing link is replaced, never followed.
+* Tested: links at the file, directory, descriptor and output levels; linked ancestors of output directories;
+  handle-relative opens; bounded enumeration. NOT tested and NOT claimed: behaviour under a concurrent attacker
+  racing the tool, hard links, bind mounts, or file systems without `O_NOFOLLOW`/`dir_fd` support.
+* Bytes are bounded before parsing and JSON is parsed strictly (UTF-8 only, no duplicate members, no NaN/Infinity).
 """
 
 from __future__ import annotations
 
+import contextlib
 import errno
 import json
 import os
 import re
 import stat
-import tempfile
+from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -44,47 +59,163 @@ def check_relative(rel: object) -> PurePosixPath:
     return path
 
 
-def resolve_inside(root: Path, rel: object) -> Path:
-    """`root/rel`, after checking that no component below `root` is a symbolic link. Missing -> FileNotFoundError."""
-    parts = check_relative(rel).parts
-    cur = Path(os.path.realpath(root))
-    for part in parts:
-        cur = cur / part
-        if stat.S_ISLNK(os.lstat(cur).st_mode):
-            raise ContentFileError("file_unsafe", f"{rel}: symbolic links are not followed")
-    return cur
+_DIR = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+_FILE = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_CLOEXEC", 0)
+_LINK_ERRORS = (errno.ELOOP, errno.ENOTDIR, errno.EMLINK)
+
+
+def _open(name: str | Path, flags: int, what: str, dir_fd: int | None = None, mode: int = 0o777) -> int:
+    """`os.open` that never follows a link in the last component; a link or a non-directory becomes `file_unsafe`."""
+    try:
+        return os.open(name, flags, mode, dir_fd=dir_fd)
+    except OSError as exc:
+        if exc.errno in _LINK_ERRORS:
+            raise ContentFileError("file_unsafe", f"{what}: a symbolic link or a non-directory where a plain entry is required") from exc
+        raise
+
+
+def open_trusted_root(path: Path | str) -> int:
+    """A handle on the directory the OPERATOR named (`--root`, a repository root). Its own ancestors are the operator's
+    responsibility and are resolved once, here; everything BELOW it is walked by handle with no link ever followed."""
+    return _open(os.path.realpath(path), _DIR, str(path))
+
+
+def open_dir_strict(path: Path | str) -> int:
+    """A handle on `path` obtained one component at a time from `/` with NO link followed anywhere, including ancestors.
+    It fails closed on a path that crosses a symbolic link (for example `/tmp` on macOS): give the real path."""
+    absolute = os.path.abspath(path)
+    fd = _open("/", _DIR, "/")
+    try:
+        for part in PurePosixPath(absolute).parts[1:]:
+            nxt = _open(part, _DIR, absolute, dir_fd=fd)
+            os.close(fd)
+            fd = nxt
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def _walk(root_fd: int, parts: tuple[str, ...], what: str) -> int:
+    fd = os.dup(root_fd)
+    try:
+        for part in parts:
+            nxt = _open(part, _DIR, what, dir_fd=fd)
+            os.close(fd)
+            fd = nxt
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def _read_fd(fd: int, name: str, max_bytes: int) -> bytes:
+    st = os.fstat(fd)
+    if not stat.S_ISREG(st.st_mode):
+        raise ContentFileError("file_unsafe", f"{name}: not a regular file")
+    if st.st_size > max_bytes:
+        raise ContentFileError("file_too_large", f"{name}: {st.st_size} bytes exceeds the {max_bytes}-byte limit")
+    data = os.read(fd, max_bytes + 1)
+    while len(data) <= max_bytes:
+        more = os.read(fd, max_bytes + 1 - len(data))
+        if not more:
+            break
+        data += more
+    if len(data) > max_bytes:
+        raise ContentFileError("file_too_large", f"{name}: more than {max_bytes} bytes")
+    return data
 
 
 def read_regular(path: Path, max_bytes: int) -> bytes:
-    """Read a regular file without following a final symbolic link, never more than `max_bytes`."""
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_CLOEXEC", 0)
+    """Read ONE file of the TOOL itself (its own schemas). Not for untrusted trees: use `read_confined`."""
+    fd = _open(path, _FILE, Path(path).name)
     try:
-        fd = os.open(path, flags)
-    except OSError as exc:
-        if exc.errno == errno.ELOOP:
-            raise ContentFileError("file_unsafe", f"{path.name}: symbolic links are not followed") from exc
-        raise
-    try:
-        st = os.fstat(fd)
-        if not stat.S_ISREG(st.st_mode):
-            raise ContentFileError("file_unsafe", f"{path.name}: not a regular file")
-        if st.st_size > max_bytes:
-            raise ContentFileError("file_too_large", f"{path.name}: {st.st_size} bytes exceeds the {max_bytes}-byte limit")
-        data = os.read(fd, max_bytes + 1)
-        while len(data) <= max_bytes:
-            more = os.read(fd, max_bytes + 1 - len(data))
-            if not more:
-                break
-            data += more
-        if len(data) > max_bytes:
-            raise ContentFileError("file_too_large", f"{path.name}: more than {max_bytes} bytes")
-        return data
+        return _read_fd(fd, Path(path).name, max_bytes)
     finally:
         os.close(fd)
 
 
 def read_confined(root: Path, rel: object, max_bytes: int) -> bytes:
-    return read_regular(resolve_inside(root, rel), max_bytes)
+    """Read `rel` below the trusted `root`: every directory component is opened relative to the previous handle with
+    no-follow, so a link planted at ANY level below the root is refused and no path is ever re-resolved by name."""
+    parts = check_relative(rel).parts
+    root_fd = open_trusted_root(root)
+    try:
+        dir_fd = _walk(root_fd, parts[:-1], str(rel))
+        try:
+            fd = _open(parts[-1], _FILE, str(rel), dir_fd=dir_fd)
+            try:
+                return _read_fd(fd, str(rel), max_bytes)
+            finally:
+                os.close(fd)
+        finally:
+            os.close(dir_fd)
+    finally:
+        os.close(root_fd)
+
+
+def read_in_dir(directory: Path | str, name: str, max_bytes: int) -> bytes:
+    """Read `directory/name` where the directory path is checked strictly (no link in any ancestor)."""
+    if not _NAME.match(name):
+        raise ContentFileError("file_reference", f"name {name!r:.80} is not a simple file name")
+    dir_fd = open_dir_strict(directory)
+    try:
+        fd = _open(name, _FILE, name, dir_fd=dir_fd)
+        try:
+            return _read_fd(fd, name, max_bytes)
+        finally:
+            os.close(fd)
+    finally:
+        os.close(dir_fd)
+
+
+@dataclass(frozen=True)
+class TreeEntry:
+    rel: str
+    kind: str  # "file" | "dir" | "link" | "other"
+    size: int = 0
+
+
+def scan_tree(root: Path, *, max_entries: int, max_depth: int, max_bytes: int) -> tuple[list[TreeEntry], str | None]:
+    """Enumerate `root` by directory handle, never following a link, never holding more than `max_entries` entries in
+    memory, stopping as soon as a budget is exceeded. Returns (entries seen so far, reason the scan stopped or None)."""
+    seen: list[TreeEntry] = []
+    total = 0
+    root_fd = open_trusted_root(root)
+    stack: list[tuple[int, str, int]] = [(root_fd, "", 0)]
+    try:
+        while stack:
+            fd, prefix, depth = stack.pop()
+            try:
+                with os.scandir(fd) as it:
+                    for entry in it:  # streamed: a huge directory is cut off, not loaded and sorted
+                        if len(seen) >= max_entries:
+                            return seen, f"more than {max_entries} entries"
+                        st = entry.stat(follow_symlinks=False)
+                        rel = f"{prefix}{entry.name}"
+                        if stat.S_ISLNK(st.st_mode):
+                            seen.append(TreeEntry(rel, "link"))
+                        elif stat.S_ISDIR(st.st_mode):
+                            seen.append(TreeEntry(rel, "dir"))
+                            if depth >= max_depth:
+                                return seen, f"directories nested deeper than {max_depth} levels"
+                            stack.append((_open(entry.name, _DIR, rel, dir_fd=fd), f"{rel}/", depth + 1))
+                        elif stat.S_ISREG(st.st_mode):
+                            total += st.st_size
+                            seen.append(TreeEntry(rel, "file", st.st_size))
+                            if total > max_bytes:
+                                return seen, f"more than {max_bytes} bytes"
+                        else:
+                            seen.append(TreeEntry(rel, "other"))
+            finally:
+                if fd != root_fd:
+                    os.close(fd)
+        return seen, None
+    finally:
+        for fd, _, _ in stack:
+            if fd != root_fd:
+                os.close(fd)
+        os.close(root_fd)
 
 
 def _no_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -142,35 +273,57 @@ _NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$")
 
 
 def ensure_dir_inside(base: Path, rel: str) -> Path:
-    """Create `base/rel` one component at a time, refusing symbolic links on the way."""
-    cur = Path(os.path.realpath(base))
-    for part in check_relative(rel).parts:
-        cur = cur / part
-        if cur.is_symlink():
-            raise ContentFileError("file_unsafe", f"{rel}: symbolic link in the output path")
-        if cur.exists() and not cur.is_dir():
-            raise ContentFileError("file_unsafe", f"{rel}: not a directory")
-        cur.mkdir(exist_ok=True)
-    return cur
+    """Create `base/rel` one component at a time by handle, refusing links; returns the real path of the directory."""
+    parts = check_relative(rel).parts
+    cur = open_trusted_root(base)
+    try:
+        for part in parts:
+            with contextlib.suppress(FileExistsError):
+                os.mkdir(part, 0o777, dir_fd=cur)
+            nxt = _open(part, _DIR, rel, dir_fd=cur)
+            os.close(cur)
+            cur = nxt
+    finally:
+        os.close(cur)
+    return Path(os.path.realpath(base)).joinpath(*parts)
+
+
+def _open_output_dir(directory: Path | str) -> int:
+    """The output directory: its PARENT is checked strictly (no link in any ancestor); the final directory is created
+    when missing and is never a link."""
+    directory = Path(os.path.abspath(directory))
+    parent_fd = open_dir_strict(directory.parent)
+    try:
+        with contextlib.suppress(FileExistsError):
+            os.mkdir(directory.name, 0o777, dir_fd=parent_fd)
+        return _open(directory.name, _DIR, str(directory), dir_fd=parent_fd)
+    finally:
+        os.close(parent_fd)
 
 
 def write_text_atomic(directory: Path, name: str, text: str) -> Path:
-    """Write `directory/name` through a temporary file and `os.replace`, so an existing link is replaced, never followed."""
+    """Write `directory/name` through a temporary file created and renamed by directory handle, so an existing link is
+    replaced, never followed. Fails closed when any ancestor of the directory is a link."""
     if not _NAME.match(name):
         raise ContentFileError("file_reference", f"output name {name!r:.80} is not a simple file name")
-    directory = Path(directory)
-    if directory.is_symlink():
-        raise ContentFileError("file_unsafe", "the output directory is a symbolic link")
-    directory.mkdir(parents=True, exist_ok=True)
-    target = directory / name
-    if target.is_symlink() or (target.exists() and not target.is_file()):
-        raise ContentFileError("file_unsafe", f"{name}: output target is a link or not a regular file")
-    fd, tmp = tempfile.mkstemp(dir=directory, prefix=".tmp-", suffix=".part")
+    dir_fd = _open_output_dir(directory)
+    tmp = f".tmp-{os.getpid()}-{name}.part"
     try:
-        with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
-            fh.write(text)
-        os.replace(tmp, target)
-    except BaseException:
-        Path(tmp).unlink(missing_ok=True)
-        raise
-    return target
+        try:
+            st = os.lstat(name, dir_fd=dir_fd)
+            if not stat.S_ISREG(st.st_mode):
+                raise ContentFileError("file_unsafe", f"{name}: output target is a link or not a regular file")
+        except FileNotFoundError:
+            pass
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0), 0o644, dir_fd=dir_fd)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="") as fh:
+                fh.write(text)
+            os.rename(tmp, name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+        except BaseException:
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(tmp, dir_fd=dir_fd)
+            raise
+    finally:
+        os.close(dir_fd)
+    return Path(os.path.abspath(directory)) / name

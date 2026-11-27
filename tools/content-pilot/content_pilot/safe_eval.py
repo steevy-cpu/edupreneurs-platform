@@ -46,6 +46,7 @@ class EvalLimits:
     max_bits: int = 128
     max_list: int = 10_000
     max_range: int = 100_000
+    max_operands: int = 64  # arguments of max/min/gcd
 
 
 class UnsafeExpression(ValueError):
@@ -184,29 +185,41 @@ def _eval(node: ast.AST, env: dict[str, Any], run: _Run) -> Any:
 
 
 def _call(name: str, args: list[Any], run: _Run) -> Any:
+    """Every builtin enforces the same bounds as the operators: operand counts, step budget, integer bit length."""
+    lim = run.limits
+    if len(args) > lim.max_operands:
+        raise UnsafeExpression(f"more than {lim.max_operands} arguments")
     if name == "range":
         ints = [_int(a) for a in args]
         if not 1 <= len(ints) <= 3 or (len(ints) == 3 and ints[2] == 0):
             raise UnsafeExpression("range needs 1 to 3 integer arguments (step not 0)")
-        if max(abs(a) for a in ints) > run.limits.max_range:
+        if max(abs(a) for a in ints) > lim.max_range:
             raise UnsafeExpression("range too large")
         return range(*ints)
     if name == "gcd":
-        return math.gcd(*[_int(a) for a in args])
+        return _check_bits(math.gcd(*[_int(a) for a in args]), run)
     if name == "abs":
         if len(args) != 1:
             raise UnsafeExpression("abs takes one argument")
-        return abs(_int(args[0]))
+        return _check_bits(abs(_int(args[0])), run)
+    if name in ("max", "min") and len(args) >= 2:
+        return _check_bits(_FUNCS[name](*[_int(a) for a in args]), run)
     if len(args) != 1 or not isinstance(args[0], (list, range)):
-        if name in ("max", "min") and len(args) >= 2:
-            return _FUNCS[name](*[_int(a) for a in args])
         raise UnsafeExpression(f"{name}() takes one list or range")
     seq = args[0]
-    if len(seq) > run.limits.max_list:
+    if len(seq) > lim.max_list:
         raise UnsafeExpression("list too long")
-    if name in ("sum", "max", "min", "sorted"):
-        for item in seq:
-            _int(item)
-    if name in ("max", "min") and len(seq) == 0:
+    for _ in seq:  # sequence work is charged to the step budget before any aggregate runs
+        run.tick()
+    if name == "len":
+        return len(seq)
+    items = [_int(item) for item in seq]
+    if name == "sum":
+        total = 0
+        for item in items:  # check the running total, not only the final one
+            total = _check_bits(total + item, run)
+        return total
+    if name in ("max", "min") and not items:
         raise UnsafeExpression(f"{name}() of an empty list")
-    return _FUNCS[name](seq)
+    result = _FUNCS[name](items)
+    return _check_list(result, run) if isinstance(result, list) else _check_bits(result, run)

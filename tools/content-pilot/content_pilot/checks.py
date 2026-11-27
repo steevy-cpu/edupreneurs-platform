@@ -9,9 +9,7 @@ arithmetic signs, choice text) in BOTH languages.
 
 from __future__ import annotations
 
-import os
 import re
-import stat
 from collections import Counter
 from functools import lru_cache
 from pathlib import Path
@@ -19,6 +17,7 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 
+from .mathcheck import MathError, analyze, statements, value_of
 from .model import (
     DEFAULT_LIMITS,
     LOCALES,
@@ -36,7 +35,7 @@ from .model import (
     stable_id,
 )
 from .safe_eval import UnsafeExpression, safe_eval
-from .safefs import ContentFileError, load_json_confined
+from .safefs import ContentFileError, load_json_confined, scan_tree
 from .textrules import NBSP, math_symbols, number_sequence, scan_text
 
 __all__ = ["TOOL_DIR", "summarize", "validate"]
@@ -91,6 +90,60 @@ def _prose(obj: Any) -> str:
     return "\n".join(t for p, t in _strings(obj) if not _NON_PROSE.search(p))
 
 
+def _scan_math(text: Any, where: str) -> list[Finding]:
+    """Every arithmetic statement the learner reads must be TRUE (exact arithmetic, see mathcheck.py)."""
+    if not isinstance(text, str):
+        return []
+    result = analyze(text)
+    out = [Finding("math_false", where, f"the displayed statement {st.text!r} is false ({st.detail})") for st in result.statements if not st.holds]
+    out += [Finding("math_unparsed", where, f"arithmetic that cannot be interpreted: {p}") for p in result.problems]
+    if result.limit_reached:
+        out.append(Finding("math_limit", where, "the statement limit was reached: later calculations in this text were not verified"))
+    return out
+
+
+def math_coverage(obj: Any, where: str) -> tuple[int, list[tuple[str, str, str]]]:
+    """(verified statements, [(where, kind, text) the tool deliberately did not interpret]) for learner-visible prose."""
+    checked = 0
+    skipped: list[tuple[str, str, str]] = []
+    for path, text in _strings(obj):
+        if _NON_PROSE.search(path):
+            continue
+        result = analyze(text)
+        checked += len(result.statements)
+        for item in result.skipped:
+            entry = (f"{where}{path}", item.kind, item.text)
+            if entry not in skipped:
+                skipped.append(entry)
+    return checked, skipped
+
+
+def _math_in(obj: Any, where: str) -> list[Finding]:
+    out: list[Finding] = []
+    for path, text in _strings(obj):
+        if not _NON_PROSE.search(path):
+            out += _scan_math(text, f"{where}{path}")
+    return out
+
+
+_LETTERS = re.compile(r"[^\W\d_]+", re.UNICODE)
+
+
+def _prose_words(text: str) -> list[str]:
+    """Letter-only lowercase words: digits, signs and punctuation (legitimately shared) are ignored."""
+    return [w.casefold() for w in _LETTERS.findall(text)]
+
+
+def _duplicate_prose(pairs: list[tuple[str, str, str]]) -> list[str]:
+    """Labels of (label, fr_text, ht_text) pairs whose prose (4+ words) is identical in both languages."""
+    same = []
+    for label, fr, ht in pairs:
+        words = _prose_words(fr)
+        if len(words) >= 4 and words == _prose_words(ht):
+            same.append(label)
+    return same
+
+
 def _plain(s: str) -> str:
     return re.sub(r"[\s ]+", "", s)
 
@@ -109,46 +162,27 @@ def _load(root: Path, rel: str, max_bytes: int, where: str, out: list[Finding], 
 
 
 def inventory(root: Path, pilot: dict[str, Any], lim: Limits) -> tuple[list[Finding], bool]:
-    """Walk the pilot directory WITHOUT following links. Returns findings and whether reading must stop."""
+    """Enumerate the pilot directory by handle, never following a link, within a bounded budget. Returns findings and
+    whether reading must stop."""
     expected = {"pilot.json", MANIFEST_NAME}
     for lesson in pilot["lessons"]:
         files = expected_files(lesson)
         expected |= {*files["blocks"].values(), *files["questions"].values(), files["verification"]}
+    entries, stopped = scan_tree(Path(root), max_entries=lim.max_entries, max_depth=4, max_bytes=lim.max_total_bytes)
     out: list[Finding] = []
-    count = total = 0
-    stack: list[tuple[Path, str, int]] = [(Path(os.path.realpath(root)), "", 0)]
-    while stack:
-        directory, prefix, depth = stack.pop()
-        if depth > 4:
-            out.append(Finding("unexpected_file", prefix or ".", "directory nesting is deeper than the pilot layout allows"))
-            continue
-        try:
-            entries = sorted(os.scandir(directory), key=lambda e: e.name)
-        except OSError as exc:
-            out.append(Finding("file_unsafe", prefix or ".", f"cannot list directory: {exc.strerror or exc}"))
-            continue
-        for e in entries:
-            rel = f"{prefix}{e.name}"
-            st = e.stat(follow_symlinks=False)
-            if stat.S_ISLNK(st.st_mode):
-                out.append(Finding("file_unsafe", rel, "symbolic links are not allowed inside a pilot directory"))
-            elif stat.S_ISDIR(st.st_mode):
-                stack.append((Path(e.path), f"{rel}/", depth + 1))
-            elif not stat.S_ISREG(st.st_mode):
-                out.append(Finding("file_unsafe", rel, "only regular files are allowed inside a pilot directory"))
-            else:
-                count += 1
-                total += st.st_size
-                if rel not in expected:
-                    out.append(Finding("unexpected_file", rel, "file is not named by the pilot descriptor"))
-    stop = False
-    if count > lim.max_files:
-        out.append(Finding("resource_limit", ".", f"{count} files exceed the limit of {lim.max_files}"))
-        stop = True
-    if total > lim.max_total_bytes:
-        out.append(Finding("resource_limit", ".", f"{total} bytes exceed the limit of {lim.max_total_bytes}"))
-        stop = True
-    return out, stop
+    for e in entries:
+        if e.kind == "link":
+            out.append(Finding("file_unsafe", e.rel, "symbolic links are not allowed inside a pilot directory"))
+        elif e.kind == "other":
+            out.append(Finding("file_unsafe", e.rel, "only regular files are allowed inside a pilot directory"))
+        elif e.kind == "file" and e.rel not in expected:
+            out.append(Finding("unexpected_file", e.rel, "file is not named by the pilot descriptor"))
+    files_seen = sum(e.kind == "file" for e in entries)
+    if stopped is None and files_seen > lim.max_files:
+        stopped = f"{files_seen} files exceed the limit of {lim.max_files}"
+    if stopped:
+        out.append(Finding("resource_limit", ".", f"the pilot directory exceeds its limits ({stopped})"))
+    return out, stopped is not None
 
 
 def validate(root: Path, *, repo_root: Path | None = None, forbid_approvals: bool = False, limits: Limits | None = None) -> list[Finding]:
@@ -201,6 +235,24 @@ def validate(root: Path, *, repo_root: Path | None = None, forbid_approvals: boo
     for lesson in pilot["lessons"]:
         findings += _validate_lesson(root, lesson, source_ids, blocks_v, mcq_v, verif_v, forbid_approvals, lim)
     return findings
+
+
+# Findings after which the semantic passes must not run: they read fields that the contracts say may be absent or mistyped.
+_STRUCTURAL = frozenset(
+    {
+        "blocks_schema",
+        "questions_schema",
+        "question_schema",
+        "malformed_answer",
+        "duplicate_choice_id",
+        "file_unreadable",
+        "json_invalid",
+        "json_duplicate_member",
+        "file_missing",
+        "file_too_large",
+        "file_unsafe",
+    }
+)
 
 
 def _validate_lesson(
@@ -282,24 +334,39 @@ def _validate_lesson(
             if not any(isinstance(b, dict) and b.get("type") == "example" for b in blocks):
                 add(Finding("no_worked_example", where, "a lesson needs at least one worked example"))
         out.extend(_text_findings(blocks, where))
+        out.extend(_math_in(blocks, where))
 
     # -- language mapping of blocks
     fr_b, ht_b = loaded["blocks"].get("fr"), loaded["blocks"].get("ht")
-    if isinstance(fr_b, list) and isinstance(ht_b, list) and all(isinstance(b, dict) for b in [*fr_b, *ht_b]):
+    blocks_ok = not any(f.code == "blocks_schema" for f in out)
+    if blocks_ok and isinstance(fr_b, list) and isinstance(ht_b, list) and all(isinstance(b, dict) for b in [*fr_b, *ht_b]):
         out += _compare_blocks(w, fr_b, ht_b)
 
     # -- questions
     for loc, questions in loaded["questions"].items():
         out += _validate_questions(w, loc, questions, mcq_v)
     fr_q, ht_q = loaded["questions"].get("fr"), loaded["questions"].get("ht")
-    if isinstance(fr_q, list) and isinstance(ht_q, list) and all(isinstance(q, dict) for q in [*fr_q, *ht_q]):
+    # Cross-language comparison reads fields the contract guarantees; it never runs on a file that failed the contract.
+    questions_ok = not any(f.code in ("question_schema", "questions_schema", "malformed_answer") for f in out)
+    if questions_ok and isinstance(fr_q, list) and isinstance(ht_q, list) and all(isinstance(q, dict) for q in [*fr_q, *ht_q]):
         out += _compare_questions(w, fr_q, ht_q)
 
     # -- mathematical verification: REQUIRED, typed, then bound to what learners read
     if verification is not _FAILED:
         schema_errors = [Finding("verification_schema", f"{w}:verification:{_path(e)}", e.message) for e in verif_v.iter_errors(verification)]
         out += schema_errors
-        if not schema_errors:
+        malformed = [f for f in out if f.severity == "error" and f.where.startswith(w) and f.code in _STRUCTURAL]
+        if malformed:
+            first = malformed[0]
+            out.append(
+                Finding(
+                    "verification_skipped",
+                    f"{w}:verification",
+                    f"semantic verification was not run because the content is malformed (first: {first.code} @ {first.where})",
+                    "warning",
+                )
+            )
+        elif not schema_errors:
             out += _verify_math(w, verification, loaded, lim)
 
     # -- size budget
@@ -340,7 +407,34 @@ def _compare_blocks(w: str, fr: list[Any], ht: list[Any]) -> list[Finding]:
         why = _same_math(a, b)
         if why:
             out.append(Finding("translation_numbers", f"{w}:blocks/{key}", f"{why} (a translation must not change the mathematics)"))
+    pairs = [(f"{a['key']}/{path}", ta, tb) for a, b in zip(fr, ht, strict=True) for (path, ta), (_, tb) in zip(_prose_items(a), _prose_items(b), strict=False)]
+    out += _duplicate_finding(f"{w}:blocks", pairs)
     return out
+
+
+def _prose_items(obj: Any) -> list[tuple[str, str]]:
+    return [(p, t) for p, t in _strings(obj) if not _NON_PROSE.search(p)]
+
+
+def _duplicate_finding(where: str, pairs: list[tuple[str, str, str]]) -> list[Finding]:
+    """One finding per file when prose is identical in fr and ht. Diagnostic only: it cannot judge translation quality."""
+    same = _duplicate_prose(pairs)
+    if not same:
+        return []
+    return [
+        Finding(
+            "translation_duplicate",
+            where,
+            f"{len(same)} of {len(pairs)} fr/ht text fields have identical prose (first: {same[:3]}): the ht file may hold untranslated French. "
+            "Numerals, formulas and symbols may be shared; this diagnostic does not and cannot assess translation quality, which needs a native-speaker review",
+        )
+    ]
+
+
+def _choice_list(spec: Any) -> list[dict[str, Any]]:
+    """The choice objects of a response spec; anything malformed yields fewer (or no) choices, never an exception."""
+    raw = spec.get("choices") if isinstance(spec, dict) else None
+    return [c for c in raw if isinstance(c, dict)] if isinstance(raw, list) else []
 
 
 def _validate_questions(w: str, loc: str, questions: Any, mcq_v: Draft202012Validator) -> list[Finding]:
@@ -371,18 +465,24 @@ def _validate_questions(w: str, loc: str, questions: Any, mcq_v: Draft202012Vali
         for err in mcq_v.iter_errors(contract):
             out.append(Finding("question_schema", f"{qw}:{_path(err)}", err.message))
         spec = q.get("response_spec")
-        chs = [c for c in (spec.get("choices", []) if isinstance(spec, dict) else []) if isinstance(c, dict)]
+        chs = _choice_list(spec)
         ids = [c.get("id") for c in chs]
         texts = [_plain(str(c.get("text", ""))).lower() for c in chs]
-        if len(set(ids)) != len(ids):
-            out.append(Finding("duplicate_choice_id", qw, "choice ids must be unique"))
-        if len(set(texts)) != len(texts):
-            out.append(Finding("duplicate_choice_text", qw, "two choices have the same text"))
         ak = q.get("answer_key")
         correct = ak.get("correct_choice_id") if isinstance(ak, dict) else None
-        if ids.count(correct) != 1:
-            out.append(Finding("malformed_answer", qw, f"correct_choice_id {correct!r} must match exactly one choice id {ids}"))
+        if not all(isinstance(i, str) for i in ids):
+            # Identifiers are compared, counted and used as keys below: anything but a string stops here, by field.
+            bad = [n for n, i in enumerate(ids) if not isinstance(i, str)]
+            out.append(Finding("question_schema", f"{qw}:response_spec/choices", f"choice id must be a string (choice index {bad})"))
+        else:
+            if len(set(ids)) != len(ids):
+                out.append(Finding("duplicate_choice_id", qw, "choice ids must be unique"))
+            if not isinstance(correct, str) or ids.count(correct) != 1:
+                out.append(Finding("malformed_answer", qw, f"correct_choice_id {correct!r} must match exactly one choice id {ids}"))
+        if len(set(texts)) != len(texts):
+            out.append(Finding("duplicate_choice_text", qw, "two choices have the same text"))
         out.extend(_text_findings({k: q[k] for k in ("prompt", "response_spec", "explanation") if k in q}, qw))
+        out.extend(_math_in({k: q[k] for k in ("prompt", "explanation") if k in q}, qw))
     return out
 
 
@@ -393,7 +493,7 @@ def _compare_questions(w: str, fr: list[Any], ht: list[Any]) -> list[Finding]:
 
     def choices(q: dict[str, Any]) -> list[dict[str, Any]]:
         spec = q.get("response_spec")
-        return [c for c in (spec.get("choices", []) if isinstance(spec, dict) else []) if isinstance(c, dict)]
+        return _choice_list(spec)
 
     for a, b in zip(fr, ht, strict=True):
         qk = a.get("question_key")
@@ -409,6 +509,13 @@ def _compare_questions(w: str, fr: list[Any], ht: list[Any]) -> list[Finding]:
             why = _same_math(ca.get("text"), cb.get("text"))
             if why:
                 out.append(Finding("translation_numbers", f"{w}:questions/{qk}/choice-{ca.get('id')}", why))
+    pairs: list[tuple[str, str, str]] = []
+    for a, b in zip(fr, ht, strict=True):
+        qk = str(a.get("question_key"))
+        for part in ("prompt", "explanation"):
+            pairs += [(f"{qk}/{part}", _prose(a.get(part)), _prose(b.get(part)))]
+        pairs += [(f"{qk}/choice-{ca.get('id')}", str(ca.get("text", "")), str(cb.get("text", ""))) for ca, cb in zip(choices(a), choices(b), strict=False)]
+    out += _duplicate_finding(f"{w}:questions", pairs)
     return out
 
 
@@ -467,15 +574,25 @@ def _bind_prompt(qw: str, spec: dict[str, Any], q: dict[str, Any], out: list[Fin
     if math is not None:
         if math.replace(NBSP, " ") not in prompt.replace(NBSP, " "):
             out.append(Finding("prompt_binding", qw, f"the prompt does not contain the verified operation {math!r}"))
+        grouped = re.sub(r"(?<=\d) (?=\d{3}(?!\d))", NBSP, math)  # "6 200" -> "6<NBSP>200", as the learner text writes it
         if "=" in math:  # the prompt states an equality: it must be TRUE
-            if _eval(math.translate(_TRANSLIT).replace("=", "=="), qw, out, lim) is False:
-                out.append(Finding("prompt_binding", qw, f"the statement {math!r} shown in the prompt is false"))
-        elif "compute" in spec and math.translate(_TRANSLIT) != spec["compute"].translate(_TRANSLIT):
-            out.append(
-                Finding(
-                    "prompt_binding", qw, f"the verified operation {math!r} is not the computed expression {spec['compute']!r} (operands or operator differ)"
+            found, problems = statements(grouped)
+            if problems or not found or not all(st.holds for st in found):
+                out.append(Finding("prompt_binding", qw, f"the statement {math!r} shown in the prompt is false or cannot be interpreted"))
+        else:
+            try:
+                if value_of(grouped).denominator != 1:
+                    out.append(Finding("prompt_binding", qw, f"{math!r} is not an exact division: ask for the quotient and the remainder explicitly"))
+            except MathError as exc:
+                out.append(Finding("prompt_binding", qw, f"{math!r} cannot be evaluated: {exc}"))
+            if "compute" in spec and math.translate(_TRANSLIT) != spec["compute"].translate(_TRANSLIT):
+                out.append(
+                    Finding(
+                        "prompt_binding",
+                        qw,
+                        f"the verified operation {math!r} is not the computed expression {spec['compute']!r} (operands or operator differ)",
+                    )
                 )
-            )
 
 
 def _verify_value(qw: str, spec: dict[str, Any], q: dict[str, Any], choices: dict[str, Any], correct: Any, out: list[Finding], lim: Limits) -> None:
@@ -493,7 +610,8 @@ def _verify_value(qw: str, spec: dict[str, Any], q: dict[str, Any], choices: dic
         if not shown or shown[0] != v:
             out.append(Finding("choice_text_mismatch", f"{qw}/{cid}", f"choice shows {shown[:1] or 'no number'} but its verified value is {v}"))
     if isinstance(computed, int) and not isinstance(computed, bool):
-        expl = q.get("explanation", {}).get("text", "")
+        explanation = q.get("explanation")
+        expl = explanation.get("text", "") if isinstance(explanation, dict) and isinstance(explanation.get("text"), str) else ""
         if computed not in set(number_sequence(expl)):
             out.append(Finding("explanation_missing_answer", qw, f"the explanation never states the verified answer {computed}"))
     if spec.get("operands_in_proof") and isinstance(spec.get("compute"), str):
@@ -530,6 +648,16 @@ def _verify_truth(qw: str, spec: dict[str, Any], choices: dict[str, Any], correc
             missing = [n for n in spec["prompt_numbers"] if n not in _literals(expr)]
             if missing:
                 out.append(Finding("prompt_binding", cw, f"prompt numbers {missing} never appear in this choice's proof"))
+        found, problems = statements(text)
+        out += [Finding("math_unparsed", cw, f"arithmetic that cannot be interpreted: {p}") for p in problems]
+        if _PLAIN_EXPR.match(expr) and found and isinstance(truths.get(cid), bool) and all(st.holds for st in found) != truths[cid]:
+            out.append(
+                Finding(
+                    "choice_binding",
+                    cw,
+                    f"the displayed statement {text!r} is {'true' if all(st.holds for st in found) else 'false'} but its proof says {truths[cid]}",
+                )
+            )
 
 
 def _verify_math(w: str, ver: dict[str, Any], loaded: dict[str, dict[str, Any]], lim: Limits) -> list[Finding]:
@@ -548,7 +676,7 @@ def _verify_math(w: str, ver: dict[str, Any], loaded: dict[str, dict[str, Any]],
             if q is None:
                 out.append(Finding("verification_orphan", qw, "verification entry has no matching question"))
                 continue
-            spec_choices = q.get("response_spec", {}).get("choices", []) if isinstance(q.get("response_spec"), dict) else []
+            spec_choices = _choice_list(q.get("response_spec"))
             choices = {c["id"]: c for c in spec_choices if isinstance(c, dict) and "id" in c}
             ak = q.get("answer_key")
             correct = ak.get("correct_choice_id") if isinstance(ak, dict) else None
@@ -582,15 +710,25 @@ def _verify_math(w: str, ver: dict[str, Any], loaded: dict[str, dict[str, Any]],
             if blk is None or blk.get("type") != "example":
                 out.append(Finding("verification_orphan", f"{w}:examples/{e['block']}", "no such example block"))
                 continue
-            text = _plain(" ".join(blk.get("steps", [])))
+            text = _plain("¦".join(blk.get("steps", [])))  # a separator that is not a digit, so steps never run together
             ew = f"{w}:examples/{e['block']}/{loc}"
             for chk in e["checks"]:
                 got = _eval(chk["expr"], ew, out, lim)
                 if got is not None and got != chk["equals"]:
                     out.append(Finding("example_wrong", ew, f"{chk['expr']!r} evaluates to {got!r}, not {chk['equals']!r}"))
                 shown = _plain(chk["must_appear"])
-                if shown not in text:
-                    out.append(Finding("example_not_shown", ew, f"the example does not show {chk['must_appear']!r}"))
+                if not re.search(rf"(?<![0-9]){re.escape(shown)}(?![0-9])", text):  # whole tokens, never a prefix of a longer number
+                    out.append(Finding("example_not_shown", ew, f"the example does not show {chk['must_appear']!r} as complete numbers"))
+                if "//" in chk["expr"] and "=" in chk["must_appear"]:
+                    m = re.fullmatch(r"\s*(\d+)\s*//\s*(\d+)\s*", chk["expr"])
+                    if not m or int(m.group(2)) == 0 or int(m.group(1)) % int(m.group(2)) != 0:
+                        out.append(
+                            Finding(
+                                "example_not_bound",
+                                ew,
+                                f"{chk['expr']!r} is displayed as an exact division but is not one (non-zero remainder or unsupported form)",
+                            )
+                        )
                 # the shown line must BE the checked operation: same operands, same order, same operator
                 if "=" in chk["must_appear"] and isinstance(chk["equals"], int) and not isinstance(chk["equals"], bool) and _PLAIN_EXPR.match(chk["expr"]):
                     lhs = chk["expr"].translate(_TRANSLIT)

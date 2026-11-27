@@ -1,0 +1,76 @@
+name: content-pilot
+
+# Content-02A gate: validates the draft pilot content and runs the COMPLETE content-tool test suite, including the
+# preserved independent QA regressions. Runs entirely on the GitHub runner: no database, no secrets, no deployment,
+# no network beyond installing locked Python dependencies.
+#
+# There is deliberately NO `paths:` filter. A path-filtered workflow that is skipped never reports a status, so it
+# could not be made a required check without blocking every unrelated pull request. The job is cheap enough (about
+# 4-10 minutes) to run on every pull request.
+#
+# Making it BLOCKING is a repository setting, not something this file can do: in branch protection (or a ruleset) for
+# `main`, add the required status check named `content-pilot / verify`.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: content-pilot-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install locked dev tools (ruff, pytest, jsonschema)
+        run: |
+          uv sync --locked --only-group dev --python 3.12
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
+
+      - name: Lint and format check
+        run: |
+          ruff check tools/content-pilot
+          ruff format --check tools/content-pilot
+
+      - name: Strict validation, manifest and review package
+        working-directory: tools/content-pilot
+        run: |
+          python -m content_pilot validate --forbid-approvals
+          python -m content_pilot manifest --check
+          python -m content_pilot verify-manifest
+          python -m content_pilot review-pack --check
+          review_dir=$(mktemp -d "$RUNNER_TEMP/content-pilot.XXXXXXXX")
+          python -m content_pilot review-pack --write --review-dir "$review_dir"
+          diff -qr ../../docs/content-02a/review "$review_dir"
+
+      - name: Every lesson stays an unreviewed draft
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          pilot = json.loads(pathlib.Path("content/pilots/7af-math/pilot.json").read_text(encoding="utf-8"))
+          records = [(l["slug"], loc, l["review"][loc]) for l in pilot["lessons"] for loc in ("fr", "ht")]
+          bad = [(s, loc) for s, loc, r in records if r["status"] != "draft_unreviewed" or r["approvals"]]
+          assert len(records) == 12, len(records)
+          assert not bad, f"approved or approval-bearing records: {bad}"
+          print(f"{len(records)} lesson-language records, all draft_unreviewed")
+          PY
+
+      - name: Complete content test suite, including the independent regressions
+        working-directory: tools/content-pilot
+        env:
+          PYTHONPATH: ${{ github.workspace }}/tools/content-pilot
+        # --runxfail: an expected-failure marker can never hide a failing independent check.
+        run: python -m pytest -q -p no:cacheprovider --runxfail tests

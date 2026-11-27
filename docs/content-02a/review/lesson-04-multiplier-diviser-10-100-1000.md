@@ -262,7 +262,21 @@ Pour chaque exercice : la réponse attendue est marquée. Les calculs ont été 
 | Q4 `paquets-de-feuilles` |  |  |  |  |
 | Q5 `divise-1000` |  |  |  |  |
 
-## 7. Décision pour cette leçon
+## 7. Calculs : ce que l'outil a vérifié et ce qu'il n'a PAS interprété
+
+L'outil a recalculé exactement **24** égalités ou comparaisons chiffrées écrites dans les textes, énoncés et explications (français et créole). Les réponses proposées aux élèves sont contrôlées par un autre mécanisme (fiche de vérification de la leçon).
+**8** relation(s) n'ont **pas** été interprétées par l'outil : **vérifiez-les à la main**.
+
+- `fr/blocs/8/steps/0` — à côté d'une unité de mesure : « 1 m = 100 cm, donc 7 m = 7 × 100 = 700 cm. »
+- `fr/blocs/8/steps/1` — à côté d'une unité de mesure : « 1 km = 1 000 m, donc 3 km = 3 × 1 000 = 3 000 m. »
+- `fr/blocs/8/steps/2` — à côté d'une unité de mesure : « 900 cm = 900 ÷ 100 = 9 m. »
+- `fr/convertir-km/explanation/text` — à côté d'une unité de mesure : « 1 km = 1 000 m, donc 8 km = 8 × 1 000 = 8 000 m. »
+- `ht/blocs/8/steps/0` — à côté d'une unité de mesure : « 1 m = 100 cm, donk 7 m = 7 × 100 = 700 cm. »
+- `ht/blocs/8/steps/1` — à côté d'une unité de mesure : « 1 km = 1 000 m, donk 3 km = 3 × 1 000 = 3 000 m. »
+- `ht/blocs/8/steps/2` — à côté d'une unité de mesure : « 900 cm = 900 ÷ 100 = 9 m. »
+- `ht/convertir-km/explanation/text` — à côté d'une unité de mesure : « 1 km = 1 000 m, donk 8 km = 8 × 1 000 = 8 000 m. »
+
+## 8. Décision pour cette leçon
 
 | Langue | Décision (Approuver / Approuver avec corrections / Rejeter) | Nom | Rôle (enseignant de mathématiques / locuteur natif) | Date | Signature |
 |---|---|---|---|---|---|

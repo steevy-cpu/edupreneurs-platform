@@ -36,8 +36,14 @@ Les leçons ne reprennent que ce que les deux documents ont en commun. **Dites-n
 
 ## Ce que les outils ont déjà contrôlé (et ce qu'ils ne peuvent pas contrôler)
 
-Déjà contrôlé automatiquement : format des fichiers ; chaque calcul des exemples ; chaque réponse attendue (recalculée) ; une seule bonne réponse par exercice ;
+Déjà contrôlé automatiquement : format des fichiers ; les égalités et comparaisons chiffrées écrites avec les symboles + − × ÷ = ≠ < > ≤ ≥ dans les textes, les énoncés
+et les explications (calcul exact, sens des opérations respecté) ; chaque réponse attendue (recalculée) ; une seule bonne réponse par exercice ;
 mêmes nombres en français et en créole ; absence de caractères parasites et de balisage ; tailles.
+
+**Ce que l'outil n'interprète pas, volontairement** : les calculs avec des unités de mesure (`8 km = 8 000 m`), les décompositions en unités nommées
+(`3 480 = 3 milliers + 4 centaines …`), les formules écrites avec des lettres, et toute notation qu'il ne sait pas lire (fraction écrite `1/2`, virgule décimale, puissance,
+signe moins du clavier). Une notation non lisible dans une relation fait **échouer** la validation ; une relation laissée de côté est **listée** dans la feuille de la leçon
+(rubrique « Calculs ») : c'est à vous de la vérifier. Aucun message de l'outil ne doit être lu comme « tous les calculs sont justes ».
 
 **Non contrôlable par une machine** : la qualité pédagogique, la justesse du vocabulaire, le naturel du créole, l'adéquation au programme, la clarté pour un élève.
 C'est précisément votre travail.

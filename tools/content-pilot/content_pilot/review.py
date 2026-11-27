@@ -12,9 +12,9 @@ import io
 from pathlib import Path
 from typing import Any
 
-from .checks import load_descriptor
-from .model import DEFAULT_LIMITS, LOCALES
-from .safefs import load_json_confined
+from .checks import load_descriptor, math_coverage, validate
+from .model import DEFAULT_LIMITS, LOCALES, TOOL_DIR, find_repo_root
+from .safefs import ContentFileError, load_json_confined
 
 TONE_FR = {"tip": "Astuce", "warning": "Attention", "remember": "À retenir"}
 LOC_NAME = {"fr": "français", "ht": "créole haïtien"}
@@ -50,6 +50,27 @@ def _question_md(n: int, q: dict[str, Any]) -> str:
         lines.append(f"- **{chr(ord('A') + pos)}.** {_t(c['text'])}{mark}")
     lines += ["", f"*Explication fournie :* {_t(q['explanation']['text'])}"]
     return "\n".join(lines)
+
+
+KIND_FR = {
+    "unit": "à côté d'une unité de mesure",
+    "named_unit": "formule ou décomposition écrite avec des mots",
+    "fragment": "relation sans nombres des deux côtés (signe cité, formule)",
+    "unsupported_relation": "relation écrite avec un signe que l'outil ne lit pas (par exemple ≈)",
+}
+
+
+def _coverage(root: Path, lesson: dict[str, Any]) -> tuple[int, list[tuple[str, str, str]]]:
+    """(statements verified exactly, relations deliberately NOT interpreted) in the text a learner reads, both languages."""
+    checked = 0
+    skipped: list[tuple[str, str, str]] = []
+    for loc in LOCALES:
+        n, s = math_coverage(_read(root, lesson["files"]["blocks"][loc]), f"{loc}/blocs")
+        checked, skipped = checked + n, skipped + s
+        for q in _read(root, lesson["files"]["questions"][loc]):
+            n, s = math_coverage({k: q[k] for k in ("prompt", "explanation")}, f"{loc}/{q['question_key']}")
+            checked, skipped = checked + n, skipped + s
+    return checked, skipped
 
 
 def _sheet(root: Path, pilot: dict[str, Any], lesson: dict[str, Any]) -> str:
@@ -119,6 +140,22 @@ def _sheet(root: Path, pilot: dict[str, Any], lesson: dict[str, Any]) -> str:
         ls += [f"| Q{n} `{q['question_key']}` |  |  |  |  |" for n, q in enumerate(questions, start=1)]
         ls.append("")
         part += 1
+
+    checked, skipped = _coverage(root, lesson)
+    ls.append(f"## {part}. Calculs : ce que l'outil a vérifié et ce qu'il n'a PAS interprété")
+    ls.append("")
+    ls.append(
+        f"L'outil a recalculé exactement **{checked}** égalités ou comparaisons chiffrées écrites dans les textes, énoncés et explications (français et créole). "
+        "Les réponses proposées aux élèves sont contrôlées par un autre mécanisme (fiche de vérification de la leçon)."
+    )
+    if skipped:
+        ls.append(f"**{len(skipped)}** relation(s) n'ont **pas** été interprétées par l'outil : **vérifiez-les à la main**.")
+        ls.append("")
+        ls += [f"- `{where}` — {KIND_FR[kind]} : « {_t(text)} »" for where, kind, text in skipped]
+    else:
+        ls.append("Aucune relation n'a été laissée de côté dans cette leçon.")
+    ls.append("")
+    part += 1
 
     ls.append(f"## {part}. Décision pour cette leçon")
     ls.append("")
@@ -207,8 +244,14 @@ Les leçons ne reprennent que ce que les deux documents ont en commun. **Dites-n
 
 ## Ce que les outils ont déjà contrôlé (et ce qu'ils ne peuvent pas contrôler)
 
-Déjà contrôlé automatiquement : format des fichiers ; chaque calcul des exemples ; chaque réponse attendue (recalculée) ; une seule bonne réponse par exercice ;
+Déjà contrôlé automatiquement : format des fichiers ; les égalités et comparaisons chiffrées écrites avec les symboles + − × ÷ = ≠ < > ≤ ≥ dans les textes, les énoncés
+et les explications (calcul exact, sens des opérations respecté) ; chaque réponse attendue (recalculée) ; une seule bonne réponse par exercice ;
 mêmes nombres en français et en créole ; absence de caractères parasites et de balisage ; tailles.
+
+**Ce que l'outil n'interprète pas, volontairement** : les calculs avec des unités de mesure (`8 km = 8 000 m`), les décompositions en unités nommées
+(`3 480 = 3 milliers + 4 centaines …`), les formules écrites avec des lettres, et toute notation qu'il ne sait pas lire (fraction écrite `1/2`, virgule décimale, puissance,
+signe moins du clavier). Une notation non lisible dans une relation fait **échouer** la validation ; une relation laissée de côté est **listée** dans la feuille de la leçon
+(rubrique « Calculs ») : c'est à vous de la vérifier. Aucun message de l'outil ne doit être lu comme « tous les calculs sont justes ».
 
 **Non contrôlable par une machine** : la qualité pédagogique, la justesse du vocabulaire, le naturel du créole, l'adéquation au programme, la clarté pour un élève.
 C'est précisément votre travail.
@@ -226,7 +269,22 @@ dans le descripteur du pilote. Voir `docs/content-02a/06-path-to-content-02b.md`
 """
 
 
-def build_review_pack(root: Path) -> dict[str, str]:
+def build_review_pack(root: Path, repo_root: Path | None = None) -> dict[str, str]:
+    """The review package, generated only from content that passes the SAME validation as `validate`.
+
+    A reviewer must never receive a traceback instead of the question to fix, so the child documents are validated
+    first and the first problems are reported with lesson, file, question and field.
+    """
+    if repo_root is None:
+        try:
+            repo_root = find_repo_root(Path(root).resolve())
+        except FileNotFoundError:
+            repo_root = find_repo_root(TOOL_DIR)
+    errors = [f for f in validate(root, repo_root=repo_root) if f.severity == "error"]
+    if errors:
+        shown = "; ".join(f"{f.code} @ {f.where}: {f.message}" for f in errors[:5])
+        more = f" (and {len(errors) - 5} more)" if len(errors) > 5 else ""
+        raise ContentFileError("review_input_invalid", f"the review package cannot be built from invalid content: {shown}{more}")
     pilot = load_descriptor(root)
     files = {"00-guide-de-relecture.md": GUIDE, "answer-key-overview.md": _answer_key(root, pilot), "decisions.template.csv": _csv(root, pilot)}
     for lesson in pilot["lessons"]:
