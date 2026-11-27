@@ -1,0 +1,409 @@
+{
+  "blocks": [
+    {
+      "sample": "simple",
+      "field": "objectif",
+      "blocks": [
+        {
+          "key": "b-1",
+          "type": "paragraph",
+          "text_length": 64
+        }
+      ]
+    },
+    {
+      "sample": "math",
+      "field": "activites_interactives",
+      "blocks": [
+        {
+          "key": "b-1",
+          "type": "paragraph",
+          "text_length": 27
+        }
+      ]
+    },
+    {
+      "sample": "interactive",
+      "field": "activites_interactives",
+      "blocks": [
+        {
+          "key": "b-1",
+          "type": "paragraph",
+          "text_length": 3908
+        }
+      ]
+    }
+  ],
+  "question_lengths": [
+    {
+      "prompt": 53,
+      "choices": [
+        38,
+        56,
+        58,
+        44
+      ],
+      "explanation": 113
+    },
+    {
+      "prompt": 61,
+      "choices": [
+        50,
+        64,
+        31,
+        28
+      ],
+      "explanation": 87
+    },
+    {
+      "prompt": 43,
+      "choices": [
+        33,
+        55,
+        37,
+        39
+      ],
+      "explanation": 103
+    },
+    {
+      "prompt": 80,
+      "choices": [
+        39,
+        38,
+        29,
+        42
+      ],
+      "explanation": 130
+    },
+    {
+      "prompt": 39,
+      "choices": [
+        32,
+        55,
+        44,
+        22
+      ],
+      "explanation": 107
+    },
+    {
+      "prompt": 44,
+      "choices": [
+        29,
+        62,
+        30,
+        28
+      ],
+      "explanation": 100
+    },
+    {
+      "prompt": 44,
+      "choices": [
+        38,
+        56,
+        30,
+        44
+      ],
+      "explanation": 110
+    },
+    {
+      "prompt": 62,
+      "choices": [
+        29,
+        75,
+        26,
+        26
+      ],
+      "explanation": 140
+    },
+    {
+      "prompt": 56,
+      "choices": [
+        23,
+        41,
+        21,
+        34
+      ],
+      "explanation": 143
+    },
+    {
+      "prompt": 54,
+      "choices": [
+        52,
+        71,
+        45,
+        40
+      ],
+      "explanation": 110
+    },
+    {
+      "prompt": 56,
+      "choices": [
+        31,
+        27,
+        40,
+        74
+      ],
+      "explanation": 127
+    },
+    {
+      "prompt": 45,
+      "choices": [
+        20,
+        17,
+        17,
+        27
+      ],
+      "explanation": 178
+    },
+    {
+      "prompt": 57,
+      "choices": [
+        11,
+        19,
+        24,
+        24
+      ],
+      "explanation": 88
+    },
+    {
+      "prompt": 49,
+      "choices": [
+        39,
+        62,
+        38,
+        48
+      ],
+      "explanation": 192
+    },
+    {
+      "prompt": 56,
+      "choices": [
+        23,
+        38,
+        55,
+        20
+      ],
+      "explanation": 155
+    },
+    {
+      "prompt": 89,
+      "choices": [
+        21,
+        19,
+        18,
+        16
+      ],
+      "explanation": 173
+    },
+    {
+      "prompt": 70,
+      "choices": [
+        19,
+        21,
+        18,
+        16
+      ],
+      "explanation": 170
+    },
+    {
+      "prompt": 67,
+      "choices": [
+        20,
+        19,
+        30,
+        16
+      ],
+      "explanation": 151
+    },
+    {
+      "prompt": 64,
+      "choices": [
+        36,
+        30,
+        41,
+        36
+      ],
+      "explanation": 177
+    },
+    {
+      "prompt": 63,
+      "choices": [
+        10,
+        16,
+        10,
+        10
+      ],
+      "explanation": 125
+    },
+    {
+      "prompt": 93,
+      "choices": [
+        7,
+        12,
+        12,
+        13
+      ],
+      "explanation": 204
+    },
+    {
+      "prompt": 106,
+      "choices": [
+        9,
+        11,
+        13,
+        10
+      ],
+      "explanation": 159
+    },
+    {
+      "prompt": 40,
+      "choices": [
+        18,
+        36,
+        69,
+        22
+      ],
+      "explanation": 226
+    },
+    {
+      "prompt": 102,
+      "choices": [
+        10,
+        13,
+        16,
+        8
+      ],
+      "explanation": 166
+    },
+    {
+      "prompt": 89,
+      "choices": [
+        26,
+        18,
+        24,
+        22
+      ],
+      "explanation": 190
+    },
+    {
+      "prompt": 43,
+      "choices": [
+        34,
+        47,
+        58,
+        52
+      ],
+      "explanation": 155
+    },
+    {
+      "prompt": 44,
+      "choices": [
+        48,
+        55,
+        54,
+        53
+      ],
+      "explanation": 126
+    },
+    {
+      "prompt": 44,
+      "choices": [
+        34,
+        45,
+        59,
+        55
+      ],
+      "explanation": 140
+    },
+    {
+      "prompt": 27,
+      "choices": [
+        49,
+        39,
+        46,
+        58
+      ],
+      "explanation": 179
+    },
+    {
+      "prompt": 54,
+      "choices": [
+        6,
+        17,
+        15,
+        17
+      ],
+      "explanation": 172
+    },
+    {
+      "prompt": 51,
+      "choices": [
+        38,
+        69,
+        80,
+        52
+      ],
+      "explanation": 174
+    },
+    {
+      "prompt": 62,
+      "choices": [
+        46,
+        102,
+        56,
+        64
+      ],
+      "explanation": 197
+    },
+    {
+      "prompt": 67,
+      "choices": [
+        61,
+        73,
+        50,
+        52
+      ],
+      "explanation": 198
+    },
+    {
+      "prompt": 61,
+      "choices": [
+        39,
+        25,
+        41,
+        23
+      ],
+      "explanation": 202
+    },
+    {
+      "prompt": 50,
+      "choices": [
+        49,
+        53,
+        85,
+        52
+      ],
+      "explanation": 160
+    },
+    {
+      "prompt": 40,
+      "choices": [
+        43,
+        75,
+        77,
+        58
+      ],
+      "explanation": 156
+    },
+    {
+      "prompt": 46,
+      "choices": [
+        32,
+        91,
+        28,
+        43
+      ],
+      "explanation": 132
+    }
+  ]
+}

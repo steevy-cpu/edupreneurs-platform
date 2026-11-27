@@ -1,0 +1,44 @@
+{
+  "snapshot": {
+    "commit": "1094eb0822759d7bc28f3162285077f30ad38969",
+    "time": "2030-01-01T00:00:00Z"
+  },
+  "hierarchy": {
+    "subjects": [
+      {
+        "id": "00000000-0000-4000-8000-000000000002",
+        "grade": "7AF",
+        "series": null
+      }
+    ],
+    "units": [
+      {
+        "id": "00000000-0000-4000-8000-000000000003",
+        "subject_id": "00000000-0000-4000-8000-000000000002"
+      }
+    ]
+  },
+  "records": [
+    {
+      "table": "lessons",
+      "id": "00000000-0000-4000-8000-000000000001",
+      "title": "Calcul de démonstration",
+      "grade": "7AF",
+      "series": null,
+      "subject_id": "00000000-0000-4000-8000-000000000002",
+      "unit_id": "00000000-0000-4000-8000-000000000003",
+      "revision": 1,
+      "locale": "fr",
+      "assets": [],
+      "objectif": "<h2>Sommes</h2>",
+      "introduction": "<p>Compter des jetons.</p>",
+      "contenu": "<p>2 + 3 = 5</p><ol><li>Compter.</li><li>Vérifier.</li></ol>",
+      "exemples_exercices": null,
+      "activites_interactives": null,
+      "quiz_final": "<div class=\"quiz-container\"><div class=\"quiz-question\" data-number=\"1\"><h3>Question 1</h3><p>Combien de jetons après un ajout de trois à deux ?</p><div class=\"quiz-options\"><div class=\"option\" data-answer=\"A\">Cinq</div><div class=\"option\" data-answer=\"B\">Deux</div></div><div class=\"correct-answer\" data-correct=\"A\"><p><strong>Réponse : A</strong></p><p>Deux et trois font cinq.</p></div></div></div>",
+      "workflow_status": "published",
+      "rights_ref": null,
+      "source_ref": "synthetic:test"
+    }
+  ]
+}
