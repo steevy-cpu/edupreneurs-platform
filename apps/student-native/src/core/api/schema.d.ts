@@ -60,6 +60,150 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/exam-attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The signed-in learner's attempts, newest first */
+        get: operations["list_attempts_v1_exam_attempts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/exam-attempts/{attempt_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One of the learner's own attempts, with what may be revealed so far
+         * @description While a timed attempt is open, `answer_key` and `explanation` are null for every question.
+         */
+        get: operations["get_attempt_v1_exam_attempts__attempt_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/exam-attempts/{attempt_id}/answers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Submit one answer; the server decides whether it is correct
+         * @description Practice: the verdict, the key and the explanation come back, and the answer is final.
+         *
+         *     Timed: the answer is recorded (it may be changed until the attempt is
+         *     finished) and nothing is revealed. After `expires_at` the answer is refused
+         *     with `409 attempt_expired`.
+         */
+        post: operations["submit_answer_v1_exam_attempts__attempt_id__answers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/exam-attempts/{attempt_id}/finish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Finish an attempt: the server scores it and reveals keys and explanations
+         * @description Safe to repeat: finishing a closed attempt returns the same result.
+         */
+        post: operations["finish_attempt_v1_exam_attempts__attempt_id__finish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/exams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Published exams available in one language
+         * @description Only published exams that have at least one question in `locale`.
+         */
+        get: operations["list_exams_v1_exams_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/exams/{exam_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One published exam (no questions)
+         * @description Metadata only. Questions are delivered when an attempt is started.
+         */
+        get: operations["get_exam_v1_exams__exam_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/exams/{exam_id}/attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start (or resume) an attempt and receive the questions without keys
+         * @description Timed attempts need a live connection and are bounded by `expires_at` (server clock).
+         *
+         *     Starting a timed attempt while one is still open returns the open one
+         *     (`resumed: true`): a learner cannot hold two clocks on the same exam.
+         */
+        post: operations["start_attempt_v1_exams__exam_id__attempts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/lessons/{lesson_id}": {
         parameters: {
             query?: never;
@@ -155,6 +299,74 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** Attempt */
+        Attempt: {
+            /**
+             * Counts As Exam Score
+             * @description True only for a timed attempt. A practice attempt is never an exam score.
+             */
+            counts_as_exam_score: boolean;
+            /**
+             * Exam Id
+             * Format: uuid
+             */
+            exam_id: string;
+            /**
+             * Expires At
+             * @description Timed attempts only. Server time after which answers are refused.
+             */
+            expires_at: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "fr" | "ht";
+            /** Max Points */
+            max_points: number | null;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "practice" | "timed";
+            /**
+             * Score Points
+             * @description Null until the attempt is closed.
+             */
+            score_points: number | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "in_progress" | "finished" | "expired";
+        };
+        /** AttemptDetailResponse */
+        AttemptDetailResponse: {
+            attempt: components["schemas"]["Attempt"];
+            /** Items */
+            items: components["schemas"]["ReviewItem"][];
+            /**
+             * Server Time
+             * Format: date-time
+             */
+            server_time: string;
+        };
+        /** AttemptHistoryResponse */
+        AttemptHistoryResponse: {
+            /** Attempts */
+            attempts: components["schemas"]["Attempt"][];
+        };
         /** CatalogCourse */
         CatalogCourse: {
             grade: components["schemas"]["LabelledCode"];
@@ -263,6 +475,79 @@ export interface components {
         /** ErrorResponse */
         ErrorResponse: {
             error: components["schemas"]["ErrorBody"];
+        };
+        /** ExamCatalogResponse */
+        ExamCatalogResponse: {
+            /** Exams */
+            exams: components["schemas"]["ExamSummary"][];
+            /**
+             * Locale
+             * @enum {string}
+             */
+            locale: "fr" | "ht";
+        };
+        /**
+         * ExamQuestion
+         * @description A question as delivered during an attempt: never with its key or explanation.
+         */
+        ExamQuestion: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "mcq" | "open";
+            /** Points */
+            points: number;
+            /** Position */
+            position: number;
+            /** Prompt */
+            prompt: {
+                [key: string]: unknown;
+            };
+            /** Response Spec */
+            response_spec: {
+                [key: string]: unknown;
+            };
+        };
+        /** ExamSummary */
+        ExamSummary: {
+            /** Duration Minutes */
+            duration_minutes: number;
+            /**
+             * Exam Type
+             * @enum {string}
+             */
+            exam_type: "official" | "model" | "practice" | "rattrapage";
+            grade: components["schemas"]["LabelledCode"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Max Points
+             * @description Points that can be scored automatically (multiple choice).
+             */
+            max_points: number;
+            /**
+             * Question Count
+             * @description Questions available in the requested language.
+             */
+            question_count: number;
+            /** Series */
+            series: ("SMP" | "SES" | "SVT" | "LLA") | null;
+            /** Session Year */
+            session_year: number | null;
+            /** Slug */
+            slug: string;
+            subject: components["schemas"]["LabelledSlug"];
+            /** Title */
+            title: string;
         };
         /** GradeRef */
         GradeRef: {
@@ -468,6 +753,124 @@ export interface components {
              */
             status: "ready" | "not_ready";
         };
+        /** ReviewItem */
+        ReviewItem: {
+            /** Answer Key */
+            answer_key: {
+                [key: string]: unknown;
+            } | null;
+            /** Explanation */
+            explanation: {
+                [key: string]: unknown;
+            } | null;
+            /** Is Correct */
+            is_correct: boolean | null;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "mcq" | "open";
+            /** Points */
+            points: number;
+            /** Points Awarded */
+            points_awarded: number;
+            /** Position */
+            position: number;
+            /** Prompt */
+            prompt: {
+                [key: string]: unknown;
+            };
+            /**
+             * Question Id
+             * Format: uuid
+             */
+            question_id: string;
+            /** Response */
+            response: {
+                [key: string]: unknown;
+            } | null;
+            /** Response Spec */
+            response_spec: {
+                [key: string]: unknown;
+            };
+            /**
+             * Revealed
+             * @description False while the key of this question is still withheld.
+             */
+            revealed: boolean;
+        };
+        /** StartAttemptRequest */
+        StartAttemptRequest: {
+            /**
+             * Locale
+             * @default fr
+             * @enum {string}
+             */
+            locale: "fr" | "ht";
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "practice" | "timed";
+        };
+        /** StartAttemptResponse */
+        StartAttemptResponse: {
+            attempt: components["schemas"]["Attempt"];
+            /** Questions */
+            questions: components["schemas"]["ExamQuestion"][];
+            /**
+             * Resumed
+             * @description True when an open timed attempt was returned instead of a new one.
+             */
+            resumed: boolean;
+            /**
+             * Server Time
+             * Format: date-time
+             */
+            server_time: string;
+        };
+        /** SubmitAnswerRequest */
+        SubmitAnswerRequest: {
+            /**
+             * Question Id
+             * Format: uuid
+             */
+            question_id: string;
+            /**
+             * Response
+             * @description `{"choice_id": "..."}` (multiple choice) or `{"text": "..."}` (open answer).
+             */
+            response: {
+                [key: string]: unknown;
+            };
+        };
+        /** SubmitAnswerResponse */
+        SubmitAnswerResponse: {
+            /** Answer Key */
+            answer_key?: {
+                [key: string]: unknown;
+            } | null;
+            /** Explanation */
+            explanation?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Feedback Available
+             * @description True in practice mode. In timed mode nothing is revealed before finishing.
+             */
+            feedback_available: boolean;
+            /**
+             * Is Correct
+             * @description Null in timed mode and for open answers (not scored automatically).
+             */
+            is_correct?: boolean | null;
+            /**
+             * Recorded
+             * @default true
+             * @constant
+             */
+            recorded: true;
+        };
         /** SyncOperation */
         SyncOperation: {
             /**
@@ -576,6 +979,443 @@ export interface operations {
             };
             /** @description Missing or invalid access token. */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A dependency (database or auth key service) is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_attempts_v1_exam_attempts_get: {
+        parameters: {
+            query?: {
+                /** @description Only attempts of this exam. */
+                exam_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttemptHistoryResponse"];
+                };
+            };
+            /** @description Missing or invalid access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found (or not published). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A dependency (database or auth key service) is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_attempt_v1_exam_attempts__attempt_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attempt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttemptDetailResponse"];
+                };
+            };
+            /** @description Missing or invalid access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found (or not published). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A dependency (database or auth key service) is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    submit_answer_v1_exam_attempts__attempt_id__answers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attempt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitAnswerRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmitAnswerResponse"];
+                };
+            };
+            /** @description Missing or invalid access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found (or not published). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A dependency (database or auth key service) is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    finish_attempt_v1_exam_attempts__attempt_id__finish_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                attempt_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttemptDetailResponse"];
+                };
+            };
+            /** @description Missing or invalid access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found (or not published). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A dependency (database or auth key service) is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_exams_v1_exams_get: {
+        parameters: {
+            query: {
+                /** @description Content language: `fr` (French) or `ht` (Haitian Creole). */
+                locale: "fr" | "ht";
+                /** @description Grade code, e.g. `9AF` or `NS4`. */
+                grade?: string | null;
+                /** @description Subject slug. */
+                subject?: string | null;
+                /** @description Baccalauréat series. */
+                series?: ("SMP" | "SES" | "SVT" | "LLA") | null;
+                /** @description Kind of paper. */
+                exam_type?: ("official" | "model" | "practice" | "rattrapage") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamCatalogResponse"];
+                };
+            };
+            /** @description Missing or invalid access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found (or not published). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A dependency (database or auth key service) is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_exam_v1_exams__exam_id__get: {
+        parameters: {
+            query: {
+                /** @description Content language: `fr` (French) or `ht` (Haitian Creole). */
+                locale: "fr" | "ht";
+            };
+            header?: never;
+            path: {
+                exam_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExamSummary"];
+                };
+            };
+            /** @description Missing or invalid access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found (or not published). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request validation failed. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A dependency (database or auth key service) is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    start_attempt_v1_exams__exam_id__attempts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exam_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartAttemptRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartAttemptResponse"];
+                };
+            };
+            /** @description Missing or invalid access token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found (or not published). */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
