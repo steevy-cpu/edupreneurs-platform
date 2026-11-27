@@ -49,10 +49,15 @@ async def check_session(
         SELECT NOT (rolsuper OR rolbypassrls OR rolcreatedb OR rolcreaterole
                     OR rolreplication)
             AND NOT EXISTS (SELECT FROM pg_auth_members WHERE member = r.oid)
-            AND NOT has_database_privilege(r.oid, current_database(), 'CREATE,TEMP')
+            AND NOT has_database_privilege(r.oid, current_database(),
+                                           'CREATE,TEMP,CONNECT WITH GRANT OPTION')
             AND NOT has_schema_privilege(r.oid, 'app', 'USAGE')
             AND NOT has_schema_privilege(r.oid, 'auth', 'USAGE')
-            AND NOT has_schema_privilege(r.oid, 'supabase_migrations', 'CREATE')
+            AND NOT has_schema_privilege(r.oid, 'supabase_migrations', 'USAGE WITH GRANT OPTION')
+            AND NOT EXISTS (
+                SELECT FROM pg_namespace n
+                WHERE has_schema_privilege(r.oid, n.oid, 'CREATE')
+                   OR has_schema_privilege(r.oid, n.oid, 'USAGE WITH GRANT OPTION'))
             AND NOT has_table_privilege(r.oid, 'supabase_migrations.schema_migrations',
                                         'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN')
             AND NOT has_any_column_privilege(r.oid, 'supabase_migrations.schema_migrations',
