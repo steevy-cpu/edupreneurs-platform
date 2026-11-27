@@ -1,0 +1,65 @@
+name: Independent QA after content correction 10620ea
+on:
+  push:
+    branches: [qa/content-02a-retest-10620ea]
+    paths:
+      - ".github/workflows/qa-content-10620ea.yml"
+      - "tools/content-pilot/tests/test_postqa44_independent.py"
+
+permissions:
+  contents: read
+
+jobs:
+  retest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PIN: 10620ea98b4a7bf2907203c17c1c29bfedb95e82
+      ORIGINAL: e24168baddc39e88ea622f78ea99aa790ccd7da7
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v5
+      - name: Verify QA isolation and install locked tools
+        run: |
+          git diff --exit-code "$PIN" HEAD -- content packages docs/content-02a tools/content-pilot/content_pilot tools/content-pilot/schemas uv.lock
+          uv sync --locked --only-group dev --python 3.12
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
+      - name: Complete candidate suite on the exact correction
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/candidate" "$PIN"
+          cd "$RUNNER_TEMP/candidate/tools/content-pilot"
+          python -m pytest -q --runxfail tests
+      - name: Historical 420 assertions verbatim against the corrected code
+        if: ${{ !cancelled() }}
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/historical" "$PIN"
+          git -C "$RUNNER_TEMP/historical" restore --source="$ORIGINAL" --worktree -- tools/content-pilot/tests
+          cd "$RUNNER_TEMP/historical/tools/content-pilot"
+          python -m pytest -q --runxfail --tb=short tests
+      - name: QA tests including new arithmetic and export probes
+        if: ${{ !cancelled() }}
+        working-directory: tools/content-pilot
+        run: |
+          ruff check tests/test_postqa44_independent.py
+          ruff format --check tests/test_postqa44_independent.py
+          python -m pytest -q --runxfail --tb=short tests/test_postqa44_independent.py
+
+  record:
+    if: ${{ !cancelled() }}
+    needs: retest
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - name: Link the disposable run to the QA commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEST_RESULT: ${{ needs.retest.result }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -X POST \
+            -f state="$TEST_RESULT" -f context="QA / independent content retest" \
+            -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            -f description="Original assertions and independent content retest"
