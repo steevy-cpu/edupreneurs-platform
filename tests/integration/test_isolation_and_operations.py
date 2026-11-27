@@ -280,6 +280,14 @@ async def test_openapi_contract(client: httpx.AsyncClient) -> None:
         "/v1/lessons/{lesson_id}",
         "/v1/sync/push",
         "/v1/sync/pull",
+        # ExamHub-01 (routes answer 404 while EDU_EXAMS_ENABLED is false)
+        "/v1/exams",
+        "/v1/exams/{exam_id}",
+        "/v1/exams/{exam_id}/attempts",
+        "/v1/exam-attempts",
+        "/v1/exam-attempts/{attempt_id}",
+        "/v1/exam-attempts/{attempt_id}/answers",
+        "/v1/exam-attempts/{attempt_id}/finish",
     }
     error_ref = {"$ref": "#/components/schemas/ErrorResponse"}
     for path, operations in spec["paths"].items():
