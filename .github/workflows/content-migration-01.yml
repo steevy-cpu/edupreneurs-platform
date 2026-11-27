@@ -1,0 +1,30 @@
+name: Content migration proof
+on:
+  pull_request:
+    paths:
+      - "tools/content-migration-01/**"
+      - "packages/contracts/content/**"
+      - ".github/workflows/content-migration-01.yml"
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --locked --only-group dev
+      - name: Run pure conversion and reconciliation cases
+        working-directory: tools/content-migration-01
+        run: node --test migration.test.mjs
+      - name: Check upstream JSON schemas and the draft-only simulation
+        working-directory: tools/content-migration-01
+        run: |
+          set -o pipefail
+          node cli.mjs simulate synthetic.json | ../../.venv/bin/python verify_contracts.py
