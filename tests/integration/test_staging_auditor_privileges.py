@@ -89,7 +89,11 @@ CASES = [
     ),
     (
         "create-via-schema-ownership",
-        ("CREATE SCHEMA audit_other AUTHORIZATION edu_staging_auditor",),
+        # Creating a schema for another role needs SET membership first (the CI operator is not a superuser).
+        (
+            "GRANT edu_staging_auditor TO CURRENT_USER WITH SET TRUE",
+            "CREATE SCHEMA audit_other AUTHORIZATION edu_staging_auditor",
+        ),
         "has_schema_privilege(current_user, 'audit_other', 'CREATE')",
     ),
     (
