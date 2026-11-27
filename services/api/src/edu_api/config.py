@@ -57,6 +57,16 @@ class Settings(BaseSettings):
     pull_default_limit: int = Field(default=100, ge=1)
     pull_max_limit: int = Field(default=200, ge=1)
 
+    # --- YouTube-01 (all off by default) -----------------------------------------
+    #: While false, GET /v1/lessons/{id}/videos answers 404, as if it did not exist.
+    videos_enabled: bool = False
+    #: Used ONLY by the staff metadata refresh, never by a learner request. Unset
+    #: means the refresh cannot run. Never sent to the app, never logged.
+    youtube_api_key: SecretStr | None = None
+    #: A second, explicit switch: without it the provider client refuses to make a
+    #: network call even if a key is present (quota is a shared, limited resource).
+    youtube_live_calls_authorized: bool = False
+
     @field_validator("auth_algorithms")
     @classmethod
     def _only_asymmetric(cls, value: tuple[str, ...]) -> tuple[str, ...]:

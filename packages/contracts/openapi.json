@@ -382,6 +382,44 @@
         "title": "LessonResponse",
         "type": "object"
       },
+      "LessonVideosResponse": {
+        "properties": {
+          "lesson_id": {
+            "format": "uuid",
+            "title": "Lesson Id",
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "fr",
+              "ht"
+            ],
+            "title": "Locale",
+            "type": "string"
+          },
+          "requires_network": {
+            "const": true,
+            "default": true,
+            "description": "Videos are never available offline; the lesson text is.",
+            "title": "Requires Network",
+            "type": "boolean"
+          },
+          "videos": {
+            "items": {
+              "$ref": "#/components/schemas/VideoCard"
+            },
+            "title": "Videos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "lesson_id",
+          "locale",
+          "videos"
+        ],
+        "title": "LessonVideosResponse",
+        "type": "object"
+      },
       "MeResponse": {
         "properties": {
           "created_at": {
@@ -695,6 +733,112 @@
         ],
         "title": "SyncOperation",
         "type": "object"
+      },
+      "VideoCard": {
+        "properties": {
+          "audio_language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Audio Language"
+          },
+          "channel_title": {
+            "description": "Channel name; always displayed with the video.",
+            "title": "Channel Title",
+            "type": "string"
+          },
+          "channel_url": {
+            "title": "Channel Url",
+            "type": "string"
+          },
+          "duration_seconds": {
+            "title": "Duration Seconds",
+            "type": "integer"
+          },
+          "embed_url": {
+            "description": "Official embedded player. Load only after the learner taps Watch.",
+            "title": "Embed Url",
+            "type": "string"
+          },
+          "link_id": {
+            "format": "uuid",
+            "title": "Link Id",
+            "type": "string"
+          },
+          "made_for_kids": {
+            "description": "YouTube's Made-for-Kids designation. The app adds no engagement feature (comments, likes, sharing, tracking) around any video.",
+            "title": "Made For Kids",
+            "type": "boolean"
+          },
+          "metadata_checked_at": {
+            "format": "date-time",
+            "title": "Metadata Checked At",
+            "type": "string"
+          },
+          "provider": {
+            "const": "youtube",
+            "default": "youtube",
+            "title": "Provider",
+            "type": "string"
+          },
+          "purpose": {
+            "enum": [
+              "explanation",
+              "example",
+              "exercise_help",
+              "enrichment"
+            ],
+            "title": "Purpose",
+            "type": "string"
+          },
+          "start_seconds": {
+            "title": "Start Seconds",
+            "type": "integer"
+          },
+          "thumbnail_url": {
+            "description": "Served by YouTube; display as-is, do not store or alter.",
+            "title": "Thumbnail Url",
+            "type": "string"
+          },
+          "title": {
+            "description": "Title as published on YouTube; display unchanged.",
+            "title": "Title",
+            "type": "string"
+          },
+          "video_id": {
+            "description": "11-character YouTube video id.",
+            "title": "Video Id",
+            "type": "string"
+          },
+          "watch_url": {
+            "description": "Opens the video on YouTube: the fallback when embedding fails.",
+            "title": "Watch Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "link_id",
+          "video_id",
+          "title",
+          "channel_title",
+          "channel_url",
+          "duration_seconds",
+          "start_seconds",
+          "purpose",
+          "audio_language",
+          "made_for_kids",
+          "thumbnail_url",
+          "embed_url",
+          "watch_url",
+          "metadata_checked_at"
+        ],
+        "title": "VideoCard",
+        "type": "object"
       }
     },
     "securitySchemes": {
@@ -930,6 +1074,100 @@
         "summary": "One published lesson with its offline-practice questions",
         "tags": [
           "catalog"
+        ]
+      }
+    },
+    "/v1/lessons/{lesson_id}/videos": {
+      "get": {
+        "description": "Video cards for the lesson in `locale`, in teacher-chosen order.\n\nSame 404 as `GET /v1/lessons/{id}` for an unknown or unpublished lesson. An\nempty `videos` list is normal: the lesson is complete without video.",
+        "operationId": "get_lesson_videos_v1_lessons__lesson_id__videos_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "lesson_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Lesson Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Content language: `fr` (French) or `ht` (Haitian Creole).",
+            "in": "query",
+            "name": "locale",
+            "required": true,
+            "schema": {
+              "description": "Content language: `fr` (French) or `ht` (Haitian Creole).",
+              "enum": [
+                "fr",
+                "ht"
+              ],
+              "title": "Locale",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LessonVideosResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid access token."
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found (or not published)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Request validation failed."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A dependency (database or auth key service) is unavailable."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Teacher-approved YouTube videos for one published lesson",
+        "tags": [
+          "videos"
         ]
       }
     },
