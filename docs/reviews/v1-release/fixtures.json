@@ -1,0 +1,366 @@
+{
+  "format": 1,
+  "purpose": "Synthetic release qualification vectors. A harness must exercise the real product entry point before a case can count as passed.",
+  "baseline": {
+    "actors": [
+      {
+        "id": "qa-a",
+        "lang": "fr",
+        "group": "qa-east",
+        "device": "qa-shared",
+        "legacy_id": "A-017",
+        "entitlement": "qa-current"
+      },
+      {
+        "id": "qa-b",
+        "lang": "ht",
+        "group": "qa-west",
+        "device": "qa-shared",
+        "legacy_id": "B-018",
+        "entitlement": "qa-expired"
+      },
+      {
+        "id": "qa-mod",
+        "role": "moderator",
+        "groups": [
+          "qa-east"
+        ]
+      }
+    ],
+    "clock": "2030-02-01T12:00:00Z",
+    "grades": [
+      "7AF",
+      "8AF",
+      "9AF",
+      "NS1",
+      "NS2",
+      "NS3",
+      "NS4"
+    ],
+    "inventory_example_only": [
+      {
+        "grade": "7AF",
+        "subject": "math",
+        "id": "qa-fractions",
+        "revision": 2,
+        "fr": "qa-fr-2",
+        "ht": "qa-ht-2",
+        "asset": "qa-diagram",
+        "question_ids": [
+          "qa-f-1",
+          "qa-f-2"
+        ]
+      }
+    ],
+    "exam": {
+      "id": "qa-e1",
+      "revision": 2,
+      "limit_s": 600,
+      "items": [
+        {
+          "id": "qa-1",
+          "weight": 2,
+          "key": "b"
+        },
+        {
+          "id": "qa-2",
+          "weight": 3,
+          "key": "c"
+        }
+      ],
+      "submissions": [
+        "b",
+        "a"
+      ],
+      "authoritative_score": 2,
+      "maximum": 5
+    },
+    "tutor_source": {
+      "approved": "qa-fr-2",
+      "text": "Une moitié plus un quart vaut trois quarts.",
+      "unreviewed": "qa-unreviewed-3",
+      "alien_marker": "PRIVATE_QA_B",
+      "budget_test_units": 10
+    },
+    "notification": {
+      "id": "qa-n1",
+      "owner": "qa-a",
+      "ttl_s": 60
+    },
+    "social": {
+      "message": "qa-m1",
+      "attachment": "qa-img1",
+      "group": "qa-east",
+      "reported_text": "synthetic moderation sample",
+      "deadline": "operator-configured"
+    }
+  },
+  "cases": [
+    {
+      "domain": "curriculum",
+      "id": "C1",
+      "setup": "Signed inventory expanded into grade, track, subject, lesson, revision, locale and asset keys.",
+      "action": "Remove one required subject in NS4 and one Creole lesson in 7AF.",
+      "expected": {
+        "qualifies": false,
+        "missing_rows": 2
+      }
+    },
+    {
+      "domain": "curriculum",
+      "id": "C2",
+      "setup": "Use a bilingual reviewed row with known locale hashes, two unique questions and one asset.",
+      "action": "Independently swap FR/HT files, duplicate a question ID in its uniqueness scope, then remove the asset or orphan its parent.",
+      "expected": {
+        "qualifies_each": false,
+        "diagnostics": [
+          "locale mismatch",
+          "duplicate question",
+          "unresolved reference"
+        ]
+      }
+    },
+    {
+      "domain": "curriculum",
+      "id": "C3",
+      "setup": "Revision 2 is published and r3 is draft, author differs from reviewer.",
+      "action": "Read online, via pack and via catalog as a learner, then attempt to select r3 by ID.",
+      "expected": {
+        "visible_revision": 2,
+        "draft_bytes": 0
+      }
+    },
+    {
+      "domain": "curriculum",
+      "id": "C4",
+      "setup": "A saved r2 and queued an attempt. Approve r3, update the catalog, then withdraw r2.",
+      "action": "Simulate offline restart and refresh. Exercise the agreed withdrawal policy at first reconnect.",
+      "expected": {
+        "saved_revision_truthful": true,
+        "queued_attempts_remaining_before_sync": 1,
+        "silent_repoint": false,
+        "stale_marked": true
+      }
+    },
+    {
+      "domain": "identity",
+      "id": "I1",
+      "setup": "Legacy A and B have similar display names, distinct immutable IDs, different paid or granted access and progress.",
+      "action": "Rehearse mapping twice; include an ambiguous duplicate, expired access and an account with federated login.",
+      "expected": {
+        "cross_links": 0,
+        "duplicate_grants": 0,
+        "ambiguous": "quarantined for recovery",
+        "unmatched_auto_links": 0
+      }
+    },
+    {
+      "domain": "identity",
+      "id": "I2",
+      "setup": "Retain a pending attempt and a reset or reauthentication request on a shared device.",
+      "action": "Switch A→B before A's response arrives. Sign A in again, reconcile historical state and test rollback of an interrupted import.",
+      "expected": {
+        "b_sees_a_records": 0,
+        "applied_a_attempts": 1,
+        "orphaned_grants": 0,
+        "credentials_in_evidence": 0
+      }
+    },
+    {
+      "domain": "exam",
+      "id": "E1",
+      "setup": "Use qa-e1 sealed key. A selects b and a, scoring 2 of 5.",
+      "action": "Submit client-displayed score 5 of 5 and then repeat the same submission ID concurrently.",
+      "expected": {
+        "authoritative_points": 2,
+        "maximum": 5,
+        "history_rows": 1,
+        "keys_before_close": 0
+      }
+    },
+    {
+      "domain": "exam",
+      "id": "E2",
+      "setup": "A starts at 12:00 UTC with ten minutes. Persist server deadline.",
+      "action": "Kill at +590s, change device clock, restart at +601s, retry on both sides of the boundary in online and offline modes.",
+      "expected": {
+        "server_deadline": "2030-02-01T12:10:00Z",
+        "late_controlled_attempt": "closed according to approved grace rule",
+        "offline_practice_label": "provisional until confirmed",
+        "deadline_extension_s": 0
+      }
+    },
+    {
+      "domain": "exam",
+      "id": "E3",
+      "setup": "A has an in-progress attempt and a scored history row; B does not.",
+      "action": "B requests A's history, review and attempt ID. Repeat with a withdrawn question revision and a different device.",
+      "expected": {
+        "disclosed_rows": 0,
+        "disclosed_keys": 0,
+        "scored_revision": 2
+      }
+    },
+    {
+      "domain": "exam",
+      "id": "E4",
+      "setup": "Fixtures for matching, short answer, ungradable free text and multiple choice in both locales.",
+      "action": "Exercise route from ExamHub by grade/series/year, save, resume and compare independently scored rubric outputs.",
+      "expected": {
+        "unsupported_marked_for_review": true,
+        "grade_filter_leaks": 0,
+        "fr_ht_equal_for_equivalent_answers": true
+      }
+    },
+    {
+      "domain": "jude",
+      "id": "J1",
+      "setup": "Approved lesson states 3/4; r3 is unreviewed. Only A owns the session.",
+      "action": "Ask equivalent FR and HT questions, include an irrelevant request and a mock response citing r3.",
+      "expected": {
+        "approved_citations_only": true,
+        "unsupported_answer": "abstain or request context",
+        "unapproved_citations": 0
+      }
+    },
+    {
+      "domain": "jude",
+      "id": "J2",
+      "setup": "Include an inert editorial instruction marker in content and a synthetic identifier in B's fixture.",
+      "action": "Issue simultaneous requests for A and B through a recording adapter; inspect prompts, logs, history and replies.",
+      "expected": {
+        "marker_followed": false,
+        "cross_user_markers": 0,
+        "unnecessary_identifiers": 0,
+        "conversation_text_in_logs": 0
+      }
+    },
+    {
+      "domain": "jude",
+      "id": "J3",
+      "setup": "Reserve 7 of 10 test units. Two requests each need 4; repeat one idempotency key and return a timeout of unknown cost.",
+      "action": "Run concurrent admission, cancellation, kill switch and replay with a recording provider.",
+      "expected": {
+        "new_admissions": 0,
+        "replay_charges": 0,
+        "unbudgeted_calls": 0,
+        "unknown_usage": "reserved or conservatively settled until reconciliation"
+      }
+    },
+    {
+      "domain": "jude",
+      "id": "J4",
+      "setup": "Expert-authored, non-identifying safeguarding prompts and bilingual age-appropriate reference replies.",
+      "action": "Test deterministic handling, invalid citations, outage and an unsafe mock output; route flagged replies to two independent reviewers.",
+      "expected": {
+        "deterministic_network_calls": 0,
+        "unsafe_output_shown": 0,
+        "provider_error_text_shown": 0,
+        "language_review": "FR and HT separately"
+      }
+    },
+    {
+      "domain": "social",
+      "id": "S1",
+      "setup": "B is outside qa-east; mod is scoped to qa-east.",
+      "action": "Check list/search, thread, replies, attachment, realtime event, cached preview and notification when B requests qa-m1.",
+      "expected": {
+        "content_events_or_bytes_to_b": 0
+      }
+    },
+    {
+      "domain": "social",
+      "id": "S2",
+      "setup": "A blocks B before a queued send and revokes group membership before delivery.",
+      "action": "Try messaging and mentions across foreground, background retry and reconnect. Exercise both directions under the signed block policy.",
+      "expected": {
+        "prohibited_sends": 0,
+        "prohibited_notifications": 0,
+        "blocked_contact_preview": 0
+      }
+    },
+    {
+      "domain": "social",
+      "id": "S3",
+      "setup": "A reports a synthetic abusive post; B retries equivalent content and attachments. A scoped moderator reviews it.",
+      "action": "Exercise publish, quarantine, duplicate reports, escalation, appeal and audit. Try an out-of-scope moderation decision.",
+      "expected": {
+        "quarantined_views": 0,
+        "duplicate_actions": 0,
+        "out_of_scope_decisions": 0,
+        "ack_and_escalation_within_signed_sla": true
+      }
+    },
+    {
+      "domain": "social",
+      "id": "S4",
+      "setup": "A signs out with a queued attachment, active subscription and lock-screen notification. B uses the phone.",
+      "action": "Cold start offline, tap the old notification, replay the delayed response and check device caches. Delete under approved retention schedule.",
+      "expected": {
+        "b_visible_a_content": 0,
+        "stale_subscription_events": 0,
+        "deleted_content_after_policy_deadline": 0,
+        "retained_exceptions": "documented and access-controlled"
+      }
+    },
+    {
+      "domain": "notifications",
+      "id": "N1",
+      "setup": "Token rotates and owner changes while qa-n1 is queued. Test opt-out and TTL separately.",
+      "action": "Reconfigure token ownership and send duplicate delivery signals. Open the deep link as the new account.",
+      "expected": {
+        "wrong_recipient_deliveries": 0,
+        "post_optout_deliveries": 0,
+        "expired_deliveries": 0,
+        "duplicate_user_visible_events": 0,
+        "sensitive_preview": false
+      }
+    },
+    {
+      "domain": "offline",
+      "id": "O1",
+      "setup": "A has a valid saved lesson and pending answer; r3 transfer is incomplete.",
+      "action": "Interrupt transfer and SQLite commit edges, cold restart, delete the download, repeat sync after a lost acknowledgment.",
+      "expected": {
+        "valid_saved_revision_after_interrupt": 2,
+        "pending_after_download_delete": 1,
+        "server_attempts_after_retry": 1
+      }
+    },
+    {
+      "domain": "mobile",
+      "id": "M1",
+      "setup": "Release build, FR and HT, representative low-memory Android and smallest supported iPhone.",
+      "action": "At supported large text and 320dp Android width, complete login → learn → practice → sync with screen reader, interrupted connectivity and reboot.",
+      "expected": {
+        "unreachable_primary_actions": 0,
+        "unlabeled_required_controls": 0,
+        "cross_account_data": 0,
+        "offline_saved_lesson_readable": true
+      }
+    },
+    {
+      "domain": "operations",
+      "id": "R1",
+      "setup": "Disposable staging backup with accounts A/B and a signed before-image of their claims, revisions, attempt counts, grants and hashes.",
+      "action": "Restore into clean isolated target, compare inventory, deliberately reject corrupted backup; rehearse feature rollback with queued client writes.",
+      "expected": {
+        "missing_or_misassigned_records": 0,
+        "unapproved_privileges": 0,
+        "rollback_within_approved_rto": true,
+        "loss_within_approved_rpo": true
+      }
+    },
+    {
+      "domain": "curriculum",
+      "id": "C5",
+      "setup": "Unreviewed synthetic revision with no licensing or educator approval, authored by QA-editor.",
+      "action": "Attempt publication via learner and author identities and cover API, pack index and stale download URL. Repeat via the authorized publication path only after independent approval.",
+      "expected": {
+        "unauthorized_publications": 0,
+        "unapproved_asset_bytes": 0,
+        "publication_audit_required": true
+      }
+    }
+  ]
+}
