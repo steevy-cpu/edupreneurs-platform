@@ -50,6 +50,19 @@
           "qa-f-1",
           "qa-f-2"
         ]
+      },
+      {
+        "grade": "NS4",
+        "track": "qa-track",
+        "subject": "qa-science",
+        "id": "qa-science-4",
+        "revision": 1,
+        "fr": "qa-fr-s4",
+        "ht": "qa-ht-s4",
+        "asset": "qa-science-diagram",
+        "question_ids": [
+          "qa-s4-1"
+        ]
       }
     ],
     "exam": {
@@ -103,7 +116,12 @@
       "action": "Remove one required subject in NS4 and one Creole lesson in 7AF.",
       "expected": {
         "qualifies": false,
-        "missing_rows": 2
+        "missing_subjects_must_include": [
+          "NS4/qa-track/qa-science"
+        ],
+        "missing_locales_must_include": [
+          "7AF/math/qa-fractions/ht"
+        ]
       }
     },
     {
